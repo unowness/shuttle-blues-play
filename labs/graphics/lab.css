@@ -1,0 +1,115 @@
+/* Shared semantic roles. The lab entry may refresh these from roles.js. */
+:root {
+  color-scheme: dark;
+  --color-space: #000000;
+  --color-backing: #000000;
+  --color-structure: #4980af;
+  --color-text-primary: #d6dce3;
+  --color-text-secondary: #929ca8;
+  --color-active: #79a78f;
+  --color-focus: #d6dce3;
+  /* Matches the production body; Renderer measures this same computed family. */
+  --font-family: "Berkeley Mono", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  --type-body: 400 14px/20px var(--font-family);
+  --type-label: 400 14px/20px var(--font-family);
+  --type-title: 400 16px/24px var(--font-family);
+  --type-readout: 400 15px/15px var(--font-family);
+  --gap-tight: 4px;
+  --gap-pair: 8px;
+  --gap-group: 16px;
+  --gap-block: 24px;
+  --inset-control: 12px;
+  --inset-panel: 20px;
+  --control-line: 20px;
+  --label-line: 20px;
+  --control-height: calc(var(--control-line) + 2 * var(--inset-control));
+  --line-hair: 1px;
+  --line-focus: 2px;
+  --drawer-width: 320px;
+  --drawer-gutter: 16px;
+  --edge-top: max(var(--drawer-gutter), env(safe-area-inset-top));
+  --edge-right: max(var(--drawer-gutter), env(safe-area-inset-right));
+  --edge-bottom: max(var(--drawer-gutter), env(safe-area-inset-bottom));
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: var(--color-space); }
+body { font: var(--type-body); color: var(--color-text-primary); -webkit-font-smoothing: antialiased; }
+[hidden] { display: none !important; }
+#stage { display: block; width: 100vw; height: 100dvh; }
+/* The playable canvas is not a framed control. DOM controls retain focus rings. */
+#stage:focus { outline: none; }
+/* The game draws its own pointer (labs/graphics/cursor.js); the page's cursor names stay as the hints it reads. */
+#stage.drawn-cursor { cursor: none !important; }
+#crt { position: fixed; left: 0; top: 0; display: none; pointer-events: none; z-index: 1; }
+
+button, select, input { font: inherit; }
+button, select {
+  --control-content-line: var(--control-line);
+  min-height: var(--control-height);
+  border: var(--line-hair) solid var(--color-structure);
+  border-radius: 0;
+  color: var(--color-text-primary);
+  background: var(--color-backing);
+  padding: calc((var(--control-height) - var(--control-content-line) - 2 * var(--line-hair)) / 2) var(--inset-control);
+}
+button { cursor: pointer; }
+button:hover, select:hover { border-color: var(--color-text-primary); }
+button:active { color: var(--color-active); }
+button[aria-pressed="true"] { border-color: var(--color-text-primary); text-decoration: underline; text-decoration-thickness: var(--line-hair); text-underline-offset: var(--gap-tight); }
+button:disabled, select:disabled, fieldset:disabled { color: var(--color-text-secondary); cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visible {
+  outline: var(--line-focus) solid var(--color-focus);
+  outline-offset: var(--gap-tight);
+}
+a { color: var(--color-text-primary); text-underline-offset: var(--gap-tight); }
+input[type="checkbox"], input[type="range"] { accent-color: var(--color-active); }
+
+#lab-drawer {
+  position: fixed;
+  left: auto; right: var(--edge-right); top: var(--edge-top); bottom: auto;
+  width: var(--drawer-width);
+  max-width: calc(100vw - 2 * var(--drawer-gutter));
+  max-height: calc(100dvh - var(--edge-top) - var(--edge-bottom));
+  overflow: hidden;
+  border: var(--line-hair) solid var(--color-structure);
+  background: var(--color-backing); color: var(--color-text-primary);
+  padding: 0; margin: 0;
+}
+#lab-drawer[open] { display: flex; flex-direction: column; }
+.drawer-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--inset-panel); }
+#lab-drawer:focus-visible, .drawer-content:focus-visible { outline: var(--line-focus) solid var(--color-focus); outline-offset: calc(-1 * var(--line-focus)); }
+#lab-drawer::backdrop { background: transparent; }
+#lab-drawer header { position: relative; padding-right: var(--control-height); margin-bottom: var(--gap-group); }
+#lab-drawer h1 { font: var(--type-title); margin-bottom: var(--gap-pair); }
+#lab-close { position: absolute; right: calc(-1 * var(--inset-control)); top: calc(-1 * var(--inset-control)); width: var(--control-height); padding: 0; border-color: transparent; }
+.note { color: var(--color-text-secondary); font: var(--type-body); }
+/* The save switch under the drawer's title: a whole-width control on the label type, like a scene's. */
+#save-switch { width: 100%; margin-bottom: var(--gap-block); --control-content-line: var(--label-line); font: var(--type-label); }
+.view-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-pair); margin-bottom: var(--gap-block); }
+.view-picker button { --control-content-line: var(--label-line); font: var(--type-label); padding-inline: var(--gap-tight); }
+fieldset { border: 0; min-width: 0; }
+#tuning > label { display: block; font: var(--type-label); color: var(--color-text-secondary); margin-top: var(--gap-group); margin-bottom: var(--gap-pair); }
+#tuning > label:first-of-type { margin-top: 0; }
+select { width: 100%; }
+.palette-name span { display: block; font: var(--type-label); color: var(--color-text-secondary); margin-bottom: var(--gap-pair); }
+.palette-notes { margin-top: var(--gap-pair); }
+.palette-notes summary { font: var(--type-label); color: var(--color-text-secondary); cursor: pointer; padding-block: calc((var(--control-height) - var(--label-line)) / 2); }
+#swatches { display: flex; gap: var(--gap-tight); margin-bottom: var(--gap-pair); }
+#swatches span { flex: 1; height: var(--gap-group); border: var(--line-hair) solid var(--color-structure); }
+#sky { display: block; width: 100%; min-height: var(--control-height); }
+output { float: right; color: var(--color-text-primary); }
+.checkbox { display: flex; gap: var(--gap-pair); align-items: center; min-height: var(--control-height); margin-block: var(--gap-pair); cursor: pointer; }
+.checkbox input { flex: 0 0 auto; }
+.key-hint { margin-left: auto; font: var(--type-label); color: var(--color-text-secondary); }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-pair); margin-top: var(--gap-group); }
+.actions button { --control-content-line: var(--label-line); font: var(--type-label); }
+#lab-status { margin-top: var(--gap-group); }
+#lab-drawer footer { flex: 0 0 auto; border-top: var(--line-hair) solid var(--color-structure); padding: var(--gap-group) var(--inset-panel) var(--inset-panel); background: var(--color-backing); }
+#resume { width: 100%; }
+.key-help { margin-top: var(--gap-pair); color: var(--color-text-secondary); font: var(--type-label); }
+.main-game-link { display: inline-flex; align-items: center; min-height: var(--control-height); margin-top: var(--gap-pair); }
+
+#announcement, .visually-hidden { position: absolute; width: var(--line-hair); height: var(--line-hair); overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#nickname { position: fixed; display: none; z-index: 12; font: var(--type-readout); text-transform: uppercase; color: var(--color-text-primary); background: var(--color-backing); border: var(--line-hair) solid var(--color-structure); padding-inline: var(--gap-tight); }
+#nickname:focus { border-color: var(--color-focus); }

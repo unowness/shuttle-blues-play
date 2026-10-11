@@ -1,0 +1,138 @@
+{
+ "version": 4,
+ "id": "scooty-jr",
+ "name": "SCOOTY JR.",
+ "width": 3,
+ "height": 5,
+ "fps": 8,
+ "active": 0,
+ "scale": 1.25,
+ "palette": [
+  {
+   "key": "b",
+   "name": "Main",
+   "color": "#6f74c0"
+  },
+  {
+   "key": "a",
+   "name": "Accent",
+   "color": "#b9a5f0"
+  },
+  {
+   "key": "d",
+   "name": "Detail",
+   "color": "#f0a5c0"
+  },
+  {
+   "key": "e",
+   "name": "Extra",
+   "color": "#5ce422"
+  },
+  {
+   "key": "1",
+   "name": "Robin",
+   "color": "#f576c7"
+  },
+  {
+   "key": "2",
+   "name": "Wren",
+   "color": "#eacbee"
+  },
+  {
+   "key": "w",
+   "name": "Home warm",
+   "color": "#bd9c5e"
+  },
+  {
+   "key": "l",
+   "name": "Home lamp",
+   "color": "#ffd27f"
+  }
+ ],
+ "body_color": "#6f74c0",
+ "accent_color": "#b9a5f0",
+ "decoration_color": "#f0a5c0",
+ "extra_color": "#5ce422",
+ "frames": [
+  {
+   "glyphs": [
+    "(@)",
+    " ║ ",
+    "─o─",
+    "   ",
+    "   "
+   ],
+   "colors": [
+    "waw",
+    " w ",
+    "blb",
+    "   ",
+    "   "
+   ]
+  },
+  {
+   "glyphs": [
+    "(@)",
+    " ║ ",
+    "─o─",
+    "  ∙",
+    "   "
+   ],
+   "colors": [
+    "waw",
+    " w ",
+    "blb",
+    "  2",
+    "   "
+   ]
+  },
+  {
+   "glyphs": [
+    "(@)",
+    " ║ ",
+    "─o─",
+    "  ∙",
+    "  ·"
+   ],
+   "colors": [
+    "waw",
+    " w ",
+    "blb",
+    "  1",
+    "  2"
+   ]
+  },
+  {
+   "glyphs": [
+    "(@)",
+    " ║ ",
+    "─o─",
+    "  ∙",
+    "  ·"
+   ],
+   "colors": [
+    "waw",
+    " w ",
+    "blb",
+    "  2",
+    "  1"
+   ]
+  },
+  {
+   "glyphs": [
+    "(@)",
+    " ║ ",
+    "─o─",
+    "  ·",
+    "  ˙"
+   ],
+   "colors": [
+    "waw",
+    " w ",
+    "blb",
+    "  1",
+    "  2"
+   ]
+  }
+ ]
+}

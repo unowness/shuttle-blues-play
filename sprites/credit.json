@@ -1,0 +1,116 @@
+{
+  "version": 4,
+  "id": "credit",
+  "width": 5,
+  "height": 3,
+  "palette": [
+    {
+      "key": "b",
+      "name": "Main",
+      "color": "#d9a441"
+    },
+    {
+      "key": "a",
+      "name": "Accent",
+      "color": "#ffe7a3"
+    },
+    {
+      "key": "d",
+      "name": "Detail",
+      "color": "#9a7128"
+    }
+  ],
+  "body_color": "#d9a441",
+  "accent_color": "#ffe7a3",
+  "decoration_color": "#9a7128",
+  "extra_color": "#d9a441",
+  "background_color": null,
+  "fps": 6,
+  "active": 0,
+  "custom_glyphs": [],
+  "frames": [
+    {
+      "glyphs": [
+        " ╱─╲ ",
+        "│ ¤ │",
+        " ╲─╱ "
+      ],
+      "colors": [
+        " bbb ",
+        "b a b",
+        " bbb "
+      ],
+      "accent_mask": [
+        "     ",
+        "  X  ",
+        "     "
+      ]
+    },
+    {
+      "glyphs": [
+        " ╭─╮ ",
+        " │¤│ ",
+        " ╰─╯ "
+      ],
+      "colors": [
+        " bbb ",
+        " bab ",
+        " bbb "
+      ],
+      "accent_mask": [
+        "     ",
+        "  X  ",
+        "     "
+      ]
+    },
+    {
+      "glyphs": [
+        "  ╷  ",
+        "  │  ",
+        "  ╵  "
+      ],
+      "colors": [
+        "  b  ",
+        "  d  ",
+        "  b  "
+      ],
+      "accent_mask": [
+        "     ",
+        "     ",
+        "     "
+      ]
+    },
+    {
+      "glyphs": [
+        " ╭─╮ ",
+        " │¤│ ",
+        " ╰─╯ "
+      ],
+      "colors": [
+        " bbb ",
+        " bab ",
+        " bbb "
+      ],
+      "accent_mask": [
+        "     ",
+        "  X  ",
+        "     "
+      ]
+    }
+  ],
+  "glyphs": [
+    " ╱─╲ ",
+    "│ ¤ │",
+    " ╲─╱ "
+  ],
+  "colors": [
+    " bbb ",
+    "b a b",
+    " bbb "
+  ],
+  "accent_mask": [
+    "     ",
+    "  X  ",
+    "     "
+  ]
+}

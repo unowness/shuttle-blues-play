@@ -1,0 +1,105 @@
+{
+  "version": 4,
+  "id": "cache-sealed",
+  "width": 9,
+  "height": 5,
+  "palette": [
+    {
+      "key": "b",
+      "name": "Main",
+      "color": "#929ca8"
+    },
+    {
+      "key": "a",
+      "name": "Accent",
+      "color": "#b2c9b8"
+    },
+    {
+      "key": "d",
+      "name": "Detail",
+      "color": "#d6dce3"
+    },
+    {
+      "key": "e",
+      "name": "Extra",
+      "color": "#596571"
+    }
+  ],
+  "body_color": "#929ca8",
+  "accent_color": "#b2c9b8",
+  "decoration_color": "#d6dce3",
+  "extra_color": "#596571",
+  "background_color": null,
+  "fps": 2,
+  "active": 0,
+  "custom_glyphs": [],
+  "frames": [
+    {
+      "glyphs": [
+        "┌──┬─┬──┐",
+        "│: ┊ ┊ :│",
+        "├──┤◇├──┤",
+        "│: ┊ ┊ :│",
+        "└──┴─┴──┘"
+      ],
+      "colors": [
+        "bbbbbbbbb",
+        "be e e eb",
+        "bbbadabbb",
+        "be e e eb",
+        "bbbbbbbbb"
+      ],
+      "accent_mask": [
+        "         ",
+        "         ",
+        "   X X   ",
+        "         ",
+        "         "
+      ]
+    },
+    {
+      "glyphs": [
+        "┌──┬─┬──┐",
+        "│: ┊ ┊ :│",
+        "├──┤◇├──┤",
+        "│: ┊ ┊ :│",
+        "└──┴─┴──┘"
+      ],
+      "colors": [
+        "bbbbbbbbb",
+        "be e e eb",
+        "bbbaaabbb",
+        "be e e eb",
+        "bbbbbbbbb"
+      ],
+      "accent_mask": [
+        "         ",
+        "         ",
+        "   XXX   ",
+        "         ",
+        "         "
+      ]
+    }
+  ],
+  "glyphs": [
+    "┌──┬─┬──┐",
+    "│: ┊ ┊ :│",
+    "├──┤◇├──┤",
+    "│: ┊ ┊ :│",
+    "└──┴─┴──┘"
+  ],
+  "colors": [
+    "bbbbbbbbb",
+    "be e e eb",
+    "bbbadabbb",
+    "be e e eb",
+    "bbbbbbbbb"
+  ],
+  "accent_mask": [
+    "         ",
+    "         ",
+    "   X X   ",
+    "         ",
+    "         "
+  ]
+}

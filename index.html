@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shuttle Blues</title>
+  <!-- No icon yet: an empty one, so the browser does not ask the server for /favicon.ico (a 404 on every load). -->
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="labs/graphics/lab.css">
+</head>
+<body data-mode="game">
+  <!-- The game (2026-09-29): the graphics lab's cockpit and presentation over the
+       shared engine, with the pilot's own save and no lab drawer. -->
+  <!-- [slot: flight-controls | token: glyph-cell] -->
+  <canvas id="stage" tabindex="0" aria-label="Flight canvas. WASD to fly, Space to brake, Shift to fire."></canvas>
+  <canvas id="crt" aria-hidden="true"></canvas>
+  <div id="announcement" role="status" aria-live="polite"></div>
+  <input id="nickname" type="text" maxlength="12" autocomplete="off" spellcheck="false" aria-label="Pilot name">
+  <script type="module" src="labs/graphics/main.js"></script>
+</body>
+</html>

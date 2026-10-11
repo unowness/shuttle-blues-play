@@ -1,0 +1,232 @@
+{
+ "version": 4,
+ "id": "hauler",
+ "width": 5,
+ "height": 6,
+ "palette": [
+  {
+   "key": "b",
+   "name": "Main",
+   "color": "#6f74c0"
+  },
+  {
+   "key": "a",
+   "name": "Accent",
+   "color": "#b9a5f0"
+  },
+  {
+   "key": "d",
+   "name": "Detail",
+   "color": "#f0a5c0"
+  },
+  {
+   "key": "e",
+   "name": "Extra",
+   "color": "#5ce422"
+  },
+  {
+   "key": "1",
+   "name": "Robin",
+   "color": "#f576c7"
+  },
+  {
+   "key": "2",
+   "name": "Wren",
+   "color": "#eacbee"
+  }
+ ],
+ "body_color": "#6f74c0",
+ "accent_color": "#b9a5f0",
+ "decoration_color": "#f0a5c0",
+ "extra_color": "#5ce422",
+ "background_color": null,
+ "fps": 8,
+ "active": 0,
+ "custom_glyphs": [
+  "✦",
+  "◞",
+  "◟"
+ ],
+ "frames": [
+  {
+   "glyphs": [
+    "▗▄▄▄▖",
+    "▐▀▀▀▌",
+    "▐@█@▌",
+    "/\\ /\\",
+    "     ",
+    "     "
+   ],
+   "colors": [
+    "aaaaa",
+    "babab",
+    "bdbdb",
+    "ee ee",
+    "     ",
+    "     "
+   ],
+   "accent_mask": [
+    "XXXXX",
+    " X X ",
+    "     ",
+    "     ",
+    "     ",
+    "     "
+   ]
+  },
+  {
+   "glyphs": [
+    "▗▄▄▄▖",
+    "▐▀▀▀▌",
+    "▐@█@▌",
+    "/\\ /\\",
+    " ✦ ✦ ",
+    "     "
+   ],
+   "colors": [
+    "aaaaa",
+    "babab",
+    "bdbdb",
+    "ee ee",
+    " 1 1 ",
+    "     "
+   ],
+   "accent_mask": [
+    "XXXXX",
+    " X X ",
+    "     ",
+    "     ",
+    "     ",
+    "     "
+   ]
+  },
+  {
+   "glyphs": [
+    "▗▄▄▄▖",
+    "▐▀▀▀▌",
+    "▐@█@▌",
+    "/\\ /\\",
+    " ✦ ✦ ",
+    " ✦ ✦ "
+   ],
+   "colors": [
+    "aaaaa",
+    "babab",
+    "bdbdb",
+    "ee ee",
+    " 2 2 ",
+    " 1 1 "
+   ],
+   "accent_mask": [
+    "XXXXX",
+    " X X ",
+    "     ",
+    "     ",
+    "     ",
+    "     "
+   ]
+  },
+  {
+   "glyphs": [
+    "▗▄▄▄▖",
+    "▐▀▀▀▌",
+    "▐@█@▌",
+    "/\\ /\\",
+    "◞✦ ✦◟",
+    " ✦ ✦ "
+   ],
+   "colors": [
+    "aaaaa",
+    "babab",
+    "bdbdb",
+    "ee ee",
+    "21 12",
+    " 2 2 "
+   ],
+   "accent_mask": [
+    "XXXXX",
+    " X X ",
+    "     ",
+    "     ",
+    "     ",
+    "     "
+   ]
+  },
+  {
+   "glyphs": [
+    "▗▄▄▄▖",
+    "▐▀▀▀▌",
+    "▐@█@▌",
+    "/\\ /\\",
+    "◞✦ ✦◟",
+    " ✦ ✦ "
+   ],
+   "colors": [
+    "aaaaa",
+    "babab",
+    "bdbdb",
+    "ee ee",
+    "12 21",
+    " 1 1 "
+   ],
+   "accent_mask": [
+    "XXXXX",
+    " X X ",
+    "     ",
+    "     ",
+    "     ",
+    "     "
+   ]
+  },
+  {
+   "glyphs": [
+    "▗▄▄▄▖",
+    "▐▀▀▀▌",
+    "▐@█@▌",
+    "/\\ /\\",
+    " ✦ ✦ ",
+    "     "
+   ],
+   "colors": [
+    "aaaaa",
+    "babab",
+    "bdbdb",
+    "ee ee",
+    " 1 1 ",
+    "     "
+   ],
+   "accent_mask": [
+    "XXXXX",
+    " X X ",
+    "     ",
+    "     ",
+    "     ",
+    "     "
+   ]
+  }
+ ],
+ "glyphs": [
+  "▗▄▄▄▖",
+  "▐▀▀▀▌",
+  "▐@█@▌",
+  "/\\ /\\",
+  "     ",
+  "     "
+ ],
+ "colors": [
+  "aaaaa",
+  "babab",
+  "bdbdb",
+  "ee ee",
+  "     ",
+  "     "
+ ],
+ "accent_mask": [
+  "XXXXX",
+  " X X ",
+  "     ",
+  "     ",
+  "     ",
+  "     "
+ ]
+}

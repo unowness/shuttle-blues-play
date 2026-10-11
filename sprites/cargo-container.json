@@ -1,0 +1,89 @@
+{
+  "version": 4,
+  "id": "cargo-container",
+  "width": 5,
+  "height": 7,
+  "palette": [
+    {
+      "key": "b",
+      "name": "Main",
+      "color": "#c9a86b"
+    },
+    {
+      "key": "a",
+      "name": "Accent",
+      "color": "#596571"
+    },
+    {
+      "key": "d",
+      "name": "Detail",
+      "color": "#b2c9b8"
+    }
+  ],
+  "body_color": "#c9a86b",
+  "accent_color": "#596571",
+  "decoration_color": "#b2c9b8",
+  "extra_color": "#c9a86b",
+  "background_color": null,
+  "fps": 1,
+  "active": 0,
+  "custom_glyphs": [],
+  "frames": [
+    {
+      "glyphs": [
+        "┌─┬─┐",
+        "│:┊:│",
+        "├─┼─┤",
+        "│ ◇ │",
+        "├─┼─┤",
+        "│:┊:│",
+        "└─┴─┘"
+      ],
+      "colors": [
+        "bbbbb",
+        "baaab",
+        "baaab",
+        "b d b",
+        "baaab",
+        "baaab",
+        "bbbbb"
+      ],
+      "accent_mask": [
+        "     ",
+        " XXX ",
+        " XXX ",
+        "     ",
+        " XXX ",
+        " XXX ",
+        "     "
+      ]
+    }
+  ],
+  "glyphs": [
+    "┌─┬─┐",
+    "│:┊:│",
+    "├─┼─┤",
+    "│ ◇ │",
+    "├─┼─┤",
+    "│:┊:│",
+    "└─┴─┘"
+  ],
+  "colors": [
+    "bbbbb",
+    "baaab",
+    "baaab",
+    "b d b",
+    "baaab",
+    "baaab",
+    "bbbbb"
+  ],
+  "accent_mask": [
+    "     ",
+    " XXX ",
+    " XXX ",
+    "     ",
+    " XXX ",
+    " XXX ",
+    "     "
+  ]
+}

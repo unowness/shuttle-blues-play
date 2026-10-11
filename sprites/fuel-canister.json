@@ -1,0 +1,91 @@
+{
+  "version": 4,
+  "id": "fuel-canister",
+  "width": 4,
+  "height": 4,
+  "palette": [
+    {
+      "key": "b",
+      "name": "Main",
+      "color": "#79a78f"
+    },
+    {
+      "key": "a",
+      "name": "Accent",
+      "color": "#d6dce3"
+    },
+    {
+      "key": "d",
+      "name": "Detail",
+      "color": "#929ca8"
+    }
+  ],
+  "body_color": "#79a78f",
+  "accent_color": "#d6dce3",
+  "decoration_color": "#929ca8",
+  "extra_color": "#79a78f",
+  "background_color": null,
+  "fps": 2,
+  "active": 0,
+  "custom_glyphs": [],
+  "frames": [
+    {
+      "glyphs": [
+        "  ┌┐",
+        "┌─┴┤",
+        "│░░│",
+        "└──┘"
+      ],
+      "colors": [
+        "  aa",
+        "bbbb",
+        "bbbb",
+        "bbbb"
+      ],
+      "accent_mask": [
+        "  XX",
+        "    ",
+        "    ",
+        "    "
+      ]
+    },
+    {
+      "glyphs": [
+        "  ┌┐",
+        "┌─┴┤",
+        "│▒▒│",
+        "└──┘"
+      ],
+      "colors": [
+        "  aa",
+        "bbbb",
+        "bbbb",
+        "bbbb"
+      ],
+      "accent_mask": [
+        "  XX",
+        "    ",
+        "    ",
+        "    "
+      ]
+    }
+  ],
+  "glyphs": [
+    "  ┌┐",
+    "┌─┴┤",
+    "│░░│",
+    "└──┘"
+  ],
+  "colors": [
+    "  aa",
+    "bbbb",
+    "bbbb",
+    "bbbb"
+  ],
+  "accent_mask": [
+    "  XX",
+    "    ",
+    "    ",
+    "    "
+  ]
+}

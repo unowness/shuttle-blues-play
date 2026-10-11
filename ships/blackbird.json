@@ -1,0 +1,63 @@
+{
+  "version": 4,
+  "id": "blackbird",
+  "name": "BLACKBIRD",
+  "width": 9,
+  "height": 6,
+  "fps": 8,
+  "active": 0,
+  "palette": [
+    {
+      "key": "b",
+      "name": "Main",
+      "color": "#6f74c0"
+    },
+    {
+      "key": "a",
+      "name": "Accent",
+      "color": "#b9a5f0"
+    },
+    {
+      "key": "d",
+      "name": "Detail",
+      "color": "#f0a5c0"
+    },
+    {
+      "key": "e",
+      "name": "Extra",
+      "color": "#5ce422"
+    }
+  ],
+  "body_color": "#6f74c0",
+  "accent_color": "#b9a5f0",
+  "decoration_color": "#f0a5c0",
+  "extra_color": "#5ce422",
+  "nozzles": {
+    "frontL": [1.65, 1.7],
+    "frontR": [6.35, 1.7],
+    "sideL": [-0.45, 4.3],
+    "sideR": [8.45, 4.3],
+    "rearL": [2, 5.45],
+    "rearR": [6, 5.45]
+  },
+  "frames": [
+    {
+      "glyphs": [
+        "    ╽    ",
+        "   ▐◆▌   ",
+        "  ▗▐█▌▖  ",
+        " ◢█▐█▌█◣ ",
+        "◢▀▀▐▀▌▀▀◣",
+        "  ▀   ▀  "
+      ],
+      "colors": [
+        "    d    ",
+        "   bab   ",
+        "  dbbbd  ",
+        " dbbbbbd ",
+        "dbbbbbbbd",
+        "  e   e  "
+      ]
+    }
+  ]
+}
