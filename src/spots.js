@@ -4,6 +4,7 @@ import { SIGNALS } from './progression.js';
 import { CATALOGUE } from './rewards.js';
 import { secretHoleAt } from './secretHole.js';
 import { sectorOpen, openSectorIds } from './frontier.js';
+import { MAP_PLACEMENT, sampleArea } from './mapContentConfig.js';
 
 // Where a quest may put something in the open, worked out from the catalogue alone so it can be chosen for a sector the
 // pilot is not in (the pilot out of fuel, QUESTS_V2_HANDOFF.md: a ship in trouble, a ship pestered, a planet's errand).
@@ -46,7 +47,7 @@ export function nearPlaces(sectorId, fx, fy, places, apart = CONFIG.quests.apart
 // `away` ({ x, y, by } in this sector's units) also `by` u from that point, the pilot's, so what is made does not
 // appear in view; with `avoid` (grid points: the open quests' places, World.questPlaces) CONFIG.quests.apart u from each.
 // Null when 80 tries find nothing.
-export function clearSpot(sectorId, rng, { clear, edge = 0.12, away = null, avoid = null } = {}) {
+export function clearSpot(sectorId, rng, { clear, edge = 0.12, away = null, avoid = null, areas = [], fallback = true } = {}) {
   const sector = sectorById(sectorId);
   if (!sector) return null;
   const things = [
@@ -58,11 +59,22 @@ export function clearSpot(sectorId, rng, { clear, edge = 0.12, away = null, avoi
     ...CATALOGUE.filter((f) => f.sector === sectorId).map((f) => ({ x: f.x * W, y: f.y * H, r: 0 })),
     ...SIGNALS.filter((g) => g.sector === sectorId).map((g) => ({ x: g.x * W, y: g.y * H, r: 0 })),
   ];
+  const legal = (p) => {
+    if (p.x < edge || p.y < edge || p.x > 1 - edge || p.y > 1 - edge) return false;
+    const x = p.x * W, y = p.y * H;
+    return !(away && Math.hypot(away.x - x, away.y - y) <= away.by) &&
+      !(avoid?.length && nearPlaces(sectorId, p.x, p.y, avoid)) &&
+      things.every(t => Math.hypot(t.x - x, t.y - y) > t.r + clear);
+  };
+  const preferred = areas.filter(a => a.sectorId === sectorId && a.radius > 0);
+  for (let i = 0; preferred.length && i < MAP_PLACEMENT.areaTries; i++) {
+    const p = sampleArea(preferred[i % preferred.length], rng, W, H);
+    if (legal(p)) return p;
+  }
+  if (!fallback) return null;
   for (let i = 0; i < 80; i++) {
-    const x = (edge + (1 - 2 * edge) * rng()) * W, y = (edge + (1 - 2 * edge) * rng()) * H;
-    if (away && Math.hypot(away.x - x, away.y - y) <= away.by) continue;
-    if (avoid?.length && nearPlaces(sectorId, x / W, y / H, avoid)) continue;
-    if (things.every((t) => Math.hypot(t.x - x, t.y - y) > t.r + clear)) return { x: x / W, y: y / H };
+    const p = { x: edge + (1 - 2 * edge) * rng(), y: edge + (1 - 2 * edge) * rng() };
+    if (legal(p)) return p;
   }
   return null;
 }

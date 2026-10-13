@@ -22,6 +22,7 @@
 import { CONFIG } from './config.js';
 import { TAU } from './util.js';
 import { PALETTE } from './palette.js';
+import { clearGroundPath } from './groundMath.js';
 
 // The look (labs/graphics/sketches/oil-shades.js, THREE STEPS, LIT). Field levels: `rim` and over is the sparse
 // shade, `body` (1, a lone drop's edge) and over the dense one; `heart` and over, read with the middles moved
@@ -67,7 +68,7 @@ export function poolOil(world, dt) {
     for (let j = i + 1; j < oil.length; j++) {
       const a = oil[i], b = oil[j];
       const g = world.delta(b.x, b.y, a.x, a.y), dist = Math.hypot(g.x, g.y);
-      if (dist >= O.reach || dist < 1e-6) continue;
+      if (dist >= O.reach || dist < 1e-6 || !clearGroundPath(world, a, b)) continue;
       const f = (O.pull * (1 - dist / O.reach) * dt) / dist, m = a.units + b.units;
       a.vx += g.x * f * (2 * b.units / m); a.vy += g.y * f * (2 * b.units / m);
       b.vx -= g.x * f * (2 * a.units / m); b.vy -= g.y * f * (2 * a.units / m);
@@ -81,6 +82,7 @@ export function poolOil(world, dt) {
       if (b.gone) continue;
       const g = world.delta(b.x, b.y, a.x, a.y);
       if (Math.hypot(g.x, g.y) > (oilRadius(a.units) + oilRadius(b.units)) * O.merge) continue;
+      if (!clearGroundPath(world, a, b)) continue;
       const m = a.units + b.units;
       a.x += (g.x * b.units) / m; a.y += (g.y * b.units) / m;
       a.vx = (a.vx * a.units + b.vx * b.units) / m; a.vy = (a.vy * a.units + b.vy * b.units) / m;

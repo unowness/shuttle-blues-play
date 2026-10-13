@@ -7,6 +7,7 @@ import { shipContact, counterweight, noteRecent, newRecent } from './pacing.js';
 import { OWN, npcPalette, paintKeysFor, paintWeights, paintNote } from './npcPaint.js';
 import { openSectorIds } from './frontier.js';
 import { rageConfig, rageChance, rageTop, grazeSpeed, lineFrom, startRage, chase } from './npcRage.js';
+import { GROUND } from './groundConfig.js';
 
 // The friendly NPC ships of the grid, going where they like (SX, 2026-10-02: «нпс корабли должны иметь разные рандомные пути и
 // не летать кругами, у них должен быть спектр гораздо шире радиус полета, и я думаю нам надо их по умному перемешивать в
@@ -84,6 +85,21 @@ function grid() {
   return { blocks, spots };
 }
 let spotSector = null;
+
+// Approach zones make through-traffic read as journeys between places. They
+// are free route nodes outside the station/menu clearance, never docking slots.
+let gates = null;
+function routeGates() {
+  if (gates) return gates;
+  const free = grid().spots;
+  gates = [];
+  for (const s of GRID) for (const st of s.stations ?? []) {
+    const x = s.col * W + st.x * W, y = s.row * H + st.y * H;
+    const points = free.filter((p, i) => spotSector[i] === s.id && Math.hypot(p[0] - x, p[1] - y) < GROUND.traffic.gateRadius);
+    if (points.length) gates.push({ station: st.id, sector: s.id, points });
+  }
+  return gates;
+}
 
 // How many other places a place can run to (a leg of the length a leg has, clear of everything), counted once: a corner is only
 // made at a place with `hub` of them, so a ship is never left in a pocket of the grid with nowhere to go.
@@ -164,6 +180,7 @@ class Walker {
     this.hull = CONFIG.traffic.npcSolid.hull;   // what a blow from the pilot's ship has left it (Fleet.hurt)
     this.knocks = [];                            // blows that knocked it off its path (Fleet.knock): { t, vx, vy, spin }
     this.rage = null;                            // enraged: its simulated state (src/npcRage.js startRage), off its path; or null
+    this.destination = null;                     // the station's free place its journey leans toward (choose; CONFIG.ground.traffic)
   }
 
   // How far the blows have knocked it off its path at time `t`, and its turn and velocity off it: each a kick of velocity
@@ -283,6 +300,14 @@ class Walker {
   choose(rng, open = null, me = null, chance = 0) {
     const { spots: free } = grid(), C = K(), from = this.vertex ?? this.at;
     const prior = this.vertex ? [this.vertex[0] - this.last[0], this.vertex[1] - this.last[1]] : null;
+    const T = GROUND.traffic;
+    if (!this.destination || (open && !open.has(this.destination.sector)) || Math.hypot(from[0] - this.destination.at[0], from[1] - this.destination.at[1]) < T.gateArrival) {
+      const choices = routeGates().filter((g) => (!open || open.has(g.sector)) && g.station !== this.destination?.station);
+      const gate = choices[Math.floor(rng() * choices.length)];
+      this.destination = gate ? { station: gate.station, sector: gate.sector, at: gate.points[Math.floor(rng() * gate.points.length)] } : null;
+    }
+    const goal = this.destination && rng() < T.routeChance ? this.destination.at : null;
+    const distance = goal ? Math.hypot(from[0] - goal[0], from[1] - goal[1]) : 0;
     const toward = me && chance > 0 && Math.hypot(from[0] - me[0], from[1] - me[1]) < C.zone && rng() < chance ? me : null;
     for (let pass = toward ? -1 : 0; pass < 4; pass++) {
       const round = Math.max(0, pass), near = pass < 0 ? toward : null;
@@ -291,6 +316,7 @@ class Walker {
       for (let i = 0; i < tries; i++) {
         const at = round >= 2 ? (first + i) % free.length : Math.min(free.length - 1, Math.floor(rng() * free.length)), q = free[at];
         if (open && !open.has(spotSector[at])) continue;
+        if (pass === 0 && goal && Math.hypot(q[0] - goal[0], q[1] - goal[1]) > Math.max(T.gateArrival, distance * T.gateProgress)) continue;
         if (near && Math.hypot(q[0] - near[0], q[1] - near[1]) > C.pass) continue;
         const dx = q[0] - from[0], dy = q[1] - from[1], len = Math.hypot(dx, dy);
         if (len < C.minLeg * (round ? 0.4 : 1) || len > C.maxLeg * (1 + round)) continue;
@@ -720,6 +746,29 @@ export class Fleet {
         vx: w.rage ? w.rage.vx : Math.cos(p.angle) * pace + (off?.vx ?? 0), vy: w.rage ? w.rage.vy : Math.sin(p.angle) * pace + (off?.vy ?? 0) });
     }
     return out ?? NONE;
+  }
+
+  // The ships in the pilot's sector as fixed bodies of the one plane (src/groundPlane.js): each its hull's envelope where its path
+  // puts it, moving at its path's pace. They shove loose things aside and are never moved by them: a ship keeps to its route (until
+  // 2026-10-13 the pass pushed them off it and a steering took them round obstacles, into planets and kilometres off their paths).
+  // The bodies are kept on the walkers and the list on the fleet: nothing is made a step.
+  groundBodies(world) {
+    const out = this.ground ??= [];
+    out.length = 0;
+    if (world.sector.hidden) return out;
+    const ox = world.sector.col * W, oy = world.sector.row * H, t = world.time;
+    for (const w of this.walkers) {
+      const box = boxOf(w.code);
+      if (!box) continue;
+      const p = w.pose(t), radius = box.reach, x = p.x - ox, y = p.y - oy;
+      if (x < -radius || y < -radius || x > world.width + radius || y > world.height + radius) continue;
+      const b = w.groundProxy ??= { x: 0, y: 0, vx: 0, vy: 0, radius: 0 };
+      const pace = w.rage ? 0 : w.speedAt(t);
+      b.x = x; b.y = y; b.radius = radius;
+      b.vx = w.rage ? w.rage.vx : Math.cos(p.angle) * pace; b.vy = w.rage ? w.rage.vy : Math.sin(p.angle) * pace;
+      out.push(b);
+    }
+    return out;
   }
 
   // A ship knocked off its path by a blow (src/contact.js shipContacts; CONFIG.traffic.npcSolid.knock): `vx`, `vy` the velocity it takes

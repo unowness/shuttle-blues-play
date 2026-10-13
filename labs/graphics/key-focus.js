@@ -109,7 +109,7 @@ export function createKeyFocus(game) {
     const { screens, pause } = game, open = screens.open;
     if (open.help) return 'help';
     if (pause.pauseShown()) return 'pause';
-    if (open.room && !open.pilot && !open.help && screens.room.closingAt === null) return 'room';
+    if (open.room && !open.pilot && !open.hangar && !open.help && screens.room.closingAt === null) return 'room';
     if (open.map && !open.help) return 'map';
     return null;
   }

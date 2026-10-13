@@ -11,6 +11,11 @@ import { pesterOpen, pesterGap, payFor, pickShip, newRecent, noteRecent } from '
 import { sayFor } from './voices.js';
 import { QUEST_LINES as QL } from './questLines.js';
 import { radioFitted } from './opening.js';
+import { pickTypes, pickPaint } from './pirates.js';
+import { replaceRoster } from './pirateRoster.js';
+import { PIRATE_ROLES } from './pirateRolesConfig.js';
+import { recoverPesterCapsule, cleanupPesterCombat } from './pirateCombat.js';
+import { contentAreas } from './mapContent.js';
 
 // Pirates pestering a small ship: the red quest of QUESTS_V2_HANDOFF.md (SX, 2026-10-02: «Красные это рейды или спасти
 // кораблик от набега пиратов. То есть рейды, там большое количество пиратов, мелкие набеги. Там 2-3 пирата просто
@@ -29,6 +34,8 @@ import { radioFitted } from './opening.js';
 //   world.pester = { id, code, paint, name, sectorId, x, y, angle, size, down, ends, hailed, hits, cleared, thanks }   (x, y in world units)
 //   world.pesterLeaving = { x, y, angle, code, paint, name, sectorId, t, limp }                       a ship going away
 //   world.pesterNext    the pilot's clock when the next call may come
+//   pester.mix / piratePaint keep the remaining allocation; combat keeps finite supplies and an optional NPC capsule.
+//   A JACKAL rescue uses the same quest/reward: drive the squad off, recover that capsule, return to this ship.
 //
 // When it may come is the quest economy's (src/pacing.js): not before `first` s of the pilot's clock and a first pirate fight
 // won (Pilot.fought), then `gap` s (by stations restored) from one's end; never while a raid or a reference ship is on,
@@ -54,7 +61,8 @@ export function startPester(world, { here = false } = {}) {
   if (world.pester || world.sector.hidden) return null;
   const sector = pickOf(here ? [world.sector] : questSectors(world.sector, world.ledger), rng);
   const away = sector.id === world.sector.id ? { x: world.ship.x, y: world.ship.y, by: C.apart } : null;
-  const spot = clearSpot(sector.id, rng, { clear: C.clear, edge: C.edge, away, avoid: world.questPlaces() });
+  const areas = here ? [] : contentAreas('pirate-rescue', L, { sectorId: sector.id });
+  const spot = clearSpot(sector.id, rng, { clear: C.clear, edge: C.edge, away, avoid: world.questPlaces(), areas });
   if (!spot) return null;
   // Which of the small ships leans away from the ones the pilot met or was asked about lately (src/pacing.js).
   const recent = (world.recent ??= newRecent()), code = pickShip(C.ships, rng, recent, L.clock);
@@ -67,6 +75,26 @@ export function startPester(world, { here = false } = {}) {
   };
   // In a paint drawn by the counterweights, as the fleet's ships are (src/npcFleet.js questPaint).
   world.pester.paint = world.fleet?.questPaint(world, code) ?? null;
+  // Allocate this existing rescue once. Later hulls replace its slots, never add a second squad or reward.
+  const p = world.pester, pirateRng = world.rng('pirate');
+  p.mix = pickTypes(p.size, pirateRng);
+  p.piratePaint = pickPaint(pirateRng);
+  p.combat = { mineRemaining: PIRATE_ROLES.mine.encounterBudget, supplyRemaining: PIRATE_ROLES.tender.supply };
+  const replacement = replaceRoster(p.mix, { restored: L.restored.size, context: 'recovery', rng: pirateRng });
+  if (replacement.includes('jackal')) {
+    const J = PIRATE_ROLES.jackal;
+    const capsule = { id: `${p.id}:capsule`, owner: 'npc',
+      x: p.x + Math.cos(p.angle) * J.capsuleOffset, y: p.y + Math.sin(p.angle) * J.capsuleOffset,
+      state: 'available', carrierId: null, claimId: null, loadedAt: null, drops: 0 };
+    const departure = clearSpot(p.sectorId, pirateRng, { clear: C.clear, edge: C.edge,
+      away: { x: capsule.x, y: capsule.y, by: J.departureDistance }, avoid: world.questPlaces() });
+    // If there is no clear departure point with interception room, keep the original DART rescue.
+    if (departure) {
+      capsule.exit = { x: departure.x * world.width, y: departure.y * world.height };
+      p.mix = replacement;
+      p.combat.capsule = capsule;
+    }
+  }
   world.emit('pesterStarted', { questId: world.pester.id, name: world.pester.name, sectorId: sector.id, size: world.pester.size });
   return world.pester;
 }
@@ -76,13 +104,18 @@ export function pesterQuest(world) {
   const p = world.pester;
   if (!p) return null;
   const C = P(), sector = sectorById(p.sectorId);
+  const capsule = p.combat?.capsule;
+  const outstanding = capsule && capsule.state !== 'recovered';
   // Driven off, the clock is done with: the ship waits for its thanks to be heard.
   const clock = p.cleared ? {} : { ends: p.ends, time: C.time, left: p.ends - world.ledger.clock };
   return {
     id: p.id, kind: 'pester', tone: 'red', pointer: 'HELP',
-    title: QL.pester.title(p.name), sub: p.cleared ? QL.pester.handIn(sector?.label ?? '') : QL.pester.sub(),
+    title: QL.pester.title(p.name), sub: p.cleared ? QL.pester.handIn(sector?.label ?? '') :
+      outstanding ? QL.pester.recover() : QL.pester.sub(),
     ...clock,
-    target: { sectorId: p.sectorId, x: p.x / world.width, y: p.y / world.height, mark: PESTER_ID, reach: C.ring + 400, lift: 110 },
+    target: outstanding ? { sectorId: p.sectorId, x: capsule.x / world.width, y: capsule.y / world.height,
+      mark: capsule.id, reach: PIRATE_ROLES.jackal.recoverReach, lift: 110 } :
+      { sectorId: p.sectorId, x: p.x / world.width, y: p.y / world.height, mark: PESTER_ID, reach: C.ring + 400, lift: 110 },
     done: [QL.pester.done(p.name), QL.pester.paid(formatCR(payFor('pester', world.ledger.restored.size)))],
     late: [QL.pester.late(), QL.pester.lateSub(p.name)],
   };
@@ -117,10 +150,14 @@ export function stepPester(world, dt) {
     p.hits.splice(i, 1);
     if (world.sector.id === p.sectorId) sparks(world, h);
   }
-  if (p.cleared) return;
+  // Recovery remains possible after the last pirate dies or the page is reloaded.
+  recoverPesterCapsule(world);
+  if (['escaped', 'cancelled'].includes(p.combat?.capsule?.state)) return lose(world, p);
+  if (p.cleared && rescueComplete(p)) return;
+  p.cleared = false;
   if (L.clock >= p.ends) return lose(world, p);
   // Driven off: it waits, its thanks for its window (World.candidates offers HAND IN at it).
-  if (p.down >= p.size) { p.cleared = true; p.thanks = sayFor(world, 'pester', 'thanks', p.code); return; }
+  if (rescueComplete(p)) { p.cleared = true; p.thanks = sayFor(world, 'pester', 'thanks', p.code); return; }
 
   if (!world.ship.alive || world.sector.id !== p.sectorId) return;
   // It calls to a pilot who comes near, once.
@@ -136,7 +173,8 @@ export function stepPester(world, dt) {
     // for the ring is made while the pilot is still `apart` u off or across a seam.
     const keep = C.ring + 220;
     world.asteroids = world.asteroids.filter((a) => Math.hypot(a.x - p.x, a.y - p.y) > keep + a.radius * 1.3);
-    spawnPost(world, p, 'pester', left, { radius: C.ring, wake: C.wake, label: `A ${p.name}` });
+    spawnPost(world, p, 'pester', left, { radius: C.ring, wake: C.wake, label: `A ${p.name}`,
+      record: p, types: p.mix, paint: p.piratePaint });
   }
 }
 
@@ -158,13 +196,15 @@ function smoulder(world, l, dt) {
 // Handed in (its window's HAND IN, in its sector): paid, the ship goes on its way, the next call is a while off.
 export function handInPester(world) {
   const p = world.pester;
-  if (!p?.cleared || p.sectorId !== world.sector.id) return false;
+  if (!p?.cleared || !rescueComplete(p) || p.sectorId !== world.sector.id) return false;
   free(world, p);
   world.selectedId = null;
   return true;
 }
+const rescueComplete = (p) => p.down >= p.size && (!p.combat?.capsule || p.combat.capsule.state === 'recovered');
 function free(world, p) {
   const L = world.ledger, C = P();
+  cleanupPesterCombat(world, p, 'cleared');
   const pay = payFor('pester', L.restored.size);
   L.credits += pay;
   world.questOutcomes.set(p.id, 'done');
@@ -179,11 +219,7 @@ function free(world, p) {
 function lose(world, p) {
   const L = world.ledger;
   world.questOutcomes.set(p.id, 'late');
-  for (const q of world.pirates) {
-    if (q.post?.stationId !== p.id) continue;
-    q.post = null;
-    if (q.mode === 'guard') { q.mode = 'leave'; q.leaveTimer = CONFIG.pirates.leave.time; }
-  }
+  cleanupPesterCombat(world, p, 'cancelled');
   world.pesterLeaving = { x: p.x, y: p.y, angle: p.angle, code: p.code, paint: p.paint, name: p.name, sectorId: p.sectorId, t: 0, limp: true };
   world.pester = null;
   world.pesterNext = L.clock + pesterGap(L.restored.size, world.rng('quest'));

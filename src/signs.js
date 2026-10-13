@@ -40,24 +40,24 @@ export const signTypeLabel = (id) => SIGN_TYPES.find((t) => t.id === signType(id
 // uses the same sign pipeline as player messages; it never enters the unlocked-word pool.
 // No timed rotation: the notes remain useful, stable landmarks.
 export const FIXTURE_SIGNS = [
-  { id: 'sign-j04-hello', sector: 'sector-j04', x: 0.378, y: 0.562, words: ['good', 'news', 'everyone'], author: 'FARNSWORTH', type: 'buoy' },
-  { id: 'sign-j04-hole', sector: 'sector-j04', x: 0.820, y: 0.220, words: [], text: "I WASN'T EVEN SUPPOSED TO BE HERE.", author: 'DANTE HICKS', type: 'ping' },
-  { id: 'sign-j05-hole', sector: 'sector-j05', x: 0.282, y: 0.342, words: ['future', 'ahead'], author: 'DOC BROWN', type: 'stars' },
+  { id: 'sign-j04-hello', sector: 'sector-j04', x: 0.14, y: 0.36, words: ['good', 'news', 'everyone'], author: 'FARNSWORTH', type: 'buoy' },
+  { id: 'sign-j04-hole', sector: 'sector-j04', x: 0.6, y: 0.26, words: [], text: "I WASN'T EVEN SUPPOSED TO BE HERE.", author: 'DANTE HICKS', type: 'ping' },
+  { id: 'sign-j05-hole', sector: 'sector-j05', x: 0.68, y: 0.14, words: ['future', 'ahead'], author: 'DOC BROWN', type: 'stars' },
   { id: 'sign-j05-home', sector: 'sector-hidden', x: 0.140, y: 0.780, words: ['hello', 'future'], author: 'MARTY MCFLY', type: 'capsule' },
-  { id: 'sign-k04-rock', sector: 'sector-k04', x: 0.380, y: 0.140, words: [], text: 'WAS THAT A HIND D?', author: 'SOLID SNAKE', type: 'ping' },
-  { id: 'sign-k04-hole', sector: 'sector-k04', x: 0.500, y: 0.500, words: ['try', 'not'], author: 'YODA', type: 'stars' },
-  { id: 'sign-k05-yard', sector: 'sector-k05', x: 0.680, y: 0.340, words: [], text: 'STILL WAITING FOR MY CARGO.', author: 'LEELA', type: 'buoy' },
-  { id: 'sign-k05-star', sector: 'sector-k05', x: 0.560, y: 0.700, words: [], text: 'JUST TAP IT IN.', author: 'HAPPY GILMORE', type: 'capsule' },
-  { id: 'sign-j06-coffee', sector: 'sector-j06', x: 0.160, y: 0.520, words: [], text: 'STILL THINKING ABOUT AIRPLANES.', author: 'RENE MOSIER', type: 'buoy' },
-  { id: 'sign-k06-tea', sector: 'sector-k06', x: 0.400, y: 0.640, words: [], text: 'NO ATTACHMENTS.', author: 'BUDDHA', type: 'capsule' },
-  { id: 'sign-hidden-spike', sector: 'sector-j05', x: 0.640, y: 0.600, words: [], text: 'EASY COME, EASY GO...', author: 'SPIKE SPIEGEL', type: 'stars' },
-  { id: 'sign-j04-willam', sector: 'sector-j04', x: 0.560, y: 0.780, words: [], text: "IT'S NOT A SCHOONER... IT'S A SAILBOAT.", author: 'WILLAM', type: 'stars' },
-  { id: 'sign-k04-ghostface', sector: 'sector-k04', x: 0.820, y: 0.600, words: [], text: 'HELLO? WHAT NUMBER IS THIS?', author: 'GHOSTFACE', type: 'stars' },
-  { id: 'sign-j05-mantis', sector: 'sector-j05', x: 0.120, y: 0.780, words: [], text: 'YOU LIKE CASTLEVANIA.', author: 'PSYCHO MANTIS', type: 'stars' },
+  { id: 'sign-k04-rock', sector: 'sector-k04', x: 0.6, y: 0.26, words: [], text: 'WAS THAT A HIND D?', author: 'SOLID SNAKE', type: 'ping' },
+  { id: 'sign-k04-hole', sector: 'sector-k04', x: 0.239, y: 0.18, words: ['try', 'not'], author: 'YODA', type: 'stars' },
+  { id: 'sign-k05-yard', sector: 'sector-k05', x: 0.14, y: 0.36, words: [], text: 'STILL WAITING FOR MY CARGO.', author: 'LEELA', type: 'buoy' },
+  { id: 'sign-k05-star', sector: 'sector-k05', x: 0.6, y: 0.26, words: [], text: 'JUST TAP IT IN.', author: 'HAPPY GILMORE', type: 'capsule' },
+  { id: 'sign-j06-coffee', sector: 'sector-j06', x: 0.68, y: 0.14, words: [], text: 'STILL THINKING ABOUT AIRPLANES.', author: 'RENE MOSIER', type: 'buoy' },
+  { id: 'sign-k06-tea', sector: 'sector-k06', x: 0.215, y: 0.18, words: [], text: 'NO ATTACHMENTS.', author: 'BUDDHA', type: 'capsule' },
+  { id: 'sign-hidden-spike', sector: 'sector-j05', x: 0.14, y: 0.36, words: [], text: 'EASY COME, EASY GO...', author: 'SPIKE SPIEGEL', type: 'stars' },
+  { id: 'sign-j04-willam', sector: 'sector-j04', x: 0.239, y: 0.18, words: [], text: "IT'S NOT A SCHOONER... IT'S A SAILBOAT.", author: 'WILLAM', type: 'stars' },
+  { id: 'sign-k04-ghostface', sector: 'sector-k04', x: 0.459, y: 0.18, words: [], text: 'HELLO? WHAT NUMBER IS THIS?', author: 'GHOSTFACE', type: 'stars' },
+  { id: 'sign-j05-mantis', sector: 'sector-j05', x: 0.6, y: 0.26, words: [], text: 'YOU LIKE CASTLEVANIA.', author: 'PSYCHO MANTIS', type: 'stars' },
   // The only Japanese inscription, beside WHARF 9 (the anchor-shaped station).
-  { id: 'sign-k06-usopp', sector: 'sector-k06', x: 0.660, y: 0.340, words: [], text: '俺の名はキャプテン・ウソップ！', author: 'USOPP', type: 'stars' },
-  { id: 'sign-j06-radiator', sector: 'sector-j06', x: 0.640, y: 0.640, words: [], text: 'IN HEAVEN, EVERYTHING IS FINE.', author: 'LADY IN THE RADIATOR', type: 'stars' },
-  { id: 'sign-k05-gonzo', sector: 'sector-k05', x: 0.200, y: 0.660, words: [], text: 'AS YOUR ATTORNEY, I SAY WE LEAVE.', author: 'DR. GONZO', type: 'stars' },
+  { id: 'sign-k06-usopp', sector: 'sector-k06', x: 0.459, y: 0.18, words: [], text: '俺の名はキャプテン・ウソップ！', author: 'USOPP', type: 'stars' },
+  { id: 'sign-j06-radiator', sector: 'sector-j06', x: 0.14, y: 0.36, words: [], text: 'IN HEAVEN, EVERYTHING IS FINE.', author: 'LADY IN THE RADIATOR', type: 'stars' },
+  { id: 'sign-k05-gonzo', sector: 'sector-k05', x: 0.239, y: 0.18, words: [], text: 'AS YOUR ATTORNEY, I SAY WE LEAVE.', author: 'DR. GONZO', type: 'stars' },
 ];
 
 // What a sign says: its line written whole, or its catalogue words.

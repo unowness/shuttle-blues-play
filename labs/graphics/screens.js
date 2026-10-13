@@ -9,7 +9,7 @@
 // screen's panel is drawn by its own module; the pause is its own (labs/graphics/pause.js). `game` is the page's (main.js); the
 // long-lived parts it holds are read once here.
 import { WORDS_PER_ROW } from '../../src/signPanel.js';
-import { SHIPS } from '../../src/hangar.js';
+import { FLEET, FLEET_ACROSS, fleetOf, fleetIndexOf } from '../../src/hangarPanel.js';
 import { COLLECTIBLES, WORDS, collectibleDef } from '../../src/progression.js';
 import { SIGN_WORDS_MAX, SIGN_TYPES, DEFAULT_SIGN_TYPE, signTypeLabel } from '../../src/signs.js';
 import { nicknameChars, CHARM_NONE } from '../../src/pilot.js';
@@ -289,15 +289,18 @@ export function createScreens(game) {
     signUI.messageLife = 2.4;
   }
 
-  // The hangar (E4, src/hangar.js): HANGAR at a garage opens it. The flight
-  // goes on underneath it like under the pilot card; it owns the keyboard while open:
-  // arrows choose a ship, 1 or Enter buys it or flies it, 0 or Escape closes.
+  // The hangar (E4, src/hangar.js): HANGAR at a garage opens it, and in the home garage's room CHANGE STARSHIP or a click on the shuttle
+  // (labs/graphics/garage-room.js; SX, 2026-10-13: «делаем в комнате кнопку change starship и выход, а клик по кораблю ведет на выбор корабля»).
+  // The flight goes on underneath it like under the pilot card; it owns the keyboard while open: the arrows choose one of the twelve on its two
+  // shelves (src/hangarPanel.js FLEET: ← → one, ↑ ↓ a shelf), 1 or Enter takes it, 0 or Escape closes.
   const hangarUI = { selected: 0, message: null, messageLife: 0, bought: null };
+  // The look the STANDARD wears (src/shipLooks.js, the page's: kept in this browser).
+  const worn = () => game.shipLook?.worn;
 
   function openHangar() {
     closeHelp(false);
     open.hangar = true;
-    hangarUI.selected = Math.max(0, SHIPS.findIndex((def) => def.id === world.hangar.flying));
+    hangarUI.selected = fleetIndexOf(world, worn());
     hangarUI.message = null;
     hangarUI.messageLife = 0;
   }
@@ -313,23 +316,32 @@ export function createScreens(game) {
   }
 
   function hangarKeys() {
-    const n = SHIPS.length;
-    if (key('left')) { hangarUI.selected = (hangarUI.selected + n - 1) % n; sound.play('menu'); }
-    if (key('right')) { hangarUI.selected = (hangarUI.selected + 1) % n; sound.play('menu'); }
-    if (key('choose')) {
-      const def = SHIPS[hangarUI.selected];
-      if (world.hangar.flying === def.id) { hangarMessage(`${def.label} ALREADY SELECTED`); sound.play('refuse'); }
-      else if (world.hangar.owns(def.id)) world.flyShip(def.id);
-      else world.buyShip(def.id);
-    }
+    const n = FLEET.length, step = (by) => { hangarUI.selected = (hangarUI.selected + by + n) % n; sound.play('menu'); };
+    if (key('left')) step(-1);
+    if (key('right')) step(1);
+    if (key('up')) step(-FLEET_ACROSS);
+    if (key('down')) step(FLEET_ACROSS);
+    if (key('choose')) chooseShip(fleetOf(world, worn())[hangarUI.selected]);
     if (key('close') || key('back')) closeHangar();
+  }
+  // One of the twelve taken: a ship had is flown (World.flyShip), one on sale bought (World.buyShip), a crew's not had yet says why; a look of the
+  // STANDARD is the STANDARD flown (the world says why not: the opening, no hangar here) and then that drawing worn, kept in this browser.
+  function chooseShip(e) {
+    if (e.flying) { hangarMessage(`${e.label} ALREADY SELECTED`); sound.play('refuse'); return; }
+    if (e.crew && !e.owned) { hangarMessage(`HELP ${e.who} FIRST`); sound.play('refuse'); return; }
+    if (!e.look) { if (e.owned) world.flyShip(e.ship); else world.buyShip(e.ship); return; }
+    const was = world.hangar.flying;
+    if (!world.flyShip(e.ship)) return;
+    if (!game.shipLook?.wear(e.look)) { hangarMessage(`${e.label} UNAVAILABLE`); sound.play('refuse'); return; }
+    // (Another hull until now: the world's shipChanged says it, labs/graphics/notices.js.)
+    if (was === e.ship) { hangarMessage(`SHIP SELECTED / ${e.label}`); sound.play('engineStart'); }
   }
 
   // A station's info (src/stationPanel.js): INFO in a station's menu opens it,
   // over a flight that goes on like the hangar's; 0 or Escape closes it.
   // The garage's room (labs/graphics/garage-room.js createRoomScreen): its state, keys, clicks and drawing are its own module's; here it
   // is one of the screens, lent what it needs.
-  const roomScreen = createRoomScreen({ world, renderer, sound, feedback, pageTime, open, key, closeHelp, openHelp, openPilot: () => openPilot(),
+  const roomScreen = createRoomScreen({ world, renderer, sound, feedback, pageTime, open, key, closeHelp, openHelp, openPilot: () => openPilot(), openHangar: () => openHangar(),
     controls: () => roomControls(hints()), pointerDown: () => !!game.pointer?.down,
     questBoard: () => game.questBoard });
   const { room, openGarageRoom, leaveGarageRoom, settleGarageRoom, roomKeys } = roomScreen;
@@ -479,12 +491,12 @@ export function createScreens(game) {
     return true;
   }
 
-  // Which screen takes the frame's keys, first that holds: the map, the room (unless the card stands over it), the hangar, INFO,
+  // Which screen takes the frame's keys, first that holds: the map, the room (unless the card or the hangar stands over it), the hangar, INFO,
   // the card (its keys rest while its name is typed: the field has them), the composer. The controls list holds none: it stands
   // over the flight's own keys, which read it (flightKeys).
   const HOLDS = [
     { id: 'map', holds: () => open.map, keys: () => mapKeys() },
-    { id: 'room', holds: () => open.room && !open.pilot, keys: () => roomKeys() },
+    { id: 'room', holds: () => open.room && !open.pilot && !open.hangar, keys: () => roomKeys() },
     { id: 'hangar', holds: () => open.hangar, keys: () => hangarKeys() },
     { id: 'station', holds: () => open.station, keys: () => stationKeys() },
     { id: 'pilot', holds: () => open.pilot, keys: () => { if (!pilotUI.editing) pilotKeys(); } },
@@ -539,7 +551,7 @@ export function createScreens(game) {
       if (pilotUI.editing) placeNameField();
     }) },
     { id: 'sign', shown: () => open.sign, draw: (popup) => popup(() => closeSign(), () => { signUI.wordBoxes = drawSignComposer(renderer, world, signUI).wordBoxes; }) },
-    { id: 'hangar', shown: () => open.hangar, draw: (popup) => popup(() => closeHangar(), () => { hangarUI.ships = drawHangar(renderer, world, hangarUI).ships; }) },
+    { id: 'hangar', shown: () => open.hangar, draw: (popup) => popup(() => closeHangar(), () => { hangarUI.ships = drawHangar(renderer, world, { ...hangarUI, worn: worn(), time: pageTime(), still: feedback.reducedMotion }).ships; }) },
     { id: 'station', shown: () => open.station, draw: (popup, now) => popup(() => closeStationInfo(), () => {
       // The station's own look on the window's sheet, animated on the page's clock, `now` (the world goes on under the window, and
       // the picture is not the world's).
@@ -559,7 +571,7 @@ export function createScreens(game) {
   // The pointer over a screen that takes the pointer's whole picture (the garage's room, the map): the canvas's cursor hint there, or
   // null where no screen claims it.
   function pointerHint(x, y) {
-    if (open.room && !open.pilot && !open.help) return roomScreen.point(x, y);
+    if (open.room && !open.pilot && !open.hangar && !open.help) return roomScreen.point(x, y);
     if (open.map && !open.help) { const at = mapPoint(map, x, y); return at === 'pick' ? 'pointer' : at === 'drag' ? 'grabbing' : at ? 'crosshair' : ''; }
     return null;
   }
@@ -569,7 +581,7 @@ export function createScreens(game) {
   // screen took it or one stands (then nothing under it answers).
   function click(x, y) {
     const p = { x, y };
-    if (open.room && !open.pilot && !open.help) return roomScreen.click(p.x, p.y);
+    if (open.room && !open.pilot && !open.hangar && !open.help) return roomScreen.click(p.x, p.y);
     if (open.map && !open.help) {
       const did = mapClick(map, world.flags, p.x, p.y, pageTime(), world.rng('flag'));
       if (did) sound.play('blip');

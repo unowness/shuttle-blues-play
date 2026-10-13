@@ -168,6 +168,9 @@ const ROWS = [
   { id: 'mapPan', name: 'Map: move', on: 'map', keys: [], via: 'up down left right', mouse: 'drag:map' },
   { id: 'flagPut', name: 'Map: put a flag', on: 'map', keys: [], via: 'confirm', mouse: 'click:map' },
   { id: 'roomThing', name: 'Garage room: its things', on: 'room', keys: [], via: 'left right confirm', mouse: 'click:room' },
+  // The hangar from the home garage's room (SX, 2026-10-13: «делаем в комнате кнопку change starship и выход, а клик по кораблю ведет на выбор
+  // корабля»): S, STARSHIP; the room's arrows are ← → alone, so the screens' ↓ never meets it there.
+  { id: 'changeShip', name: 'Garage room: change starship', on: 'room', keys: ['KeyS'], mouse: 'click:room', shares: ['down'] },
   { id: 'pauseRow', name: 'Pause: its rows', on: 'pause', keys: [], via: 'up down left right confirm', mouse: 'click:pause' },
   // The LAYOUT page (chat P): a group taken from its row (Enter), moved by the arrows 4 px a press, put down by Enter; C0 conflict 12's
   // gap closed. 16 px a press with Shift held.
@@ -330,8 +333,9 @@ export const helpIntro = (page) => fillKeys(HELP_INTRO[page] ?? HELP_INTRO[DEFAU
 
 export function roomControls(page) {
   const leave = { key: keyName('back'), label: 'LEAVE GARAGE' }, card = { key: keyName('card'), label: 'PILOT CARD' };
-  if (page === 'M') return [{ key: 'POINT', label: 'LOOK AROUND' }, { key: 'CLICK', label: 'USE' }, { key: 'SHUTTLE', label: 'LEAVE GARAGE' }, { key: 'ARMCHAIR', label: 'PILOT CARD' }];
-  return [leave, card, { key: `${keyName('left')} ${keyName('right')}`, label: 'LOOK AROUND' }, { key: keyName('confirm'), label: 'USE' }];
+  const change = { key: keyName('changeShip'), label: 'CHANGE STARSHIP' };
+  if (page === 'M') return [{ key: 'POINT', label: 'LOOK AROUND' }, { key: 'CLICK', label: 'USE' }, leave, { key: 'SHUTTLE', label: 'CHANGE STARSHIP' }, { key: 'ARMCHAIR', label: 'PILOT CARD' }];
+  return [leave, change, card, { key: `${keyName('left')} ${keyName('right')}`, label: 'LOOK AROUND' }, { key: keyName('confirm'), label: 'USE' }];
 }
 
 // ------------------------------------------------------------------------------------------------ a lesson's words

@@ -71,7 +71,7 @@ export function craftCandidate(world, craft, pose = craftPose(craft, world.time,
 // a menu asks for that one (`menuFor`). `menu()` builds afresh at each call and reads the world as it stands then.
 const near = (id, x, y, interactRadius, menu) => ({ id, x, y, interactRadius, menu });
 // One built already: a quest's planet, a reference ship, a flag. Few, and some find their anchor only by building (a planet's limb).
-const built = (c) => near(c.id, c.x, c.y, c.interactRadius, () => c);
+const built = (c) => ({ ...near(c.id, c.x, c.y, c.interactRadius, () => c), ambient: !!c.greet });
 
 // The friendly ships within the selection's hold of the ship (HAIL_REACH times CONFIG.interaction.exitTolerance): no farther one could be
 // chosen or kept (src/interaction.js pickCandidate).
@@ -80,7 +80,7 @@ function craftsNear(world) {
   for (const craft of world.trafficHere(world.sector.id, world.time)) {
     if (isEnraged(craft)) continue;                  // no greeting offered to a ship that is coming at the pilot (src/npcFleet.js)
     const pose = craftPose(craft, world.time, world.width, world.height), d = world.delta(pose.x, pose.y, ship.x, ship.y);
-    if (Math.hypot(d.x, d.y) <= hold) out.push(near(craft.id, pose.x, pose.y, HAIL_REACH, () => craftCandidate(world, craft, pose)));
+    if (Math.hypot(d.x, d.y) <= hold) out.push({ ...near(craft.id, pose.x, pose.y, HAIL_REACH, () => craftCandidate(world, craft, pose)), ambient: true });
   }
   return out;
 }

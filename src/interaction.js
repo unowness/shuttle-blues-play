@@ -24,13 +24,16 @@ export function pickCandidate(previousId, candidates, shipX, shipY, delta) {
     // The current target keeps its claim over a slightly larger radius.
     if (c.id === previousId && dist <= c.interactRadius * keep) held = c;
 
-    if (dist <= c.interactRadius && dist < nearestDist) {
+    // Passing traffic's greeting must not capture a repair, delivery or quest
+    // window the pilot has actually reached. Keep stickiness within each group.
+    if (dist <= c.interactRadius && (!nearest || (nearest.ambient && !c.ambient) || (!!nearest.ambient === !!c.ambient && dist < nearestDist))) {
       nearest = c;
       nearestDist = dist;
     }
   }
 
-  return held || nearest || null;
+  if (held && (!held.ambient || !nearest || nearest.ambient)) return held;
+  return nearest || null;
 }
 
 // Whether the selected target's menu stands open. Esc and 0 dismiss it for a target the ship flies past (the page keeps

@@ -1,3 +1,5 @@
+import { suspendPirateCombat, pirateVisible } from './pirateCombat.js';
+import { stepNewPiratePattern, onNewPirateShot, stepNewEnemySystems } from './pirateRoles.js';
 import { CONFIG } from './config.js';
 import { TAU, clamp, lerp, between, mulberry32, hashId, hypot2 } from './util.js';
 import { settlePlaces } from './cachePlaces.js';
@@ -54,6 +56,7 @@ import { refuelAction, refuel, chalkAction, buyChalk, repairAction, repairHull, 
 import { driftLostCargo, easeCaches } from './keepOut.js';
 import { buildLostCargo, restingPoint, clearOfStrangers, lostCargoActions, recoverCargo, returnLostCargo, takeStrangerCargo } from './lostCargo.js';
 import { collectPickups, stepDrops, releaseDrop, spillCoins } from './pickups.js';
+import { settleGround } from './groundPlane.js';
 import { dock, undock, leaveStation, onStation, stepDocked } from './docking.js';
 import { damageShip, bumpShip, stepBullets, resolveHits, breakAsteroid } from './hits.js';
 import { acceptContract, deliver } from './delivery.js';
@@ -93,6 +96,9 @@ export class World {
     this.streams = new Map();
     this.time = 0;
     this.score = 0;
+    this.pirateRoleSystems = new Map();
+    this.newEnemySystems = null;
+    this.pirateCombatDt = 0;
     this.wrecks = 0;
     // What the last wreck was (src/wreck.js: 'rock', 'station', 'reset' and the rest), null before the first; and the parts of the
     // hull a blow had still to knock off, carried to the next blow (src/debris.js chipHull, a look's own count, never saved).
@@ -178,6 +184,8 @@ export class World {
     this.ledger = new Progress();
     this.collection = new Collection();
     this.pilot = new Pilot();
+    // The crews' ships the hangar holds are the pilot's notes (src/hangar.js CREW_SHIPS): it reads them as they are.
+    this.hangar.crews = this.pilot.notes;
     // Signs this pilot has left (signs.js). Not to be confused with `signals`,
     // the broadcasts that teach the words a sign is written in.
     this.signs = new SignBoard();
@@ -237,6 +245,7 @@ export class World {
     // Pirates (src/pirates.js): in memory only, never saved. `encounter` is the
     // fight in progress, or null; the 'pirate' stream steers them and places them. `shoutAt`: when one last shouted (src/pirates.js
     // pirateShout), for the shouts' spacing.
+    suspendPirateCombat(this);
     this.pirates = [];
     this.shoutAt = -Infinity;
     // Whether the stations and the home garage float round their places (src/float.js, CONFIG.float; SX's item 17), the game's since
@@ -438,6 +447,7 @@ export class World {
     this.berth = null;
     this.leavingStation = null;
     this.drops = [];
+    suspendPirateCombat(this);
     this.pirates = [];
     this.droids = [];
     this.encounter = null;
@@ -719,7 +729,9 @@ export class World {
     const carried = this.asteroids.filter((a) => !a.moored &&
       Math.hypot(a.x - ship.x, a.y - ship.y) < near);
     const drops = this.drops;
-    const pirates = this.pirates, encounter = this.encounter;
+    // Recovery cargo belongs to its NPC's sector; its squad returns there when the pilot crosses a seam.
+    const pirates = this.pirates.filter((p) => p.post?.kind !== 'pester'), encounter = this.encounter;
+    const roleSystems = this.pirateRoleSystems;
     // A droid close by crosses too (the one the pilot is flying to); the rest stay behind.
     const droids = this.droids.filter((d) => Math.hypot(d.x - ship.x, d.y - ship.y) < near);
 
@@ -743,10 +755,14 @@ export class World {
 
     this.loadSector(next);
     this.drops = drops;
+    // Carry hunting squads' depleted resources across the seam, but leave mines in the departed sector.
+    this.pirateRoleSystems = new Map([...roleSystems].filter(([id]) => pirates.some((p) => p.mode !== 'guard' && p.roleSystemId === id)));
+    for (const sys of this.pirateRoleSystems.values()) { sys.closed = false; sys.reason = null; sys.sectorId = next.id; }
     // A squad still circling its post (src/raids.js) stays there; one that is hunting follows.
     this.pirates = pirates.filter((p) => p.mode !== 'guard');
     this.droids = droids;
     this.encounter = encounter;
+    if (this.encounter && !this.pirates.some((p) => p.mode !== 'guard' && p.mode !== 'leave')) this.endEncounter('lost');
     this.asteroids = [...carried];
     this.spawnAsteroids(next.asteroids, CONFIG.sector.spawnClear);
     this.emit('sectorLeft', { from: fromId, to: next.id });
@@ -935,14 +951,20 @@ export class World {
     stepDroids(this, dt);
     this.stepBullets(dt);
     this.stepAsteroids(dt);
+    // Absorb a touched pile before its solid pieces spread apart. A second
+    // collection below catches what drifts into reach during this step.
+    this.collectPickups();
     this.stepDrops(dt);
     this.driftLostCargo(dt);
     this.collectPickups();
     this.updateCargo(dt);
+    this.pirateCombatDt = dt;
     this.resolveHits();
+    this.pirateCombatDt = 0;
     this.stepCaches(dt);
     // A cache knocked into a station's menu reach eases out of it (src/keepOut.js).
     easeCaches(this, dt);
+    settleGround(this, dt);
     this.particles.update(dt);
     // A broken body's hanging pieces turned back off the stations' bodies as they come to them (src/field.js; SX, 2026-10-07): only
     // within `CONFIG.debris.held` u of a body's face and closing on it, so a station's own pieces flung out from inside go their way.
@@ -1306,7 +1328,10 @@ export class World {
   endEncounter(cause, how) { return endEncounter(this, cause, how); }
   scatterSeized(x, y, amount) { return scatterSeized(this, x, y, amount); }
   pirateDen(from) { return pirateDen(this, from); }
-  resolvePirateHits() { resolvePirateHits(this); }
+  patternVisible(p) { return pirateVisible(this, p); }
+  stepNewPiratePattern(world, p, dt, context) { return stepNewPiratePattern(world, p, dt, context); }
+  onNewPirateShot(world, p) { onNewPirateShot(world, p); }
+  resolvePirateHits() { stepNewEnemySystems(this, this.pirateCombatDt ?? 0); resolvePirateHits(this); }
 
   // ---------------------------------------------------------- interaction ---
 
@@ -1640,7 +1665,8 @@ export class World {
     const def = shipById(id);
     const station = this.hangarStation();
     if (!def || !station) { this.emit('actionRefused', { reason: 'NO HANGAR HERE' }); return false; }
-    if (this.hangar.owns(id)) return this.flyShip(id);
+    // A crew's ship is never sold: had, it is flown; not had, flyShip says so.
+    if (this.hangar.owns(id) || def.crew) return this.flyShip(id);
     if (this.ledger.credits < def.price) {
       this.emit('actionRefused', { reason: `NEED ${formatCR(def.price)} CR, HAVE ${formatCR(this.ledger.credits)}` });
       return false;
@@ -1662,7 +1688,8 @@ export class World {
     const def = shipById(id);
     const station = this.hangarStation();
     if (!def || !station) { this.emit('actionRefused', { reason: 'NO HANGAR HERE' }); return false; }
-    if (!this.hangar.owns(id)) { this.emit('actionRefused', { reason: `${def.label} NOT OWNED` }); return false; }
+    // (A crew's ship not had yet: its crew's run comes first.)
+    if (!this.hangar.owns(id)) { this.emit('actionRefused', { reason: def.crew ? `HELP ${def.who} FIRST` : `${def.label} NOT OWNED` }); return false; }
     if (this.hangar.flying === id) return true;
     const from = this.hangar.flying;
     this.hangar.stored.set(from, { hull: this.hull, fuel: this.fuel });

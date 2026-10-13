@@ -65,7 +65,7 @@ export function reconcileLooks(ledger, pilot) {
 // the map is empty beside the far east edge of K-06 (468 u inside the line, every rule checks/looks.mjs holds it to kept
 // with room to spare); SX moves it in the map editor like any object.
 export const LOOK_FINDS = Object.freeze([
-  Object.freeze({ id: 'find-look-sunset', kind: 'look', content: lookGivenBy('cache'), sector: 'sector-k06', x: 0.935, y: 0.60, price: 0, station: null }),
+  Object.freeze({ id: 'find-look-sunset', kind: 'look', content: lookGivenBy('cache'), sector: 'sector-k06', x: 0.68, y: 0.14, price: 0, station: null }),
 ]);
 export const lookFindsIn = (sectorId, found) => LOOK_FINDS.filter((f) => f.sector === sectorId && !found?.has(f.content));
 export const lookFindLabel = (f) => lookById(f?.content)?.name ?? '';

@@ -35,6 +35,8 @@ import { CONFIG } from './config.js';
 import { LAYOUT_SECTOR } from './worldScale.js';
 import { PLANE } from './topology.js';
 import { fogHash, stepWake, wakePuff, enginePower, jetPuff } from './fogCells.js';
+import { contentAreas } from './mapContent.js';
+import { MAP_PLACEMENT, sampleArea } from './mapContentConfig.js';
 
 export const CLOUDS = Object.freeze({
   // How many in a sector of the layout's size (more in a wider one, at the same density), and how far apart and from things.
@@ -83,6 +85,7 @@ function layClouds(world, sector) {
     ...bodies.holes.map((h) => [h.x, h.y, (h.disc ?? 250) + C.clear.hole]),
   ];
   const out = [];
+  const areas = contentAreas('cloud-field', world.ledger, { sectorId: sector.id });
   for (let tries = 0; out.length < want && tries < 400; tries++) {
     const n = Math.floor(between(rng, C.parts[0], C.parts[1] + 0.999));
     const parts = [];
@@ -95,7 +98,11 @@ function layClouds(world, sector) {
     const reach = Math.max(...parts.map((p) => Math.hypot(p.dx, p.dy) + p.r)) * (1 + C.breathe);
     const wander = { r: between(rng, C.wander[0], C.wander[1]), period: between(rng, C.wanderPeriod[0], C.wanderPeriod[1]), phase: between(rng, 0, TAU) };
     const room = reach + wander.r;
-    const ax = between(rng, C.clear.edge + room, W - C.clear.edge - room), ay = between(rng, C.clear.edge + room, H - C.clear.edge - room);
+    // Prefer one cloud in the smoke pocket; all others retain the sector-wide spread.
+    const p = areas.length && !out.length && tries < MAP_PLACEMENT.cloudTries ? sampleArea(areas[tries % areas.length], rng, W, H) : null;
+    const ax = p ? p.x * W : between(rng, C.clear.edge + room, W - C.clear.edge - room);
+    const ay = p ? p.y * H : between(rng, C.clear.edge + room, H - C.clear.edge - room);
+    if (ax < C.clear.edge + room || ay < C.clear.edge + room || ax > W - C.clear.edge - room || ay > H - C.clear.edge - room) continue;
     if (blocked.some(([x, y, r]) => Math.hypot(ax - x, ay - y) < r + room)) continue;
     if (out.some((c) => Math.hypot(ax - c.ax, ay - c.ay) < C.apart + room)) continue;
     out.push({ id: `${sector.id}:cloud-${out.length}`, ax, ay, x: ax, y: ay, reach, parts, wander });

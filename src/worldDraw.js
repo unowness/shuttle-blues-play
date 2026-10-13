@@ -29,6 +29,7 @@ import { drawOil } from './oil.js';
 import { fogHash, FOG_EDGE, wakeHoles, stampHoles } from './fogCells.js';
 import { drawClouds, drawCloudSides } from './cloudDraw.js';
 import { lap } from './frameProfile.js';
+import { drawPirateCues, drawPirateFields } from './pirateCombatDraw.js';
 
 // The ink of a planet's name, worked out once per tint (World.planetLabelInk).
 const labelInks = new Map();
@@ -841,8 +842,10 @@ class WorldDrawing {
 
     // Pirates, over the rocks and under the shots.
     lap('pirates');
+    drawPirateFields(this, r);
     for (const p of this.pirates) {
       const s = this.project(r, p.x, p.y);
+      drawPirateCues(this, r, p, s);
       p.draw(r, s.x, s.y);
     }
 

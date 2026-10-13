@@ -34,6 +34,7 @@ export const QUEST_LINES = Object.freeze({
   pester: Object.freeze({
     title: line(0, ['pestered'], (ship) => `DEFEND ${ship}`),
     sub: line(1, [], () => 'UNDER FIRE', { timed: true }),
+    recover: line(1, [], () => 'GET CAPSULE', { timed: true, act: true }),
     handIn: line(1, ['sector'], (sector) => `${sector} / HAND IN`, { act: true }),
     done: line(0, ['pestered'], (ship) => `${ship} SAFE`),
     paid: line(1, ['cr'], (cr) => `+${cr} CR / REWARD`),

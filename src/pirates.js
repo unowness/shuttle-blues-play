@@ -1,4 +1,7 @@
+import { stepAttack, attackShot, attackCommitted, cancelAttack } from './pirateAttacks.js';
+import { clearGroundPath } from './groundMath.js';
 import { CONFIG } from './config.js';
+import { LEGACY_PIRATE_TYPES } from './pirateAttackConfig.js';
 import { workingKind } from './ruins.js';
 import { TAU, clamp, lerp, wrapTo, hypot2 } from './util.js';
 import { WRAP, PLANE } from './topology.js';
@@ -230,7 +233,7 @@ export function pickGroupSize(rng, table = CONFIG.pirates.groupSize) {
 // `share`, for all of them (SX, 2026-09-30: «пираты летают только отрядами по
 // 2-4 корабля в одном типе спрайта»).
 export function pickTypes(count, rng, C = CONFIG.pirates) {
-  const ids = Object.keys(C.types);
+  const ids = LEGACY_PIRATE_TYPES.filter((id) => C.types[id]);
   const total = ids.reduce((sum, id) => sum + C.types[id].share, 0);
   let u = rng() * total, kind = ids[ids.length - 1];
   for (const id of ids) {
@@ -244,7 +247,7 @@ export function pickTypes(count, rng, C = CONFIG.pirates) {
 // each kind in a random order first, then the rest drawn by each kind's `share`, so a squad of four or more shows every
 // hull and a bigger one repeats them. The paint stays the squad's one (spawnPirates), so the drawing varies, the colour does not.
 export function pickMixedTypes(count, rng, C = CONFIG.pirates) {
-  const ids = Object.keys(C.types);
+  const ids = LEGACY_PIRATE_TYPES.filter((id) => C.types[id]);
   const first = ids.map((id) => ({ id, at: rng() })).sort((a, b) => a.at - b.at).map((o) => o.id);
   const total = ids.reduce((sum, id) => sum + C.types[id].share, 0);
   return Array.from({ length: count }, (_, i) => {
@@ -406,7 +409,7 @@ function takeCoins(world, p) {
     const d = drops[i];
     if (d.delay > 0 || d.kind) continue;
     const g = world.delta(d.x, d.y, p.x, p.y);
-    if (Math.hypot(g.x, g.y) > reach) continue;
+    if (Math.hypot(g.x, g.y) > reach || !clearGroundPath(world, d, p)) continue;
     drops.splice(i, 1);
     took += d.value;
   }
@@ -449,6 +452,7 @@ function squadLost(world, p) {
 // A coward runs (src/personas.js wantsToRun): it leaves as a pirate that has given up does, shouting, and counts as
 // beaten for whatever it was guarding. The last of a fight to run ends it: the pilot won.
 export function pirateFlees(world, p, why) {
+  cancelAttack(world, p, 'fled');
   p.mode = 'leave';
   p.leaveTimer = CONFIG.pirates.leave.time;
   p.coin = null;
@@ -492,6 +496,10 @@ const AVOID = { x: 0, y: 0, urgency: 0 };
 const APART = { x: 0, y: 0 };
 const DUCK = { x: 0, y: 0 };
 
+// What a pirate's attack pattern is handed each step (src/pirateAttacks.js stepAttack): one object, filled again for each pirate, so a
+// step makes none (it made one a pirate a step from 2026-10-09 to 2026-10-13). A pattern reads it during its call and keeps nothing.
+const ATTACK_CONTEXT = { aim: 0, want: 0, vdx: 0, vdy: 0, dist: 0, rx: 0, ry: 0, targetable: false, avoidUrgency: 0, separateX: 0, separateY: 0 };
+
 function stepPirate(world, p, dt) {
   const C = CONFIG.pirates, K = p.K, B = p.B, W = p.W;
   const ship = world.ship, rng = world.rng('pirate');
@@ -531,7 +539,7 @@ function stepPirate(world, p, dt) {
       }
       // ... and whether loose coins nearby tempt it away from the hunt: a rate per
       // second, so how often it looks (`react`) does not change how greedy it is.
-      if (p.mode === 'hunt' && p.greedCool <= 0 && world.pirates.reduce((n, q) => n + (q.mode === 'greed' ? 1 : 0), 0) < B.greed.max) {
+      if (p.mode === 'hunt' && !attackCommitted(p) && p.greedCool <= 0 && world.pirates.reduce((n, q) => n + (q.mode === 'greed' ? 1 : 0), 0) < B.greed.max) {
         const coin = nearestCoin(world, p, B.greed.radius);
         if (coin && rng() < 1 - Math.exp(-B.greed.rate * gap)) {
           p.mode = 'greed';
@@ -609,7 +617,7 @@ function stepPirate(world, p, dt) {
     if (p.mode === 'break') {
       p.modeTimer -= dt;
       if (p.modeTimer <= 0) p.mode = 'hunt';
-    } else if (p.mode !== 'greed' && p.mode !== 'loot' && !guarding && targetable && dist < B.breakRange) {
+    } else if (!attackCommitted(p) && p.mode !== 'greed' && p.mode !== 'loot' && !guarding && targetable && dist < B.breakRange) {
       p.mode = 'break';
       p.modeTimer = B.breakTime;
       p.swerve = p.orbitDir;
@@ -625,7 +633,7 @@ function stepPirate(world, p, dt) {
 
     // What lies ahead, if it is watching: a push aside, and a lifting of the
     // throttle the nearer the danger.
-    if (p.watching) dodge(world, p, AVOID);
+    if (p.watching || attackCommitted(p)) dodge(world, p, AVOID);
     else { AVOID.x = 0; AVOID.y = 0; AVOID.urgency = 0; }
 
     if (guarding) {
@@ -701,12 +709,20 @@ function stepPirate(world, p, dt) {
     if (p.mode === 'hunt' && targetable && !p.closedIn && dist < p.standoff * 1.15) { p.closedIn = true; pirateShout(world, p, 'aggression'); }
   }
 
+  // The pilot proposes ordinary motion; the attack owns its committed direction.
+  const c = ATTACK_CONTEXT;
+  c.aim = aim; c.want = want; c.vdx = vdx; c.vdy = vdy; c.dist = dist; c.rx = rx; c.ry = ry; c.targetable = targetable;
+  c.avoidUrgency = leaving ? 0 : AVOID.urgency; c.separateX = leaving ? 0 : APART.x; c.separateY = leaving ? 0 : APART.y;
+  const pattern = stepAttack(world, p, dt, c);
+  aim = pattern.aim ?? aim; want = pattern.want ?? want;
+  vdx = pattern.vdx ?? vdx; vdy = pattern.vdy ?? vdy;
+
   // The acceleration that would close the velocity error, split across the
   // nose and across it, and what the craft can actually give.
   let adx = (vdx - p.vx) / B.velocityTau, ady = (vdy - p.vy) / B.velocityTau;
-  if (!leaving && p.watching) { adx += AVOID.x; ady += AVOID.y; }
+  if (!leaving && (p.watching || pattern.steady || pattern.avoid)) { adx += AVOID.x; ady += AVOID.y; }
   // A greedy one grabbing coins does not watch for shots (src/personas.js `reckless`).
-  if (!leaving && p.alert && !(p.mode === 'greed' && B.greed.reckless)) {
+  if (!pattern.steady && !leaving && p.alert && !(p.mode === 'greed' && B.greed.reckless)) {
     dodgeShots(world, p, DUCK);
     adx += DUCK.x; ady += DUCK.y;
   }
@@ -718,7 +734,7 @@ function stepPirate(world, p, dt) {
   // velocity is never steady long enough for a shot led on it to arrive where
   // it was aimed. It costs the pirate's own aim nothing (its shots carry the
   // sideways velocity and are aimed with it), only the pilot's.
-  const weave = !leaving && !guarding && dist < B.weaveRange ? B.weaveAccel * Math.sin(p.age * p.weaveRate + p.weavePhase) : 0;
+  const weave = !pattern.steady && !leaving && !guarding && dist < B.weaveRange ? B.weaveAccel * Math.sin(p.age * p.weaveRate + p.weavePhase) : 0;
   const along = clamp(adx * fx + ady * fy, -K.retro, K.thrust);
   const across = clamp(-adx * fy + ady * fx + weave, -K.strafe, K.strafe);
   p.thrusting = along > 60;
@@ -756,10 +772,10 @@ function stepPirate(world, p, dt) {
 
   // The gun: only on the hunt (not breaking away, not off for coins).
   p.cooldown = Math.max(0, p.cooldown - dt);
-  if (p.mode === 'hunt' && targetable && p.cooldown <= 0 && !(p.lapse > 0) && dist <= W.range &&
+  if (pattern.fire === true && p.mode === 'hunt' && targetable && world.patternVisible?.(p) !== false && p.cooldown <= 0 && !(p.lapse > 0) && dist <= W.range &&
       Math.abs(wrapPi(p.angle - aim)) < W.cone && !world.inSafeZone(ship.x, ship.y) &&
       !(p.careful && wingmanInWay(world, p, aim, dist))) {
-    const heading = p.angle + gauss(rng) * W.error;
+    const heading = (pattern.steady ? aim : p.angle) + (pattern.exact ? 0 : gauss(rng) * W.error);
     const ux = Math.cos(heading), uy = Math.sin(heading);
     world.bullets.push({
       x: p.x + ux * W.muzzleOffset, y: p.y + uy * W.muzzleOffset,
@@ -767,10 +783,11 @@ function stepPirate(world, p, dt) {
       life: W.life, owner: 'pirate', by: p.id, kind: p.type, damage: W.damage,
     });
     world.emit('shotFired', { owner: 'pirate', kind: p.type, x: p.x, y: p.y, sectorId: world.sector.id });
-    p.cooldown = W.interval * (1 + (rng() * 2 - 1) * W.jitter);
+    p.cooldown = pattern.cooldown ?? W.interval * (1 + (rng() * 2 - 1) * W.jitter);
+    attackShot(world, p);
     // A daring one may slip behind a rock until its gun is ready again.
     const hide = hideChance(p.traits);
-    if (hide > 0 && rng() < hide) startHide(world, p);
+    if (!attackCommitted(p) && hide > 0 && rng() < hide) startHide(world, p);
   }
 }
 

@@ -4,7 +4,7 @@ import { UI, uiPanel, uiAir, centredWindow, windowRoom, frameInk } from './uiGri
 import { COLLECTIBLES } from './progression.js';
 import { findDef } from './rewards.js';
 import { sectorById } from './sectors.js';
-import { SHIPS } from './hangar.js';
+import { shipById } from './hangar.js';
 import { shipStats } from './hangarPanel.js';
 import { journey } from './pilot.js';
 import { paintById } from './paint.js';
@@ -246,7 +246,7 @@ export function drawPilotPanel(r, world, ui) {
   let paintBox = null, cockpitBox = null, lookBox = null;
   if (L.ship) {
     const id = world.hangar?.flying ?? 'standard';
-    const def = SHIPS.find((s) => s.id === id) ?? SHIPS[0];
+    const def = shipById(id) ?? shipById('standard');
     g.box(CARD_TEXT, lineAt(C.shipTop), CARD_END, lineAt(C.shipBottom), frame());
     const inner = CARD_TEXT + UI.line.cols, innerEnd = CARD_END - UI.line.cols;
     let row = at(C.shipCap);

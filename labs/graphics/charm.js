@@ -24,7 +24,7 @@ import { ROLES } from '../../src/roles.js';
 import { clamp } from '../../src/util.js';
 import { COLLECTIBLES } from '../../src/progression.js';
 import { CHARM_NONE } from '../../src/pilot.js';
-import { artOf, wholeCells } from '../../src/souvenirArt.js';
+import { artOf, artInk, wholeCells } from '../../src/souvenirArt.js';
 import { drawSouvenirPicture } from '../../src/souvenirPictures.js';
 import { hoverItem } from '../../src/hover.js';
 import { columnLayout, COLUMN_GAPS, SCOPE_RADIUS } from './locator.js';
@@ -174,9 +174,7 @@ function lay(r) {
 function inkBox(r, id) {
   const size = CHARM.size, art = artOf(id);
   if (!art) return { x0: 0, y0: 0, x1: size, y1: size };
-  const { cw, ch, left, top } = wholeCells(r, art, size);
-  let i0 = Infinity, i1 = -1, j0 = Infinity, j1 = -1;
-  for (const c of art.frames[0]) { i0 = Math.min(i0, c.i); i1 = Math.max(i1, c.i); j0 = Math.min(j0, c.j); j1 = Math.max(j1, c.j); }
+  const { cw, ch, left, top } = wholeCells(r, art, size), { i0, i1, j0, j1 } = artInk(id);
   return { x0: left + i0 * cw, x1: left + (i1 + 1) * cw, y0: top + j0 * ch, y1: top + (j1 + 1) * ch };
 }
 

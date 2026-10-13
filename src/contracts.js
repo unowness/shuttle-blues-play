@@ -20,6 +20,8 @@ import { WRECK_CAUSES, sanitizeTrace, sanitizeObstacle } from './trace.js';
 import { STRANGER_CONTRACTS } from './strangers.js';
 import { stationGoods } from './stationInfo.js';
 import { emptyClaims, claimsToJSON, readClaims } from './rewardLedger.js';
+import { contentLinks } from './mapContent.js';
+import { readPirateCombat } from './pirateCombatSave.js';
 
 // Rewards: the freight rule (freightReward below): CONFIG.delivery.fixed CR plus CONFIG.delivery.perU CR a u of the straight way
 // between the stations, times the cargo's share (CONFIG.cargo.sizes: a small one 0.85, a large one 1.4), to 5. Each authored contract
@@ -300,19 +302,24 @@ export function offersAt(stationId, ledger) {
   if (!station || station.kind === 'home' || !isRestored(ledger, station)) return [];
   const pool = reachableStationIds(ledger);
   if (!pool.includes(stationId)) return [];
+  const planned = new Set(contentLinks('freight-route', ledger)
+    .filter((p) => p.anchorId === stationId && pool.includes(p.targetId) && p.targetId !== stationId)
+    .map((p) => p.targetId));
   const own = CONTRACTS.filter((c) =>
     c.from === stationId &&
     pool.includes(c.to) &&
     !ledger.completed.has(c.id) &&
     ledger.active?.id !== c.id &&
     !ledger.stranded.has(c.id));
-  if (own.length) return own;
+  if (own.length) return own.sort((a, b) => Number(planned.has(b.to)) - Number(planned.has(a.to)));
   // Then the next run from here: numbered past every run from here already
   // done, carried or lying in space.
   let n = 0;
   const taken = (id) => ledger.completed.has(id) || ledger.active?.id === id || ledger.stranded.has(id);
   while (taken(`run:${stationId}:${n}`)) n++;
-  const run = contractById(`run:${stationId}:${n}`, pool);
+  // An extra place in this offer's draw favours the planned lane while other working destinations remain possible.
+  // Accepted/stranded jobs retain their frozen endpoints and quote; contractById itself keeps its ordinary meaning.
+  const run = contractById(`run:${stationId}:${n}`, [...pool, ...planned]);
   return run ? [run] : [];
 }
 
@@ -634,6 +641,7 @@ function readRest(l, raw) {
     l.raid = { stationId: raid.stationId, startedAt: onClock(raid.startedAt), endsAt: raid.endsAt, size: raid.size, down };
     // The squad's paint and the hulls still to beat, if they were made: a paint and kinds the catalogue still has.
     if (CONFIG.pirates.paints.some((q) => q.id === raid.paint)) l.raid.paint = raid.paint;
+    if (raid.combat) l.raid.combat = readPirateCombat(raid.combat);
     if (Array.isArray(raid.mix)) l.raid.mix = raid.mix.filter((k) => Object.hasOwn(CONFIG.pirates.types, k)).slice(0, raid.size - down);
   }
   l.raidNext = Number.isFinite(raw.raidNext) && raw.raidNext >= 0 ? raw.raidNext : null;

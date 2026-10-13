@@ -1,6 +1,6 @@
 // The centred windows: the pilot card (C), a station's INFO, the hangar (HANGAR at a garage), the sign composer (L) and the controls list (?), all in
 // the Swiss manner since SX's picks of 2026-10-09 (labs/graphics/swiss.js: the character grid, hanging heads, the frames' gray, the inverted row under
-// the pointer; the card on labs/graphics/sketches/windows-swiss.html, S3, the others on windows-swiss-2.html, S4 and S6-S8: «берем но наши текущие
+// the pointer; the card since 2026-10-13 on labs/graphics/sketches/pilot-card.html, V5, the others on windows-swiss-2.html, S4 and S6-S8: «берем но наши текущие
 // контекстные окна не трогаем мы сейчас поп апами занимаемся»; the chrome they share, labs/graphics/swiss-window.js). Each is the page's spec of it with
 // the game's own data and state: what the keys chose (a souvenir, a ship, a word), the last action's message, the name being typed.
 // Presentation only, as the panels they replace were (src/pilotPanel.js, src/stationPanel.js, src/hangarPanel.js, src/signPanel.js
@@ -8,31 +8,36 @@
 // boxes each window returns. The flight goes on underneath every one.
 import { CONFIG } from '../../src/config.js';
 import { ROLES } from '../../src/roles.js';
-import { UI, centredWindow as centred } from '../../src/uiGrid.js';
+import { UI } from '../../src/uiGrid.js';
 import { COMPACT_NAMES, fitText } from '../../src/interface.js';
 import { COLLECTIBLES, WORDS } from '../../src/progression.js';
 import { findDef } from '../../src/rewards.js';
 import { sectorById, stationDefById } from '../../src/sectors.js';
-import { SHIPS, shipModel } from '../../src/hangar.js';
+import { shipById, shipModel } from '../../src/hangar.js';
+import { shipLookModel } from '../../src/shipLooks.js';
 import { journey, CHARM_NONE } from '../../src/pilot.js';
-import { PAINTS, paintById } from '../../src/paint.js';
-import { lookById, ownedLooks } from '../../src/looks.js';
-import { SPECIAL_IDS, specialById } from '../../src/specialShips.js';
+import { paintById } from '../../src/paint.js';
+import { lookById } from '../../src/looks.js';
+import { specialById, specialModel } from '../../src/specialShips.js';
 import { formatCR, workingKind } from '../../src/ruins.js';
 import { wrap } from '../../src/pilotPanel.js';
-import { shipStats, hangarAction } from '../../src/hangarPanel.js';
+import { shipStats, fleetOf, fleetAction } from '../../src/hangarPanel.js';
 import { stationStatus, stationOffers, wrapItems } from '../../src/stationPanel.js';
 import { stationInfo, stationLoreNow } from '../../src/stationInfo.js';
 import { draftCaption, WORDS_PER_ROW } from '../../src/signPanel.js';
 import { SIGN_LIMIT, SIGN_TYPES, signTypeLabel, drawSign } from '../../src/signs.js';
-import { drawAvatar } from '../../src/shipAvatar.js';
+import { drawAvatar, drawShipIn, sharedScale, modelScale } from '../../src/shipAvatar.js';
+import { heightAt, LIFT } from '../../src/trick.js';
+import { FLIGHT } from '../../src/flightConfig.js';
+import { mulberry32, TAU } from '../../src/util.js';
 import { frameInk, onFrame } from '../../src/frames.js';
-import { drawSouvenirPicture } from '../../src/souvenirPictures.js';
+import { PICTURE } from '../../src/souvenirPictures.js';
+import { balancedCells, largestCells, drawSouvenirCentred } from '../../src/souvenirArt.js';
 import { keyName, helpColumns, helpIntro, SCHEMES, SCHEME_NAMES, DEFAULT_SCHEME } from '../../src/controls.js';
 import { noteKey, unnoted } from './clicks.js';
-import { swiss, SWISS, BLACK, Q, pad2, sectorLine, frameBox, edgeRule, crossBox, bar, onBar, keycapAt, keycapWidth, drawStep } from './swiss.js';
+import { swiss, SWISS, BLACK, Q, pad2, frameBox, edgeRule, ruleH, ruleV, crossBox, bar, onBar, keycapAt, keycapWidth, drawStep } from './swiss.js';
 import { placeWindow, sheet, headRow, hangHead, footKeys, putPartEnd, partCols, keyTokens } from './swiss-window.js';
-import { W, G, H, ledger, finish, selectMark, len } from './ledger.js';
+import { W, G, H, ledger, finish, selectMark, hairline, len } from './ledger.js';
 
 const NAME_COLS = 14;                       // the name field's columns: a name's twelve letters (src/pilot.js) and two
 
@@ -40,186 +45,180 @@ const NAME_COLS = 14;                       // the name field's columns: a name'
 // The pilot card (C), in the Swiss manner
 // ================================================================================================================================
 
-// SX's pick of 2026-10-09 (labs/graphics/sketches/windows-swiss.html, S3: «карточку пилота можно расширить ... отдельная колонка, где список
-// всех слов ... которые не нашли, они звездочками отмечены просто и серые»; the kit and its rules, labs/graphics/swiss.js): the card wide, four
-// columns kept apart by space: 01 SHIP (its drawing in its box, its class, its figures), 02 RECORD (the counts, the
-// journey with its bar, and under it the chosen souvenir's number, name and lore), 03 SOUVENIRS (twelve places three across: a found one its art
-// and its name, an empty one the layout's crossed box with its number and a dash), 04 WORDS (all thirty numbered in two columns: a found one
-// white, one not found gray stars as long as the word). Under them, over a rule, the four switches in one band, each its name and count over
-// ‹ VALUE ›, and the foot's keys under another. 1,084 px wide at the game's 9.27 px cell where the other cards were 657: over the HUD's
-// columns at 1280 (SX allowed the widening), so it stands in the middle of the screen, not between them (centredWindow `clear: false`).
-// The two widths: WIDE as above (a group's step of columns between the four), NARROW where the screen is under it (a line's step between them,
-// the columns a little shorter, the places a column apart): 936 px, for a window of 1024, which still draws the whole card.
+// SX's V5 ONE PAGE of 2026-10-13 (labs/graphics/sketches/pilot-card.html; «мы должны все на 1 странице показывать ... самый первый вариант
+// который у нас был еще давно был неплох»: B, the card of 2026-10-01, docs/plans/refs/2026-10-01-pilot-card-b.png; «вот это норм»), on the kit of
+// labs/graphics/swiss.js. Two columns on one grid of rows:
+//   the pilot's, read down: 01 SHIP in four rows (its drawing at the left; its name, its note and its figures two by two beside it, the second
+//   pair's figures on the column's right edge), the four switches (PAINT, COCKPIT, LOOK, CHARM, each ‹ VALUE › by leaders: a click steps one, on
+//   its ‹ back, and ← → step the one under the pointer), 02 JOURNEY (its share on its head with the bar under it, its seven parts, the tallies);
+//   the collection's: 03 SOUVENIRS, two shelves of six true squares, the gap between them the same across and down (no names under them: «подпись
+//   в миниатюрах можешь убрать, миниатюры должны быть вписаны в равносторонние квадраты с достаточной save зоной»), each souvenir's ink centred in
+//   its square and sized to one visual weight on whole pixels at its art's own cell (src/souvenirArt.js balancedCells), no more than `inner` of
+//   the side; the chosen one (its number and name, its lore, where it was found, its picture large at the right); 04 WORDS as running text, a
+//   word not found gray stars as long as it.
+// The air from the inside out: no empty row inside a list, one under a head and between a list's parts, two before a group's head; every figure
+// once, a label tied to its figure by leaders in the frames' gray. The lines where SX drew them: one down between the columns from the head's
+// rule to the foot's, one across the collection's column between each two of its groups, each to the nearest line it meets. The head: the name.
 export const CARD = Object.freeze({
-  across: 3,                                       // souvenirs across: the arrows' ↑ ↓ step this many (labs/graphics/screens.js pilotKeys)
-  wide: Object.freeze({ cols: Object.freeze({ ship: 17, record: 26, tiles: 34, words: 24 }), gut: UI.group.cols, tileGap: UI.line.cols }),
-  narrow: Object.freeze({ cols: Object.freeze({ ship: 15, record: 22, tiles: 32, words: 22 }), gut: UI.line.cols, tileGap: UI.space.cols }),
-  tileCols: 10,                                    // a place's box: square, this many columns across; the next a gap off
-  avatar: 6,                                       // the ship's box, rows across and down
-  lead: 18,                                        // the head's second word, columns in (the name's room: its twelve letters and the field's air)
-  // Rows from the head's row (halves allowed): the columns' heads (the body's first, under the head's band: SWISS.headGap), their first row, the
-  // band's rule (`air` over its cells, which a focus inverts), its name row, the foot. The head's rule and the foot's are the sheet's own
-  // (labs/graphics/swiss.js headRule, footRule).
-  rows: Object.freeze({ heads: 1.5, first: 3, bandRule: 26, band: 26.5, foot: 29.5 }),
+  cols: 106, left: 30, gut: 6,                  // the window's columns inside its inset, the pilot's column's, the gutter (the line down its middle)
+  across: 6,                                    // souvenirs a shelf: the arrows' ↑ ↓ step this many (labs/graphics/screens.js pilotKeys)
+  tileCols: 10,                                 // a square's side, in the columns' px (92 at the game's font)
+  inner: 0.7,                                   // a souvenir's ink at most this share of its square's side: (1 - inner) / 2 of air to the line
+  pic: 22,                                      // the chosen one's picture, columns at the column's right
+  ship: Object.freeze({ cols: 8, figure: 9, step: 11 }),   // the ship's drawing; a figure's label and value; the second pair's step
+  // Rows: the columns' heads and the body's first from the head's (SWISS.headGap is the head's band), and the foot's air: the words' last line
+  // to the foot's rule as much as each line across the collection's column has over and under it (SX: «отступ под словами не в сетке»).
+  rows: Object.freeze({ heads: 1.5, first: 3.5, footAir: 1.5 }),
+  // Each group's rows from the body's first, the same for every pilot: the pilot's column, then the collection's.
+  at: Object.freeze({ ship: 0, wear: 5, journey: 11, parts: 13, tallies: 21, chosen: 12, lore: 14, found: 19, words: 22, wordsText: 24, end: 26 }),
 });
 
-// The card's measures on `r`: the wide ones where the screen holds them (the window's inset from its edges), else the narrow.
-export function cardLayout(r) {
-  const cw = r.cellW, E = Math.round(UI.air.inset), I = SWISS.air + 1;
-  const width = (l) => 2 * I + (l.cols.ship + l.cols.record + l.cols.tiles + l.cols.words + 3 * l.gut) * cw;
-  const l = width(CARD.wide) <= r.width - 2 * E ? CARD.wide : CARD.narrow;
-  return { ...l, across: CARD.across, perRow: CARD.across, width: Math.round(width(l)) };
+// The words as running text `n` columns a line: each line's words.
+function wordLines(words, n) {
+  const lines = [[]];
+  let at = 0;
+  for (const wd of words) {
+    const l = len(wd.text);
+    if (at && at + 1 + l > n) { lines.push([]); at = 0; }
+    lines.at(-1).push(wd); at += (at ? 1 : 0) + l;
+  }
+  return lines;
 }
 
-// `ui`: the screens registry's pilotUI ({ selected, editing, message, lore }). Returns the boxes the registry reads: `nameBox` (where
-// the name field stands while the name is typed: the head's first word), `paintBox`, `cockpitBox`, `lookBox`, `charmBox` (the band's cells, a click
-// steps them, as P, K, L and J do) and `backs` (each one's ‹, a click on it steps back), `tiles` ([{ index, box }], a click chooses), and the
-// window's `box`.
+// `ui`: the screens registry's pilotUI ({ selected, editing, message, lore }). Returns the boxes the registry reads: `nameBox` (where the name
+// field stands while the name is typed: the head's word), `paintBox`, `cockpitBox`, `lookBox`, `charmBox` (the switches' rows, a click steps
+// them, as P, K, L and J do) and `backs` (each one's ‹, a click on it steps back), `tiles` ([{ index, box }], a click chooses), and the window's `box`.
 export function drawPilotCard(r, world, ui) {
-  const w = ledger(r, { id: 'card' }), sw = swiss(r), { cw, m, I } = sw, P = world.pilot, j = journey(world), CR = CARD.rows, lay = cardLayout(r), C = lay.cols;
-  const def = SHIPS.find((s) => s.id === world.hangar?.flying) ?? SHIPS[0];
+  const w = ledger(r, { id: 'card' }), sw = swiss(r), { cw, m, I } = sw, P = world.pilot, j = journey(world), CR = CARD.rows, A = CARD.at;
+  const footRow = CR.first + A.end + SWISS.footRows + CR.footAir;
+  const bw = Math.round(2 * I + CARD.cols * cw), bh = sw.heightWithKeys(footRow), E = Math.round(UI.air.inset), at = placeWindow(r, bw, bh);
+  const box = { x: Math.max(E, at.x), y: at.y, w: bw, h: bh }, L = box.x + I, dpr = r.dpr || 1;
+  const rowAt = (k) => sw.rowAt(box.y, k), first = (k) => rowAt(CR.first + k), capTop = (top) => Math.round(sw.capTopOf(top)), capH = m.capBottom - m.capTop;
+  const xL = Math.round(L), nL = CARD.left, xR = Math.round(L + (CARD.left + CARD.gut) * cw), nR = CARD.cols - CARD.left - CARD.gut;
+  sheet(sw, box, footRow);
+
+  // The head: the name (an HTML field takes its place while it is typed). The field's box: its text (inside its 1 px border and its `pad`) on the
+  // name, room for a name's twelve letters and two.
+  const headTop = rowAt(0);
+  if (!ui.editing) sw.text(P.nickname, L, headTop, W);
+  const nameBox = { x: L - m.capLeft - 1 - UI.pad, y: headTop + m.textY - (UI.row - r.cellH) / 2, w: NAME_COLS * cw + 2 * (1 + UI.pad), h: UI.row };
+  // The line down between the columns, in the gutter's middle, from the head's rule to the foot's.
+  const xDiv = Math.round(xL + (nL + CARD.gut / 2) * cw - cw / 2), yHead = sw.headRule(box.y), yFoot = sw.footRule(box.y, footRow);
+  ruleV(sw, xDiv, yHead + 1, yFoot - yHead - 1);
+
+  // A group's head with its count at the column's right; a label and its figure; the same tied by leaders (the frames' gray, quieter than words).
+  const head = (x, n, top, num, name, count = null) => { hangHead(sw, x, top, num, name); if (count) sw.textEnd(count, x + n * cw, top, W); };
+  const pair = (x, n, top, label, value) => { sw.text(label, x, top, G); sw.textEnd(String(value), x + n * cw, top, W); };
+  const dots = (x, from, to, top, on = false) => {
+    if (to <= from) return;
+    const s = '.'.repeat(to - from);
+    if (on) sw.text(s, x + from * cw, top, BLACK, true); else onFrame(() => sw.text(s, x + from * cw, top, frameInk('frame')));
+  };
+  const lead = (x, n, top, label, value) => { pair(x, n, top, label, value); dots(x, len(label) + 1, n - len(String(value)) - 1, top); };
+
+  // 01 SHIP: four rows. Its drawing at the left; beside it its name and note, then its figures two by two.
+  const def = shipById(world.hangar?.flying) ?? shipById('standard');
   const fig = Object.fromEntries(shipStats(def.id).map((x) => [x.key, x.text]));
-  const gut = lay.gut * cw, inner = (C.ship + C.record + C.tiles + C.words) * cw + 3 * gut;
-  const bw = Math.round(2 * I + inner), bh = sw.heightWithKeys(CR.foot);
-  const E = Math.round(UI.air.inset), mid = centred(r, bw, bh, { clear: false });
-  const box = { x: Math.max(E, mid.x), y: mid.y, w: bw, h: bh };
-  const L = box.x + I, R = box.x + bw - I, rowAt = (k) => sw.rowAt(box.y, k);
-  const xs = [L];
-  for (const n of [C.ship, C.record, C.tiles]) xs.push(xs.at(-1) + n * cw + gut);       // each column's ink left
-  const [xA, xB, xC, xD] = xs.map(Math.round), colRight = (x, n) => x + n * cw;
-  const headRule = sw.headRule(box.y), bandRule = Math.round(rowAt(CR.bandRule)), footRule = sw.footRule(box.y, CR.foot);
+  head(xL, nL, rowAt(CR.heads), 1, 'SHIP');
+  const shipTop = capTop(first(A.ship)), shipH = capTop(first(A.ship + 3)) + capH - shipTop;
+  drawAvatar(w.r, world.ship.model, xL - cw / 2, shipTop - UI.row / 2, CARD.ship.cols + 1, shipH / UI.row + 1,
+    { largest: 8, pose: true, fill: 1, paint: P.paint, line: BLACK });
+  const xT = xL + (CARD.ship.cols + UI.line.cols) * cw;
+  sw.text(def.label, xT, first(A.ship), W);
+  sw.text(def.note, xT, first(A.ship + 1), G);
+  [['SPEED', fig.speed], ['TURN', fig.turn], ['HULL', fig.hull], ['TANK', fig.tank]]
+    .forEach(([label, v], i) => pair(xT + (i % 2) * CARD.ship.step * cw, CARD.ship.figure, first(A.ship + 2 + Math.floor(i / 2)), label, v));
 
-  // The sheet, its frame, and three rules, each across to the frame's lines (SX, 2026-10-09: «Держись минимализма»): under the head, over the
-  // switches' band, over the foot. The columns and the band's cells are kept apart by space.
-  r.fill(box.x, box.y, box.w, box.h, ROLES.backing);
-  frameBox(sw, box);
-  for (const y of [headRule, bandRule, footRule]) edgeRule(sw, box, y);
-  const cell = inner / 4, cellX = (i) => L + i * cell, ruleOff = 3 * UI.pad;
+  // The switches, a row each: the label, its leaders, ‹ VALUE › flush right. The row is a button: the inverted row under the pointer.
+  const hung = P.charm !== CHARM_NONE && P.charm !== null ? COLLECTIBLES.find((d) => d.id === P.charm) : null;
+  const switches = [
+    ['paint', 'PAINT', paintById(P.paint)?.label ?? 'STANDARD'],
+    ['cockpit', 'COCKPIT', P.cockpit ? specialById(P.cockpit)?.cockpit.label ?? 'STANDARD' : 'STANDARD'],
+    ['look', 'LOOK', lookById(P.look)?.name ?? 'NOW'],
+    ['charm', 'CHARM', hung ? COMPACT_NAMES[hung.id] ?? hung.label : 'NONE'],
+  ];
+  const backs = {}, right = xL + nL * cw;
+  switches.forEach(([id, label, said], k) => {
+    const top = first(A.wear + k), value = fitText(said, nL - len(label) - 6), n = len(value) + 4;
+    const row = { x: xL - SWISS.barPad, y: top, w: Math.round(nL * cw + 2 * SWISS.barPad), h: UI.row };
+    backs[id] = { x: Math.round(right + m.capLeft - n * cw - cw / 2), y: top, w: 2 * cw, h: UI.row };
+    w.item(id, row, (on) => {
+      if (on) bar(sw, row);
+      sw.text(label, xL, top, onBar(on, G), on);
+      dots(xL, len(label) + 1, nL - n - 1, top, on);
+      drawStep(sw, { right, top, value, on });
+    }, 'flat');
+  });
 
-  // The head: the name (an HTML field takes its place while it is typed), what this is, and at the right the sector and the journey.
-  const headTop = rowAt(0), say = (s, x, top, ink) => sw.text(s, x, top, ink), sayEnd = (s, x, top, ink) => sw.textEnd(s, x, top, ink);
-  if (!ui.editing) say(P.nickname, L, headTop, W);
-  say('PILOT CARD', L + CARD.lead * cw, headTop, G);
+  // 02 JOURNEY: its share on its head and the bar under it (the rules' gray, the share white); the seven parts; the tallies.
   const pct = `${Math.round(j.progress * 100)}%`;
-  sayEnd(pct, R, headTop, W);
-  sayEnd('JOURNEY ', R - len(pct) * cw, headTop, G);
-  const place = sectorLine(world);
-  if (place) sayEnd(place, R - (len(pct) + 8) * cw - gut, headTop, G);
-  // The name field's box: its text (inside its 1 px border and its `pad`) on the head's first word, room for a name's twelve letters and two.
-  const origin = L - m.capLeft;
-  const nameBox = { x: origin - 1 - UI.pad, y: headTop + m.textY - (UI.row - r.cellH) / 2, w: NAME_COLS * cw + 2 * (1 + UI.pad), h: UI.row };
+  head(xL, nL, first(A.journey), 2, 'JOURNEY', pct);
+  const barY = Math.round(first(A.journey) + UI.row + UI.pad), barW = Math.round(nL * cw);
+  onFrame(() => r.fill(xL, barY, barW, 3, frameInk('rule')));
+  r.fill(xL, barY, Math.round(barW * j.progress), 3, W);
+  j.rows.forEach((it, k) => lead(xL, nL, first(A.parts + k), it.label, `${it.have} / ${it.of}`));
+  [['CARGO RECOVERED', j.recovered], ['CARGO RESCUED', j.rescued], ['WRECKS', world.wrecks ?? 0]].forEach(([label, v], k) => lead(xL, nL, first(A.tallies + k), label, v));
 
-  // The columns' heads: number, name, and at the right a count where there is one.
-  const heads = [[xA, C.ship, '01', 'SHIP', null], [xB, C.record, '02', 'RECORD', null],
-    [xC, C.tiles, '03', 'SOUVENIRS', `${world.collection.discovered.size} / ${COLLECTIBLES.length}`],
-    [xD, C.words, '04', 'WORDS', `${WORDS.filter((x) => world.collection.words.has(x.id)).length} / ${WORDS.length}`]];
-  for (const [x, n, num, name, count] of heads) {
-    say(num, x, rowAt(CR.heads), H);
-    say(name, x + 4 * cw, rowAt(CR.heads), G);
-    if (count) sayEnd(count, colRight(x, n), rowAt(CR.heads), W);
-  }
-  const first = (k) => rowAt(CR.first + k);                        // a column's k-th row, from the first
-  const inkTop = Math.round(sw.capTopOf(rowAt(CR.first)));         // a box's top on the first row's capitals
-  const pair = (x, n, k, label, value) => { say(label, x, first(k), G); sayEnd(String(value), colRight(x, n), first(k), W); };
-
-  // 01 SHIP: its drawing in its box, its class and note, its figures.
-  const side = CARD.avatar * UI.row, avatar = { x: xA, y: inkTop, w: side, h: side };
-  drawAvatar(w.r, world.ship.model, avatar.x - cw / 2, avatar.y - UI.row / 2, Math.round(side / cw) + 1, side / UI.row + 1,
-    { largest: 2.4, pose: true, fill: 0.62, paint: P.paint, line: ROLES.backing });
-  frameBox(sw, avatar);
-  const under = CARD.avatar + 1;
-  say(def.label, xA, first(under), W);
-  say(def.note, xA, first(under + 1), G);
-  [['SPEED', fig.speed], ['TURN', fig.turn], ['HULL', fig.hull], ['TANK', fig.tank]].forEach(([label, v], k) => pair(xA, C.ship, under + 3 + k, label, v));
-
-  // 02 RECORD: the counters, the tallies, the journey with its bar.
-  let k = 0;
-  for (const it of j.rows) pair(xB, C.record, k++, it.label, `${it.have} / ${it.of}`);
-  k += 1;
-  for (const [label, v] of [['CARGO RECOVERED', j.recovered], ['CARGO RESCUED', j.rescued], ['WRECKS', world.wrecks ?? 0]]) pair(xB, C.record, k++, label, v);
-  k += 1;
-  pair(xB, C.record, k, 'JOURNEY', pct);
-  const barY = Math.round(first(k) + UI.row + UI.pad), barW = Math.round(C.record * cw);
-  onFrame(() => r.fill(xB, barY, barW, 3, frameInk('rule')));
-  r.fill(xB, barY, Math.round(barW * j.progress), 3, W);
-  const detailK = k + 3;
-
-  // 03 SOUVENIRS: twelve places three across. A found one: its art and its name; an empty one: the crossed box, its number, a dash. The keys' choice
-  // and a click's in the white square round the place; under the pointer the name is the inverted row.
-  const shortName = (d) => (len(d.label) <= CARD.tileCols ? d.label : COMPACT_NAMES[d.id] ?? d.label);
-  const tile = Math.floor(CARD.tileCols * cw), pitch = (CARD.tileCols + lay.tileGap) * cw;
+  // 03 SOUVENIRS: the squares half a row over a list's first row (SX: «Квадраты выше»: the head to the squares the squares' own gap). A found one:
+  // its art, the square's line in the rules' gray; an empty one: the crossed box with its number. The keys' choice and the pointer's: the white line.
+  head(xR, nR, rowAt(CR.heads), 3, 'SOUVENIRS', `${world.collection.discovered.size} / ${COLLECTIBLES.length}`);
+  const side = Math.floor(CARD.tileCols * cw), gap = (nR * cw - CARD.across * side) / (CARD.across - 1), shelfTop = capTop(first(-0.5));
+  const cells = balancedCells(COLLECTIBLES.map((d) => d.id), Math.floor(side * CARD.inner), dpr);
   const selected = Math.max(0, Math.min(COLLECTIBLES.length - 1, ui.selected ?? 0));
+  const alphaOf = (id) => (world.collection.copiesOf(id) ? 1 : 0.45) * PICTURE.alpha;
   const tiles = [];
   COLLECTIBLES.forEach((d, i) => {
-    const tx = Math.round(xC + (i % CARD.across) * pitch), ty = inkTop + Math.floor(i / CARD.across) * (tile + UI.row);
-    const pic = { x: tx, y: ty, w: tile, h: tile }, strip = { x: tx, y: ty + tile, w: tile, h: UI.row }, hit = { x: tx, y: ty, w: tile, h: tile + UI.row };
-    tiles.push({ index: i, box: hit });
-    w.item(`tile:${d.id}`, hit, (on) => {
-      const known = world.collection.discovered.has(d.id), copies = world.collection.copiesOf(d.id);
-      if (known) drawSouvenirPicture(w.r, d.id, tx, ty, tile, copies ? 1 : 0.45, { whole: true });
-      else crossBox(sw, pic, pad2(i + 1));
-      if (on) bar(sw, strip);
-      sw.text(known ? shortName(d) : '—', tx, ty + tile, on ? BLACK : known ? W : H, on);
-      if (i === selected) selectMark(w, pic);
+    const sq = { x: Math.round(xR + (i % CARD.across) * (side + gap)), y: Math.round(shelfTop + Math.floor(i / CARD.across) * (side + gap)), w: side, h: side };
+    tiles.push({ index: i, box: sq });
+    w.item(`tile:${d.id}`, sq, (on) => {
+      const known = world.collection.discovered.has(d.id);
+      if (!known) crossBox(sw, sq, pad2(i + 1));
+      if (on || i === selected) hairline(w, sq, W); else if (known) frameBox(sw, sq, 'rule');
+      if (known && cells[d.id]) drawSouvenirCentred(w.r, d.id, sq, cells[d.id].c, alphaOf(d.id));
     }, 'flat');
   });
+  const shelves = Math.ceil(COLLECTIBLES.length / CARD.across), shelfBottom = Math.round(shelfTop + shelves * side + (shelves - 1) * gap);
 
-  // The chosen souvenir under the journey: its number, its name, its lore, where it was found.
-  const sel = COLLECTIBLES[selected], known = world.collection.discovered.has(sel.id);
+  // The chosen one: its number and name, its lore and where it was found at the left, its picture large at the right.
+  const sel = COLLECTIBLES[selected], known = world.collection.discovered.has(sel.id), textCols = nR - CARD.pic - UI.group.cols;
   const inst = world.collection.instances.find((x) => x.defId === sel.id && x.source), cache = inst && findDef(inst.source, world.ledger);
-  const lore = known ? ui.lore?.[sel.id]?.lore ?? '' : 'Not found. Search the caches.';
-  say(pad2(selected + 1), xB, first(detailK), H);
-  say(known ? sel.label : '???', xB + 4 * cw, first(detailK), W);
-  wrap(lore, C.record, 4).forEach((s, n) => say(s, xB, first(detailK + 1 + n), G));
-  if (known && cache) {
-    say('FOUND', xB, first(detailK + 6), G);
-    sayEnd(fitText(`CACHE, ${sectorById(cache.sector)?.label ?? cache.sector}`, C.record - 7), colRight(xB, C.record), first(detailK + 6), W);
-  }
+  sw.text(pad2(selected + 1), xR, first(A.chosen), Q);
+  sw.text(known ? sel.label : '???', xR + 4 * cw, first(A.chosen), W);
+  const lore = wrap(known ? ui.lore?.[sel.id]?.lore ?? '' : 'Not found. Search the caches.', textCols, 4);
+  lore.forEach((s, k) => sw.text(s, xR, first(A.lore + k), G));
+  const foundTop = first(A.lore + lore.length + 1);
+  if (known && cache) sw.text(fitText(`CACHE, ${sectorById(cache.sector)?.label ?? cache.sector}`, textCols), xR, foundTop, W);
+  const picture = { x: Math.round(xR + (nR - CARD.pic) * cw), y: capTop(first(A.chosen)), w: Math.round(CARD.pic * cw) };
+  picture.h = capTop(first(A.found)) + UI.row - SWISS.air - picture.y;
+  if (known) drawSouvenirCentred(w.r, sel.id, picture, largestCells(sel.id, picture.w, picture.h, dpr).c, alphaOf(sel.id));
+  else crossBox(sw, picture, pad2(selected + 1));
+  // The lines across the collection's column, from the line down to the frame's: each halfway between a group's last ink and the next head's capitals.
+  const chosenBottom = Math.max(picture.y + picture.h, capTop(foundTop) + capH);
+  const across = (above, k) => Math.round((above + capTop(first(k))) / 2), ruleW = box.x + box.w - 1 - (xDiv + 1);
+  ruleH(sw, xDiv + 1, across(shelfBottom, A.chosen), ruleW);
+  ruleH(sw, xDiv + 1, across(chosenBottom, A.words), ruleW);
 
-  // 04 WORDS: all thirty, numbered, two columns of fifteen; a found one white, the rest gray stars as long as the word.
-  const half = Math.ceil(WORDS.length / 2), wordCol = (C.words / 2) * cw;
-  WORDS.forEach((wd, i) => {
-    const x = Math.round(xD + (i < half ? 0 : wordCol)), top = first(i % half), got = world.collection.words.has(wd.id);
-    say(pad2(i + 1), x, top, H);
-    say(got ? wd.text : '*'.repeat(len(wd.text)), x + 3 * cw, top, got ? W : H);
+  // 04 WORDS: running text across the column; a found one white, one not found gray stars as long as the word.
+  const got = WORDS.filter((x) => world.collection.words.has(x.id)).length;
+  head(xR, nR, first(A.words), 4, 'WORDS', `${got} / ${WORDS.length}`);
+  wordLines(WORDS.map((wd) => ({ text: wd.text, got: world.collection.words.has(wd.id) })), nR).forEach((line, k) => {
+    let x = xR;
+    for (const wd of line) {
+      sw.text(wd.got ? wd.text : '*'.repeat(len(wd.text)), x, first(A.wordsText + k), wd.got ? W : Q);
+      x += (len(wd.text) + 1) * cw;
+    }
   });
 
-  // The switches, one band: each cell its name and count over ‹ VALUE ›; a click on the cell steps it forward, on its ‹ back.
-  const count = (list, worn) => (list.length > 1 ? `${Math.max(0, list.indexOf(worn)) + 1} / ${list.length}` : null);
-  const paints = PAINTS.filter((p) => p.id === 'standard' || P.paints.has(p.id)).map((p) => p.id);
-  const cockpits = [null, ...SPECIAL_IDS.filter((id) => P.cockpits.has(id))];
-  const looks = ownedLooks(P.looks).map((l) => l.id);
-  const charms = [CHARM_NONE, ...world.collection.kindsFound()];
-  const hung = P.charm !== CHARM_NONE && P.charm !== null ? COLLECTIBLES.find((d) => d.id === P.charm) : null;
-  const scheme = P.cockpit ? specialById(P.cockpit)?.cockpit.label ?? 'STANDARD' : 'STANDARD';
-  const switches = [
-    ['paint', 'PAINT', paintById(P.paint)?.label ?? 'STANDARD', count(paints, P.paint)],
-    ['cockpit', 'COCKPIT', scheme, count(cockpits, P.cockpit)],
-    ['look', 'LOOK', lookById(P.look)?.name ?? 'NOW', count(looks, P.look)],
-    ['charm', 'CHARM', hung ? shortName(hung) : 'NONE', count(charms, P.charm ?? CHARM_NONE)],
-  ];
-  const backs = {};
-  switches.forEach(([id, name, value, n], i) => {
-    const x = cellX(i), cellBox = { x: Math.round(x - UI.pad), y: Math.round(rowAt(CR.band)), w: Math.round(cell - 4 * UI.pad), h: 2 * UI.row };
-    const valueRow = { ...cellBox, y: cellBox.y + UI.row, h: UI.row };
-    backs[id] = { x: Math.round(x - m.capLeft - cw / 2), y: valueRow.y, w: 2 * cw, h: UI.row };
-    w.item(id, cellBox, (on) => {
-      say(name, x, rowAt(CR.band), G);
-      if (n) sayEnd(n, x + cell - 2 * ruleOff, rowAt(CR.band), H);
-      if (on) bar(sw, valueRow);
-      drawStep(sw, { right: x + (len(value) + 4) * cw - 2 * m.capLeft, top: rowAt(CR.band + 1), value, on });
-    }, 'flat');
-  });
   // The foot: its keys, each a cockpit keycap and its words (a click on N or ESC presses it); the last action's words before the ESC, in the accent.
   // While the name is typed the foot says the field's keys (they are the field's, not buttons of the card).
   const keys = ui.editing
     ? [{ key: 'ENTER', words: 'SAVE', id: 'key:enter', quiet: true }, { key: 'ESC', words: 'CANCEL', id: 'key:esc', quiet: true }]
-    : [{ key: keyName('rename') || 'rename', words: 'RENAME', id: 'key:rename' }, { key: '← →', words: 'CHANGE', id: 'key:change', quiet: true },
+    : [{ key: keyName('rename') || 'rename', words: 'RENAME', id: 'key:rename' }, { key: '← → ↑ ↓', words: 'CHOOSE', id: 'key:choose', quiet: true },
       { key: keyName('back') || 'back', words: 'CLOSE', id: 'key:back', right: true }];
-  footKeys(w, sw, box, keys, { top: rowAt(CR.foot), gap: gut, message: ui.message ? { text: ui.message, ink: CONFIG.hud.accent } : null });
+  footKeys(w, sw, box, keys, { top: rowAt(footRow), gap: UI.group.cols * cw, message: ui.message ? { text: ui.message, ink: CONFIG.hud.accent } : null });
   finish(w);
   return { nameBox, paintBox: w.boxes.get('paint') ?? null, cockpitBox: w.boxes.get('cockpit') ?? null, lookBox: w.boxes.get('look') ?? null,
-    charmBox: w.boxes.get('charm') ?? null, backs, tiles, box, boxes: w.boxes, layout: lay };
+    charmBox: w.boxes.get('charm') ?? null, backs, tiles, box, boxes: w.boxes, layout: CARD };
 }
 
 // ================================================================================================================================
@@ -279,75 +278,152 @@ export function drawStationInfo(r, world, ui) {
 // The hangar (HANGAR at a garage)
 // ================================================================================================================================
 
-// SX's S7: three ships in three columns of 30 columns, a group's step apart (fewer where the screen is narrower, never under 16: the bars go first, below 22): each its drawing in a
-// square box (six rows), under it its number, name and what it is to the pilot (ACTIVE, OWNED, or its price in the coin's gold), its class, and five
-// figures on one axis, the words at the left, the numbers flush right and between them a thin bar (a hairline with its share filled in white, the share
-// of the best of the three). The chosen ship's name row is the inverted row (and the one under the pointer).
+// SX's H1 SHELF (2026-10-13, labs/graphics/sketches/garage-ships.html, H1B: «Берем Shelf ... shelf сверстай аккуратнее»): every drawing the pilot can
+// fly (src/hangarPanel.js FLEET: «в гараже должен быть выбор спрайтов самолета которые у тебя есть»), on the pilot card's grid: its collection
+// column's width, six columns of true squares, the card's side and gap, the sixth ending on the window's inset (the souvenirs' shelves). On them:
+//   the chosen ship: its picture over the first two columns, as tall as its eight rows of words (the name's capitals to RANGE's foot); from the
+//   third column's edge its number and name, what it is to the pilot flush right (ACTIVE, OWNED, its price in the coin's gold, NOT MET), its class,
+//   and its five figures, each its label in the third column, its bar across the fourth and the fifth (a hairline, its share of the best of the
+//   twelve filled white), its number flush right in the sixth;
+//   01 HANGAR: the STANDARD in its four looks, the COURIER, the HAULER; 02 CREWS: the six crews' ships. A square each, the gap under its head's
+//   capitals (the card's «Квадраты выше»); a ship had in its colours, one not had in the hint's ink at `notHad` of its light; the chosen square's
+//   line white (the card's), the ship flown underlined a pad under its square.
+// The air from the inside out: no empty row inside the words; between groups one air (a group's last row to the next head's, `airRows`, less the
+// capitals) with a rule across its middle, frame to frame; half of it from the last squares to the foot's rule (the card's foot air).
 export const HANGAR = Object.freeze({
-  colCols: 30, minCols: 16, gap: UI.group.cols,
-  box: 6,                              // the drawing's box: rows across and down
-  nameRow: 7, noteRow: 8, statsRow: 10, // rows from the body's first
-  labelCols: 8, valueCols: 8,          // a figure's bar starts after its label's columns and ends before its number's
+  cols: CARD.cols - CARD.left - CARD.gut,              // the card's collection column: six of its squares and their gaps
+  showRows: 8,                                         // the chosen ship's rows of words, and its picture as tall
+  airRows: 3,                                          // a group's last row to the next group's head
+  notHad: 0.45,                                        // a ship not had: its drawing's light, in the hint's ink
 });
+// Every ship of a shelf at one scale, its size in the game (SX, 2026-10-14: «классический корабль должен быть меньше, ты видишь он совсем с
+// другими не совпадает в масштабах»; each was fitted to its square alone, and CLASSIC, 4 x 3 cells against THUNDER's 7 x 6, came out at twice
+// its glyphs): the largest of the shelf as large as the square's safe zone holds (CARD.inner of its side), the others smaller by as much as
+// they are in the game (src/shipAvatar.js sharedScale). The chosen ship's picture the same, at its shelf's scale in the picture's box.
+//
+// The chosen ship flies (SX, 2026-10-14: «в верхнее окно крупное добавь анимацию как этот корабль летит, то есть звезды на фоне и он летит и
+// подпрыгивает иногда, летит снизу вверх»): nose up, the stars streaming down past it on three layers (the world's star inks, far to near
+// the slower), a slow sway across and a breath up and down, and every `jumpEvery` s a jump on the game's own curve and grow (src/trick.js
+// heightAt, LIFT: up in `rise`, held `hang`, down in `fall`). Still where motion is reduced: the stars and the ship where they stand at 0.
+export const SHOWCASE = Object.freeze({
+  stars: 36, seed: 20261014,                           // the picture's stars, the same every time
+  speeds: Object.freeze([16, 34, 70]),                 // px/s each layer streams down, far to near
+  sway: Object.freeze({ px: 6, period: 6.4 }),         // across and back
+  bob: Object.freeze({ px: 2, period: 2.3 }),          // up and down
+  jumpEvery: 4.5, hang: 0.4,                           // s between jumps' starts; s held at the top
+});
+const STAR_INKS = [ROLES.starFar, ROLES.starMid, ROLES.starNear];
 
-// `ui`: the registry's hangarUI ({ selected, message }). Returns `ships` ([{ index, box }], a click chooses) and the window's `box`.
+// The drawing one of the twelve is drawn in: a look's (src/shipLooks.js), a hull's (src/hangar.js), a crew's (made in code); the ship flown's own
+// where the page has not loaded the file (a rig).
+function fleetModel(world, e) {
+  const model = e.look ? shipLookModel(e.look) : e.crew ? specialModel(e.ship) : shipModel(e.ship);
+  return model ?? (e.flying ? world.ship.model : null);
+}
+
+// The chosen ship flying in its picture `box` (SHOWCASE) at `time` s: the stars, then the ship at `scale` of its model's own (its shelf's,
+// sharedScale), grown as a jump grows it. `look` its paint, or the ink and light of a ship not had.
+function drawFlying(r, box, model, scale, look, time) {
+  const { ctx } = r, S = SHOWCASE;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(box.x + 1, box.y + 1, box.w - 2, box.h - 2); ctx.clip();
+  const rng = mulberry32(S.seed);
+  for (let i = 0; i < S.stars; i++) {
+    const x = rng() * box.w, y0 = rng() * box.h, layer = (rng() * 3) | 0, ch = rng() < 0.85 ? (rng() < 0.6 ? '.' : '·') : '+';
+    r.glyphNow(ch, box.x + x, box.y + ((y0 + time * S.speeds[layer]) % box.h), STAR_INKS[layer], 0.9);
+  }
+  const up = heightAt(time % S.jumpEvery, FLIGHT.trick.motion.rise + S.hang);
+  const dx = S.sway.px * Math.sin((TAU * time) / S.sway.period), dy = S.bob.px * Math.sin((TAU * time) / S.bob.period);
+  drawShipIn(r, model, { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h }, { ...look, scale: scale * modelScale(model) * (1 + LIFT.grow * up) });
+  ctx.restore();
+}
+
+// `ui`: the registry's hangarUI ({ selected, message, worn: the look the STANDARD wears, time: the page's clock in s, still: reduced motion }). Returns
+// `ships` ([{ index, box }], a click chooses) and the window's `box`.
 export function drawHangar(r, world, ui) {
-  const w = ledger(r, { id: 'hangar' }), sw = swiss(r), { cw, I } = sw, E = Math.round(UI.air.inset), n = SHIPS.length;
+  const w = ledger(r, { id: 'hangar' }), sw = swiss(r), { cw, m } = sw, capH = m.capBottom - m.capTop, cols = HANGAR.cols;
+  const fleet = fleetOf(world, ui.worn), n = fleet.length;
+  const selected = Math.max(0, Math.min(n - 1, ui.selected ?? 0)), e = fleet[selected], action = fleetAction(world, e);
+  const stats = fleet.map((x) => shipStats(x.ship)), best = stats[0].map((_, k) => Math.max(...stats.map((l) => l[k].value)));
+  const side = Math.floor(CARD.tileCols * cw), gap = (cols * cw - CARD.across * side) / (CARD.across - 1);
+  // Px under the body's first capitals: the chosen ship's rows, the air, the first shelf's head, its squares, the air, the second's.
+  const capAt = (k) => k * UI.row, showBottom = capAt(HANGAR.showRows - 1) + capH;
+  const head1 = HANGAR.showRows - 1 + HANGAR.airRows, air = capAt(head1) - showBottom;
+  const sq1 = capAt(head1 + 1.5), head2 = head1 + 1.5 + Math.round(((side + air) / UI.row) * 2) / 2;
+  const sq2 = capAt(head2 + 1.5), last = sq2 + side;
+  // The foot on the half row whose rule stands nearest half the air under the last squares.
+  const footRuleAt = (fr) => sw.footRule(0, fr) - sw.capTopOf(sw.rowAt(0, SWISS.headGap));
+  let footRow = SWISS.headGap, nearest = Infinity;
+  for (let fr = SWISS.headGap; fr < SWISS.headGap + 60; fr += 0.5) {
+    const off = Math.abs(footRuleAt(fr) - (last + air / 2));
+    if (off < nearest) { nearest = off; footRow = fr; }
+  }
+  const bw = Math.round(2 * sw.I + cols * cw), bh = sw.heightWithKeys(footRow), at = placeWindow(r, bw, bh);
+  const box = { x: at.x, y: at.y, w: bw, h: bh }, L = box.x + sw.I, R = L + cols * cw;
+  const row = (k) => sw.rowAt(box.y, SWISS.headGap + k), top0 = Math.round(sw.capTopOf(row(0))), y = (px) => Math.round(top0 + px);
+  const colX = (j) => Math.round(L + j * (side + gap));
   const station = world.stations.find((s) => s.id === world.docked);
-  const stats = SHIPS.map((d) => shipStats(d.id)), best = stats[0].map((_, k) => Math.max(...stats.map((l) => l[k].value)));
-  const avail = Math.floor((r.width - 2 * E - 2 * I) / cw);
-  const colCols = Math.max(HANGAR.minCols, Math.min(HANGAR.colCols, Math.floor((avail - (n - 1) * HANGAR.gap) / n))), colW = colCols * cw;
-  const footRow = SWISS.headGap + HANGAR.statsRow + stats[0].length + SWISS.footRows;
-  const bw = Math.round(2 * I + (n * colCols + (n - 1) * HANGAR.gap) * cw), bh = sw.heightWithKeys(footRow), at = placeWindow(r, bw, bh);
-  const box = { x: at.x, y: at.y, w: bw, h: bh }, L = box.x + I, bodyAt = (k) => sw.rowAt(box.y, SWISS.headGap + k);
-  const selected = Math.max(0, Math.min(n - 1, ui.selected ?? 0)), def = SHIPS[selected], action = hangarAction(world, def.id);
   sheet(sw, box, footRow);
   headRow(sw, box, [['HANGAR', W]], [...(station ? [[station.label, G]] : []), { money: formatCR(world.ledger.credits) }]);
-  const ships = [], side = HANGAR.box * UI.row, inkTop = Math.round(sw.capTopOf(bodyAt(0))), pad = SWISS.barPad;
-  SHIPS.forEach((d, i) => {
-    const x = Math.round(L + i * (colCols + HANGAR.gap) * cw), flying = world.hangar.flying === d.id, owned = world.hangar.owns(d.id);
-    const hit = { x: x - pad, y: bodyAt(0), w: Math.round(colW) + 2 * pad, h: (HANGAR.statsRow + stats[i].length) * UI.row };
-    ships.push({ index: i, box: hit });
-    w.item(`ship:${d.id}`, hit, (on) => {
-      const lit = on || i === selected;
-      // Its drawing in its square box, the box a hairline in the frames' gray.
-      const model = shipModel(d.id) ?? world.ship.model, avatar = { x, y: inkTop, w: side, h: side };
-      drawAvatar(w.r, model, avatar.x - cw / 2, avatar.y - UI.row / 2, Math.round(side / cw) + 1, side / UI.row + 1,
-        { largest: 2.6, pose: true, fill: 0.7, paint: world.pilot.paint, line: ROLES.backing });
-      frameBox(sw, avatar);
-      // Its name row: the number, the name, and at the right what it is to the pilot; the inverted row for the chosen and the pointed at.
-      const top = bodyAt(HANGAR.nameRow), status = flying ? ['ACTIVE', W] : owned ? ['OWNED', G] : { money: formatCR(d.price) };
-      if (lit) bar(sw, { x: x - pad, y: top, w: Math.round(colW) + 2 * pad, h: UI.row });
-      // (A column too narrow for the number as well as the name and the status goes without the number.)
-      const numbered = colCols - 4 - partCols(status) - 1 >= len(d.label);
-      if (numbered) sw.text(pad2(i + 1), x, top, onBar(lit, Q), lit);
-      sw.text(fitText(d.label, colCols - (numbered ? 4 : 0) - partCols(status) - 1), x + (numbered ? 4 * cw : 0), top, onBar(lit, W), lit);
-      putPartEnd(sw, status, x + colW, top, lit);
-      sw.text(fitText(d.note, colCols), x, bodyAt(HANGAR.noteRow), G);
-      // Its figures: the label, the number flush right, the bar between (a hairline, its share of the best filled in white).
-      const x0 = Math.round(x + HANGAR.labelCols * cw), len0 = Math.round((colCols - HANGAR.labelCols - HANGAR.valueCols) * cw);
-      stats[i].forEach((s, k) => {
-        const row = bodyAt(HANGAR.statsRow + k), ly = Math.round(sw.capMid(row));
-        sw.text(s.label, x, row, G);
-        sw.textEnd(s.text, x + colW, row, W);
-        if (len0 < 4 * cw) return;       // a window too narrow for the bars (the numbers and the words stay)
-        onFrame(() => w.r.fill(x0, ly, len0, 1, frameInk('frame')));
-        w.r.fill(x0, ly - 1, Math.max(1, Math.round(len0 * Math.min(1, s.value / best[k]))), 3, W);
-      });
-    }, 'flat');
+  const inset = (b, by) => ({ x: b.x + by, y: b.y + by, w: b.w - 2 * by, h: b.h - 2 * by });
+  const look = (x) => ({ paint: x.crew ? null : world.pilot.paint, ink: x.owned ? null : Q, alpha: x.owned ? 1 : HANGAR.notHad });
+  // Each shelf's one scale (sharedScale): in a square's safe zone, and in the chosen ship's picture.
+  const shelfModels = (n) => fleet.filter((x) => x.shelf === n).map((x) => fleetModel(world, x));
+  const safe = Math.floor(side * CARD.inner), tileScale = [0, 1].map((n) => sharedScale(w.r, shelfModels(n), { w: safe, h: safe }));
+
+  // The chosen ship: its picture over the first two columns, flying there; its words from the third.
+  const pic = { x: colX(0), y: y(0), w: Math.round(colX(1) + side - colX(0)), h: Math.round(showBottom) };
+  frameBox(sw, pic, 'rule');
+  const room = inset(pic, (Math.min(pic.w, pic.h) * (1 - CARD.inner)) / 2);
+  drawFlying(w.r, pic, fleetModel(world, e), sharedScale(w.r, shelfModels(e.shelf), room), look(e), ui.still ? 0 : ui.time ?? 0);
+  const xT = colX(2), status = e.flying ? ['ACTIVE', W] : e.owned ? ['OWNED', G] : e.crew ? ['NOT MET', Q] : { money: formatCR(e.price) };
+  sw.text(pad2(selected + 1), xT, row(0), Q);
+  sw.text(fitText(e.label, Math.floor((R - xT) / cw) - 4 - partCols(status) - 1), xT + 4 * cw, row(0), W);
+  putPartEnd(sw, status, R, row(0));
+  sw.text(e.note, xT, row(1), G);
+  const barX = colX(3), barW = colX(4) + side - colX(3);
+  stats[selected].forEach((s, k) => {
+    const top = row(3 + k), ly = Math.round(sw.capMid(top));
+    sw.text(s.label, xT, top, G);
+    sw.textEnd(s.text, R, top, e.owned || !e.crew ? W : G);
+    onFrame(() => w.r.fill(barX, ly, barW, 1, frameInk('frame')));
+    w.r.fill(barX, ly - 1, Math.max(1, Math.round(barW * Math.min(1, s.value / best[k]))), 3, W);
   });
-  // The foot: why the chosen ship cannot be had (the world's own words, the amounts in gold) or what the last key said (in the accent), at the left; the
-  // keys flush right. The row stands whether or not it has words, so the window keeps its height as the arrows choose.
-  const flying = world.hangar.flying === def.id;
+
+  // The rules across, frame to frame, each in the middle of the air between two groups.
+  edgeRule(sw, box, Math.round(y(showBottom + air / 2)));
+  edgeRule(sw, box, Math.round(y(sq1 + side + air / 2)));
+
+  // The shelves: each a head, its count of the ships had, its squares.
+  const ships = [];
+  const shelf = (k, sqTop, num, name, list) => {
+    hangHead(sw, L, row(k), num, name);
+    sw.textEnd(`${list.filter((x) => x.owned).length} / ${list.length}`, R, row(k), W);
+    list.forEach((x, j) => {
+      const sq = { x: colX(j), y: y(sqTop), w: side, h: side };
+      ships.push({ index: x.i, box: sq });
+      w.item(`ship:${x.key}`, sq, (on) => {
+        if (on || x.i === selected) hairline(w, sq, W); else frameBox(sw, sq, 'rule');
+        const model = fleetModel(world, x);
+        drawShipIn(w.r, model, sq, { ...look(x), scale: tileScale[x.shelf] * modelScale(model) });
+        if (x.flying) w.r.fill(sq.x, sq.y + sq.h + UI.pad, sq.w, 3, W);
+      }, 'flat');
+    });
+  };
+  shelf(head1, sq1, 1, 'HANGAR', fleet.filter((x) => x.shelf === 0));
+  shelf(head2, sq2, 2, 'CREWS', fleet.filter((x) => x.shelf === 1));
+
+  // The foot: why the chosen ship cannot be had (the world's words, the amounts in gold) or what the last key said (in the accent), at the left;
+  // the keys flush right. A crew's ship not had has no key: its crew's run first.
   const message = ui.message ? { text: ui.message, ink: CONFIG.hud.accent, side: 'left', money: true }
-    : !flying && action.reason ? { text: action.reason, ink: G, side: 'left', money: true } : null;
+    : action.reason ? { text: action.reason, ink: G, side: 'left', money: true } : null;
   footKeys(w, sw, box, [
-    { key: keyName('choose') || 'choose', words: world.hangar.owns(def.id) ? `USE ${def.label}` : `BUY ${def.label}`, id: 'key:choose', dim: !action.enabled, right: true },
-    { key: '← →', words: 'SHIP', id: 'key:ships', right: true },
+    ...(action.words ? [{ key: keyName('choose') || 'choose', words: action.words, id: 'key:choose', dim: !action.enabled, right: true }] : []),
+    { key: '← → ↑ ↓', words: 'SHIP', id: 'key:ships', right: true },
     { key: keyName('back') || 'back', words: 'CLOSE', id: 'key:back', right: true },
   ], { top: sw.rowAt(box.y, footRow), message });
   finish(w);
-  return { ships, box, boxes: w.boxes, layout: { ...HANGAR, colCols } };
+  return { ships, box, boxes: w.boxes, layout: { ...HANGAR, side, gap } };
 }
 
 // ================================================================================================================================

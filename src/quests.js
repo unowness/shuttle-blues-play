@@ -10,7 +10,8 @@ import { clockText } from './contracts.js';
 import { clearSpot, questSectors, nearPlaces } from './spots.js';
 import { pesterQuest, startPester, stepPester } from './pester.js';
 import { hintOptions, placeWreck, refreshWreck, wreckWords, stepWreck } from './wrecked.js';
-import { errandCandidates, errandReach, errandWords, stepErrand } from './errands.js';
+import { errandCandidates, preferErrandCandidates, errandReach, errandWords, stepErrand } from './errands.js';
+import { contentAreas } from './mapContent.js';
 import { stepSpecial, specialQuest } from './specials.js';
 import { factsOfWorld, unlocked, pickKind, pickShip, offerShare, newRecent, noteRecent, payFor } from './pacing.js';
 import { restSide } from './sideSlot.js';
@@ -153,7 +154,7 @@ function sideLed(world) {
 // A clear place for a drifting pilot in a sector, from the catalogue alone (so it can be chosen for a sector the pilot
 // is not in): inside the sector's middle, `rescue.clear` u from its stations, planets, holes, caches and signals, and apart from
 // the open quests' places `avoid` (src/spots.js).
-export const drifterSpot = (sectorId, rng, avoid = null) => clearSpot(sectorId, rng, { clear: Q().rescue.clear, avoid });
+export const drifterSpot = (sectorId, rng, avoid = null, areas = []) => clearSpot(sectorId, rng, { clear: Q().rescue.clear, avoid, areas });
 
 // Where a side quest the catalogue places would lead (a cache where it was laid for this pilot, a signal, a stranger's cargo, a ruin,
 // a planet), as { sectorId, x, y } in fractions; null for the kinds a quest places itself (a pilot out of fuel, a wreck) and for the
@@ -279,12 +280,15 @@ export function offerSideQuest(world, kind = null, { here = false } = {}) {
   let own = pool.filter((c) => c.kind === k);
   // A planet's errand `here` is about a planet of this sector, if it has one.
   if (here && k === 'planet' && own.some((c) => c.errand.planet.sectorId === world.sector.id)) own = own.filter((c) => c.errand.planet.sectorId === world.sector.id);
+  // Prefer authored connections only after the normal leg, unlock and quest-spacing checks. A lab's local offer stays local.
+  if (!here && k === 'planet') own = preferErrandCandidates(world, own);
   const pick = { ...own[Math.min(own.length - 1, Math.floor(rng() * own.length))], since: world.time };
   if (k === 'rescue') {
     // This sector or one beside it on the grid, never O-08.
     const near = here ? [world.sector] : questSectors(world.sector, world.ledger);
     const sector = near[Math.min(near.length - 1, Math.floor(rng() * near.length))];
-    const spot = drifterSpot(sector.id, rng, places);
+    const areas = here ? [] : contentAreas('fuel-help', world.ledger, { sectorId: sector.id });
+    const spot = drifterSpot(sector.id, rng, places, areas);
     if (!spot) return null;
     // One of the thirteen friendly ships SX picked (SX, 2026-10-02: «это всегда был челнок такой же как мой только серый, это
     // должны быть разные корабли нпс которых мы придумали»), leaning away from the ones the pilot met or was asked about lately.

@@ -24,6 +24,8 @@ import { drawOil } from './oil.js';
 import { createTankOil, splitTankOil, stepTankOil, drawTankOil } from './tankOil.js';
 import { PALETTE } from './palette.js';
 import { inKeepOut, stationPush } from './keepOut.js';
+import { contentAreas } from './mapContent.js';
+import { MAP_PLACEMENT, sampleArea } from './mapContentConfig.js';
 
 const KIND_LABEL = { fuel: 'FUEL DROID', repair: 'REPAIR DROID' };
 // The word under a droid while the pilot is near, set as a friendly ship's name is (src/worldDraw.js; SX, 2026-10-06: «у роботов
@@ -129,8 +131,18 @@ export function spawnDroid(world, options = {}) {
   const droid = new Droid(`droid-${++world.droidSerial}`, kind, look, at.x, at.y, rng);
   if (options.route) droid.route = options.route.map((p) => ({ x: p.x, y: p.y }));
   else {
+    const areas = contentAreas('service-droid', world.ledger, { sectorId: world.sector.id, variant: kind });
+    let preferred = null;
+    // A service pocket can supply one nearby stop, without moving the off-screen arrival
+    // or making a droid cross a whole sector to reach a marker. The ordinary route follows.
+    for (let i = 0; areas.length && !preferred && i < MAP_PLACEMENT.areaTries; i++) {
+      const p = sampleArea(areas[i % areas.length], rng, world.width, world.height);
+      const x = p.x * world.width, y = p.y * world.height;
+      const distance = Math.hypot(x - at.x, y - at.y);
+      if (distance >= D.leg[0] && distance <= D.leg[1] && droidGround(world, x, y, D.avoid)) preferred = { x, y };
+    }
     const back = Math.atan2(at.y - ship.y, at.x - ship.x);
-    const first = pointNear(world, ship.x, ship.y, back, lerp(700, 1300, rng()), rng, 1.4);
+    const first = preferred || pointNear(world, ship.x, ship.y, back, lerp(700, 1300, rng()), rng, 1.4);
     let from = first || at;
     if (first) droid.route.push(first);
     while (droid.route.length < D.stops) {

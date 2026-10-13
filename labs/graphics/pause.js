@@ -27,7 +27,7 @@
 import { CONFIG } from '../../src/config.js';
 import { readSeen, writeSeen, writeCockpitSmoke } from '../../src/prefs.js';
 import { frames, FRAME_STYLES, FRAME_STYLE_NAMES, setFrames } from '../../src/frames.js';
-import { SHIPS } from '../../src/hangar.js';
+import { shipById } from '../../src/hangar.js';
 import { keyName } from '../../src/controls.js';
 import { lookById, ownedLooks } from '../../src/looks.js';
 import { paintById } from '../../src/paint.js';
@@ -353,7 +353,7 @@ export function createPause(game) {
   }
   // Under the square: the ship flown and the drawing it wears (the pause's SHIP row), where the game has them.
   function captionOf() {
-    const { world } = game, flying = SHIPS.find((def) => def.id === world.hangar?.flying) ?? SHIPS[0], hull = game.shipLook;
+    const { world } = game, flying = shipById(world.hangar?.flying) ?? shipById('standard'), hull = game.shipLook;
     const worn = hull?.shown() ? hull.looks().find((l) => l.id === hull.worn)?.label : null;
     return { left: flying.label, right: worn ?? null };
   }

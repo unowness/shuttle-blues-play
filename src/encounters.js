@@ -14,7 +14,11 @@ import { workingKind } from './ruins.js';
 import { openingCalm } from './opening.js';
 import { noteSpecialPirate } from './specials.js';
 import { pirateDebris } from './debris.js';
+import { replaceRoster } from './pirateRoster.js';
+import { attachPirateCombat, finishPirateCombat } from './pirateCombat.js';
+import { onNewPirateDamaged, onNewPirateRemoved } from './pirateRoles.js';
 import { landedNow } from './trick.js';
+import { contentAreas } from './mapContent.js';
 
 // What a blow costs a pirate, on its own few hit points (CONFIG.pirates.hurt.impact): the ship's rule as it was
 // when the hull had 10, so pirates break against each other and the ship as they did.
@@ -61,7 +65,12 @@ export function stepEncounters(world, dt) {
   const chance = 1 - Math.exp(-(zone.rate ?? 0.5) * C.checkEvery / 60);
   if (world.rng('pirate')() >= chance) return;
   // Before the first delivery a patrol of two (CONFIG.pirates.patrol), then a squad of the zone's sizes.
-  world.spawnPirates(openingCalm(world) ? C.patrol : pickGroupSize(world.rng('pirate')));
+  const area = contentAreas('pirate-field', world.ledger, { sectorId: world.sector.id })
+    .find(a => Math.hypot(a.x * W - ship.x, a.y * H - ship.y) <= a.radius + C.spawnDistance[1]);
+  // Keep the sector's encounter rate and off-screen distance. Near the exposed approach,
+  // try its bearing first; pirateGround and the ordinary angular fallback still decide.
+  const options = area ? { angle: Math.atan2(area.y * H - ship.y, area.x * W - ship.x) } : {};
+  world.spawnPirates(openingCalm(world) ? C.patrol : pickGroupSize(world.rng('pirate')), options);
 }
 
 // Whether a pirate can be placed at (x, y): inside the sector, off a dead
@@ -126,7 +135,10 @@ export function spawnPirates(world, count = 1, options = {}) {
     }
   }
   if (!centre) return [];
-  const kinds = options.types || (options.mixed ? pickMixedTypes(n, rng) : pickTypes(n, rng));
+  const kinds = options.types || replaceRoster(options.mixed ? pickMixedTypes(n, rng) : pickTypes(n, rng), {
+    restored: world.ledger.restored.size, context: options.context ?? (options.post?.kind ?? (options.mixed ? 'raid' : 'ordinary')),
+    rng: world.rng('pirate-roster'),
+  });
   // One paint for the squad (CONFIG.pirates.paints).
   const paint = options.paint || pickPaint(rng);
   const ring = rng() * TAU;
@@ -153,6 +165,7 @@ export function spawnPirates(world, count = 1, options = {}) {
     world.pirates.push(p);
     made.push(p);
   }
+  attachPirateCombat(world, made, options.combatRecord);
   if (options.passive) return made;
   if (!world.encounter) world.encounter = { startedAt: world.time, size: 0, farFor: 0, safeFor: 0 };
   world.encounter.size += made.length;
@@ -174,6 +187,7 @@ export function spawnPirates(world, count = 1, options = {}) {
 // dropped if it was destroyed, else 0.
 export function hurtPirate(world, p, cause, { amount = 1, x = p.x, y = p.y, aim = null } = {}) {
   p.hp -= amount;
+  onNewPirateDamaged(world, p, amount);
   if (p.mode === 'guard') wakePost(world, p);       // a squad at its post wakes when one of it is hit (src/raids.js)
   if (p.hp <= 0) return world.killPirate(p, cause);
   const B = CONFIG.asteroid.bump, F = CONFIG.pirates.flash;
@@ -220,6 +234,7 @@ export function killPirate(world, p, cause) {
 export function removePirate(world, p, { quiet = false } = {}) {
   const i = world.pirates.indexOf(p);
   if (i < 0) return false;
+  onNewPirateRemoved(world, p, quiet ? 'destroyed' : 'removed');
   world.pirates.splice(i, 1);
   if (!quiet && world.encounter && !world.pirates.some((q) => q.mode !== 'leave' && q.mode !== 'guard')) world.endEncounter('lost');
   return true;
@@ -236,6 +251,7 @@ export function pirateGone(world, p) { postGone(world, p); noteSpecialPirate(wor
 export function endEncounter(world, cause, { leave = false, deferEvent = false, loot = false } = {}) {
   const enc = world.encounter;
   if (!enc) return false;
+  finishPirateCombat(world, cause);
   world.encounter = null;
   const left = world.pirates.filter((p) => p.mode !== 'leave' && p.mode !== 'guard').length;
   // A squad at a post (src/raids.js) goes back to circling it when the fight is over, if its post is in world sector.

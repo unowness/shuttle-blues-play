@@ -431,6 +431,19 @@ export const EVENT_SOUNDS = {
 };
 
 export const SILENT = {
+  pirateAttackPhase: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  piratePattern: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  mineLaid: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  mineRemoved: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  repairPulse: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  repairInterrupted: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  repairSupplySpent: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  capsuleSecured: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  capsuleEscaped: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  capsuleDropped: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  capsuleRecovered: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+  newEnemySystemsEnded: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
+
   sectorLeft: 'the sector entered right after it has the sound',
   outatime: 'an Easter egg keeps its own counsel',
   pirateGreed: 'a pirate turning for coins is seen, not heard',

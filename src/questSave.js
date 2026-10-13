@@ -11,6 +11,8 @@ import { PLANET_ASKS, PLANET_THANKS, planetWords, sayFor } from './voices.js';
 import { specialById } from './specialShips.js';
 import { readPlan } from './specialQuests.js';
 import { clamp } from './util.js';
+import { readPirateCombat, writePirateCombat, readPirateRoster } from './pirateCombatSave.js';
+import { pickTypes } from './pirates.js';
 
 // The quests that are open when the game is saved (PLAN C1, 2026-10-03; the chats audit: «a reload resets them»). They were in
 // memory only, so a reload dropped a side quest, the radio's step, a ship pestered or a reference ship waiting, and the money a
@@ -23,7 +25,8 @@ import { clamp } from './util.js';
 // What is NOT here, on purpose:
 //   a raid               the ledger's own (`ledger.raid`, with its clock and its tally): it is saved there, once
 //   pirate squads        never saved (their personas, SX's rule): a pestered ship's squad is made again when the pilot is in its
-//                        sector, as many as are still to beat (`down` is kept)
+//                        sector, as many as are still to beat (`down`, remaining hull IDs and paint are kept). Finite role supplies
+//                        and the NPC capsule are quest state; flight state and transient carrier IDs are not saved.
 //   the pacing           `sideReadyAt`, `guideReadyAt`, `pesterNext`, `freightPace`, the reference ships' clock, and the memory of the last 20
 //                        minutes (`world.recent`): a load begins them flat, as before. The memory would be easy to add: it is a list
 //                        of { kind, key, at, weight } notes ('kind', 'ship', 'paint') on the ledger's clock, plain numbers and short
@@ -100,7 +103,8 @@ function writeSide(world, s) {
 
 function writePester(world, p) {
   return { kind: 'pester', code: p.code, paint: p.paint ?? null, sectorId: p.sectorId, x: p.x, y: p.y, angle: p.angle, size: p.size, down: p.down,
-    left: Math.max(0, p.ends - world.ledger.clock), hailed: !!p.hailed };
+    left: Math.max(0, p.ends - world.ledger.clock), hailed: !!p.hailed,
+    mix: p.mix ? [...p.mix] : undefined, piratePaint: p.piratePaint ?? null, combat: writePirateCombat(p.combat) };
 }
 
 // A reference ship standing, or one flown: both are saved as the ship standing at its site (see the top of the file).
@@ -219,11 +223,21 @@ function readPester(world, r) {
   if (!sector || !known(r.code) || !fin(r.x) || !fin(r.y) || !Number.isInteger(r.size)) return null;
   const size = clamp(r.size, 1, Math.max(...C.squad.map(([n]) => n)));
   const down = Number.isInteger(r.down) ? clamp(r.down, 0, size) : 0;
+  const mix = readPirateRoster(r.mix, size - down);
+  const combat = readPirateCombat(r.combat);
+  // Do not turn a malformed new objective into an already completed ordinary rescue.
+  if ((r.mix != null && !mix) || (r.combat?.capsule && !combat?.capsule) || (mix?.includes('jackal') && !combat?.capsule)) return null;
+  const capsule = combat?.capsule;
+  if (capsule && [capsule, capsule.exit].some((point) => point.x < 0 || point.x > W || point.y < 0 || point.y > H)) return null;
   world.pesterSerial += 1;
   const p = { id: `pester:${world.pesterSerial}`, code: r.code, name: NPC_ART[r.code].name, sectorId: sector.id, x: clamp(r.x, 0, W), y: clamp(r.y, 0, H),
-    angle: num(r.angle, -1e3, 1e3, 0), size, down, ends: world.ledger.clock + num(r.left, 0, C.time, C.time), hailed: flag(r.hailed), hits: [], paint: text(r.paint) };
+    angle: num(r.angle, -1e3, 1e3, 0), size, down, ends: world.ledger.clock + num(r.left, 0, C.time, C.time), hailed: flag(r.hailed), hits: [], paint: text(r.paint),
+    mix: mix ?? pickTypes(size - down, world.rng('pirate')),
+    piratePaint: CONFIG.pirates.paints.some((q) => q.id === r.piratePaint) ? r.piratePaint : null, combat };
   // Driven off: it waits for its thanks to be heard (src/pester.js stepPester).
-  if (down >= size) { p.cleared = true; p.thanks = sayFor(world, 'pester', 'thanks', p.code); }
+  if (down >= size && (!combat?.capsule || combat.capsule.state === 'recovered')) {
+    p.cleared = true; p.thanks = sayFor(world, 'pester', 'thanks', p.code);
+  }
   return p;
 }
 

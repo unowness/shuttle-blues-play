@@ -35,7 +35,7 @@ import { questTone } from '../../src/quests.js';
 import { PALETTE, ROLES, QUEST_INKS } from '../../src/roles.js';
 import { COLUMN_GAPS, buttonInk, drawColumnButton } from './locator.js';
 import { keptDraw } from '../../src/grade.js';
-import { RAIL, LORE, LORE_TIMES, sweepAt, washOf, moneyRuns, railFit } from './rail.js';
+import { RAIL, LORE, LORE_TIMES, sweepAt, washOf, moneyRuns, railFit, drawRailGrid } from './rail.js';
 import { hoverItem, withAlpha } from '../../src/hover.js';
 import { MARK_FOCUS } from '../../src/tasks.js';
 import { keyName } from '../../src/controls.js';
@@ -270,6 +270,16 @@ function drawPlate(r, plate, x, y, g, now, clock, bearing, reduced, dim = false,
     if (fx.lit(s)) r.fill(s.x, s.y, s.w, s.h, washOf(words.ink) ?? words.ink, QUEST_LIGHT.wash);
     const flash = fx.flash(s);
     if (flash > 0) r.fill(s.x, s.y, s.w, s.h, words.ink, QUEST_LIGHT.flash * flash);
+  }
+  // Every resolved plate takes the cargo grid with its wash. Clip to the cells
+  // still visible and already lit, so the grid follows both the wave and the exit.
+  if (plate.outcome && plate.doneAt != null) {
+    const ctx = r.ctx;
+    ctx.save(); ctx.beginPath();
+    for (const s of sq.list) if (s.col >= 0 && fx.shown(s) && fx.lit(s)) ctx.rect(s.x, s.y, s.w, s.h);
+    ctx.clip();
+    drawRailGrid(r, x, y, g.width, g.height, mirror);
+    ctx.restore();
   }
   // A row's words where Codex's painter sets them (rail.js, the banners'): its top plus the interface's textY, the letters at their own
   // monospace places (rounding each letter to a whole pixel stepped them 9 or 10 px apart at a 9.27 px cell).

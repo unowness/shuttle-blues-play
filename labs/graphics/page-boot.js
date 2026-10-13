@@ -26,7 +26,8 @@ import { createWorldPresentation } from './world-art.js';
 import { World } from '../../src/world.js';
 import { normalizeModel, loadModel, PLACEHOLDER } from '../../src/asciiModel.js';
 import { loadSprites } from '../../src/sprites.js';
-import { SHIPS, registerShipModel, shipModel } from '../../src/hangar.js';
+import { SHIPS, CREW_SHIPS, registerShipModel, shipModel } from '../../src/hangar.js';
+import { specialModel } from '../../src/specialShips.js';
 import { LOANER, flyingLoaner } from '../../src/loaner.js';
 import { SHIP_LOOKS, DEFAULT_SHIP_LOOK, HULL, registerShipLook, shipLookModel } from '../../src/shipLooks.js';
 import { SECTORS } from '../../src/sectors.js';
@@ -107,6 +108,8 @@ export function createPageBoot(game, page, { saves, respawnFx, followPixelRatio,
       registerShipLook(DEFAULT_SHIP_LOOK, classic);
       if (!shipLookModel(game.shipLook.worn)) game.shipLook.worn = DEFAULT_SHIP_LOOK;
       if (classic) registerShipModel(HULL, shipLookModel(game.shipLook.worn));
+      // The crews' ships (src/hangar.js CREW_SHIPS) are drawn in their quests' drawings, made in code: there to fly once their crew's run is done.
+      for (const def of CREW_SHIPS) registerShipModel(def.id, specialModel(def.id));
       return shipModel(flown);
     },
     // A pilot hears about the model only if it failed (QA, 2026-09-30).

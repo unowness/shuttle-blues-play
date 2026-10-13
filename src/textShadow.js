@@ -15,7 +15,8 @@
 // The copy goes through the context's own fillText and strokeText, put on the page's context once (`group` installs them): while no
 // group is drawn they hand the call straight on.
 
-export const TEXT_SHADOW = Object.freeze({ drop: 4, leanShare: 0.035 });
+// SX, 2026-10-10: halve both the fixed offset and the mouse's added displacement.
+export const TEXT_SHADOW = Object.freeze({ drop: 2, leanShare: 0.0175 });
 const BLACK = '#000000';
 
 // Which way a mark at (x, y) of a screen width x height falls: toward the middle; in the middle band (MIDDLE of the half width or

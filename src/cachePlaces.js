@@ -9,6 +9,7 @@ import { STRANGERS } from './strangers.js';
 import { secretHoleAt } from './secretHole.js';
 import { openSectorIds, sectorOpen } from './frontier.js';
 import { KEEP_OUT } from './keepOut.js';
+import { contentAreas, insideContentArea } from './mapContent.js';
 
 // Where a find is laid when it becomes the pilot's to find (SX, 2026-10-02: «у нас тайники же тоже не сразу открыты они
 // открываются по мере починки секторов но новые тайники не обязательно должны в новом секторе быть, понимаешь я расставил их
@@ -81,7 +82,10 @@ function drawn(weights, rng) {
 
 // A place in `sectorId`: one of SX's that is free, drawn, else a clear one made; null when neither is found.
 function placeIn(sectorId, ledger, rng) {
-  const pool = CATALOGUE.filter((g) => g.sector === sectorId && !issue(sectorId, g.x * W, g.y * H, ledger, false));
+  const legal = CATALOGUE.filter((g) => g.sector === sectorId && !issue(sectorId, g.x * W, g.y * H, ledger, false));
+  const areas = contentAreas('cache-pool', ledger, { sectorId });
+  const preferred = legal.filter(g => insideContentArea(g, areas));
+  const pool = preferred.length ? preferred : legal;
   if (pool.length) { const g = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))]; return { sector: sectorId, x: g.x, y: g.y }; }
   for (let i = 0; i < P().tries; i++) {
     const fx = P().edge + (1 - 2 * P().edge) * rng(), fy = P().edge + (1 - 2 * P().edge) * rng();

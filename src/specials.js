@@ -7,6 +7,7 @@ import { SPECIALS, specialById, specialModel, specialSize, drawModel, drawFlown,
 import { HANDLERS } from './specialQuests.js';
 import { QUEST_LINES as QL } from './questLines.js';
 import { radioFitted } from './opening.js';
+import { contentAreas } from './mapContent.js';
 
 // The reference ships' rare quests (QUESTS_V2_HANDOFF.md, round three; SX, 2026-10-02: «квесты ... какой-то в каком-то из
 // секторов мы на это случайно нарываемся, это как случайная редкое событие, один из кораблей отсылок стоит на месте, и у
@@ -19,7 +20,8 @@ import { radioFitted } from './opening.js';
 //            gentlest first, each waiting for some stations restored) that has not left its note yet stands still in the
 //            sector the pilot flies in, in a clear place out of sight. A pilot who comes within `reach` u is
 //            spoken to, three lines over its head in the hail's way (what happened to one of its people, the quest);
-//            its menu offers BOARD. It waits `stay` s and then goes, unmet, and comes again in its turn. A marker on the
+//            its menu offers BOARD. It waits `stay` s and then goes, unmet, and comes again after the rest of the round
+//            (src/pacing.js nextSpecial: the next not done comes first, SX's «Следующий по кругу»). A marker on the
 //            screen's edge says where. Nothing else new is offered meanwhile (src/quests.js mayOffer).
 //   boarded  The pilot flies THAT ship: its drawing as the ship, its chassis (src/chassis.js `special-<id>`), its own hull
 //            and a tank that is never the trouble; the pilot's own ship stays where it was, dark and still (drawn parked),
@@ -28,7 +30,7 @@ import { radioFitted } from './opening.js';
 //            meanwhile is saved at the parked ship. A wreck of the borrowed ship is the quest lost, never a wreck of the
 //            pilot's: no cargo stranded, no coins taken, no wreck on the card.
 //   ended    Won: the ship's rewards, all three (src/pilot.js notes, cockpits, paints): a cockpit scheme in its style, a paint,
-//            a note in the garage, and its CR (CONFIG.quests.special.order; SX picked «Вещи и CR»). Lost: nothing is lost but the chance, which comes again later. Either way the pilot is back
+//            a note in the garage, and its CR (CONFIG.quests.special.order; SX picked «Вещи и CR»). Lost: nothing is lost but the chance, which comes again after the rest of the round. Either way the pilot is back
 //            in its own ship where the quest ended, the borrowed one flying on and fading.
 //
 // A ship standing is in the save (src/questSave.js); so is one whose quest is being flown: it comes back standing where it was
@@ -51,7 +53,7 @@ const ASK = {
 
 // A place for the ship to stand in the pilot's sector: clear of everything, in the middle, out of sight. `near` (the lab's
 // `?special=`) puts it in view of the ship instead.
-function findSite(world, near) {
+function findSite(world, near, { areas = [], fallback = true } = {}) {
   const rng = world.rng('quest'), ship = world.ship;
   if (near) {
     // In view, clear of every body (a station's menu would be nearer than the ship's): the first bearing round that has room.
@@ -66,24 +68,34 @@ function findSite(world, near) {
   // Out of sight of the pilot (`apart` u), and if the sector has no such place, a little nearer; apart from the open quests (src/spots.js).
   const avoid = world.questPlaces();
   for (const k of [1, 0.75, 0.55]) {
-    const spot = clearSpot(world.sector.id, rng, { clear: C.clear, edge: C.edge, away: { x: ship.x, y: ship.y, by: C.apart * k }, avoid });
+    const spot = clearSpot(world.sector.id, rng, { clear: C.clear, edge: C.edge, away: { x: ship.x, y: ship.y, by: C.apart * k }, avoid, areas, fallback });
     if (spot) return { sectorId: world.sector.id, x: spot.x * world.width, y: spot.y * world.height, angle: rng() * TAU };
   }
   return null;
 }
 
-// A ship comes to stand, if one fits: `id` names it (the lab), else the next of the order (src/pacing.js nextSpecial: the
-// first whose note the pilot does not hold). It needs a place and a quest from here (its plan); with none, it is tried again
+// A ship comes to stand, if one fits: `id` names it (the lab), else the next of the round (src/pacing.js nextSpecial: after
+// the one whose turn ended last, the first whose note the pilot does not hold). It needs a place and a quest from here (its plan); with none, it is tried again
 // at the next look, from wherever the pilot is then. Returns the special, or null.
 export function offerSpecial(world, { id = null, near = false } = {}) {
   if (world.special || world.sector.hidden) return null;
   const rng = world.rng('quest'), C = S();
-  const next = id ? null : nextSpecial(world.pilot.notes);
+  const next = id ? null : nextSpecial(world.pilot.notes, world.pilot.lastSpecial);
   const pool = SPECIALS.filter((sp) => (id ? sp.id === id && !world.pilot.notes.has(sp.id) : sp.id === next?.id));
   for (const sp of pool) {
-    const site = findSite(world, near);
-    if (!site) return null;
-    const plan = HANDLERS[sp.id].plan(world, site);
+    let site = null, plan = null;
+    const areas = near ? [] : contentAreas('reference-ship', world.ledger, { sectorId: world.sector.id, variant: sp.id });
+    if (areas.length) {
+      site = findSite(world, false, { areas, fallback: false });
+      if (site) plan = HANDLERS[sp.id].plan(world, site);
+    }
+    // A clear position is not enough: the complete mission must fit its normal destination/length/stop rules.
+    // If the authored area cannot provide that mission, try the original current-sector placement.
+    if (!plan) {
+      site = findSite(world, near);
+      if (!site) return null;
+      plan = HANDLERS[sp.id].plan(world, site);
+    }
     if (!plan) continue;
     world.specialSerial = (world.specialSerial ?? 0) + 1;
     const L = world.ledger;
@@ -118,7 +130,7 @@ export function stepSpecial(world, dt) {
     // дополнительные активности».)
     const blocked = !world.ship.alive || !!world.docked || !!world.home || !!world.encounter || !!L.raid || !!world.pester || world.sector.hidden
       || !radioFitted(world);
-    if (specialDue(world.specialClock, factsOfWorld(world), world.pilot.notes, world.rng('quest'), C.checkEvery, blocked)) offerSpecial(world);
+    if (specialDue(world.specialClock, factsOfWorld(world), world.pilot.notes, world.rng('quest'), C.checkEvery, blocked, world.pilot.lastSpecial)) offerSpecial(world);
     return;
   }
   if (s.boarded) {
@@ -131,7 +143,7 @@ export function stepSpecial(world, dt) {
   // Standing, unmet: it speaks to a pilot who comes near, again if the pilot went off and came back, and goes when its time is up.
   if (L.clock >= s.leaveAt) {
     world.special = null;
-    world.specialClock.endedAt = L.clock;
+    endTurn(world, s.id);
     world.emit('specialGone', { id: s.id, sectorId: s.site.sectorId });
     return;
   }
@@ -143,6 +155,13 @@ export function stepSpecial(world, dt) {
     const sp = specialById(s.id), rows = HANDLERS[s.id].rows(s.plan);
     world.emit('trafficHail', { craftId: SPECIAL_ID, label: sp.label, line: rows.join(' '), rows, x: s.site.x, y: s.site.y, sectorId: s.site.sectorId });
   }
+}
+
+// A ship's turn is over, met or not, done or not: the rest before the next one begins, and the round goes on from the ship after
+// it (src/pacing.js nextSpecial), kept in the pilot's save so a reload does not start the round again.
+function endTurn(world, id) {
+  world.specialClock.endedAt = world.ledger.clock;
+  world.pilot.lastSpecial = id;
 }
 
 // ---- boarding and coming back -------------------------------------------------------------------------------------------
@@ -197,7 +216,7 @@ function finish(world, outcome, why = null) {
   // What is flown no more: the tow of crates, the pirates a quest sent (they fly off), the weight.
   for (const p of world.pirates) if (p.tag === 'special') { p.tag = null; if (p.mode !== 'leave') { p.mode = 'leave'; p.leaveTimer = CONFIG.pirates.leave.time; } }
   world.special = null;
-  world.specialClock.endedAt = world.ledger.clock;
+  endTurn(world, s.id);
   const base = { id: s.id, label: sp.label, x: at.x, y: at.y, sectorId: world.sector.id };
   if (outcome === 'done') {
     const given = grantRewards(world, sp);

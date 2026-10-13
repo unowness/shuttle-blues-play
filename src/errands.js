@@ -8,6 +8,7 @@ import { payFor } from './pacing.js';
 import { restSide } from './sideSlot.js';
 import { planetWords, PLANET_ASKS, PLANET_THANKS } from './voices.js';
 import { QUEST_LINES as QL } from './questLines.js';
+import { contentLinks } from './mapContent.js';
 
 // A planet's errand: the blue quest of QUESTS_V2_HANDOFF.md (SX, 2026-10-02: «может быть, квест у планеты, ты
 // подлетаешь, с тобой общаются через вот такой бабл, как мы подписываем разговоры, там тремя строками просят привезти
@@ -70,6 +71,16 @@ export function errandCandidates(world) {
     }
   }
   return out;
+}
+
+// The map's connections are preferences among already legal offers. Called after the side slot has also removed
+// candidates near another quest; an unavailable planned station or blocked planet leaves the ordinary pool intact.
+export function preferErrandCandidates(world, candidates) {
+  const links = contentLinks('planet-errand', world.ledger);
+  const preferred = candidates.filter((c) => links.some((link) =>
+    link.anchor?.kind === 'planet' && link.anchor.sectorId === c.errand.planet.sectorId &&
+    link.anchor.label === c.errand.planet.label && link.targetId === c.errand.station));
+  return preferred.length ? preferred : candidates;
 }
 
 // Whether the errand can still be done: before the suitcase is taken, its station still works.

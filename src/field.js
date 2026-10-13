@@ -7,6 +7,7 @@
 // the sector, carried across a seam when they are near the ship (World.enterSector), and drawn only in the sector they belong to.
 import { TAU, between, wrapTo } from './util.js';
 import { PLANE, WRAP } from './topology.js';
+import { mapAreasIn, MAP_PLACEMENT, sampleArea } from './mapContentConfig.js';
 
 // The field's numbers (chat W2, 2026-10-04; SX, after flying: «мало камней мало астероидов ... очень много пустоты ... свободное
 // место должно быть, но пустоту надо тоже заполнять ... астероидами»).
@@ -53,9 +54,16 @@ function pastDeadEdge(world, x, y, r) {
 // its way within `drift.aim` rad of it.
 export function spawnRocks(world, n, clear = 700, toward = null) {
   const D = FIELD.drift, rng = world.rng('field');
+  const areas = mapAreasIn('rock-field', world.sector.id, world.ledger?.restored?.size ?? 0);
   let free = world.asteroids.filter((a) => !a.moored).length, guard = 0, missed = 0;
+  let draws = 0;
   while (free < n && guard++ < 2000) {
-    const x = between(rng, 0, world.width), y = between(rng, 0, world.height);
+    // Only some candidate drifts favor the authored pocket. A bounded budget leaves
+    // open water elsewhere and lets a crowded pocket fall back to the usual field.
+    const preferred = areas.length && draws < MAP_PLACEMENT.fieldTries && draws % MAP_PLACEMENT.fieldEvery === 0;
+    const p = preferred ? sampleArea(areas[draws % areas.length], rng, world.width, world.height) : null;
+    draws++;
+    const x = p ? p.x * world.width : between(rng, 0, world.width), y = p ? p.y * world.height : between(rng, 0, world.height);
     if (!world.clearance(x, y, 260)) continue;
     const d = world.delta(x, y, world.ship.x, world.ship.y);
     if (Math.hypot(d.x, d.y) < clear + D.radius) continue;

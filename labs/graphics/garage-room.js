@@ -81,7 +81,8 @@ const THINGS = Object.freeze({
   // HOME's terms by CONFIG.home (Codex's text pass UI-01): the crane is free up to its share of the whole hull, then by the point.
   CRATE: { title: 'SPARE PARTS', text: `Repair stock for the berth crane. Free repairs up to ${Math.round(CONFIG.home.freeShare * 100)}% hull; then ${CONFIG.home.repairPrice} CR per hull point.` },
   ARMCHAIR: { title: 'ARMCHAIR', text: 'Click to open your pilot card.', action: 'pilot' },
-  SHIP: { title: 'YOUR SHUTTLE', text: 'Click or press ESC to leave the garage.', action: 'leave' },
+  // The shuttle: the ship's choice (SX, 2026-10-13: «клик по кораблю ведет на выбор корабля»); the way out is LEAVE GARAGE, ESC.
+  SHIP: { title: 'YOUR SHUTTLE', text: 'Click to change your starship.', action: 'hangar' },
   // The filing cabinet: the notes the reference ships leave when their quest is done (src/specials.js; SX, 2026-10-02: «памятную
   // записку какую-то оставлять, которая в гараже можно читать ... от их лица»). Pointing at it reads one; a click turns
   // to the next.
@@ -89,7 +90,7 @@ const THINGS = Object.freeze({
 });
 // What a thing's window names on its action's row (SX's PICK: a thing that does something says it there, and its «Click to ...»
 // sentence goes; the cabinet keeps its note, which is what it holds).
-const ACTIONS = Object.freeze({ ARMCHAIR: 'PILOT CARD', SHIP: 'LEAVE GARAGE', CABINET: 'NEXT NOTE' });
+const ACTIONS = Object.freeze({ ARMCHAIR: 'PILOT CARD', SHIP: 'CHANGE STARSHIP', CABINET: 'NEXT NOTE' });
 
 // ---- the art: read once, from the painted room ---------------------------------------------------------------------
 
@@ -718,11 +719,12 @@ export function roomPoint(room, x, y) {
 // ---- the room as one of the page's screens -------------------------------------------------------------------------------
 
 // The garage's room among the page's screens (labs/graphics/screens.js keeps it in POPUPS and HOLDS with the others): opened when the
-// ship is inside its berth ('homeEntered', labs/graphics/notices.js), over a flight that goes on (the ship sits in its berth); ESC (or
-// a click on the shuttle) sends it away, and once it has gone the ship backs out (World.leaveHome). C, or a click on the armchair,
-// opens the pilot card over it. `?room` in the lab opens it at the start, to look at. `page` is what the registry lends it: the
-// world, the renderer, the sound, the feedback (reduced motion), the page's clock, the screens' `open` flags, `key(action)` (tapped
-// this frame), the controls list's `openHelp` / `closeHelp`, `openPilot`, `controls()`, this screen's keys as the scheme reads
+// ship is inside its berth ('homeEntered', labs/graphics/notices.js), over a flight that goes on (the ship sits in its berth); ESC
+// (LEAVE GARAGE) sends it away, and once it has gone the ship backs out (World.leaveHome). C, or a click on the armchair, opens the
+// pilot card over it; S (CHANGE STARSHIP), or a click on the shuttle, the hangar (SX, 2026-10-13: «делаем в комнате кнопку change starship
+// и выход, а клик по кораблю ведет на выбор корабля»). `?room` in the lab opens it at the start, to look at. `page` is what the registry
+// lends it: the world, the renderer, the sound, the feedback (reduced motion), the page's clock, the screens' `open` flags, `key(action)`
+// (tapped this frame), the controls list's `openHelp` / `closeHelp`, `openPilot`, `openHangar`, `controls()`, this screen's keys as the scheme reads
 // them (src/controls.js roomControls), `pointerDown()`, and `questBoard()` (the flight's quest list, whose activeId is the selected task:
 // src/tasks.js).
 export function createRoomScreen(page) {
@@ -754,6 +756,7 @@ export function createRoomScreen(page) {
   function roomKeys() {
     if (key('help')) { if (open.help) page.closeHelp(); else page.openHelp(); return; }
     if (key('card') && !open.help && room.closingAt === null) { page.openPilot(); return; }
+    if (key('changeShip') && !open.help && room.closingAt === null) { page.openHangar(); return; }
     if (key('back') || key('close')) { if (open.help) page.closeHelp(); else leaveGarageRoom(); }
   }
   // The room over the screen, as a pop-up draws it.
@@ -771,6 +774,7 @@ export function createRoomScreen(page) {
       const board = page.questBoard?.();
       if (board) { seen(board, hit.id); selectTask(board, board.activeId === hit.id ? null : hit.id); sound.play('blip'); }
     } else if (hit?.action === 'leave') leaveGarageRoom();
+    else if (hit?.action === 'hangar') page.openHangar();
     else if (hit?.action === 'pilot') page.openPilot();
     else if (hit?.action === 'notes') { if (nextNote(room, world)) sound.play('blip'); }
     return true;

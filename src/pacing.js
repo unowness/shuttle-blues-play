@@ -216,10 +216,17 @@ export function raidGapFor(restored, rng) {
 
 // ------------------------------------------------------------------------------------------------ reference ships
 
-// The ship that comes next, as { id, restored, pay }: the first of the order whose note the pilot does not hold. Null once
-// all six are held.
-export function nextSpecial(notes) {
-  for (const [id, restored, pay] of Q().special.order) if (!notes.has(id)) return { id, restored, pay };
+// The ship that comes next, as { id, restored, pay }: going round the order from the one after `last` (the ship whose turn
+// ended last, met or not, done or not: src/pilot.js lastSpecial; from the first with none), the first whose note the pilot does
+// not hold. A ship missed or failed comes again after the rest of the round, never before the others (SX, 2026-10-13: «Следующий
+// по кругу»; the first of the order not held came every time, so a DELOREAN never met held the other five back for good: his
+// friend's NOTES 0 / 6 after the whole game). Each still waits for its stations (specialDue). Null once all six are held.
+export function nextSpecial(notes, last = null) {
+  const order = Q().special.order, from = order.findIndex(([id]) => id === last) + 1;
+  for (let k = 0; k < order.length; k++) {
+    const [id, restored, pay] = order[(from + k) % order.length];
+    if (!notes.has(id)) return { id, restored, pay };
+  }
   return null;
 }
 export const specialPay = (id) => Q().special.order.find(([x]) => x === id)?.[2] ?? 0;
@@ -229,11 +236,11 @@ export const rollChance = (perMinute, seconds) => 1 - (1 - perMinute) ** (second
 
 // Whether the next reference ship is due now. `state` is { since, endedAt } (kept by the caller: `since` the clock at
 // which a ship was first due, `endedAt` the clock at which the last one ended); `blocked` says the pilot is in no state to
-// meet one (docked, in a fight): then nothing is rolled and the sure chance stays sure. Not before `first`, nor the
-// ship's own ruins; not within `rest` of the last one's end; then a chance a minute, and a sure one `pity` s after
-// it ended (or after it was first due).
-export function specialDue(state, { clock, restored }, notes, rng, seconds, blocked = false) {
-  const C = Q().special, next = nextSpecial(notes);
+// meet one (docked, in a fight): then nothing is rolled and the sure chance stays sure; `last` the ship whose turn ended
+// last (nextSpecial). Not before `first`, nor the ship's own ruins; not within `rest` of the last one's end; then a chance a
+// minute, and a sure one `pity` s after it ended (or after it was first due).
+export function specialDue(state, { clock, restored }, notes, rng, seconds, blocked = false, last = null) {
+  const C = Q().special, next = nextSpecial(notes, last);
   if (!next || clock < C.first || restored < next.restored) return false;
   state.since ??= clock;
   if (state.endedAt != null && clock - state.endedAt < C.rest) return false;

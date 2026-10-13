@@ -12,8 +12,18 @@ import { PIRATES } from './piratesConfig.js';
 import { QUESTS } from './questsConfig.js';
 import { TRAFFIC } from './trafficConfig.js';
 import { PALETTE } from './palette.js';
+import { PIRATE_CUES } from './pirateCombatTheme.js';
+import { PIRATE_ATTACKS } from './pirateAttackConfig.js';
+import { GROUND } from './groundConfig.js';
+import { MAP_PLACEMENT } from './mapContentConfig.js';
 
 export const CONFIG = {
+  pirateAttacks: PIRATE_ATTACKS,
+  pirateCues: PIRATE_CUES,
+  // The one plane's contact pass (src/groundPlane.js) and the NPC fleet's journeys (src/groundConfig.js).
+  ground: GROUND,
+  // How hard Map X's placement preferences try their areas before the ordinary search (src/mapContentConfig.js).
+  mapPlacement: MAP_PLACEMENT,
   // The smoke's ink and strength, one place for the clouds (src/clouds.js, src/cloudDraw.js) and the fog past a dead edge (src/worldDraw.js
   // drawDeadEdges), so the two stay one substance. SX's K4 HEATHER at V1 FAINT on labs/graphics/sketches/space-tones.html (2026-10-04,
   // «R1 K4 V1 E1», after «у них ... должен быть другой оттенок не такой как у астероидов ... розово фиолетовый, не сильно заметный»),

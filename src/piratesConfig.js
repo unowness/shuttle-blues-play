@@ -5,6 +5,8 @@
 // (characters) and src/raids.js (guards and raids); what a raid pays and costs is CONFIG.raids (src/economyConfig.js). The page binds
 // `ink`, `bullet.color` and `flash.ink` to the palette once at boot (labs/graphics/style.js), then CONFIG is frozen deep.
 
+import { PIRATE_ROLES, PIRATE_ROLE_ART, PIRATE_ROLE_DONORS } from './pirateRolesConfig.js';
+
 export const PIRATES = {
   // Pirates (SX, 2026-09-29: "пираты тоже умеют стрелять, они гоняются за
   // кораблем ... у пиратов по 1 хп ... могут попасть друг в друга ... врезаться
@@ -16,6 +18,7 @@ export const PIRATES = {
   // Every number is a first proposal, tuned with tools/pirate-sim.mjs against
   // scripted pilots (reports/2026-09-29-pirates-step1.md); SX judges the feel.
   pirates: {
+    roles: PIRATE_ROLES,
     // Where groups appear by themselves: { sectorId, x0, y0, x1, y1, rate }, a
     // rectangle in fractions of the sector and the expected number of
     // encounters per minute of flying inside it. Empty: nothing ever does.
@@ -114,7 +117,7 @@ export const PIRATES = {
         art: [' ╿  ╿ ', '[◢▲▲◣]', '[◥▼▼◤]', ' ▴  ▴ '],
         parts: [' g  g ', 'thmmht', 'thhhht', ' e  e '],
         hp: 7,              // 7 until SX's «у пиратов стало слишком много хп» (2026-10-01), 5 after, and 7 again on «убить их очень просто» (2026-10-02)
-        craft: { radius: 48, thrust: 470, retro: 300, strafe: 360, turnRate: 1.5, turnAccel: 7, turnGain: 5, maxSpeed: 427 },
+        craft: { radius: 48, thrust: 470, retro: 360, strafe: 360, turnRate: 1.9, turnAccel: 9, turnGain: 5, maxSpeed: 427 },
         weapon: { interval: 2.4, error: 0.05, cone: 0.12 },   // 2.0 until 2026-10-01, 3.0 and error 0.08 until 2026-10-02
         brain: {
           standoff: [420, 580], approachGain: 1.1, approachMax: 560, weaveAccel: 110, strafeSpeed: 70,
@@ -127,7 +130,7 @@ export const PIRATES = {
         art: [' ╿▲╿ ', '◢◤│◥◣', ' ◥▼◤ ', '  ▴  '],
         parts: [' gmg ', 'hhthh', ' hhh ', '  e  '],
         hp: 6,              // 6 until 2026-10-01, 4 after, 6 again on 2026-10-02
-        craft: { radius: 42, thrust: 900, retro: 300, strafe: 500, turnRate: 1.9, turnAccel: 9, turnGain: 6, maxSpeed: 639 },
+        craft: { radius: 42, thrust: 900, retro: 360, strafe: 500, turnRate: 2.3, turnAccel: 11, turnGain: 6, maxSpeed: 639 },
         weapon: { interval: 2.4, error: 0.05, cone: 0.09, range: 560 },   // 2.2 until 2026-10-01, 3.0 and error 0.08 until 2026-10-02
         brain: { ramSpeed: 520, breakRange: 0, strafeSpeed: 0 },
         // self 2 until its hit points went 6 -> 4 (2026-10-01): a ram still costs it a quarter. `ship` 5 of 10 until the
@@ -140,7 +143,7 @@ export const PIRATES = {
         art: [' ╿ ╿ ╿ ', '◢◣◢▲◣◢◣', '◥◣ ▼ ◢◤', ' ▴ ▴ ▴ '],
         parts: [' g g g ', 'hhhmhhh', 'hh h hh', ' e e e '],
         hp: 6,              // 5 until 2026-10-01, 4 after, 6 on 2026-10-02
-        craft: { radius: 52, thrust: 560, retro: 340, strafe: 480, turnRate: 1.8, turnAccel: 8, turnGain: 6, maxSpeed: 586 },
+        craft: { radius: 52, thrust: 560, retro: 400, strafe: 480, turnRate: 2.2, turnAccel: 10, turnGain: 6, maxSpeed: 586 },
         weapon: {},
         brain: { standoff: [440, 600] },
         // What the others of its squad fly instead of the lead's brain numbers.
@@ -152,7 +155,7 @@ export const PIRATES = {
         art: [' ╱╲ ', '◢╲╱◣', '▘  ▝'],
         // Its nose is its guns; the wings the paint, the mark down the middle.
         parts: [' gg ', 'hmmh', 'e  e'],
-        craft: { radius: 32, thrust: 780, retro: 320, maxSpeed: 739, turnRate: 1.7, turnAccel: 5 },
+        craft: { radius: 32, thrust: 780, retro: 400, maxSpeed: 739, turnRate: 2.35, turnAccel: 9 },
         weapon: { interval: 1.2, error: 0.06, cone: 0.14, range: 800 },   // 0.95 until 2026-10-01, 1.5 and error 0.09 until 2026-10-02
         brain: { standoff: [260, 480], breakRange: 180, weaveAccel: 220, dodgeSkill: 0.6 },
       },
@@ -233,7 +236,7 @@ export const PIRATES = {
       turnRate: 2.1,        // rad/s
       turnAccel: 10,        // 1/s, how quickly the turn rate is reached (was 7)
       turnGain: 7,          // 1/s, turn rate per radian of heading error (was 5)
-      drag: 0.2,            // per second (ship: 0.16)
+      drag: 0.12,           // per second; keep momentum through an attack (SX, 2026-10-10)
       maxSpeed: 666,        // u/s (1000; every kind's top two thirds of what it was with the ship's, W2 2026-10-04; 667 until 0.85 and 567 until 0.8, 2026-10-05; 534 until 0.9 and 600 until 0.999, 2026-10-06)
     },
 
@@ -283,9 +286,9 @@ export const PIRATES = {
       // 0.7 -> 0.85: fewer free kills on rocks), and step out of the pilot's shots more (`dodgeSkill` 0.4 -> 0.8,
       // `dodgeAccel` 500 -> 800); the guns fire sooner and oftener and aim better (`weapon`, the kinds' own), and every
       // hull has more hit points (the kinds). tools/pirate-sim.mjs, the steady fighter, 300 fights a size: DECISIONS.md.
-      react: 0.3,           // s between looks at the ship (0.35, then 0.2, then 0.32 until 2026-10-01, 0.4 until 2026-10-02)
+      react: 0.18,          // s between looks; SX, 2026-10-10: less waiting on an obsolete target
       reactJitter: 0.4,     // +-40 % on each
-      velocityTau: 0.5,     // s in which it tries to close a velocity error
+      velocityTau: 0.28,    // s in which it tries to close a velocity error
       standoff: [520, 720], // each pirate keeps its own range from this span
                             // (720-960 kept a RAIDER off screen 95 % of the time)
       approachGain: 1.5,    // 1/s: closing speed per unit of range still to cover
@@ -312,7 +315,7 @@ export const PIRATES = {
       avoidMinTime: 0.25,   // s: the shortest time it will plan a dodge in
       avoidBrake: 0.7,      // how much of its closing speed it gives up at the last moment
       avoidAttention: 0.85, // share of its looks in which it is watching for them (and for wingmen); 0.96, then 0.8, then 0.7 until 2026-10-02
-      lapse: { rate: 0.05, time: [0.8, 1.6] },   // a wandering mind: per second, and for how long (s); 0.12 and 1.2-2.4 until 2026-10-02
+      lapse: { rate: 0.025, time: [0.35, 0.7] }, // occasional mistakes, without seconds of stalled attacks
       avoidTau: 0.25,       // s in which it tries to gain the sideways speed a dodge needs
       avoidMinSpeed: 60,    // u/s: slower than this it does not look
       holeWide: 4,          // a hole is avoided out to this many horizons
@@ -444,3 +447,14 @@ export const PIRATES = {
     guard: { speed: 170, lead: 0.35, gap: 360, wake: 1000, notice: 1 },
   },
 };
+
+// Registered at configuration construction, before the page freezes CONFIG. Selection still allocates
+// only the four base hulls, then pirateRoster replaces eligible donor slots; these shares are never rolled.
+for (const [id, donor] of Object.entries(PIRATE_ROLE_DONORS)) {
+  const source = PIRATES.pirates.types[donor];
+  PIRATES.pirates.types[id] = {
+    ...source, ...PIRATE_ROLE_ART[id], donor, share: 0, cover: undefined,
+    craft: { ...source.craft }, weapon: { ...source.weapon },
+    brain: { ...source.brain, ...(PIRATE_ROLES[id].standoff ? { standoff: [...PIRATE_ROLES[id].standoff] } : {}) },
+  };
+}

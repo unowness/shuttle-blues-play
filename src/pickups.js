@@ -7,7 +7,8 @@ import { TAU, wrapTo } from './util.js';
 import { WRAP } from './topology.js';
 import { hearSignal, rollRockScatter } from './progression.js';
 import { poolOil, oilRadius } from './oil.js';
-import { holdOutOfStations } from './field.js';
+import { sweepDrop } from './groundPlane.js';
+import { clearGroundPath } from './groundMath.js';
 
 // What the hull takes by touching it: a signal's word, a loose coin, a fuel canister.
 export function collectPickups(world) {
@@ -37,6 +38,7 @@ export function collectPickups(world) {
     const d = world.delta(ship.x, ship.y, drop.x, drop.y);
     // A drop of oil is touched at its edge, and a big one is big (src/oil.js).
     if (Math.hypot(d.x, d.y) > reach + (drop.kind === 'fuel' ? oilRadius(drop.units) * 0.6 : 0)) continue;
+    if (!clearGroundPath(world, drop, ship)) continue;
     // A part mends the hull, while there is something to mend; with the hull whole it stays for later.
     if (drop.kind === 'part') {
       if (world.hull >= world.hullMax) continue;
@@ -97,7 +99,7 @@ export function stepDrops(world, dt) {
   const D = CONFIG.asteroid.drops;
   const M = D.magnet;
   const ship = world.ship;
-  const pulling = ship.alive && !world.docked && M.radius > 0;
+  const pulling = ship.alive && !ship.airborne && !world.docked && M.radius > 0;
   const k = Math.max(0, 1 - D.drag * dt);
   const room = tankHasRoom(world);
   for (let i = world.drops.length - 1; i >= 0; i--) {
@@ -107,7 +109,7 @@ export function stepDrops(world, dt) {
     const wanted = d.kind !== 'fuel' || room;
     const toShip = pulling && wanted && !d.delay ? world.delta(ship.x, ship.y, d.x, d.y) : null;
     const gap = toShip ? Math.hypot(toShip.x, toShip.y) : Infinity;
-    if (gap < M.radius && gap > 1e-6) {
+    if (gap < M.radius && gap > 1e-6 && clearGroundPath(world, d, ship)) {
       d.vx += (toShip.x / gap) * M.accel * dt;
       d.vy += (toShip.y / gap) * M.accel * dt;
       const s = Math.hypot(d.vx, d.vy);
@@ -115,7 +117,9 @@ export function stepDrops(world, dt) {
     } else {
       d.vx *= k; d.vy *= k;
     }
+    const fromX = d.x, fromY = d.y;
     d.x += d.vx * dt; d.y += d.vy * dt;
+    sweepDrop(world, d, fromX, fromY);
     if (world.topology.mode === WRAP) { d.x = wrapTo(d.x, world.width); d.y = wrapTo(d.y, world.height); }
     if (d.swell) d.swell = Math.max(0, d.swell - dt);
     if (d.age >= D.life || world.beyondLimits(d.x, d.y) ||
@@ -124,48 +128,8 @@ export function stepDrops(world, dt) {
     }
   }
   poolOil(world, dt);
-  separateDrops(world, dt);
-  // Held out of the stations' bodies, HOME's too (src/field.js; SX, 2026-10-07: «сейчас на него залетают камни и монеты»).
-  holdOutOfStations(world, world.drops, (d) => (d.kind === 'fuel' ? oilRadius(d.units) : CONFIG.asteroid.drops.body.coin), CONFIG.asteroid.drops.body.bounce);
-}
-
-// Loose pieces are solid to each other (SX, 2026-10-01: «Монеты не должны залезать друг на друга и на
-// канистры, они физически должны отталкиваться друг от друга»): two that overlap are eased apart along
-// the line between them, half each, and the speed that closes them is traded like equal masses meeting
-// with a little bounce. Each kind keeps the size it is drawn at (CONFIG.asteroid.drops.body; a drop of oil
-// its own, src/oil.js). Two drops of oil do not push: they run together (poolOil).
-function separateDrops(world, dt) {
-  const drops = world.drops, n = drops.length;
-  if (n < 2) return;
-  const S = CONFIG.asteroid.drops.body;
-  const ease = Math.min(1, S.ease * dt);
-  for (let i = 0; i < n; i++) {
-    const radius = (d) => (d.kind === 'fuel' ? oilRadius(d.units) : S.coin);
-    const a = drops[i], ra = radius(a);
-    for (let j = i + 1; j < n; j++) {
-      const b = drops[j];
-      if (a.kind === 'fuel' && b.kind === 'fuel') continue;
-      const touch = ra + radius(b);
-      const dx0 = b.x - a.x, dy0 = b.y - a.y;
-      if ((Math.abs(dx0) > touch || Math.abs(dy0) > touch) && world.topology.mode !== WRAP) continue;
-      const d = world.delta(b.x, b.y, a.x, a.y);
-      let dist = Math.hypot(d.x, d.y);
-      if (dist >= touch) continue;
-      // Two at the very same point part along a direction of their own, never the same for every pair.
-      let nx, ny;
-      if (dist < 1e-6) { const t = (i * 7 + j * 13) % 16 / 16 * TAU; nx = Math.cos(t); ny = Math.sin(t); dist = 0; }
-      else { nx = d.x / dist; ny = d.y / dist; }
-      const push = (touch - dist) * 0.5 * ease;
-      a.x -= nx * push; a.y -= ny * push;
-      b.x += nx * push; b.y += ny * push;
-      const closing = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
-      if (closing > 0) {
-        const j2 = closing * (1 + S.bounce) / 2;
-        a.vx -= nx * j2; a.vy -= ny * j2;
-        b.vx += nx * j2; b.vy += ny * j2;
-      }
-    }
-  }
+  // Held apart from each other, the rocks and the stations' bodies by the one plane's pass at the end of the step (src/groundPlane.js;
+  // SX, 2026-10-01: «Монеты не должны залезать друг на друга и на канистры»; 2026-10-07: «сейчас на него залетают камни и монеты»).
 }
 
 // A broken rock always releases a scatter, more pieces from a bigger rock

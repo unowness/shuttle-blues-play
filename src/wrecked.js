@@ -12,6 +12,7 @@ import { restSide } from './sideSlot.js';
 import { sayFor, wreckPlea } from './voices.js';
 import { sectorOpen } from './frontier.js';
 import { QUEST_LINES as QL } from './questLines.js';
+import { contentAreas } from './mapContent.js';
 
 // A wrecked ship asking for money: the yellow quest of QUESTS_V2_HANDOFF.md (SX, 2026-10-02: «Желтые это помочь кораблю,
 // который разбился, дать ему денег»). One of the NPC ships SX picked (src/npcShips.js) lies dead in the open, a share of
@@ -107,7 +108,8 @@ export function placeWreck(world, rng, { here = false } = {}) {
   const hint = rollHint(world, rng);
   if (!asks.length || !hint) return null;
   const sector = pickOf(here ? [world.sector] : questSectors(world.sector, world.ledger), rng);
-  const spot = clearSpot(sector.id, rng, { clear: C.clear, avoid: world.questPlaces() });
+  const areas = here ? [] : contentAreas('wreck-help', world.ledger, { sectorId: sector.id });
+  const spot = clearSpot(sector.id, rng, { clear: C.clear, avoid: world.questPlaces(), areas });
   if (!spot) return null;
   const code = pickShip(WRECK_CODES, rng, (world.recent ??= newRecent()), world.ledger.clock);
   // In a paint drawn by the counterweights, as the fleet's ships are (src/npcFleet.js questPaint): what it lights up in when it is

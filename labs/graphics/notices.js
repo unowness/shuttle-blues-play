@@ -42,6 +42,7 @@ import { networkMultiplier, formatCR } from '../../src/ruins.js';
 import { findDef, placeOf } from '../../src/rewards.js';
 import { SECTORS } from '../../src/sectors.js';
 import { shipModel } from '../../src/hangar.js';
+import { HULL } from '../../src/shipLooks.js';
 import { hoverItem } from '../../src/hover.js';
 import { clockText, isOpeningJob } from '../../src/contracts.js';
 import { PALETTE, ROLES } from '../../src/roles.js';
@@ -439,8 +440,10 @@ export function createNotices(game) {
         case 'shipChanged': {
           const model = shipModel(e.shipId);
           if (model) game.applyModel(model);
-          // A ship just bought is flown at once; its purchase is the message.
-          if (screens.hangarUI.bought !== e.shipId) screens.hangarMessage(`SHIP SELECTED / ${e.label}`);
+          // A ship just bought is flown at once; its purchase is the message. The STANDARD is said by the look it wears (src/shipLooks.js), as
+          // the hangar's squares name it.
+          const look = e.shipId === HULL && game.shipLook ? game.shipLook.looks().find((l) => l.id === game.shipLook.worn)?.label : null;
+          if (screens.hangarUI.bought !== e.shipId) screens.hangarMessage(`SHIP SELECTED / ${look ?? e.label}`);
           screens.hangarUI.bought = null;
           break;
         }

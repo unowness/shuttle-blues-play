@@ -5,6 +5,7 @@ import { TAU, lerp } from './util.js';
 import { factsOf, raidStartAt, raidFirstDue, raidGapFor, payFor } from './pacing.js';
 import { lookGivenBy } from './looks.js';
 import { radioFitted } from './opening.js';
+import { contentLinks } from './mapContent.js';
 
 // Pirates at a post (SX, 2026-10-01, GARAGE_QUESTS_HANDOFF.md step 3; CONFIG.raids): a ruin's guards and a raid's
 // besiegers. Both are a squad that circles a station (mode 'guard', src/pirates.js) until the pilot comes near or hits
@@ -16,8 +17,9 @@ import { radioFitted } from './opening.js';
 //   GUARDS  a ruin not yet restored has a squad round it (CONFIG.raids.guards, 4 to 8 by its price; SX, 2026-10-08: «около разбитых
 //           станций нет пиратов даже в квестах, должно быть от 4 до 8 всегда»), funded or not. No money goes in while it flies there;
 //           once every one of it is down (or has run), the ruin is clear (the ledger's `cleared`, which the quests count once) and its
-//           guards are back `guardsEvery` s later on the pilot's clock (the ledger's `guardsAt`), until it is restored. The tally is in
-//           memory (World.posts): a reload brings the whole squad back, and so does `guardsEvery` s with part of it beaten. A squad at
+//           guards are back `guardsEvery` s later on the pilot's clock (the ledger's `guardsAt`), until it is restored. The tally is
+//           saved since v25 (World.posts, `piratePosts`, src/pirateCombatSave.js; Codex, 2026-10-09): a reload keeps the part not yet
+//           beaten, and `guardsEvery` s with part of it beaten bring the whole squad back. A squad at
 //           its post is not wrecked by the rocks that drift through its ring (src/pirates.js): until 2026-10-08 they were, and a ruin was
 //           cleared, and a raid won, with no shot fired.
 //   RAIDS  one at a time, on the pilot's clock (CONFIG.raids): a working station is besieged and the pilot has `time`
@@ -129,9 +131,8 @@ export function stepPosts(world, dt) {
     // A raid's paint and the hulls still to beat are kept the first time its squad is made, so the squad that is met
     // again after a pilot has left and come back is the same colour and the same ships.
     const made = spawnPost(world, s, raid ? 'raid' : gather ? 'gather' : 'guard', left,
-      raid ? { size: raid.size, types: raid.mix, paint: raid.paint } : { size: tally.size, ...(gather ? { paint: tally.paint } : {}) });
-    if (raid && !raid.paint && made.length) { raid.paint = made[0].paint; raid.mix = made.map((p) => p.type); }
-    if (gather && !gather.paint && made.length) gather.paint = made[0].paint;
+      { size: tally.size, types: tally.mix, paint: tally.paint, record: tally });
+    if (made.length) { tally.paint = made[0].paint; tally.mix = made.map((p) => p.type); }
   }
 }
 
@@ -141,7 +142,7 @@ export function stepPosts(world, dt) {
 // he has been elsewhere that long. Then, the first time he is in the sector and not within `clear` u of the station (they
 // would appear in view), there is a squad of `size[0]` ships, one more for each `grow` s past `after` up to `size[1]`: the
 // longer away, the more of them. It circles the station as a ruin's guards do (kind 'gather'), and the station is no refuge
-// while it does. Every one down or run, and the wait starts over. A reload brings the whole squad back, as the guards'.
+// while it does. Every one down or run, and the wait starts over. A reload keeps the part not yet beaten (save v25), as the guards'.
 function gatherTally(world, s) {
   const L = world.ledger, G = R().regather;
   const held = world.posts.get(s.id);
@@ -152,12 +153,12 @@ function gatherTally(world, s) {
   if (away < G.after) { L.driven.set(s.id, L.clock); return null; }
   const d = world.delta(s.x, s.y, world.ship.x, world.ship.y);
   if (Math.hypot(d.x, d.y) < R().clear) return null;
-  const tally = { kind: 'gather', size: Math.min(G.size[1], G.size[0] + Math.floor((away - G.after) / G.grow)), down: 0, paint: null };
+  const tally = { kind: 'gather', size: Math.min(G.size[1], G.size[0] + Math.floor((away - G.after) / G.grow)), down: 0, paint: null, at: L.clock };
   world.posts.set(s.id, tally);
   return tally;
 }
 
-// A ruin's guards' tally (in memory: a reload brings the whole squad back): `guardSize` ships by its price, made at `at` on the pilot's
+// A ruin's guards' tally (saved since v25: a reload keeps the part not yet beaten): `guardSize` ships by its price, made at `at` on the pilot's
 // clock; one met in part and left is whole again once `guardsEvery` s have passed since.
 function guardTally(world, s) {
   const L = world.ledger;
@@ -176,7 +177,7 @@ function guardTally(world, s) {
 // neighbours; so does a ruin's, whose guards are 4 to 8 (the ring is the hull's and the guard gap while that is wider: up to six). `size` is
 // what the squad was made with (the ring is the same when the rest of it is met again), `types` the hulls still to beat and `paint`
 // its colour, when they are known.
-export function spawnPost(world, station, kind, count, { radius = null, wake = CONFIG.pirates.guard.wake, label = null, size = count, types = null, paint = null } = {}) {
+export function spawnPost(world, station, kind, count, { radius = null, wake = CONFIG.pirates.guard.wake, label = null, size = count, types = null, paint = null, record = null } = {}) {
   const rng = world.rng('pirate');
   const ring = radius ?? Math.max(station.hullRadius + CONFIG.pirates.guard.gap, kind === 'raid' || kind === 'gather' || kind === 'guard' ? R().spacing / (2 * Math.sin(Math.PI / Math.max(2, size))) : 0);   // a chord of `spacing` between neighbours
   const start = rng() * TAU, dir = rng() < 0.5 ? -1 : 1;
@@ -186,6 +187,7 @@ export function spawnPost(world, station, kind, count, { radius = null, wake = C
   });
   return world.spawnPirates(count, {
     places, passive: true, silent: true, speed: 0.15, side: dir, max: Math.max(CONFIG.pirates.maxGroup, count),
+    combatRecord: record,
     mixed: kind === 'raid' || kind === 'gather', types: types?.length ? types : null, paint,
     post: { stationId: station.id, kind, station, x: station.x, y: station.y, radius: ring, wake, label },
   });
@@ -238,7 +240,11 @@ export function postGone(world, p) {
   const L = world.ledger;
   // A pirate down or run from a ship it was pestering: the tally of the quest, which frees the ship when it is all of them.
   if (post.kind === 'pester') {
-    if (world.pester?.id === post.stationId) world.pester.down += 1;
+    if (world.pester?.id === post.stationId) {
+      world.pester.down += 1;
+      const at = world.pester.mix?.indexOf(p.type) ?? -1;
+      if (at >= 0) world.pester.mix.splice(at, 1);
+    }
     return;
   }
   if (post.kind === 'raid') {
@@ -254,6 +260,8 @@ export function postGone(world, p) {
     const tally = world.posts.get(post.stationId);
     if (tally?.kind !== 'gather') return;
     tally.down += 1;
+    const at = tally.mix?.indexOf(p.type) ?? -1;
+    if (at >= 0) tally.mix.splice(at, 1);
     if (tally.down < tally.size) return;
     world.posts.delete(post.stationId);
     L.driven.set(post.stationId, L.clock);
@@ -262,6 +270,8 @@ export function postGone(world, p) {
   const tally = world.posts.get(post.stationId);
   if (!tally) return;
   tally.down += 1;
+  const at = tally.mix?.indexOf(p.type) ?? -1;
+  if (at >= 0) tally.mix.splice(at, 1);
   if (tally.down < tally.size) return;
   world.posts.delete(post.stationId);
   L.cleared.add(post.stationId);
@@ -301,7 +311,12 @@ export function startRaid(world, stationId = null) {
   const L = world.ledger, rng = world.rng('pirate');
   if (L.raid) return null;
   if (!world.ship.alive || world.sector.hidden || world.special?.boarded) return null;
-  const pool = raidCandidates(world).filter((c) => !stationId || c.id === stationId);
+  let pool = raidCandidates(world).filter((c) => !stationId || c.id === stationId);
+  if (!stationId) {
+    const plans = contentLinks('raid-defence', L);
+    const preferred = pool.filter((c) => plans.some((p) => p.anchorId === c.id));
+    if (preferred.length) pool = preferred;
+  }
   if (!pool.length) { L.raidNext = L.clock + 60; return null; }
   const total = pool.reduce((s, c) => s + c.weight, 0);
   let u = rng() * total, pick = pool[pool.length - 1];

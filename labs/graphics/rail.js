@@ -196,6 +196,18 @@ function stroke(r, pts, ink, half = true) {
   ctx.stroke();
   ctx.restore();
 }
+
+// Shared cargo material, also clipped to the lit cells of outgoing quest plates.
+export function drawRailGrid(r, x, y, w, h, mirror = false) {
+  const pitch = r.cellW + 2;
+  for (let gx = 0; gx < w; gx += pitch) {
+    const at = x + (mirror ? w - 1 - gx : gx);
+    stroke(r, [[at, y], [at, y + h - 1]], ROLES.backing);
+  }
+  for (let gy = RAIL.hinge; gy < h; gy += RAIL.hinge) {
+    stroke(r, [[x, y + gy], [x + w - 1, y + gy]], ROLES.backing);
+  }
+}
 // An L at its vertex (vx, vy), its arms `a` across (signed) and `b` down (signed), each run out to `k` of its length.
 function arms(r, vx, vy, a, b, ink, k = 1) {
   if (k <= 0.01) return;
@@ -302,10 +314,7 @@ export function drawRail(r, b, x, y, m = {}) {
     if (family === 'cargo') {
       const wash = washOf(ink);
       r.fill(x, y, w, h, wash ?? ink, wash ? 1 : WASH.tint);
-      // The grid as Codex strokes it: each line on a pixel's middle, from the first pixel's middle to the last's.
-      const pitch = cw + 2;
-      for (let gx = 0; gx < w; gx += pitch) stroke(r, P([[gx, 0], [gx, h - 1]]), ROLES.backing);
-      for (let gy = RAIL.hinge; gy < h; gy += RAIL.hinge) stroke(r, P([[0, gy], [w - 1, gy]]), ROLES.backing);
+      drawRailGrid(r, x, y, w, h);
     }
     r.fill(x, y, RAIL.strip, h, ink);
     // The corners, each run out of its vertex as the sweep reaches it (and back into it as it goes).

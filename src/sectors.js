@@ -54,65 +54,63 @@ const hue = planetHue;
 // clearances of checks/planets.mjs (the sectors are packed with caches, signals,
 // coins and signs); J-04 is the tightest, and TESSERA moved furthest for it.
 
-// Where every planet, hole and station stands, and each planet's look (size, hue, style, seed), is SX's map layout of 2026-10-02
-// (labs/map-editor/layouts/2026-10-02-sx-second.json, made in labs/map-editor/). Comments below that say where something stood or why
-// it stood there describe the layout before it.
+// Positions follow SX's Exchange Ring × Braided Run choice (2026-10-10); all stable IDs, sector cells,
+// body properties and station roles remain. WHARF is nudged east of the draft to clear CAIRN's orbit and refuge.
+// Older dated comments below document earlier layouts, not the current coordinates.
 export const SECTORS = [
   {
     id: 'sector-j04', label: 'J-04', name: 'SHALLOWS', col: 0, row: 0,
     planets: [
-      { x: 0.16, y: 0.24, radius: 340, pull: 227, ...hue('#9AADDC'), seed: 46381, bands: 0.15, spin: 0.045, style: 'blocks', label: 'KELVIN' },
-      { x: 0.80, y: 0.60, radius: 335, pull: 205, ...hue('#D0898C'), seed: 42256, bands: 0.62, spin: 0.085, label: 'AMBERGRIS' },
+      { x: 0.32, y: 0.3, radius: 340, pull: 227, ...hue('#9AADDC'), seed: 46381, bands: 0.15, spin: 0.045, style: 'blocks', label: 'KELVIN' },
+      { x: 0.63, y: 0.66, radius: 335, pull: 205, ...hue('#D0898C'), seed: 42256, bands: 0.62, spin: 0.085, label: 'AMBERGRIS' },
       // Nudged from the teal SX's table gave (#5FB7AE, 14 to the route green by
       // colour distance) to a slightly bluer one, 22 clear of it. Now in the
       // south-east, beside the hole and off the first route (DRY DOCK to RELAY 12
       // runs through the middle of the sector).
-      { x: 0.90, y: 0.90, radius: 275, pull: 158, ...hue('#47C2BE'), seed: 43, bands: 0, spin: -0.062, label: 'TESSERA' },
+      { x: 0.84, y: 0.86, radius: 275, pull: 158, ...hue('#47C2BE'), seed: 43, bands: 0, spin: -0.062, label: 'TESSERA' },
     ],
     holes: [
-      { id: 'hole-j04', x: 0.24, y: 0.62, horizon: 52, disc: 300, mass: 3.1e7, spinDir: 1 },
+      { id: 'hole-j04', x: 0.4, y: 0.84, horizon: 52, disc: 300, mass: 3.1e7, spinDir: 1 },
     ],
     // A station's `look` is its drawing, one of the twelve SX took from the stations sheet on
     // 2026-09-30 (labs/graphics/station-art.js; «Станции очень крутые берем»). What it does is `kind`.
     stations: [
-      { id: 'station-drydock-j04', look: 'wheel', kind: 'garage', label: 'DRY DOCK', x: 0.58, y: 0.12 },
+      { id: 'station-drydock-j04', look: 'wheel', kind: 'garage', label: 'DRY DOCK', x: 0.72, y: 0.3 },
       // SX moved HOIST here from K-06 in his map layout of 2026-10-02 (labs/map-editor/layouts/2026-10-02-sx-second.json).
-      { id: 'station-hoist-k06', look: 'spire', kind: 'ruin', becomes: 'garage', label: 'HOIST', x: 0.149, y: 0.894, cost: 2600 },
+      { id: 'station-hoist-k06', look: 'spire', kind: 'ruin', becomes: 'garage', label: 'HOIST', x: 0.2, y: 0.7, cost: 2600 },
     ],
     rocks: 9,
   },
   {
     id: 'sector-j05', label: 'J-05', name: 'NARROWS', col: 1, row: 0,
     planets: [
-      { x: 0.76, y: 0.32, radius: 405, pull: 249, ...hue('#C98A5E'), seed: 86002, bands: 0.17, spin: -0.116, style: 'blocks', tint2: '#B0B86C', label: 'MAGRATHEA' },
+      { x: 0.54, y: 0.51, radius: 405, pull: 249, ...hue('#C98A5E'), seed: 86002, bands: 0.17, spin: -0.116, style: 'blocks', tint2: '#B0B86C', label: 'MAGRATHEA' },
       // New with the colour pass (2026-09-30), in the open south-west.
-      { x: 0.26, y: 0.82, radius: 400, pull: 233, ...hue('#C0D8E8'), seed: 80454, bands: 0.12, spin: 0.063, style: 'cratered', tint2: '#86B4D6', label: 'SORREL' },
+      { x: 0.72, y: 0.88, radius: 400, pull: 233, ...hue('#C0D8E8'), seed: 80454, bands: 0.12, spin: 0.063, style: 'cratered', tint2: '#86B4D6', label: 'SORREL' },
     ],
     holes: [
       // The smallest hole, 15 % larger since SX's word (2026-10-01: «Возьми самую маленькую черную дыру по размеру и
       // чуть-чуть ее увеличить на 15%»; it was 34 and 190). Its mass is as it was.
-      { id: 'hole-j05', x: 0.24, y: 0.30, horizon: 39, disc: 219, mass: 1.5e7, spinDir: 1 },
+      { id: 'hole-j05', x: 0.78, y: 0.21, horizon: 39, disc: 219, mass: 1.5e7, spinDir: 1 },
     ],
     stations: [
-      { id: 'station-relay-j05', look: 'array', kind: 'freight', label: 'RELAY 12', x: 0.58, y: 0.72 },
+      { id: 'station-relay-j05', look: 'array', kind: 'freight', label: 'RELAY 12', x: 0.28, y: 0.78 },
       // A ruin (src/ruins.js): a freight hub once, restored with the pilot's coins; the start's broken station of an older save
       // (START_STATIONS below: a new pilot's is any of the three). Moved out of the north-west corner on SX's word (2026-10-02:
       // «halycon слишком в углу находится и ты редко на него натыкаешься, поэтому двинь его куда нибудь, но чтобы между
       // станциями было равноудаленное пространство приблизительно»; it stood at 0.165, 0.114, 5,288 u from RELAY 12 and 8,721
-      // from YARD 3): now about as far from RELAY 12 (2,254 u) as from YARD 3 (2,461; the two are 3,507 apart), beside the way
-      // between them (1,573 u off it), 4,380 u from HOME. The equal triangle's corner (K-05 0.27, 0.09) lies between SORREL's
-      // and DAMASK's orbits, which keep a station 1,520 u off (checks/planets.mjs: the docking ring and the refuge), and east of
-      // the way J-06's line is near; this is the nearest place to an equal triangle that keeps every rule: 1,000 u inside the
-      // seam and J-06's line, ISOBAR's orbit 324 u past what a station keeps, 1,817 u and more from every cache place, signal and
-      // sign, a parked ship pulled at 0.17 % of its thrust (checks/start-ruin.mjs).
-      { id: 'station-halcyon-j05', look: 'greenhouse', kind: 'ruin', becomes: 'freight', label: 'HALCYON', x: 0.86, y: 0.86, cost: 1900 },
+      // from YARD 3), to a place about as far from RELAY 12 as from YARD 3. Map X (Codex, 2026-10-10, SX's pick of the Exchange
+      // Ring with the Braided Run's crossings) put it at 0.8, 0.66 on the ring's east side; the measures of the place SX picked on
+      // 2026-10-02 no longer hold. Its rules still do (checks/start-ruin.mjs: clear of the orbits, the seams, the caches, signals
+      // and signs, and of a pull on a parked ship).
+      { id: 'station-halcyon-j05', look: 'greenhouse', kind: 'ruin', becomes: 'freight', label: 'HALCYON', x: 0.8, y: 0.66, cost: 1900 },
       // The pilot's home (src/home.js, CONFIG.home; labs/graphics/garage-art.js; the S0 tile SX picked on
       // labs/graphics/sketches/garage-setting.html): the garage the shuttle was inherited with, where a new game starts.
       // Its berth opens to the south. SX put it in J-05, at (0.42, 0.44), in his map layout of 2026-10-02
       // (labs/map-editor/layouts/2026-10-02-sx-second.json; it stood in J-04's south-west corner), and START_SECTOR follows it.
       // Its id keeps J-04 in it: an id is a key and never changes. Not a look of the twelve (`look` names its drawing and its body);
       // it sends and receives no freight.
-      { id: 'station-home-j04', look: 'home', kind: 'home', label: 'HOME', x: 0.42, y: 0.44 },
+      { id: 'station-home-j04', look: 'home', kind: 'home', label: 'HOME', x: 0.24, y: 0.38 },
     ],
     rocks: 14,
   },
@@ -124,30 +122,30 @@ export const SECTORS = [
     // the ground checks/pirates.mjs uses as open: a run west along y = 4200 and
     // a ship parked at (5000, 2000).
     planets: [
-      { x: 0.20, y: 0.18, radius: 320, pull: 190, ...hue('#C79BC8'), seed: 1274, bands: 0.42, spin: -0.11, style: 'cratered', tint2: '#D080D0', label: 'GLOAMING' },
-      { x: 0.774, y: 0.243, radius: 260, pull: 145, ...hue('#A6DED6'), seed: 163, bands: 0, spin: 0.09, label: 'BERYL' },
+      { x: 0.32, y: 0.63, radius: 320, pull: 190, ...hue('#C79BC8'), seed: 1274, bands: 0.42, spin: -0.11, style: 'cratered', tint2: '#D080D0', label: 'GLOAMING' },
+      { x: 0.68, y: 0.35, radius: 260, pull: 145, ...hue('#A6DED6'), seed: 163, bands: 0, spin: 0.09, label: 'BERYL' },
     ],
     holes: [
-      { id: 'hole-k04', x: 0.68, y: 0.66, horizon: 58, disc: 330, mass: 3.4e7, spinDir: 1 },
+      { id: 'hole-k04', x: 0.5, y: 0.48, horizon: 58, disc: 330, mass: 3.4e7, spinDir: 1 },
     ],
     // The lower row had no station at all (SX, 2026-09-24: more deliveries).
     stations: [
-      { id: 'station-depot-k04', look: 'depot', kind: 'freight', label: 'DEPOT 7', x: 0.18, y: 0.86 },
+      { id: 'station-depot-k04', look: 'depot', kind: 'freight', label: 'DEPOT 7', x: 0.76, y: 0.72 },
       // A ruined garage (src/ruins.js), rebuilt with the pilot's coins, in the
       // quiet west between DEPOT 7 and GLOAMING (0.7 % of a ship's thrust in pull).
-      { id: 'station-foundry-k04', look: 'foundry', kind: 'ruin', becomes: 'garage', label: 'FOUNDRY 2', x: 0.102, y: 0.448, cost: 2000 },
+      { id: 'station-foundry-k04', look: 'foundry', kind: 'ruin', becomes: 'garage', label: 'FOUNDRY 2', x: 0.28, y: 0.24, cost: 2000 },
     ],
     rocks: 18,
   },
   {
     id: 'sector-k05', label: 'K-05', name: 'LEEWARD', col: 1, row: 1,
     planets: [
-      { x: 0.20, y: 0.32, radius: 520, pull: 330, ...hue('#A99BE0'), seed: 71, bands: 0, spin: 0.083, label: 'DAMASK' },
-      { x: 0.70, y: 0.80, radius: 295, pull: 163, ...hue('#C2E0B2'), seed: 88, bands: 0, spin: 0.1, label: 'TORTUGA' },
+      { x: 0.49, y: 0.48, radius: 520, pull: 330, ...hue('#A99BE0'), seed: 71, bands: 0, spin: 0.083, label: 'DAMASK' },
+      { x: 0.76, y: 0.75, radius: 295, pull: 163, ...hue('#C2E0B2'), seed: 88, bands: 0, spin: 0.1, label: 'TORTUGA' },
     ],
     holes: [],
     stations: [
-      { id: 'station-yard-k05', look: 'lattice', kind: 'garage', label: 'YARD 3', x: 0.74, y: 0.18 },
+      { id: 'station-yard-k05', look: 'lattice', kind: 'garage', label: 'YARD 3', x: 0.3, y: 0.22 },
     ],
     rocks: 7,
   },
@@ -163,29 +161,29 @@ export const SECTORS = [
   {
     id: 'sector-j06', label: 'J-06', name: 'DOLDRUMS', col: 2, row: 0,
     planets: [
-      { x: 0.70, y: 0.36, radius: 520, pull: 316, ...hue('#C0D8E8'), seed: 85534, bands: 0.2, spin: 0.055, label: 'FATHOM' },
-      { x: 0.22, y: 0.82, radius: 250, pull: 150, ...hue('#DDE28E'), seed: 181, bands: 0, spin: -0.08, label: 'PARQUET' },
+      { x: 0.53, y: 0.43, radius: 520, pull: 316, ...hue('#C0D8E8'), seed: 85534, bands: 0.2, spin: 0.055, label: 'FATHOM' },
+      { x: 0.67, y: 0.8, radius: 250, pull: 150, ...hue('#DDE28E'), seed: 181, bands: 0, spin: -0.08, label: 'PARQUET' },
     ],
     holes: [],
     stations: [
-      { id: 'station-commons-j06', look: 'ring', kind: 'ruin', becomes: 'freight', label: 'COMMONS', x: 0.18, y: 0.32, cost: 3000 },
-      { id: 'station-spool-j06', look: 'spindle', kind: 'ruin', becomes: 'freight', label: 'SPOOL 8', x: 0.80, y: 0.74, cost: 3400 },
-      { id: 'station-pharos-j06', look: 'beacon', kind: 'ruin', becomes: 'freight', label: 'PHAROS', x: 0.54, y: 0.74, cost: 3800 },
+      { id: 'station-commons-j06', look: 'ring', kind: 'ruin', becomes: 'freight', label: 'COMMONS', x: 0.24, y: 0.28, cost: 3000 },
+      { id: 'station-spool-j06', look: 'spindle', kind: 'ruin', becomes: 'freight', label: 'SPOOL 8', x: 0.8, y: 0.66, cost: 3400 },
+      { id: 'station-pharos-j06', look: 'beacon', kind: 'ruin', becomes: 'freight', label: 'PHAROS', x: 0.32, y: 0.8, cost: 3800 },
     ],
     rocks: 10,
   },
   {
     id: 'sector-k06', label: 'K-06', name: 'BACKWATER', col: 2, row: 1,
     planets: [
-      { x: 0.10, y: 0.08, radius: 300, pull: 180, ...hue('#DFBECB'), seed: 191, bands: 0.35, spin: 0.07, style: 'split', tint2: '#A99BE0', label: 'ISOBAR' },
-      { x: 0.74, y: 0.80, radius: 270, pull: 160, ...hue('#D080D0'), seed: 197, bands: 0, spin: -0.06, label: 'CAIRN' },
+      { x: 0.43, y: 0.33, radius: 300, pull: 180, ...hue('#DFBECB'), seed: 191, bands: 0.35, spin: 0.07, style: 'split', tint2: '#A99BE0', label: 'ISOBAR' },
+      { x: 0.64, y: 0.75, radius: 270, pull: 160, ...hue('#D080D0'), seed: 197, bands: 0, spin: -0.06, label: 'CAIRN' },
     ],
     holes: [
-      { id: 'hole-k06', x: 0.48, y: 0.44, horizon: 44, disc: 250, mass: 2.4e7, spinDir: 1 },
+      { id: 'hole-k06', x: 0.56, y: 0.48, horizon: 44, disc: 250, mass: 2.4e7, spinDir: 1 },
     ],
     stations: [
-      { id: 'station-apiary-k06', look: 'hive', kind: 'ruin', becomes: 'freight', label: 'APIARY', x: 0.04, y: 0.62, cost: 4300 },
-      { id: 'station-wharf-k06', look: 'anchor', kind: 'ruin', becomes: 'garage', label: 'WHARF 9', x: 0.70, y: 0.26, cost: 4700 },
+      { id: 'station-apiary-k06', look: 'hive', kind: 'ruin', becomes: 'freight', label: 'APIARY', x: 0.24, y: 0.24, cost: 4300 },
+      { id: 'station-wharf-k06', look: 'anchor', kind: 'ruin', becomes: 'garage', label: 'WHARF 9', x: 0.824, y: 0.72, cost: 4700 },
     ],
     rocks: 14,
   },

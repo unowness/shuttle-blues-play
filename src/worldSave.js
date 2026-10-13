@@ -20,6 +20,8 @@ import { questsToJSON, restoreQuests } from './questSave.js';
 import { openingToJSON, restoreOpening } from './opening.js';
 import { specialParked } from './specials.js';
 import { homeExit, homeStation } from './home.js';
+import { MAP_REVISION, migrateMapLedger, migrateMapQuests } from './mapMigration.js';
+import { readPiratePosts, writePirateCombat } from './pirateCombatSave.js';
 
 // What the save's v16 step gave back (src/storage.js: a ruin whose price fell, restored by what was in it, the rest to the wallet), for
 // the page to say once: { amount, restored: [labels] }, or null. Only what the ledger holds: a ruin named that is not restored is not said.
@@ -61,7 +63,9 @@ export function worldToJSON(world) {
   // A pilot in a borrowed ship (src/specials.js) is saved in its own, parked where it was left: the quest is not saved.
   const kept = specialParked(world);
   return {
+    mapRevision: MAP_REVISION,
     ledger: world.ledger.toJSON(),
+    piratePosts: [...world.posts].map(([id, p]) => [id, { ...p, mix: p.mix ? [...p.mix] : null, combat: writePirateCombat(p.combat) }]),
     collection: world.collection.toJSON(),
     pilot: world.pilot.toJSON(),
     signs: world.signs.toJSON(),
@@ -77,7 +81,8 @@ export function worldToJSON(world) {
     // When it came and went (src/secretHole.js, the lure), v18.
     lure: lureSave(world.lure),
     // The map's flags that are put (src/flags.js) and the side and reference-ship quests that are open (src/questSave.js), v15.
-    // A raid is the ledger's, a pirate squad is never saved.
+    // A raid is the ledger's. A pirate is never saved, nor where a squad is or what it is doing; a post's roster, paint and spent
+    // supplies are (`piratePosts`, v25, src/pirateCombatSave.js).
     flags: flagsToJSON(world.flags),
     quests: questsToJSON(world),
     // The opening chapter's record (src/opening.js), v17: null for a world with none.
@@ -100,7 +105,7 @@ export function restoreWorld(world, data) {
     visits = readVisits(data.visits);
     pilot = Pilot.fromJSON(data.pilot);
     signs = SignBoard.fromJSON(data.signs);
-    hangar = Hangar.fromJSON(data.hangar);
+    hangar = Hangar.fromJSON(data.hangar, pilot.notes);
     flags = readFlags(data.flags);
   } catch {
     // Nothing to put back: reading a save changes nothing but what it returns (Progress.fromJSON).
@@ -122,6 +127,9 @@ export function restoreWorld(world, data) {
   // back in the wallet, and cargo bound past one is called off (settleFrontier); a ship in a closed sector starts at HOME, below.
   // A save of this build has nothing to settle, so it is said once, by the load that moved it.
   const frontier = settleFrontier(ledger);
+  const migrateMap = data.mapRevision !== MAP_REVISION;
+  const saved = readSecretHole(data.secretHole, ledger);
+  if (migrateMap) migrateMapLedger(ledger, signs, flags, saved);
   world.ledger = ledger;
   world.collection = collection;
   world.pilot = pilot;
@@ -137,7 +145,6 @@ export function restoreWorld(world, data) {
   const movedHome = !sectorOpen(ledger, sector);
   if (movedHome) sector = sectorById(START_SECTOR);
   // The hole stands only in an open sector (src/secretHole.js secretHoleSectors): one saved past a closed border moves.
-  const saved = readSecretHole(data.secretHole, ledger);
   if (world.secretLure) {
     // Under the lure (v18): the hole open where the save has it, if it was open and the place still holds; else none, its
     // timers on the save's clock.
@@ -168,7 +175,7 @@ export function restoreWorld(world, data) {
   world.openingState = null;
   world.supportSaid = false;
   world.hullGrace = 0;
-  // Pirates are never saved: loadSector below leaves none, and a fresh load
+  // Pirates themselves are never saved (a post's roster is, `piratePosts`): loadSector below leaves none, and a fresh load
   // is met by a quiet period, not by an encounter waiting at the door.
   world.pirateReadyAt = world.time + CONFIG.pirates.firstDelay;
   world.pirateRollIn = CONFIG.pirates.checkEvery;
@@ -176,6 +183,7 @@ export function restoreWorld(world, data) {
   world.droidIn = CONFIG.droids.first;
 
   world.loadSector(sector, { announce: false });
+  world.posts = readPiratePosts(data.piratePosts, ledger);
   world.visits = visits;
   if (!world.visits.has(sector.id)) world.visits.set(sector.id, 1);
 
@@ -208,5 +216,6 @@ export function restoreWorld(world, data) {
   world.recorder.reset();
   // The quests that were open when it was saved, the ones that can still be had (src/questSave.js); pirate squads are met anew.
   restoreQuests(world, data.quests);
+  if (migrateMap) migrateMapQuests(world);
   return { ok: true, positionRestored: valid, sectorId: sector.id, frontier: { ...frontier, movedHome }, refund: readRefund(data.refund, ledger) };
 }

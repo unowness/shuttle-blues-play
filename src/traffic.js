@@ -6,8 +6,10 @@
 //
 // O-08 is the one place where other ships go about their business. Each craft
 // keeps to a fixed lane or orbit: its pose is a function of the world's clock
-// alone, so nothing about it is simulated, saved or random, and it touches
-// nothing (no collision, no gravity, shots pass through). Flying close to a
+// alone, so nothing about it is simulated, saved or random. It is solid on the
+// world's one plane (src/sceneSolids.js, src/groundPlane.js): fixed there, it
+// shoves the hull and loose things aside and nothing moves it; no gravity, shots
+// pass through. Flying close to a
 // named one gets a hail, once each visit (World.stepTraffic): its name and a
 // line, in the feedback, with a horn.
 //
