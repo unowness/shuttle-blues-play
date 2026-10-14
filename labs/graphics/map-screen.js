@@ -49,6 +49,8 @@ import { WORLD_SCALE } from '../../src/worldScale.js';
 import { isRestored, invested, formatCR } from '../../src/ruins.js';
 import { sectorOpen } from '../../src/frontier.js';
 import { CATALOGUE, findsFor, findDef, findLabel, findTitle, placeOf } from '../../src/rewards.js';
+import { authoredWaiting } from '../../src/contracts.js';
+import { openingHoldsOffers } from '../../src/opening.js';
 import { lookById } from '../../src/looks.js';
 import { stationLoreNow } from '../../src/stationInfo.js';
 import { installGrade, gradeEpoch } from '../../src/grade.js';
@@ -78,6 +80,7 @@ export const MAP = Object.freeze({
   corner: 6,            // px, the arms of the corners round the thing under the pointer
   cache: 5,             // px, half a cache's diamond
   goal: 9,              // px, the ring round where the task the top banner shows leads (two cache diamonds and its air)
+  crate: 3,             // px, half the square of an authored cargo waiting, on its station's box (SX's K2, 2026-10-14)
   zoomMax: 10 * WORLD_SCALE,   // times the whole-map scale (a planet of 300 u is then a disc about 80 px across, in a world of any scale)
   wheel: 0.0018,        // zoom per px of wheel: a notch (120) is a fifth
   keyZoom: 1.6,         // zoom a second while Q / E is held (e-folds)
@@ -641,7 +644,18 @@ function drawShip(ctx, p, angle, t) {
 }
 
 // What 03 LEGEND shows: the editor's glyphs (labs/map-editor/view.js glyph), and the ship's own mark.
-const LEGEND = Object.freeze([['station', 'STATION'], ['ruin', 'RUIN'], ['planet', 'PLANET'], ['hole', 'HOLE'], ['souvenir', 'CACHE'], ['you', 'YOU']]);
+const LEGEND = Object.freeze([['station', 'STATION'], ['ruin', 'RUIN'], ['planet', 'PLANET'], ['hole', 'HOLE'], ['souvenir', 'CACHE'], ['you', 'YOU'],
+  ['cargo', 'CARGO WAITING']]);
+// An authored cargo waiting at its station (src/contracts.js authoredWaiting): a square in the cargo pointer's amber (src/palette.js; on the
+// map orange is a ruin's), at the station box's top right corner and before each row of 04 CARGO (SX's K2 on
+// labs/graphics/sketches/last-cargo.html, 2026-10-14: his friend finished the game with HONEY JARS never taken).
+const crate = (r, x, y) => r.fill(Math.round(x - MAP.crate), Math.round(y - MAP.crate), 2 * MAP.crate, 2 * MAP.crate, PALETTE.amber);
+// Read again only when the ledger moves on: what is delivered, carried, lost or restored (a row of a menu, never the map, changes them).
+function cargoWaiting(map, ledger) {
+  const stamp = `${ledger.completed.size}|${ledger.active?.id ?? ''}|${ledger.stranded.size}|${ledger.restored.size}`;
+  if (map.cargo?.stamp !== stamp) map.cargo = { stamp, list: authoredWaiting(ledger) };
+  return map.cargo.list;
+}
 
 export function drawMap(r, map, world, now, { reducedMotion = false, target = null, scheme = 'MK' } = {}) {
   if (!map.open) return;
@@ -694,6 +708,10 @@ export function drawMap(r, map, world, now, { reducedMotion = false, target = nu
       }
     }
   }
+  // The stations an authored cargo waits at: the square on the box.
+  // (None while the opening holds the stations' own offers: its menus give only the chapter's freight.)
+  const waiting = world?.ledger && !openingHoldsOffers(world) ? cargoWaiting(map, world.ledger) : [], senders = new Set(waiting.map((c) => c.from));
+  for (const h of pic.hits) if (h.kind === 'station' && senders.has(h.def.id)) crate(r, h.x + h.r, h.y - h.r);
   // The flags, over every sector, drifting to where they land (one loaded with the save, or put long ago, has landed).
   flags.forEach((f, i) => {
     if (!f) return;
@@ -802,8 +820,22 @@ export function drawMap(r, map, world, now, { reducedMotion = false, target = nu
     hangHead(sw, colX, bodyAt(legendAt), 3, 'LEGEND');
     LEGEND.slice(0, room).forEach(([variant, name], i) => {
       const top = bodyAt(legendAt + MAP.under + i), cy = sw.capMid(top), cx = colX + r.cellW;
-      if (variant === 'you') drawShip(ctx, { x: cx, y: cy }, -Math.PI / 2, 0); else glyph(ctx, variant, cx, cy, MAP.cache);
+      if (variant === 'you') drawShip(ctx, { x: cx, y: cy }, -Math.PI / 2, 0);
+      else if (variant === 'cargo') crate(r, cx, cy);
+      else glyph(ctx, variant, cx, cy, MAP.cache);
       sw.text(name, colX + 3 * r.cellW, top, ROLES.textSecondary);
+    });
+  }
+  // 04 CARGO: how many authored jobs wait, and each one, its cargo and the station it waits at, as many as the body has room for.
+  const cargoAt = legendAt + MAP.under + LEGEND.length + 1, cargoRoom = Math.min(waiting.length, Math.floor(G.inRows + 1 - cargoAt - MAP.under));
+  if (room === LEGEND.length && cargoRoom >= 1) {
+    hangHead(sw, colX, bodyAt(cargoAt), 4, 'CARGO');
+    sw.textEnd(String(waiting.length), colR, bodyAt(cargoAt), ROLES.textPrimary);
+    waiting.slice(0, cargoRoom).forEach((c, i) => {
+      const top = bodyAt(cargoAt + MAP.under + i), from = stationDefById(c.from, ledger)?.label ?? '', n = glyphs(from).length;
+      crate(r, colX + r.cellW, sw.capMid(top));
+      sw.text(fitText(c.label, tc - 3 - n - 1), colX + 3 * r.cellW, top, ROLES.textPrimary);
+      sw.textEnd(from, colR, top, ROLES.textSecondary);
     });
   }
   // The foot: the keys the picture answers to, as the cockpit's caps, each with its words. The keyboard alone (`scheme` K, the hints' scheme,

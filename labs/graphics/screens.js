@@ -27,6 +27,7 @@ import { QUEST_TONES } from './quest-list.js';
 import { SOUVENIR_LORE } from './souvenir-lore.js';
 import { inBox } from '../../src/util.js';
 import { drawTabsWindow } from './tabs-window.js';
+import { drawFinaleWindow } from './finale-window.js';
 import { createRoomScreen } from './garage-room.js';
 import { createMap, openMap, closeMap, drawMap, mapPoint, mapClick, mapMove, mapFit, FLAGS } from './map-screen.js';
 import { measure, noteDuring, noteAction } from './clicks.js';
@@ -40,7 +41,7 @@ export function createScreens(game) {
   const key = (action) => tapped(input, action);
   // Which screen stands: the controls list (?), the pilot card (C), the sign composer (L), the hangar, a station's INFO, the
   // garage's room, the map (TAB). The two-tabs window is `tabsUI`.
-  const open = { help: false, pilot: false, sign: false, hangar: false, station: false, room: false, map: false };
+  const open = { help: false, pilot: false, sign: false, hangar: false, station: false, room: false, map: false, finale: false };
   // Two tabs on one save (src/tabs.js, src/tabsPanel.js, tabs-window.js; SX, 2026-10-01). Once a
   // newer tab has loaded the save, this one is held ('conflict') and paused for good under its
   // window, with no keys and no sound; a reload makes it the newest. The newer tab asks for the
@@ -96,6 +97,17 @@ export function createScreens(game) {
     if (!open.help) return;
     if (play) sound.play('panelClose');
     open.help = false;
+  }
+  // The window when the boss is beaten (labs/graphics/finale-window.js): it stands until RETURN TO OPEN SPACE (Enter, Esc or a click);
+  // the flight goes on under it.
+  function openFinale() {
+    sound.play('panelOpen');
+    open.finale = true;
+  }
+  function closeFinale() {
+    if (!open.finale) return;
+    sound.play('panelClose');
+    open.finale = false;
   }
   // Whether a screen (the controls list, the card, a composer, the hangar, INFO, the room, the map, the two-tabs window) stands over
   // the flight: any entry of POPUPS shown.
@@ -495,6 +507,7 @@ export function createScreens(game) {
   // the card (its keys rest while its name is typed: the field has them), the composer. The controls list holds none: it stands
   // over the flight's own keys, which read it (flightKeys).
   const HOLDS = [
+    { id: 'finale', holds: () => open.finale, keys: () => { if (key('confirm') || key('back') || key('close')) closeFinale(); } },
     { id: 'map', holds: () => open.map, keys: () => mapKeys() },
     { id: 'room', holds: () => open.room && !open.pilot && !open.hangar, keys: () => roomKeys() },
     { id: 'hangar', holds: () => open.hangar, keys: () => hangarKeys() },
@@ -552,6 +565,8 @@ export function createScreens(game) {
     }) },
     { id: 'sign', shown: () => open.sign, draw: (popup) => popup(() => closeSign(), () => { signUI.wordBoxes = drawSignComposer(renderer, world, signUI).wordBoxes; }) },
     { id: 'hangar', shown: () => open.hangar, draw: (popup) => popup(() => closeHangar(), () => { hangarUI.ships = drawHangar(renderer, world, { ...hangarUI, worn: worn(), time: pageTime(), still: feedback.reducedMotion }).ships; }) },
+    { id: 'finale', shown: () => open.finale, draw: (popup) => popup(() => closeFinale(), () => drawFinaleWindow(renderer, world, { onClose: () => closeFinale() }),
+      [...KEYS.close, ...KEYS.back, ...KEYS.confirm]) },
     { id: 'station', shown: () => open.station, draw: (popup, now) => popup(() => closeStationInfo(), () => {
       // The station's own look on the window's sheet, animated on the page's clock, `now` (the world goes on under the window, and
       // the picture is not the world's).
@@ -608,7 +623,7 @@ export function createScreens(game) {
   }
 
   return { open, pilotUI, signUI, hangarUI, stationUI, tabsUI, helpUI, room, map, tabLocked, anyScreen, openTabs, tabsClear, closeTabs,
-    openHelp, closeHelp, stepHelpPage, openPilot, closePilot, openSign, closeSign, openHangar, closeHangar, hangarMessage, openStationInfo,
+    openHelp, closeHelp, stepHelpPage, openFinale, closeFinale, openPilot, closePilot, openSign, closeSign, openHangar, closeHangar, hangarMessage, openStationInfo,
     closeStationInfo, openGarageRoom, leaveGarageRoom, settleGarageRoom, openMapScreen, closeMapScreen, openCardOn, finishRename,
     pilotKeys, hangarKeys, stationKeys, signKeys, mapKeys, roomKeys, openKeys, tabsKeys, screenKeys, stepMessages, drawPopups, pointerHint,
     onCardLine, click };

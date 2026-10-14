@@ -83,6 +83,14 @@ export function noise3(a, b, c) {
 // Math.random let a world's rocks, ship place and sparks escape its seed. Every draw names its stream (World.rng).
 export const between = (rng, a, b) => a + rng() * (b - a);
 
+// A fixed number in 0..1 for cell (x, y) of a drawing and a key `k`: a ruin is broken the same way on every frame and every visit
+// (labs/graphics/world-art.js), and the boss comes apart in the same order every fight (labs/graphics/boss-art.js).
+export function cellNoise(x, y, k) {
+  let h = (Math.imul(x + 1, 374761393) + Math.imul(y + 1, 668265263) + Math.imul(k, 1442695041)) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
 // A stable 32-bit number from a stable id (FNV-1a over its UTF-16 code units): the same id gives the same number on every visit and in
 // every process. The one hash of an id; the rocks' outlines, the stations' float and drift, the runs, the caches' float, the broken NPC
 // ships' cells and the world's named streams read it.

@@ -1,5 +1,6 @@
 import { CONFIG } from './config.js';
 import { stationDefById, sectorById, networkStationIds } from './sectors.js';
+import { bossQuestRecord } from './bossQuest.js';
 import { SIGNALS, WORDS } from './progression.js';
 import { STRANGERS, strangerOpen } from './strangers.js';
 import { sectorOpen } from './frontier.js';
@@ -447,7 +448,7 @@ function sideQuestWords(world) {
 // The list as it stands: the red ones first (the raid, a ship pestered), then the side quest, then the radio's step, then the opening
 // chapter's objective (src/opening.js: while it runs the radio's step waits, so the two are never on together).
 export function currentQuests(world) {
-  return [raidQuest(world), pesterQuest(world), specialQuest(world), sideQuest(world), guideQuest(world), supportQuest(world), openingQuest(world)].filter(Boolean);
+  return [raidQuest(world), pesterQuest(world), bossQuestRecord(world), specialQuest(world), sideQuest(world), guideQuest(world), supportQuest(world), openingQuest(world)].filter(Boolean);
 }
 
 // Whether a world event is the very thing the side quest on asked for (its cache opened, its signal tuned in, its ruin restored,

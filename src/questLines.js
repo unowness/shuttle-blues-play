@@ -214,6 +214,23 @@ export const QUEST_LINES = Object.freeze({
     none: line(1, [], () => 'YOU NEED NO HELP'),
   }),
   // The six reference ships' quests (src/specialQuests.js; src/specials.js gives the done row its pay).
+  // The boss TOLLKEEPER's quest (src/bossQuest.js): story purple, its mark EXPLORE; in its fight its own name; the banners at its waking,
+  // after a wreck and when it is beaten.
+  boss: Object.freeze({
+    pointer: line(0, [], () => 'EXPLORE'),
+    title: line(0, [], () => 'STRANGE ACTIVITY'),
+    sub: line(1, ['sector'], (sector) => `${sector} / EXPLORE`, { act: true }),
+    name: line(0, [], () => 'TOLLKEEPER'),
+    fight: line(0, [], () => 'TOLLKEEPER'),
+    fightSub: line(1, [], () => 'BRING IT DOWN', { act: true }),
+    waitSub: line(1, ['sector'], (sector) => `${sector} / TAKE IT DOWN`, { act: true }),
+    offered: line(0, [], () => 'STRANGE ACTIVITY', { banner: true }),
+    offeredSub: line(1, ['sector'], (sector) => `IN ${sector} / EXPLORE`, { banner: true }),
+    woke: line(0, [], () => 'TOLLKEEPER', { banner: true }),
+    wokeSub: line(1, [], () => 'PIRATE TUG / BRING IT DOWN', { banner: true }),
+    moved: line(0, [], () => 'TOLLKEEPER WITHDREW', { banner: true }),
+    movedSub: line(1, ['sector'], (sector) => `NOW IN ${sector}`, { banner: true }),
+  }),
   special: Object.freeze({
     race: line(0, ['station'], (station) => `RACE TO ${station}`),
     raceSub: line(1, [], () => 'FIND THE DOC', { timed: true }),

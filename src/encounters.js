@@ -44,7 +44,7 @@ export function stepPirates(world, dt) {
 // so that a zone's `rate` reads as encounters per minute of flying in it.
 export function stepEncounters(world, dt) {
   const C = CONFIG.pirates;
-  if (!world.autoEncounters || !C.zones.length || world.encounter || world.pirates.some((p) => p.mode !== 'guard')) return;
+  if (!world.autoEncounters || !C.zones.length || world.encounter || world.boss || world.pirates.some((p) => p.mode !== 'guard')) return;
   const ship = world.ship;
   if (!ship.alive || world.docked || world.time < world.pirateReadyAt) return;
   world.pirateRollIn -= dt;
@@ -425,7 +425,7 @@ export function resolvePirateHits(world) {
     if (hit) {
       world.bullets.splice(bi, 1);
       world.hurtPirate(hit, theirs ? 'friendly' : 'shot', {
-        amount: theirs ? C.hurt.friendly : (b.damage ?? C.hurt.shot), x: b.x, y: b.y,
+        amount: theirs ? (b.onPirates ?? C.hurt.friendly) : (b.damage ?? C.hurt.shot), x: b.x, y: b.y,
         aim: Math.atan2(-(b.vy - hit.vy), -(b.vx - hit.vx)),
       });
       continue;

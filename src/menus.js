@@ -293,9 +293,12 @@ export function stationActions(world, station) {
       run: () => {},
     });
   } else {
+    // Every authored job the station sends, a row each (SX's M1 on labs/graphics/sketches/last-cargo.html, 2026-10-14: one row hid the
+    // second, and his friend finished the game without HONEY JARS, reports/2026-10-14-friend-save.md); a run comes only once they are
+    // done (offersAt), one at a time. Undocked only, as MARK below: docked, the berth's rows fill the seven keys
+    // (CONFIG.interaction.maxActions) and the jobs come one at a time, as before.
     const offers = offersAt(station.id, world.ledger);
-    if (offers.length) {
-      const c = offers[0];
+    for (const c of world.docked === station.id ? offers.slice(0, 1) : offers) {
       // Quoted at the tariff of now: the one the job will keep once accepted.
       const quote = jobQuote(quoteJob(c, world.ledger.restored.size));
       actions.push({ label: `ACCEPT ${c.label}`, cargo: true, offer: true, note: `${cargoOf(c).name} / ${formatCR(quote)} CR / ${clockText(parTime(c))}`, run: () => world.acceptContract(c) });

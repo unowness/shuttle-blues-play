@@ -12,7 +12,7 @@ import { offerSpecial } from '../../src/specials.js';
 import { SPECIAL_IDS } from '../../src/specialShips.js';
 import { createScaleState } from '../../src/visualScale.js';
 import { applyStyle, labStyle, cleanSettings, PALETTES } from './style.js';
-import { visitScene, visitPirates, visitDroid, SCENES } from './scenes.js';
+import { visitScene, visitPirates, visitDroid, visitBoss, visitBossQuest, SCENES } from './scenes.js';
 import { noteVisit } from './map-screen.js';
 import { COCKPIT_FX } from './cockpit-fx.js';
 import { createLabKeys, respawnNow } from './lab-keys.js';
@@ -37,6 +37,15 @@ export function applyReviewLinks(game) {
   if (Number.isInteger(wantedPirates) && wantedPirates >= 1 && wantedPirates <= 4) {
     Object.assign(game.shipScale, createScaleState());
     visitPirates(world, renderer, wantedPirates, { kind: launch.get('kind'), paint: launch.get('paint') });
+  }
+  // `?boss=1`: the boss TOLLKEEPER ahead of the ship, on open ground (src/boss.js); `?boss=quest`: its quest, every ruin restored on the
+  // lab's save, the ship short of its EXPLORE mark (src/bossQuest.js).
+  if (!GAME && launch.get('boss') === '1') {
+    Object.assign(game.shipScale, createScaleState());
+    visitBoss(world, renderer);
+  } else if (!GAME && launch.get('boss') === 'quest') {
+    Object.assign(game.shipScale, createScaleState());
+    visitBossQuest(world, renderer);
   }
   // `?droid=fuel` or `?droid=repair`: a service droid beside the ship, on open ground.
   const wantedDroid = GAME ? null : launch.get('droid');
@@ -200,7 +209,7 @@ export function installLabDrawer(game) {
   // test, so on the game's save it reloads into the lab's own, at that jump (a review link). On
   // the lab's save it jumps in place, clearing what belongs to the moment before it (menus,
   // feedback, ghost, held keys) and leaving earned progress alone.
-  for (const button of document.querySelectorAll('[data-scene], [data-pirates], [data-droid]')) {
+  for (const button of document.querySelectorAll('[data-scene], [data-pirates], [data-droid], [data-boss]')) {
     button.addEventListener('click', () => {
       if (!LAB_SAVE) {
         const [key, value] = Object.entries(button.dataset)[0];
@@ -216,7 +225,9 @@ export function installLabDrawer(game) {
       game.menu.closed = true; game.menu.forId = null; game.notices.clearNotices();
       input.down.clear(); input.pressed.clear(); game.clock.reset();
       Object.assign(game.shipScale, createScaleState());
-      const result = button.dataset.pirates
+      const result = button.dataset.boss
+        ? visitBoss(world, renderer)
+        : button.dataset.pirates
         ? visitPirates(world, renderer, Number(button.dataset.pirates))
         : button.dataset.droid
           ? visitDroid(world, renderer, button.dataset.droid)
@@ -225,7 +236,7 @@ export function installLabDrawer(game) {
       game.pause.state.keyPause = false;
       game.persist('lab-view');
       status.textContent = `View: ${button.textContent}. Flight is frozen while tuning.`;
-      for (const other of document.querySelectorAll('[data-scene], [data-pirates], [data-droid]')) other.setAttribute('aria-pressed', String(other === button));
+      for (const other of document.querySelectorAll('[data-scene], [data-pirates], [data-droid], [data-boss]')) other.setAttribute('aria-pressed', String(other === button));
       void result;
     });
   }

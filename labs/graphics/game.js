@@ -109,7 +109,8 @@ export function createGame(env) {
   const pageParams = new URLSearchParams(location.search);
   // The ship's return after a wreck (labs/graphics/respawn-fx.js): the screen redrawn through a band of black glyphs (SX, 2026-10-04).
   const respawnFx = createRespawnFx();
-  const REVIEW = !GAME && ['scene', 'pirates', 'droid', 'visitor', 'hull'].some((key) => pageParams.has(key));
+  // (`?boss=1`, the boss TOLLKEEPER on open ground, src/boss.js: a review link too, so its fight never touches the pilot's save.)
+  const REVIEW = !GAME && ['scene', 'pirates', 'droid', 'visitor', 'hull', 'boss'].some((key) => pageParams.has(key));
   // `?look=` and `?looks=` (src/looks.js) hand the pilot looks, so they too play the lab's own save, never the game's; so do
   // `?placeQuests`, the quest list's editor (labs/graphics/sketches/quests.html), which starts quests to place, and `?startRuin`;
   // and `?raid`, `?quest` and `?special`, which start a raid or a quest at once and raise the wallet or edit the notes and the

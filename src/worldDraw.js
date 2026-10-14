@@ -18,6 +18,7 @@ import { drawPaintTin, drawTin } from './paint.js';
 import { lookFindsIn, lookTinInks } from './looks.js';
 import { availableIn } from './rewards.js';
 import { craftPose, drawCraft, craftReach, craftSize, HAIL_REACH, visitorPose, isEnraged } from './traffic.js';
+import { npcCraft } from './npcShips.js';
 import { drawPestered } from './pester.js';
 import { drawWreck } from './wrecked.js';
 import { drawSuitcase, PLANET_ID } from './errands.js';
@@ -75,8 +76,15 @@ class WorldDrawing {
     const ship = this.ship;
     const d = this.delta(ship.x, ship.y, this.cam.x, this.cam.y);
     const lead = CONFIG.camera.lead;
-    const lx = clamp(ship.vx * lead, -CONFIG.camera.leadMax, CONFIG.camera.leadMax);
-    const ly = clamp(ship.vy * lead, -CONFIG.camera.leadMax, CONFIG.camera.leadMax);
+    let lx = clamp(ship.vx * lead, -CONFIG.camera.leadMax, CONFIG.camera.leadMax);
+    let ly = clamp(ship.vy * lead, -CONFIG.camera.leadMax, CONFIG.camera.leadMax);
+    // In the boss's fight the camera leans toward it (CONFIG.boss.camera): at its range it would stand at the edge of a 1280 x 960 view.
+    const boss = this.boss && !this.boss.defeated ? this.boss : null;
+    if (boss) {
+      const C = CONFIG.boss.camera, to = this.delta(boss.x, boss.y, ship.x, ship.y), len = Math.hypot(to.x, to.y);
+      const k = len > C.far ? 0 : Math.min(C.lean, C.max / (len || 1));
+      lx += to.x * k; ly += to.y * k;
+    }
     const k = clamp(CONFIG.camera.follow * dt * 60, 0, 1);
     this.cam.x += (d.x + lx) * k;
     this.cam.y += (d.y + ly) * k;
@@ -146,10 +154,27 @@ class WorldDrawing {
       }
     }
 
-    // The fog: only where the view reaches a grid square with no sector.
+    // In the boss's fight its smoke's square is the one open place (src/bossQuest.js world.bossArena; SX, 2026-10-14: «буквально нашим
+    // туманом»): the fog is the world's own everywhere outside it, its line dotted along its four sides.
+    const A = this.bossArena;
+    if (A) {
+      rects.length = 0;
+      rects.push([A.x - A.half, A.y - A.half, A.x + A.half, A.y + A.half]);
+      const stepY = r.cellH * F.dots, stepX = r.cellW * F.dots * 1.6;
+      for (const x of [A.x - A.half, A.x + A.half]) if (x >= left && x <= right)
+        for (let y = Math.ceil((Math.max(A.y - A.half, top) + gy) / stepY) * stepY - gy; y <= Math.min(A.y + A.half, bottom); y += stepY) {
+          const s = this.project(r, x, y); r.glyph('\u00b7', s.x, s.y, F.dotColor, F.dotAlpha);
+        }
+      for (const y of [A.y - A.half, A.y + A.half]) if (y >= top && y <= bottom)
+        for (let x = Math.ceil((Math.max(A.x - A.half, left) + gx) / stepX) * stepX - gx; x <= Math.min(A.x + A.half, right); x += stepX) {
+          const s = this.project(r, x, y); r.glyph('\u00b7', s.x, s.y, F.dotColor, F.dotAlpha);
+        }
+    }
+    // The fog: only where the view reaches a grid square with no sector (or, in the boss's fight, past its square).
     const sq = (v, size) => Math.floor(v / size);
     let open = true;
-    for (let j = sq(top, H); j <= sq(bottom, H) && open; j++) for (let i = sq(left, W); i <= sq(right, W); i++) if (!at(i, j)) { open = false; break; }
+    if (A) open = left >= A.x - A.half && right <= A.x + A.half && top >= A.y - A.half && bottom <= A.y + A.half;
+    else for (let j = sq(top, H); j <= sq(bottom, H) && open; j++) for (let i = sq(left, W); i <= sq(right, W); i++) if (!at(i, j)) { open = false; break; }
     if (open) return;
     // Where the fog parts: the puffs the hull and the exhaust left (stepFogWake), each widening as it ages and closing from
     // its `closeFrom` on, and the ship's own, `bow` heaped before it. Each is stamped onto the cells in view once a frame:
@@ -842,6 +867,13 @@ class WorldDrawing {
 
     // Pirates, over the rocks and under the shots.
     lap('pirates');
+    // The boss under its escort (src/boss.js; drawn by the page, labs/graphics/boss-art.js: a world without a page draws none), and the
+    // NPC ships watching its fight from the smoke's edges (src/bossQuest.js), each in its own scheme.
+    if (this.boss) this.drawBoss?.(r);
+    for (const w of this.bossCrowd) {
+      const s = this.project(r, w.x, w.y), craft = npcCraft(w.code);
+      if (r.onScreen(s.x, s.y, craftReach(r, craft))) drawCraft(r, craft, s.x, s.y, w.angle);
+    }
     drawPirateFields(this, r);
     for (const p of this.pirates) {
       const s = this.project(r, p.x, p.y);

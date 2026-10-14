@@ -172,10 +172,11 @@ export function drawStep(ui, { right, top, value, on = false, dim = false, ends 
   say('›', origin + (n - 1) * cw, arrow(ends[1]));
   return { left: origin + m.capLeft, origin, n, back: { x: origin - cw / 2, w: 2 * cw } };
 }
-// □ OFF or ■ ON with its right ink edge at `right`: the square the interface's blue, the word white.
+// OFF □ or ON ■ ending at `right`, the square in the last cell (SX, 2026-10-14: «Индикатор у ON/off должен быть справа»; at the left until
+// then): the square the interface's blue, the word white.
 export function drawToggle(ui, { right, top, isOn, on = false }) {
   const { cw, m, r } = ui, words = isOn ? 'ON' : 'OFF', n = 2 + len(words), origin = right + m.capLeft - n * cw;
-  const lx = Math.round(origin + cw / 2 - SWISS.lamp / 2), ly = Math.round(ui.capMid(top) - SWISS.lamp / 2);
+  const lx = Math.round(origin + (n - 1) * cw + cw / 2 - SWISS.lamp / 2), ly = Math.round(ui.capMid(top) - SWISS.lamp / 2);
   if (isOn) r.fill(lx, ly, SWISS.lamp, SWISS.lamp, on ? BLACK : S);
   else {
     const c = r.ctx;
@@ -183,7 +184,7 @@ export function drawToggle(ui, { right, top, isOn, on = false }) {
     c.beginPath(); c.rect(px(lx), px(ly), SWISS.lamp - 1, SWISS.lamp - 1); c.stroke(); c.restore();
   }
   const text = on ? BLACK : W;
-  (on ? onPlate : (f) => f())(() => r.text(words, origin + 2 * cw, top + m.textY, text));
+  (on ? onPlate : (f) => f())(() => r.text(words, origin, top + m.textY, text));
   return { left: origin + m.capLeft };
 }
 // A level: a hairline from `x0` to `x1` on the row's middle with ticks at 0, 50 and 100 %, the mark at `level` (0..1). Returns the track's box

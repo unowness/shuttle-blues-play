@@ -50,10 +50,10 @@ const gauss = (rng) => (rng() + rng() + rng() - 1.5) * 2;
 // always CONFIG.pirates.ink, the orange its shots are, whatever the paint. The lab
 // passes the paints' inks through (labs/graphics/world-art.js).
 
-// A squad's paint by id, or the first.
+// A squad's paint by id, or the first. The boss's escort wears a paint of its own (CONFIG.boss.escort.paint), found here and never rolled.
 export function piratePaint(id) {
-  const list = CONFIG.pirates.paints;
-  return list.find((q) => q.id === id) || list[0];
+  const list = CONFIG.pirates.paints, escort = CONFIG.boss.escort.paint;
+  return list.find((q) => q.id === id) || (id === escort.id ? escort : null) || list[0];
 }
 // The ink a cell of `part` is drawn in, in `paint`.
 export function partInk(part, paint) {
@@ -63,9 +63,11 @@ export function partInk(part, paint) {
   if (part === 'e') return paint.drive;
   return paint.hull;
 }
-// Every ink a pirate may be drawn in: the guns, the flash, and the paints'.
+// Every ink a pirate may be drawn in: the guns, the flash, and the paints'; the boss's escort's and the boss's own (src/bossConfig.js),
+// so the world draws them as they are, not as the pilot's ship (labs/graphics/world-art.js), and the NPC rule keeps clear of them.
+const ESCORT = CONFIG.boss.escort.paint;
 export const PIRATE_INKS = new Set([CONFIG.pirates.ink, CONFIG.pirates.flash.ink,
-  ...CONFIG.pirates.paints.flatMap((q) => [q.hull, q.trim, q.mark, q.drive])]);
+  ...[...CONFIG.pirates.paints, ESCORT].flatMap((q) => [q.hull, q.trim, q.mark, q.drive]), ...Object.values(CONFIG.boss.art.palette)]);
 
 export function drawPirate(r, sx, sy, p) {
   const C = CONFIG.pirates, T = C.types[p.type];

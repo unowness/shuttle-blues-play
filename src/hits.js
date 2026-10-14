@@ -131,6 +131,8 @@ export function resolveHits(world) {
     }
   }
 
+  // The boss's core and sleds take the pilot's shots before a pirate in the way would (src/boss.js); its own shots are a pirate's.
+  world.resolveBossHits?.();
   world.resolvePirateHits();
 
   // What the hull meets: a hole's horizon, rocks, droids, stations, the NPC ships and the planets' surfaces (src/contact.js).

@@ -334,6 +334,15 @@ export const EVENT_SOUNDS = {
   pirateDown: () => 'explosionSmall',
   npcDown: () => 'explosionSmall',
   piratesEngaged: () => 'alarm',
+  // The boss (src/boss.js), on the game's sounds until SX hears it: it reacts with a squad's alarm, its escort out of the bay the same
+  // alarm lower, a hit a pirate's, a sled shot off a pirate's breaking, and beaten the big explosion.
+  bossWoke: () => 'alarm',
+  bossLaunch: () => ({ name: 'alarm', gain: 0.6, pitch: 0.8 }),
+  bossHit: () => ({ name: 'pirateHit', gain: 0.7 }),
+  bossSledOff: () => 'explosionSmall',
+  bossDefeated: () => 'explosion',
+  // Its quest come: the radio's word, as a signal heard (the quest is the story's, not an alarm); its waking is its own `bossSpawned`.
+  bossQuestOffered: () => 'word',
   encounterEnded: (e) => (e.cause === 'wrecked' ? null : 'allClear'),
   creditsSeized: () => 'loss',
   pickupClaimed: (e) => (e.drop ? 'coin' : 'coins'),
@@ -431,6 +440,12 @@ export const EVENT_SOUNDS = {
 };
 
 export const SILENT = {
+  bossPattern: 'its warnings are its glyph cues, as a pirate\'s are; its shots and its escort keep their own sounds',
+  bossPhase: 'its phase is read from what it does and how far it has come apart (SX, 2026-10-14: «номер фазы тоже не нужно»)',
+  bossHealed: 'it heals as the pilot is wrecked: the wreck\'s own sounds are playing',
+  bossSpawned: 'it comes lying in wait at its quest\'s mark (or in the lab): the alarm is for when it reacts (bossWoke)',
+  bossMoved: 'it moves as the pilot is wrecked: the wreck\'s own sounds are playing; its banner says it',
+  bossQuestDone: 'its end is bossDefeated\'s explosion, the same step; the window says the rest',
   pirateAttackPhase: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
   piratePattern: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
   mineLaid: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',

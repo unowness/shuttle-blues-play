@@ -359,8 +359,23 @@ export function createNotices(game) {
           notify(e.title ?? e.label, e.cache ? `SECTOR OPEN / CACHE IN ${e.cache.sectorLabel}` : 'SECTOR OPEN',
             { kind: 'gain', life: e.cache ? 4.4 : 3.6, after: true });
           break;
+        // After the last restoration's own card, never over it (until 2026-10-14 it stood in the same frame and the card was gone at once).
         case 'networkComplete':
-          notify('ALL STATIONS OPEN', `${e.stations} OF ${e.stations}`, { kind: 'gain', life: 4 });
+          notify('ALL STATIONS OPEN', `${e.stations} OF ${e.stations}`, { kind: 'gain', life: 4, after: true });
+          break;
+        // The boss's quest (src/bossQuest.js): it comes after the restoration's cards; its waking stands at once, in the danger's red; a
+        // wreck that sent it next door says where, after the wreck's own; beaten, the window that the main game is done.
+        case 'bossQuestOffered':
+          notify(QL.boss.offered(), QL.boss.offeredSub(e.label), { kind: 'news', life: 4.4, after: true });
+          break;
+        case 'bossWoke':
+          notify(QL.boss.woke(), QL.boss.wokeSub(), { kind: 'danger', life: 3.6 });
+          break;
+        case 'bossMoved':
+          notify(QL.boss.moved(), QL.boss.movedSub(e.label), { kind: 'news', life: 4.4, after: true });
+          break;
+        case 'bossQuestDone':
+          screens.openFinale?.();
           break;
         case 'collectionComplete':
           notify(`${e.kind === 'paint' ? 'PAINTS' : 'SOUVENIRS'} ${e.of} OF ${e.of}`, 'COLLECTION COMPLETE', { kind: 'gain', life: 4 });

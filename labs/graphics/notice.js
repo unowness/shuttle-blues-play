@@ -217,8 +217,9 @@ function drawFlapPlate(r, notice, kind, cx, top) {
 // блоком посередине и сделай его в стиле табличек как у нас нотификации по грузам ... только маленькая, без ...
 // боковой детали»), its top edge at `top`, centred on `cx`. It assembles as the cargo plates do: `age` the seconds
 // since the pause began, `gone` the age the pause ended at, or null while it lasts; `instant` under reduced motion.
-// Returns the rectangle it holds, or null once it has gone.
-export const PAUSE_PLATE = Object.freeze({ title: 'PAUSED', kind: 'news', pause: true });
+// Returns the rectangle it holds, or null once it has gone. In the green of the game's good news (`gain`) since SX's word of 2026-10-14
+// («сделай также метку pause зеленой ... как наши зеленые метки»); the blue of `news` until then.
+export const PAUSE_PLATE = Object.freeze({ title: 'PAUSED', kind: 'gain', pause: true });
 export function pausePlateRect(r, cx, top) {
   const g = flapPlace(r, PAUSE_PLATE, cx);
   return { x: g.x0, y: top, w: g.width, h: g.height };
@@ -227,7 +228,7 @@ export function pausePlateRect(r, cx, top) {
 // never repaints them (INTERFACE_LOOKS_HANDOFF.md, SX: «notification полностью перекрашиваются, не хотелось бы»).
 export const drawPausePlate = keptDraw(function drawPausePlate(r, cx, top, { age = 1e6, gone = null, instant = false } = {}) {
   const notice = { ...PAUSE_PLATE, age, life: gone ?? Infinity, instant };
-  return drawFlap(r, notice, NOTICE_KINDS.news, cx, top);
+  return drawFlap(r, notice, NOTICE_KINDS[PAUSE_PLATE.kind], cx, top);
 });
 
 // A window's title on the cargo plate, one line with its strip (labs/graphics/tabs-window.js): `kind` names its ink

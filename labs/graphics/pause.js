@@ -5,12 +5,12 @@
 // (docs/plans/2026-10-04-roadmap.md). `game` is the page's (main.js), read when a function runs.
 //
 // The pages, in the order SX's pick argued (labs/graphics/sketches/pause-v2.html, P2 LEDGER with S2 STEPPER, its «Порядок строк»), laid out in
-// the Swiss manner since 2026-10-09 (labs/graphics/pause-menu.js: the rows numbered 01-07 on the main page, a settings page's groups hung
-// with their number and name, the foot's key hints, the frame and rules in the grays of src/frames.js):
+// the Swiss manner since 2026-10-09 (labs/graphics/pause-menu.js: the menu's rows and the toy's square, two equal cells, on the main page, a settings page's groups hung
+// by their name under a BACK, the foot's key hints, the frame and rules in the grays of src/frames.js):
 //   main       RESUME first (the commonest and safest; Enter right after P plays on), the settings (GRAPHICS with the finds' news,
 //              AUDIO, GAMEPLAY, LAYOUT, the rarest and a mode of its own), then SAVE GAME (a click saves at once, as before chat P) and
-//              MAIN MENU last, a blank row apart, so the end of a session is never under the hand. The head says what the game knows: the
-//              sector, the flight's time, and when the game last saved itself (honest, never «saved» before the write has gone). SAVE
+//              MAIN MENU last, a blank row apart, so the end of a session is never under the hand. The head says what the game knows: when
+//              the game last saved itself (honest, never «saved» before the write has gone), then the flight's time. SAVE
 //              GAME's page of facts went (SX on the picks hub, 2026-10-04: «SAVE GAME saves at once»): the pilot card and the HUD already
 //              say the money, the stations and the finds.
 //   graphics   SCREEN: DISPLAY (the whole screen, as V), LOOK, FRAMES (the grays or the look's tint, src/frames.js), from the wider to the
@@ -27,8 +27,6 @@
 import { CONFIG } from '../../src/config.js';
 import { readSeen, writeSeen, writeCockpitSmoke } from '../../src/prefs.js';
 import { frames, FRAME_STYLES, FRAME_STYLE_NAMES, setFrames } from '../../src/frames.js';
-import { shipById } from '../../src/hangar.js';
-import { keyName } from '../../src/controls.js';
 import { lookById, ownedLooks } from '../../src/looks.js';
 import { paintById } from '../../src/paint.js';
 import { ownedCursors, cursorName } from '../../src/cursors.js';
@@ -51,7 +49,7 @@ import { codesOf, SCHEMES, SCHEME_NAMES, DEFAULT_SCHEME } from '../../src/contro
 import { radioFitted, interfaceGiven } from '../../src/opening.js';
 import { STEERINGS, STEERING_NAMES, DEFAULT_STEERING, setSteering } from '../../src/steering.js';
 import { GREETINGS, GREETING_NAMES, DEFAULT_GREETING, setGreeting } from './greeting.js';
-import { sectorLine, pad2 } from './swiss.js';
+import { pad2 } from './swiss.js';
 
 // How long ago, in the save row's words.
 function agoText(s) {
@@ -309,13 +307,13 @@ export function createPause(game) {
   function mainRows() {
     const o = ownedNow(), fresh = o.looks.some((id) => isNew('looks', id)) || o.paints.some((id) => isNew('paints', id)) || o.cursors.some((id) => isNew('cursors', id));
     return [
-      // (Its own function, not the plate's: the golden master tells the buttons apart by what they run.) Its key's cap at its right: P.
-      { kind: 'item', label: 'RESUME', key: keyName('pause'), run: () => resumeFromMenu() },
+      // (Its own function, not the plate's: the golden master tells the buttons apart by what they run.)
+      { kind: 'item', label: 'RESUME', run: () => resumeFromMenu() },
       blank,
-      { kind: 'item', label: 'GRAPHICS', more: true, dot: fresh, page: 'graphics', run: () => openPage('graphics') },
-      { kind: 'item', label: 'AUDIO', more: true, page: 'audio', run: () => openPage('audio') },
-      { kind: 'item', label: 'GAMEPLAY', more: true, page: 'gameplay', run: () => openPage('gameplay') },
-      { kind: 'item', label: 'LAYOUT', more: true, dot: earnedNow().some(newWidget), value: unsavedLayout(game.hud.place) ? 'UNSAVED' : null,
+      { kind: 'item', label: 'GRAPHICS', dot: fresh, page: 'graphics', run: () => openPage('graphics') },
+      { kind: 'item', label: 'AUDIO', page: 'audio', run: () => openPage('audio') },
+      { kind: 'item', label: 'GAMEPLAY', page: 'gameplay', run: () => openPage('gameplay') },
+      { kind: 'item', label: 'LAYOUT', dot: earnedNow().some(newWidget), value: unsavedLayout(game.hud.place) ? 'UNSAVED' : null,
         page: 'layout', run: () => openPage('layout') },
       blank,
       // The last save is said in the head (headMeta), as the sketch has it, not at the row's right.
@@ -328,34 +326,26 @@ export function createPause(game) {
   function pauseRows() { return (PAGES[menu.page] ?? mainRows)(); }
 
   // The head's words (the Swiss pause, labs/graphics/pause-menu.js): on the main page PAUSE and, at the right, only what the game knows: the
-  // sector, the flight's time (the pilot's own seconds of flight, src/contracts.js clock) once there is some, and the last save, honest as
-  // saveWords says it; on a page, the number of the menu's row that opens it.
+  // last save, honest as saveWords says it, then the flight's time (the pilot's own seconds of flight, src/contracts.js clock) once there is
+  // some, at the window's edge (SX's marks of 2026-10-14: the two swapped, the sector struck out); on a page, nothing but its BACK.
   const clockText = (sec) => { const t = Math.floor(sec); return [Math.floor(t / 3600), Math.floor(t / 60) % 60, t % 60].map(pad2).join(':'); };
   function headOf() {
-    if (menu.page !== 'main') {
-      const at = mainRows().filter((row) => row.kind === 'item').findIndex((row) => row.page === menu.page);
-      return { title: 'PAUSE', number: at >= 0 ? at + 1 : null, meta: [] };
-    }
+    if (menu.page !== 'main') return { title: 'PAUSE', meta: [] };
     const { world } = game, words = saveWords(), clock = world.ledger?.clock;
-    const meta = [{ text: sectorLine(world) }, { text: Number.isFinite(clock) && clock > 0 ? clockText(clock) : null }, { text: words.value, ink: words.ink ?? undefined }];
-    return { title: 'PAUSE', number: null, meta: meta.filter((m) => m.text) };
+    const meta = [{ text: words.value, ink: words.ink ?? undefined }, { text: Number.isFinite(clock) && clock > 0 ? clockText(clock) : null }];
+    return { title: 'PAUSE', meta: meta.filter((m) => m.text) };
   }
-  // The foot's keys (ESC lets the pause go from any page: the Escape key's own, labs/graphics/pause.js press). A group taken on LAYOUT is moved
-  // by the arrows, put down by Enter or the same click, Escape takes the move back.
-  const ESC_RESUME = { side: 'right', key: 'ESC', words: 'RESUME' };
+  // The foot's keys, as Escape does them (labs/graphics/input-router.js): on the main page it lets the pause go; on another it goes back to the
+  // main page, as BACK does (SX, 2026-10-14: «во внутренних окнах esc это назад»; it did, and the foot said RESUME). A group taken on LAYOUT
+  // is moved by the arrows, put down by Enter or the same click, Escape takes the move back.
+  const ESC_RESUME = { side: 'right', key: 'ESC', words: 'RESUME' }, ESC_BACK = { side: 'right', key: 'ESC', words: 'BACK' };
   function hintsOf() {
     if (menu.page === 'main') return [{ key: '↑ ↓', words: 'MOVE' }, { key: 'ENTER', words: 'OPEN' }, ESC_RESUME];
-    if (menu.page === 'leave') return [{ key: '↑ ↓', words: 'MOVE' }, { key: 'ENTER', words: 'CHOOSE' }, ESC_RESUME];
+    if (menu.page === 'leave') return [{ key: '↑ ↓', words: 'MOVE' }, { key: 'ENTER', words: 'CHOOSE' }, ESC_BACK];
     if (menu.page === 'layout' && game.hud.place.editor.moving) {
       return [{ key: '← → ↑ ↓', words: 'MOVE' }, { key: 'ENTER', words: 'PUT DOWN' }, { side: 'right', key: 'ESC', words: 'CANCEL MOVE' }];
     }
-    return [{ side: 'right', key: '← →', words: 'CHANGE' }, ESC_RESUME];
-  }
-  // Under the square: the ship flown and the drawing it wears (the pause's SHIP row), where the game has them.
-  function captionOf() {
-    const { world } = game, flying = shipById(world.hangar?.flying) ?? shipById('standard'), hull = game.shipLook;
-    const worn = hull?.shown() ? hull.looks().find((l) => l.id === hull.worn)?.label : null;
-    return { left: flying.label, right: worn ?? null };
+    return [{ side: 'right', key: '← →', words: 'CHANGE' }, ESC_BACK];
   }
 
   function setVolumeFromPanel(id, v, def) {
@@ -427,7 +417,7 @@ export function createPause(game) {
     state.shipAt ??= world.project(renderer, world.ship.x, world.ship.y);
     const toyIn = (view, frac) => {
       if (state.toy) return;
-      state.toy = createPauseToy({ x: state.shipAt.x - view.x - (frac?.x ?? 0), y: state.shipAt.y - view.y - (frac?.y ?? 0), angle: world.ship.angle });
+      state.toy = createPauseToy({ x: state.shipAt.x - view.x - (frac?.x ?? 0), y: state.shipAt.y - view.y - (frac?.y ?? 0), angle: world.ship.angle, size: view.w });
     };
     // The toy is the main page's: another page stands without it, and neither the toy's steps nor its blows' jolts nor its glide home run
     // meanwhile (it picks up where it was when the main page comes back).
@@ -439,7 +429,7 @@ export function createPause(game) {
       if (!state.leave) noteAction(plate, resumeFromMenu);
     }, { dim: 1 - CONFIG.view.underPanel, age: still ? Infinity : (state.leave?.at ?? pageTime()) - state.at, leave,
       shake: state.leave || !toyPage ? null : state.toy?.jolt, page: menu.page, dt: game.frameDt(), still,
-      head: headOf(), hints: hintsOf(), caption: toyPage ? captionOf() : null,
+      head: headOf(), hints: hintsOf(),
       above: toyPage ? (view, frac) => drawPauseToy(renderer, state.toy, view, { world, reducedMotion: still, ship: 'free', frac }) : null,
       over: layoutEditing() ? () => drawPlaceOverlay(renderer, game.hud.boxes, game.hud.place, { hover: game.hud.hover ?? rowGroup(), t: pageTime(), buttons: false }) : null });
     state.box = windowBox;

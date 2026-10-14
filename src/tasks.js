@@ -62,6 +62,8 @@ export function focusRank(task) {
   if (q.kind === 'special') return [0, 1];
   if (q.kind === 'guide' || q.kind === 'support') return [0, 2];
   if (q.kind === 'raid' || q.kind === 'pester') return [1, 0];
+  // The boss's quest (src/bossQuest.js): the story's until the pilot meets it, a raid's red from then.
+  if (q.kind === 'boss') return q.tone === 'red' ? [1, 0] : [0, 3];
   if (NPC_KINDS.has(q.sideKind)) return [2, 0];
   return [3, 2];
 }

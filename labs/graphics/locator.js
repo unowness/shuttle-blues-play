@@ -216,6 +216,17 @@ export function radarContacts(world, { flags = [], quests = [], task = null } = 
     if (also) contacts.push({ id: `quest:${quest.id}:also`, label: quest.also.title, kind: 'quest', color: ink, priority: true,
       angle: Math.atan2(also.dy, also.dx), dist: also.distance });
   }
+  // The boss TOLLKEEPER (SX, 2026-10-14: «у босса должна быть уникальная картинка на локаторе, красная»): its own mark in the danger's red,
+  // on the boss once it is there (lying in wait from `quest.seen` u, or fighting), and at its quest's place after the pilot has met it
+  // (src/bossQuest.js: before, the strange activity is only the quest's ring), held on the rim when far as the route is.
+  const b = world.boss && !world.boss.defeated ? world.boss : null;
+  if (b) {
+    const d = world.delta(b.x, b.y, world.ship.x, world.ship.y);
+    contacts.push({ id: 'boss', label: 'TOLLKEEPER', kind: 'boss', priority: true, angle: Math.atan2(d.y, d.x), dist: Math.hypot(d.x, d.y), heading: b.heading });
+  } else if (world.bossQuest?.met && !world.sector.hidden) {
+    const leg = legTo(world, world.bossQuest.sectorId, world.bossQuest.x * world.width, world.bossQuest.y * world.height);
+    if (leg) contacts.push({ id: 'boss', label: 'TOLLKEEPER', kind: 'boss', priority: true, angle: Math.atan2(leg.dy, leg.dx), dist: leg.distance });
+  }
   // The flags, each in its ink, on the rim when far: a bearing only, no pointer in the sky. From inside O-08 every way out is
   // its hole, so they wait until the pilot is back on the grid.
   if (!world.sector.hidden) flags.forEach((f, i) => {
@@ -351,6 +362,15 @@ function drawMark(ctx, x, y, kind, color, radius = 4, heading = -Math.PI / 2) {
       ctx.fill();
       return;
     }
+    case 'boss': {
+      // The boss's tug: a solid core, its nose along its heading, and its two sleds behind it on their tethers' places; bigger than any
+      // mark, in the danger's red, so it is told at a glance from a squad's darts.
+      const c = Math.cos(heading + Math.PI / 2), s = Math.sin(heading + Math.PI / 2);
+      const turn = (pts) => pts.map(([px, py]) => [px * c - py * s, px * s + py * c]);
+      poly(turn([[0, -7], [6, -2], [6, 3], [-6, 3], [-6, -2]])); ctx.fill();
+      for (const side of [-1, 1]) { poly(turn([[side * 9, 5], [side * 6, 5], [side * 6, 8], [side * 9, 8]])); ctx.fill(); }
+      return;
+    }
     case 'cargo':
       poly([0, 1, 2, 3, 4, 5].map(i => {
         const a = Math.PI / 3 * i + Math.PI / 6;
@@ -397,7 +417,7 @@ function drawMark(ctx, x, y, kind, color, radius = 4, heading = -Math.PI / 2) {
 const MARK_COLOR = {
   'ship-legend': ROLES.textPrimary, station: ROLES.textPrimary, cache: ROLES.textPrimary, sign: ROLES.textPrimary, flag: ROLES.textPrimary,
   route: ROLES.routeActive, signal: ROLES.interactionActive, droid: ROLES.interactionActive,
-  cargo: ROLES.caution, pirate: ROLES.danger,
+  cargo: ROLES.caution, pirate: ROLES.danger, boss: ROLES.danger,
   planet: ROLES.textSecondary, hole: ROLES.textSecondary, rock: ROLES.textSecondary,
 };
 

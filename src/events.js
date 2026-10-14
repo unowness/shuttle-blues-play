@@ -108,6 +108,21 @@ export const EVENTS = Object.freeze({
   pirateLoot: E('pirateId kind coins hold x y sectorId'),
   pirateShout: E('pirateId kind trait line x y sectorId'),
   encounterEnded: E('cause sectorId size left seconds'),
+  // The boss TOLLKEEPER (src/boss.js): there, a pattern's step, its escort let out, a part hit, a sled shot off, its phase, beaten; whole
+  // again after the pilot's wreck.
+  bossSpawned: E('sectorId x y'),
+  bossPattern: E('pattern phase sectorId x y'),
+  bossLaunch: E('count sectorId x y'),
+  bossHit: E('part left sectorId x y'),
+  bossSledOff: E('side why sectorId x y'),
+  bossPhase: E('phase rage sectorId x y'),
+  bossDefeated: E('sectorId x y'),
+  bossHealed: E('sectorId'),
+  // Its quest (src/bossQuest.js): offered at 8 of 8, woken at its mark, moved next door after a wreck, beaten (the main game done).
+  bossQuestOffered: E('sectorId label x y', 'quest'),
+  bossWoke: E('sectorId x y'),
+  bossMoved: E('from to label', 'quest'),
+  bossQuestDone: E('sectorId x y', 'quest'),
   raidStarted: E('label sectorLabel ruin stationId size time sectorId', 'raid'),
   raidWon: E('label sectorLabel ruin stationId seconds sectorId pay credits', 'raid'),
   raidLost: E('label sectorLabel ruin stationId cost costText sectorId', 'raid'),

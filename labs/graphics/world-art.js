@@ -1,10 +1,11 @@
 import { CONFIG } from '../../src/config.js';
-import { TAU, clamp, fbmWrapped, hypot2, lerp, mixHex, mulberry32, rampGlyph } from '../../src/util.js';
+import { TAU, clamp, fbmWrapped, hypot2, lerp, mixHex, mulberry32, rampGlyph, cellNoise } from '../../src/util.js';
 import { Planet } from '../../src/bodies.js';
 import { planetHue } from '../../src/sectors.js';
 import { registerSprite } from '../../src/sprites.js';
 import { Pirate, PIRATE_INKS } from '../../src/pirates.js';
 import { rebuiltShare } from '../../src/ruins.js';
+import { drawBossArt } from './boss-art.js';
 import { paintInk, paintedHull, paintedMotion, LAMP } from '../../src/paint.js';
 import { SPECIAL_INKS } from '../../src/specialShips.js';
 import { keptDraw } from '../../src/grade.js';
@@ -133,13 +134,7 @@ function stationArt(kind) {
 }
 const stations = { garage: stationArt('garage'), freight: stationArt('freight') };
 
-// A fixed number in 0..1 for a cell of a drawing, so a ruin is broken the same
-// way on every frame and every visit.
-function cellNoise(x, y, k) {
-  let h = (Math.imul(x + 1, 374761393) + Math.imul(y + 1, 668265263) + Math.imul(k, 1442695041)) >>> 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
+// A fixed number in 0..1 for a cell of a drawing (src/util.js cellNoise), so a ruin is broken the same way on every frame and every visit.
 
 // A station, or a ruin (src/ruins.js): the station it was, drawn from the same
 // board, with `rebuilt` (0..1) of it in place. At 0 about three fifths of its
@@ -964,6 +959,8 @@ export function createWorldPresentation(world, settings) {
     });
     return out;
   };
+  // The boss (src/boss.js), drawn with the stations' rule for what has come off it (RUIN).
+  world.drawBoss = (r) => drawBossArt(r, world, RUIN);
   const api = {
     // Set by the page from prefers-reduced-motion: the respawn blink holds steady.
     reducedMotion: false,

@@ -621,6 +621,8 @@ export function noteCardOpened(world) {
 // The offers a station makes are the chapter's through its two freights: until the first delivery, and from the card to the return
 // load's delivery. (Between them, from the fuel to the shelf, the pilot is free to take whatever B and A offer.)
 const guidedOffers = (stage) => at(stage) <= at('deliver') || (at(stage) >= at('look') && at(stage) <= at('haul'));
+// Whether the chapter holds the stations' own offers now: the map then lists no authored job waiting (labs/graphics/map-screen.js 04 CARGO).
+export const openingHoldsOffers = (world) => { const r = running(world); return !!r && guidedOffers(r.stage); };
 
 // A station's rows under the chapter (World.stationActions, over src/menus.js's): freight offers are the chapter's through its two
 // freights; at A, close by in SCOOTY JR., its row, INFO and a docked ship's way out; after the call, its row first; then the

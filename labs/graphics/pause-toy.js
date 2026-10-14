@@ -28,9 +28,10 @@ import { drawPausePlate, pausePlateRect } from './notice.js';
 import { drawPilotShip, flownShipInks, STAR_ROLES } from './world-art.js';
 import { createShipMotion, stepShipMotion } from './ship-motion.js';
 import { mulberry32, wrapPi } from '../../src/util.js';
+import { ROLES } from '../../src/roles.js';
 
 export const TOY = Object.freeze({
-  size: 200,           // px, the square
+  size: 200,           // px, the square unless it is handed its own (`createPauseToy` size: the game's is the pause's right cell)
   wake: 0.55,          // s the ship hangs where it stood while the window lands over it (0.32 s), and a beat, before it wants out
   // The craft, px and s: the game's turn (3.4 rad/s, reached at 16 a second; src/chassis.js STANDARD), its push scaled to a
   // room of 200 px; `tau` how hard it chases the velocity it wants (src/pirates.js `velocityTau`).
@@ -68,17 +69,21 @@ export const TOY = Object.freeze({
   look: [0.7, 1.6], think: [0.5, 1.0], pushTime: [1.2, 2.4], inspectTime: [2.2, 3.4],
   anger: { chance: 0.07, time: [3, 5], rest: 25 },
   bolt: 200, ram: 150, breakSpeed: 120, breakTime: [0.45, 0.7], swerve: 0.7, react: 0.28, standoff: 30,
-  stars: 26,
+  stars: 26,           // in a square of `size`; a larger square has as many more as its area
+  // The plate blinks when the ship touches it (SX, 2026-10-14: «пусть она моргает немного когда корабль его касается, типо становится на
+  // 15% темнее на момент»): `dark` darker at once, held `hold` s, back over `fade` s; a touch counts anew after `apart` s off the plate.
+  blink: { dark: 0.15, hold: 0.06, fade: 0.14, apart: 0.15 },
 });
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const between = (rng, [a, b]) => a + (b - a) * rng();
 
 // `x`, `y`: where the world's ship stood on the screen, in the square's px (outside the square, it dives in; inside, it waits for
-// `wake`), `angle` its heading; without them the ship starts just off a random side. `wake`: when it wants out.
-export function createPauseToy({ x = null, y = null, angle = null, seed = Date.now(), wake = TOY.wake } = {}) {
-  const rng = mulberry32(seed >>> 0), S = TOY.size, c = S / 2;
-  const stars = Array.from({ length: TOY.stars }, () => ({
+// `wake`), `angle` its heading; without them the ship starts just off a random side. `wake`: when it wants out. `size`: the
+// square's side, px (labs/graphics/pause-menu.js measures the game's; the ship, the plate and their speeds stay as they are).
+export function createPauseToy({ x = null, y = null, angle = null, seed = Date.now(), wake = TOY.wake, size = TOY.size } = {}) {
+  const rng = mulberry32(seed >>> 0), S = size, c = S / 2;
+  const stars = Array.from({ length: Math.round(TOY.stars * (S / TOY.size) ** 2) }, () => ({
     x: rng() * S, y: rng() * S, ch: rng() < 0.85 ? (rng() < 0.6 ? '.' : '·') : '+', layer: (rng() * 3) | 0,
   }));
   let sx = x, sy = y;
@@ -96,9 +101,9 @@ export function createPauseToy({ x = null, y = null, angle = null, seed = Date.n
   }
   const ship = { x: sx, y: sy, vx: 0, vy: 0, a: Number.isFinite(angle) ? angle : Math.atan2(py - sy, px - sx), spin: 0, r: 20,
     inside: false, thrusting: false, retroing: false };
-  ship.inside = depthOf(ship) > ship.r;
+  ship.inside = depthOf(ship, S) > ship.r;
   return {
-    t: 0, rng, stars, wake,
+    t: 0, rng, stars, wake, size: S, blinkAt: -Infinity, touchedAt: -Infinity,
     mode: ship.inside ? 'wait' : 'enter', modeT: 0, until: 0,
     goal: null, wall: null, aim: 0, swerve: 1, heading: 0, orbit: 1, last: null, plan: [...TOY.opening],
     fitUntil: -1, lastFit: -Infinity, fits: 0, sighed: true, raging: false, touched: false, pressing: false,
@@ -111,7 +116,7 @@ export function createPauseToy({ x = null, y = null, angle = null, seed = Date.n
   };
 }
 
-const depthOf = (s) => Math.min(s.x, s.y, TOY.size - s.x, TOY.size - s.y);
+const depthOf = (s, S) => Math.min(s.x, s.y, S - s.x, S - s.y);
 
 // The plate's half extents along x and y as it is turned.
 const extents = (p) => ({
@@ -128,8 +133,8 @@ function nearestOnPlate(p, x, y, w = p.w || 102, h = p.h || 28) {
 }
 
 // Where the ship's middle stands touching `wall`, `f` of the way along it.
-function wallPoint(wall, f, r) {
-  const S = TOY.size, along = r + f * (S - 2 * r);
+function wallPoint(wall, f, r, S) {
+  const along = r + f * (S - 2 * r);
   return { left: { x: r, y: along }, right: { x: S - r, y: along }, top: { x: along, y: r }, bottom: { x: along, y: S - r } }[wall];
 }
 
@@ -139,7 +144,7 @@ function pickWall(toy, same = false) {
   const s = toy.ship, rng = toy.rng;
   if (same) {
     toy.goalF = clamp(toy.goalF + (rng() < 0.5 ? -1 : 1) * (0.12 + 0.12 * rng()), 0.1, 0.9);
-    toy.goal = wallPoint(toy.wall, toy.goalF, s.r);
+    toy.goal = wallPoint(toy.wall, toy.goalF, s.r, toy.size);
     return;
   }
   // A way is blocked where it comes nearer the plate than the ship's disc allows, and nearer than the ship stands now.
@@ -148,7 +153,7 @@ function pickWall(toy, same = false) {
   for (const wall of ['left', 'right', 'top', 'bottom']) {
     if (wall === toy.wall) continue;
     for (const f of [0.2, 0.5, 0.8]) {
-      const g = wallPoint(wall, f, s.r), d = Math.hypot(g.x - s.x, g.y - s.y);
+      const g = wallPoint(wall, f, s.r, toy.size), d = Math.hypot(g.x - s.x, g.y - s.y);
       const run = wall === 'left' || wall === 'right' ? Math.abs(g.x - s.x) : Math.abs(g.y - s.y);
       let blocked = false;
       for (let i = 1; i <= 10 && !blocked; i++) {
@@ -218,7 +223,7 @@ function begin(toy, name) {
 // The pilot: the velocity it wants (`vx`, `vy`) and the heading (`want`), or nothing (`free`) while it is dazed, drifting or
 // diving in; `calm` holds it to its calm pace and turn.
 function pilot(toy, dt) {
-  const s = toy.ship, p = toy.plate, S = TOY.size, r = s.r, C = TOY.calm;
+  const s = toy.ship, p = toy.plate, S = toy.size, r = s.r, C = TOY.calm;
   const toward = (x, y, speed) => { const dx = x - s.x, dy = y - s.y, d = Math.hypot(dx, dy) || 1; return { vx: dx / d * speed, vy: dy / d * speed }; };
   // The nose on where it is going: across the velocity it lacks while that is large, else on `x`, `y`.
   const steer = (v, x, y) => {
@@ -314,7 +319,7 @@ export function homePauseToy(toy, to, time = 0.3) {
 // place on the screen ({ x, y }, unshaken, pause-menu.js `at`): what it moved since the last frame moves the square's walls
 // over the space inside, not the space.
 export function stepPauseToy(toy, dt, { still = false, frame = null } = {}) {
-  const S = TOY.size, p = toy.plate, s = toy.ship;
+  const S = toy.size, p = toy.plate, s = toy.ship;
   if (still) {
     Object.assign(p, { x: S / 2, y: S * 0.42, vx: 0, vy: 0, a: 0, va: 0 });
     Object.assign(s, { x: S / 2, y: S * 0.72, vx: 0, vy: 0, a: -Math.PI / 2, inside: true });
@@ -396,8 +401,12 @@ export function stepPauseToy(toy, dt, { still = false, frame = null } = {}) {
   for (const b of [p, s]) { b.x += b.vx * dt; b.y += b.vy * dt; }
   p.a = wrapPi(p.a + p.va * dt);
   p.va *= Math.exp(-TOY.spinFade * dt);
-  if (!s.inside && depthOf(s) > s.r) s.inside = true;
+  if (!s.inside && depthOf(s, S) > s.r) s.inside = true;
   const blow = collide(p, s);
+  if (blow !== false) {
+    if (toy.t - toy.touchedAt > TOY.blink.apart) toy.blinkAt = toy.t;
+    toy.touchedAt = toy.t;
+  }
   if (blow !== false) { toy.struck = true; toy.hit = blow; if (blow > 20 && toy.mode === 'ram') toy.rams++; }
   // The walls, moving at the window's speed: the plate by its turned box, the ship by its disc once it is in.
   const e = extents(p), W = TOY.plateWall, wx = toy.walls.vx, wy = toy.walls.vy;
@@ -480,7 +489,7 @@ function immediate(r) {
 // `frac`: the px the window stands off `box` (pause-menu.js), so the inside moves smoothly. The stars keep their place on
 // the screen as the window drifts, wrapping round the square. Returns the plate's box on the screen, for its click.
 export function drawPauseToy(r0, toy, box0, { world, age = 1e6, reducedMotion = false, ship: mode = 'clip', frac = null } = {}) {
-  const r = immediate(r0), ctx = r.ctx, p = toy.plate, S = TOY.size;
+  const r = immediate(r0), ctx = r.ctx, p = toy.plate, S = toy.size;
   if (!p.w) { const g = pausePlateRect(r, 0, 0); p.w = g.w; p.h = g.h; }
   const box = { ...box0, x: box0.x + (frac?.x ?? 0), y: box0.y + (frac?.y ?? 0) };
   const px = box.x + p.x, py = box.y + p.y;
@@ -493,7 +502,10 @@ export function drawPauseToy(r0, toy, box0, { world, age = 1e6, reducedMotion = 
     // The plate turned round its middle.
     ctx.save();
     ctx.translate(px, py); ctx.rotate(p.a); ctx.translate(-px, -py);
-    drawPausePlate(r, px, Math.round(py - p.h / 2), { age, instant: reducedMotion });
+    const top = Math.round(py - p.h / 2), held = drawPausePlate(r, px, top, { age, instant: reducedMotion });
+    // Its blink, a touch of the ship's (TOY.blink): black over it, the plate the darker by that share.
+    const B = TOY.blink, since = toy.t - toy.blinkAt, dark = since < B.hold ? 1 : clamp(1 - (since - B.hold) / B.fade, 0, 1);
+    if (held && dark > 0) r.fill(held.x, held.y, held.w, held.h, ROLES.backing, B.dark * dark);
     ctx.restore();
     if (mode === 'clip') drawShip(r, toy, box, world, reducedMotion);
     ctx.restore();

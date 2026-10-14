@@ -9,6 +9,7 @@ import { BODIES } from './bodiesConfig.js';
 import { ECONOMY } from './economyConfig.js';
 import { FLIGHT } from './flightConfig.js';
 import { PIRATES } from './piratesConfig.js';
+import { BOSS } from './bossConfig.js';
 import { QUESTS } from './questsConfig.js';
 import { TRAFFIC } from './trafficConfig.js';
 import { PALETTE } from './palette.js';
@@ -838,6 +839,9 @@ export const CONFIG = {
 
   // pirates: src/piratesConfig.js, the pirates' numbers in a file of their own (PLAN D5, 2026-10-09).
   pirates: PIRATES.pirates,
+
+  // boss: src/bossConfig.js, the boss TOLLKEEPER's numbers and drawing (chat 6 of docs/plans/2026-10-13-next-chats.md, 2026-10-14).
+  boss: BOSS.boss,
 
   // raids: src/economyConfig.js, the economy's numbers in a file of their own (chat E1, 2026-10-04).
   raids: ECONOMY.raids,

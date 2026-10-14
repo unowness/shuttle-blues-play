@@ -4,6 +4,8 @@ import { CONTRACTS } from '../../src/contracts.js';
 import { sectorById, stationDefById, startRuinOf } from '../../src/sectors.js';
 import { spawnDroid } from '../../src/droids.js';
 import { WORLD_SCALE } from '../../src/worldScale.js';
+import { ruinIdsOf } from '../../src/ruins.js';
+import { stepBossQuest } from '../../src/bossQuest.js';
 
 // A place of SX's layout (u of its sector), where it stands in the game's sector (src/worldScale.js): the same spot of the map.
 const L = (u) => u * WORLD_SCALE;
@@ -234,6 +236,43 @@ export function visitPirates(world, renderer, count, { kind = null, paint = null
   if (CONFIG.pirates.paints.some((q) => q.id === paint)) named.paint = paint;
   world.spawnPirates(count, named);
   return { ...result, pirates: world.pirates.length };
+}
+
+// Lab-only: the boss TOLLKEEPER on demand (the drawer's BOSS and `?boss=1`; chat 6 of docs/plans/2026-10-13-next-chats.md, step 2,
+// before its quest exists). The pilot is jumped to open ground at rest with a full hull, any pirates and fight cleared, and the boss comes
+// in whole `at` u off the ship (to the right and a little up: inside a 1280 x 960 view), nose to it; its fight is the world's own
+// (src/boss.js). Progress is untouched.
+export function visitBoss(world, renderer, { at = { x: 560, y: -120 } } = {}) {
+  const result = visitScene(world, renderer, 'open');
+  world.hull = world.hullMax;
+  world.hullGrace = 0;
+  world.pirates.length = 0;
+  world.encounter = null;
+  const ship = world.ship;
+  const boss = world.spawnBoss({ x: ship.x + at.x, y: ship.y + at.y });
+  return { ...result, boss: !!boss };
+}
+
+// Lab-only: the boss's quest on demand (`?boss=quest`): on the lab's own save every ruin is restored (the lab only ever adds), the quest comes
+// (src/bossQuest.js), and the pilot is jumped into its sector `distance` u short of its EXPLORE mark, at rest with a full hull: flying on
+// wakes the boss and closes the smoke. Its banners, the move after a wreck and the window when it is beaten are the game's own.
+export function visitBossQuest(world, renderer, { distance = 1800 } = {}) {
+  for (const id of ruinIdsOf(world.ledger)) world.ledger.restored.add(id);
+  world.pilot.bossDefeated = false;
+  world.boss = null; world.bossArena = null;
+  stepBossQuest(world, 0);
+  const q = world.bossQuest;
+  if (!q) return { boss: false };
+  const sector = sectorById(q.sectorId);
+  world.loadSector(sector, { announce: false });
+  // From the side of the sector's middle, nose to the mark (the mark stands at least a smoke square's half in from every edge).
+  const c = { x: q.x * world.width, y: q.y * world.height }, dir = c.x < world.width / 2 ? 1 : -1;
+  Object.assign(world.ship, { x: c.x + dir * distance, y: c.y, vx: 0, vy: 0, angle: dir > 0 ? Math.PI : 0, angVel: 0, alive: true });
+  world.cam = { x: world.ship.x, y: world.ship.y };
+  world.hull = world.hullMax; world.hullGrace = 0;
+  world.pirates.length = 0; world.encounter = null;
+  void renderer;
+  return { boss: true, sectorId: q.sectorId };
 }
 
 // Lab-only: a service droid on demand (`?droid=fuel|repair`). The pilot is jumped to

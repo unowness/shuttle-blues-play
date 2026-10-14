@@ -2,7 +2,7 @@ import { CONFIG } from './config.js';
 import { oklch, fromLch, gradeHex } from './grade.js';
 import { contrastOnBlack } from './util.js';
 import { PAINTS, paintById } from './paint.js';
-import { npcShip, npcDrawScale } from './npcShips.js';
+import { NPC_SHIPS, npcShip, npcDrawScale } from './npcShips.js';
 import { PIRATE_INKS } from './pirates.js';
 import { counterweight, recentCount } from './pacing.js';
 import { PALETTE, ROLES } from './roles.js';
@@ -64,17 +64,20 @@ function labOf(h) {
   const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
   return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
 }
-const colourDistance = (a, b) => { const A = labOf(a), B = labOf(b); return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]); };
+export const colourDistance = (a, b) => { const A = labOf(a), B = labOf(b); return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]); };
 
 // The interface's reserved inks (route green, caution orange, danger red, the brake's amber, the coin's golds) and every pirate
-// colour with colour in it. Made on first use (src/pirates.js is read then, not while the modules load).
-let reserved = null;
-function reservedInks() {
-  reserved ??= [PALETTE.green, PALETTE.orange, PALETTE.red, PALETTE.amber, ROLES.credits, ROLES.creditsLabel,
-    ...[...PIRATE_INKS].filter((hex) => /^#[0-9a-f]{6}$/i.test(hex) && oklch(hex)[1] >= 0.05)].map((h) => h.toUpperCase());
-  return reserved;
+// colour with colour in it. Made on first use (src/pirates.js is read then, not while the modules load). `pirates` false: the
+// interface's alone, to tell what a pirate's colour takes from the NPCs (takenByPirates below).
+const reserves = new Map();
+function reservedInks(pirates = true) {
+  if (!reserves.has(pirates)) {
+    reserves.set(pirates, [PALETTE.green, PALETTE.orange, PALETTE.red, PALETTE.amber, ROLES.credits, ROLES.creditsLabel,
+      ...(pirates ? [...PIRATE_INKS].filter((hex) => /^#[0-9a-f]{6}$/i.test(hex) && oklch(hex)[1] >= 0.05) : [])].map((h) => h.toUpperCase()));
+  }
+  return reserves.get(pirates);
 }
-const nearestReserved = (hex) => Math.min(...reservedInks().map((r) => colourDistance(hex, r)));
+const nearestReserved = (hex, reserve = reservedInks()) => Math.min(...reserve.map((r) => colourDistance(hex, r)));
 
 // A drawing's cells by role, and their count.
 const cellsCache = new Map();
@@ -89,7 +92,7 @@ function shipCells(code) {
 }
 
 // One ink measured against the rule, for a part of `share` of the cells: what is wrong with it (none: it passes).
-function inkProblems(hex, share) {
+function inkProblems(hex, share, reserve = reservedInks()) {
   const [L, C, H] = oklch(hex), small = share <= RULE.accentShare, out = [];
   if (C > RULE.accentC) out.push(`${hex} chroma ${C.toFixed(3)} over ${RULE.accentC.toFixed(3)}`);
   else if (C > RULE.hullC && !small) out.push(`${hex} chroma ${C.toFixed(3)} on ${Math.round(share * 100)} % of the cells`);
@@ -97,13 +100,13 @@ function inkProblems(hex, share) {
   const need = small ? RULE.contrast.accent : RULE.contrast.main, cr = contrastOnBlack(gradeHex(hex));
   if (cr < need) out.push(`${hex} contrast ${cr.toFixed(1)} under ${need}`);
   if (C >= 0.03 && H !== null && hueBanned(H)) out.push(`${hex} hue ${Math.round(H)} is reserved`);
-  const d = nearestReserved(hex);
+  const d = nearestReserved(hex, reserve);
   if (d < RULE.distance) out.push(`${hex} too near a reserved ink (${d.toFixed(1)})`);
   return out;
 }
 
 // A whole palette on a ship against the rule: its inks, and every way it breaks the rule (none: it passes).
-export function checkPalette(code, palette) {
+export function checkPalette(code, palette, reserve = reservedInks()) {
   const { count, total } = shipCells(code), byInk = new Map(), problems = [];
   for (const role of Object.keys(count)) {
     if (!count[role]) continue;
@@ -114,7 +117,7 @@ export function checkPalette(code, palette) {
   if (byInk.size > RULE.maxInks) problems.push(`${byInk.size} inks, the most is ${RULE.maxInks}`);
   let gray = false;
   for (const [hex, cells] of byInk) {
-    problems.push(...inkProblems(hex, cells / total));
+    problems.push(...inkProblems(hex, cells / total, reserve));
     if (oklch(hex)[1] <= RULE.grayC + 0.002) gray = true;
   }
   if (!gray) problems.push('no gray among the inks');
@@ -153,8 +156,8 @@ export function partsOf(code) {
 // ---------------------------------------------------------------------------------------------------- the paint's hues
 
 // Whether a hue at a chroma can be an NPC's ink at any lightness of its band (a main part's 4.5:1, never near a reserved ink).
-function feasible(H, C, small = false) {
-  for (let L = 0.58; L <= RULE.maxL + 1e-9; L += 0.02) if (!inkProblems(fromLch(L, C, H), small ? 0.1 : 0.5).length) return true;
+function feasible(H, C, small = false, reserve = reservedInks()) {
+  for (let L = 0.58; L <= RULE.maxL + 1e-9; L += 0.02) if (!inkProblems(fromLch(L, C, H), small ? 0.1 : 0.5, reserve).length) return true;
   return false;
 }
 // A hue the rule allows, or a forbidden one moved out to its window's edge when it lies `shift` degrees or less inside it; null.
@@ -173,26 +176,24 @@ const ORDER = ['material', 'structure', 'highlight', 'engine'];
 // A paint's hues for an NPC: { main: { H, C, from }, accent: { H, C, from } | null }, or null when it is not worn by NPCs.
 const huesCache = new Map();
 export function paintHues(paintId) {
-  if (huesCache.has(paintId)) return huesCache.get(paintId);
+  if (!huesCache.has(paintId)) huesCache.set(paintId, huesOf(paintId, reservedInks()));
+  return huesCache.get(paintId);
+}
+function huesOf(paintId, reserve) {
   const inks = paintById(paintId)?.inks;
-  let out = null;
-  if (inks) {
-    const coloured = ORDER.map((k) => { const [, C, H] = oklch(inks[k]); return { from: k, C, H }; }).filter((x) => x.C >= 0.03);
-    const first = coloured[0], H = first ? allowedHue(first.H) : null;
-    if (first && H !== null && feasible(H, Math.min(first.C, RULE.hullC))) {
-      const main = { H, C: first.C, from: first.from };
-      let accent = null;
-      for (const x of coloured.slice(1)) {
-        const h = allowedHue(x.H);
-        if (h === null || hueDistance(h, H) < N().turn || !feasible(h, Math.min(x.C, RULE.accentC), true)) continue;
-        accent = { H: h, C: x.C, from: x.from };
-        break;
-      }
-      out = Object.freeze({ main: Object.freeze(main), accent: accent && Object.freeze(accent) });
-    }
+  if (!inks) return null;
+  const coloured = ORDER.map((k) => { const [, C, H] = oklch(inks[k]); return { from: k, C, H }; }).filter((x) => x.C >= 0.03);
+  const first = coloured[0], H = first ? allowedHue(first.H) : null;
+  if (!first || H === null || !feasible(H, Math.min(first.C, RULE.hullC), false, reserve)) return null;
+  const main = { H, C: first.C, from: first.from };
+  let accent = null;
+  for (const x of coloured.slice(1)) {
+    const h = allowedHue(x.H);
+    if (h === null || hueDistance(h, H) < N().turn || !feasible(h, Math.min(x.C, RULE.accentC), true, reserve)) continue;
+    accent = { H: h, C: x.C, from: x.from };
+    break;
   }
-  huesCache.set(paintId, out);
-  return out;
+  return Object.freeze({ main: Object.freeze(main), accent: accent && Object.freeze(accent) });
 }
 
 // The paints an NPC can wear, in the catalogue's order (the rest: why, in `npcPaintsLeftOut`).
@@ -203,13 +204,13 @@ export const NPC_PAINTS = Object.freeze(PAINTS.filter((p) => p.id !== 'standard'
 // An ink at `L`, `C`, `H` for a part of `share`, nudged until the rule takes it: lightness first (down, then up, by
 // 0.03), then less chroma. Null when none passes.
 const L_STEPS = [0, -0.03, 0.03, -0.06, 0.06, -0.09, 0.09, -0.12, 0.12];
-function tame(L, C, H, share) {
+function tame(L, C, H, share, reserve = reservedInks()) {
   for (const k of [1, 0.8, 0.6, 0.4]) {
     for (const dL of L_STEPS) {
       const l = Math.min(RULE.maxL - 0.005, L + dL);
       if (l < RULE.minL) continue;
       const hex = fromLch(l, C * k, H);
-      if (!inkProblems(hex, share).length) return hex;
+      if (!inkProblems(hex, share, reserve).length) return hex;
     }
   }
   return null;
@@ -221,29 +222,27 @@ const paletteCache = new Map();
 export function paintedPalette(code, key) {
   const id = `${code}|${key}`;
   if (paletteCache.has(id)) return paletteCache.get(id);
-  let out = null;
-  if (key === OWN) out = Object.freeze({ ...npcShip(code).palette });
-  else {
-    const hues = paintHues(key);
-    if (hues) {
-      const palette = {};
-      let ok = true;
-      for (const p of partsOf(code)) {
-        const { main, accent } = hues;
-        let hex;
-        if (p.kind === 'main') hex = tame(p.L, Math.min(main.C, RULE.hullC - MARGIN), main.H, Math.max(p.share, RULE.accentShare + 0.01));
-        else if (p.kind === 'accent') {
-          const a = accent ?? main;
-          hex = tame(p.L, Math.min(a.C, RULE.accentC - MARGIN), a.H, p.share) ?? (accent ? tame(p.L, Math.min(main.C, RULE.accentC - MARGIN), main.H, p.share) : null);
-        } else hex = tame(p.L, Math.min(p.C, RULE.grayC - MARGIN), main.H, Math.max(p.share, RULE.accentShare + 0.01));
-        if (!hex) { ok = false; break; }
-        for (const role of p.roles) palette[role] = hex;
-      }
-      if (ok && checkPalette(code, palette).ok) out = Object.freeze(palette);
-    }
-  }
+  const out = key === OWN ? Object.freeze({ ...npcShip(code).palette }) : paletteOf(code, paintHues(key), reservedInks());
   paletteCache.set(id, out);
   return out;
+}
+// A paint's hues on `code` against `reserve`, frozen, or null when they do not pass.
+function paletteOf(code, hues, reserve) {
+  if (!hues) return null;
+  const palette = {};
+  for (const p of partsOf(code)) {
+    const { main, accent } = hues;
+    let hex;
+    if (p.kind === 'main') hex = tame(p.L, Math.min(main.C, RULE.hullC - MARGIN), main.H, Math.max(p.share, RULE.accentShare + 0.01), reserve);
+    else if (p.kind === 'accent') {
+      const a = accent ?? main;
+      hex = tame(p.L, Math.min(a.C, RULE.accentC - MARGIN), a.H, p.share, reserve)
+        ?? (accent ? tame(p.L, Math.min(main.C, RULE.accentC - MARGIN), main.H, p.share, reserve) : null);
+    } else hex = tame(p.L, Math.min(p.C, RULE.grayC - MARGIN), main.H, Math.max(p.share, RULE.accentShare + 0.01), reserve);
+    if (!hex) return null;
+    for (const role of p.roles) palette[role] = hex;
+  }
+  return checkPalette(code, palette, reserve).ok ? Object.freeze(palette) : null;
 }
 // What `code` is drawn in, `key` or, when that is not one it can wear, its own scheme.
 export const npcPalette = (code, key) => paintedPalette(code, key ?? OWN) ?? paintedPalette(code, OWN);
@@ -314,6 +313,21 @@ export function paintWeights(code, cands, recent, now) {
   });
 }
 export const paintNote = (code, key) => `${code}|${key}`;
+
+// What a pirate's colour takes from the NPCs (SX, 2026-10-14, on Codex's IRON CROWN, which took the pilot's NEON from all 21): every
+// paint of the catalogue the rule refuses an NPC only because a pirate ink sits where it would be tamed: { paint, ship } (ship null:
+// refused to every NPC). Empty while the pirates' paints and the NPCs' keep apart.
+export function takenByPirates() {
+  const free = reservedInks(false), out = [];
+  for (const p of PAINTS) {
+    if (p.id === 'standard') continue;
+    const freeHues = huesOf(p.id, free);
+    if (!freeHues) continue;
+    if (!paintHues(p.id)) { out.push({ paint: p.id, ship: null }); continue; }
+    for (const s of NPC_SHIPS) if (!npcShip(s.code).rare && !paintedPalette(s.code, p.id) && paletteOf(s.code, freeHues, free)) out.push({ paint: p.id, ship: s.code });
+  }
+  return out;
+}
 
 // Why each paint of the catalogue is not worn by NPCs (for the checks and the sheet).
 export function npcPaintsLeftOut() {

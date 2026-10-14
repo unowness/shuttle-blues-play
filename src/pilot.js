@@ -61,6 +61,8 @@ export class Pilot {
     // The reference ship whose turn ended last, met or not (src/specials.js): the round of their quests goes on from the one after
     // it (src/pacing.js nextSpecial). Null until one has stood.
     this.lastSpecial = null;
+    // The boss TOLLKEEPER beaten (src/bossQuest.js): the main game done. Optional in the save, read leniently (no SAVE_VERSION step).
+    this.bossDefeated = false;
     // Two things the quest pacing and the radio's line need to know that no other record keeps (src/pacing.js, src/guide.js):
     // a first pirate fight won (a ship is pestered only after the pilot has defended itself), and the home garage docked once.
     this.fought = false;
@@ -191,7 +193,8 @@ export class Pilot {
       cursors: [...this.cursors], cursor: this.cursor, randomDone: this.randomDone, radio: this.radio, npcCallAt: this.npcCallAt, charm: this.charm,
       // Written only once a hint has been said, and once a reference ship has stood: a pilot with neither writes the save it always wrote.
       ...(this.taught.size ? { taught: SKILL_IDS.filter((id) => this.taught.has(id)) } : null),
-      ...(this.lastSpecial ? { lastSpecial: this.lastSpecial } : null) };
+      ...(this.lastSpecial ? { lastSpecial: this.lastSpecial } : null),
+      ...(this.bossDefeated ? { bossDefeated: true } : null) };
   }
 
   // Untrusted like the rest of a save. A save from before rescues has no count,
@@ -217,6 +220,7 @@ export class Pilot {
     for (const id of ships(raw.notes)) p.notes.add(id);
     // The round's place: a ship the catalogue still has; a save from before it starts the round from the first of the order.
     p.lastSpecial = SPECIAL_IDS.includes(raw.lastSpecial) ? raw.lastSpecial : null;
+    p.bossDefeated = raw.bossDefeated === true;
     p.wearCockpit(typeof raw.cockpit === 'string' ? raw.cockpit : null);
     p.fought = raw.fought === true;
     p.homed = raw.homed === true;

@@ -168,11 +168,19 @@ export const PIRATES = {
     // grey of about the hull's brightness and not a darker one: 3:1 on black is the floor.
     // Every ink is 3:1 or more on black and at least 35 from `ink` (CIE Lab), so the guns
     // stay the one orange on a pirate.
+    // SX, 2026-10-14, on labs/graphics/sketches/pirate-paints-boss.html: «Берем Bloodline точно. Берем Мэроу. Берем Эмбер. Берем
+    // Iron Crown. Берем ганметал. Это цвета для пиратов»; BONE out. GUNMETAL is Codex's P2 as he made it (its one coloured ink, the
+    // carmine mark, is a hue no NPC may wear). IRON CROWN is his Q1 with the mark and the drive moved (SX: «Чуть сдвинуть знак»): the
+    // NPC rule (src/npcPaint.js) keeps every NPC ink 20 from every coloured pirate ink, and Codex's plum mark and pink drive took the
+    // pilot's NEON from all 21 NPC ships and moved 18 of their other palettes. The least move that leaves every NPC palette as it was
+    // (measured on the real rule, 2026-10-14): the mark #9E6F89 -> #9D4D6A, a deeper wine, the drive #E6B9D0 -> #FFC0BA, a pale
+    // salmon, about 17 in CIE Lab each; half that still took NEON. The hull and the trim are Codex's.
     paints: [
       { id: 'bloodline', label: 'BLOODLINE', hull: '#CF1B4E', trim: '#B81B48', mark: '#F1E7D0', drive: '#FF7A9A' },
-      { id: 'bone', label: 'BONE', hull: '#E6DFC8', trim: '#9C9479', mark: '#DD2438', drive: '#E8546A' },
       { id: 'marrow', label: 'MARROW', hull: '#D98C8C', trim: '#B81B48', mark: '#F1E7D0', drive: '#E8546A' },
       { id: 'ember', label: 'EMBER', hull: '#A0492F', trim: '#75625C', mark: '#E8DBBA', drive: '#FF4D3A' },
+      { id: 'gunmetal', label: 'GUNMETAL', hull: '#7B8896', trim: '#647080', mark: '#CA4D68', drive: '#C0CCDC' },
+      { id: 'iron-crown', label: 'IRON CROWN', hull: '#BDC1CB', trim: '#767A89', mark: '#9D4D6A', drive: '#FFC0BA' },
     ],
     // Hit points (SX, 2026-09-29, after flying it: "пираты легко победились слишком,
     // можем попробовать им по 4 хп сделать"). Both kinds; a kind may list its own.

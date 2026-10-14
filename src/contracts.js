@@ -323,6 +323,17 @@ export function offersAt(stationId, ledger) {
   return run ? [run] : [];
 }
 
+// The authored contracts a station offers now (offersAt, so exactly the menus' ACCEPT rows), in the catalogue's order: what the map's
+// 04 CARGO lists and its stations' squares mark (SX's K2 on labs/graphics/sketches/last-cargo.html, 2026-10-14). One bound past a closed
+// border, carried, lying in space or sent by a ruin is not waiting at a station.
+export function authoredWaiting(ledger) {
+  const offered = new Set();
+  for (const from of new Set(CONTRACTS.filter((c) => !ledger.completed.has(c.id)).map((c) => c.from))) {
+    for (const c of offersAt(from, ledger)) offered.add(c.id);
+  }
+  return CONTRACTS.filter((c) => offered.has(c.id));
+}
+
 // A lost cargo from a save: a contract the catalogue still has, in a sector it
 // still has, at a finite position inside that sector, with its job (or, from an
 // older save, the job its id resolved to then). Cause and trace are presentation;

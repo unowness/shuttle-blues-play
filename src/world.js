@@ -27,6 +27,11 @@ import { availableIn, findTitle, placeOf, rollDeal } from './rewards.js';
 import { trafficIn, craftPose, HAIL_REACH, stepVisitor, visitorPose } from './traffic.js';
 import { Fleet } from './npcFleet.js';
 import { Hangar, shipById, shipLimits } from './hangar.js';
+import { spawnBoss, stepBoss, resolveBossHits } from './boss.js';
+import { stepBossQuest } from './bossQuest.js';
+import { npcCraft } from './npcShips.js';
+// The four sides of the boss's smoke square as dead edges (World.edgeDepths): an axis and the way out.
+const ARENA_EDGES = Object.freeze([['x', -1], ['x', 1], ['y', -1], ['y', 1]].map(([axis, dir]) => Object.freeze({ axis, dir, arena: true })));
 import { stepPirates, stepEncounters, pirateGround, inSafeZone, spawnPirates, hurtPirate, killPirate, removePirate, pirateGone, endEncounter,
   scatterSeized, pirateDen, resolvePirateHits, pirateImpact } from './encounters.js';
 import { ruinActions, investStation, openFrontier } from './ruinWork.js';
@@ -248,6 +253,16 @@ export class World {
     suspendPirateCombat(this);
     this.pirates = [];
     this.shoutAt = -Infinity;
+    // The boss TOLLKEEPER (src/boss.js) while its fight is on, or null: in memory only, never saved. Its quest (src/bossQuest.js): where it
+    // waits ({ sectorId, x, y, from, stage }, in the save as a quest), and the smoke's square round its fight ({ x, y, half }) or null.
+    this.boss = null;
+    this.bossQuest = null;
+    this.bossArena = null;
+    // The NPC ships watching its fight from the smoke's edges (src/bossQuest.js gatherCrowd), and when the next calls a line.
+    this.bossCrowd = [];
+    this.bossCrowdSayAt = 0;
+    this.bossCrowdGoAt = 0;
+    this.bossRageSaidAt = null;
     // Whether the stations and the home garage float round their places (src/float.js, CONFIG.float; SX's item 17), the game's since
     // SX's word of 2026-10-04; off only for a check (still stations, on their old drift).
     this.floating = true;
@@ -375,6 +390,8 @@ export class World {
     // pieces (world-art.js; src/debris.js stationDebris asks it, and a World without the page breaks a station into plain boxes).
     this.pointed = null;
     this.stationPieces = null;
+    // And how the boss is drawn (labs/graphics/boss-art.js through world-art.js; a World without the page draws none: src/boss.js).
+    this.drawBoss = null;
     this.egg = { held: 0, done: false }; // src/eggs.js's own
 
     if (quiet) this.quieten();
@@ -449,6 +466,10 @@ export class World {
     this.drops = [];
     suspendPirateCombat(this);
     this.pirates = [];
+    // A boss's fight is the sector's: loading another ends it (it waits whole for the next visit: src/boss.js).
+    this.boss = null;
+    this.bossArena = null;
+    this.bossCrowd = [];
     this.droids = [];
     this.encounter = null;
     this.orbitContact.clear();
@@ -630,13 +651,21 @@ export class World {
     else if (dy > 0 && ship.y > this.height + L) { ship.y = this.height + L; ship.vy = Math.min(0, ship.vy); }
   }
 
-  // How far past each dead edge's line a point is, into the fog; 0 inside.
+  // How far past each dead edge's line a point is, into the fog; 0 inside. In the boss's fight the four sides of its smoke's square are
+  // dead edges too (src/bossQuest.js world.bossArena; SX, 2026-10-14: «арена должна быть ограничена ... буквально нашим туманом, то есть
+  // отскакивать от них можно»): the same rope throws a hull back off them, a pirate and the cargo too (boundaryAccel).
   edgeDepths(x, y) {
-    return this.deadEdges.map((e) => {
+    const out = this.deadEdges.map((e) => {
       const p = e.axis === 'x' ? x : y;
       const size = e.axis === 'x' ? this.width : this.height;
       return { edge: e, depth: Math.max(0, e.dir < 0 ? -p : p - size) };
     });
+    const A = this.bossArena;
+    if (A) for (const e of ARENA_EDGES) {
+      const p = e.axis === 'x' ? x - A.x : y - A.y;
+      out.push({ edge: e, depth: Math.max(0, e.dir < 0 ? -A.half - p : p - A.half) });
+    }
+    return out;
   }
 
   // The rope's pull along an edge's outward normal on a body `depth` past the line moving out at `out` u/s
@@ -650,7 +679,7 @@ export class World {
   // The rope on the ship. Applied to velocity before the ship integrates, like gravity. A dive deeper than
   // `soundDepth` reports itself once, as the rope throws the ship back ('boundaryBlocked'); leaving the fog ends it.
   stepBoundary(dt) {
-    if (this.topology.mode !== PLANE || !this.deadEdges.length) return;
+    if (this.topology.mode !== PLANE || (!this.deadEdges.length && !this.bossArena)) return;
     const ship = this.ship, B = CONFIG.sector.boundary;
     let deepest = 0, back = false;
     for (const { edge, depth } of this.edgeDepths(ship.x, ship.y)) {
@@ -698,7 +727,8 @@ export class World {
       const p = e.axis === 'x' ? x : y, size = e.axis === 'x' ? this.width : this.height;
       if ((e.dir < 0 ? -p : p - size) > -reach) return true;
     }
-    return false;
+    const A = this.bossArena;
+    return !!A && (Math.abs(x - A.x) > A.half - reach || Math.abs(y - A.y) > A.half - reach);
   }
 
   // The same rope as an acceleration on any body, for craft that are not the
@@ -706,7 +736,7 @@ export class World {
   // the ship or the sound, and checks/pirates.mjs holds the two equal.
   boundaryAccel(x, y, vx, vy) {
     let ax = 0, ay = 0;
-    if (this.topology.mode !== PLANE || !this.deadEdges.length) return { ax, ay };
+    if (this.topology.mode !== PLANE || (!this.deadEdges.length && !this.bossArena)) return { ax, ay };
     for (const { edge, depth } of this.edgeDepths(x, y)) {
       if (depth <= 0) continue;
       const out = (edge.axis === 'x' ? vx : vy) * edge.dir;
@@ -944,6 +974,8 @@ export class World {
     // The smoke clouds (src/clouds.js; the game's since 2026-10-06): a hull going through one, or coming down in one.
     stepClouds(this, dt);
     stepPirates(this, dt);
+    stepBoss(this, dt);
+    stepBossQuest(this, dt);
     stepQuests(this, dt);
     giveCursors(this);
     giveRadio(this);
@@ -1332,6 +1364,9 @@ export class World {
   stepNewPiratePattern(world, p, dt, context) { return stepNewPiratePattern(world, p, dt, context); }
   onNewPirateShot(world, p) { onNewPirateShot(world, p); }
   resolvePirateHits() { stepNewEnemySystems(this, this.pirateCombatDt ?? 0); resolvePirateHits(this); }
+  // The boss: made at a place (the lab's scene, later its quest), and the pilot's shots and hull against its core and sleds.
+  spawnBoss(at) { return spawnBoss(this, at); }
+  resolveBossHits() { resolveBossHits(this); }
 
   // ---------------------------------------------------------- interaction ---
 
@@ -1387,6 +1422,9 @@ export class World {
     // A quest's ship (src/questHooks.js): a pilot out of fuel, a ship pestered, a wreck, a planet speaking, a reference ship.
     const quest = questCraftAt(this, craftId);
     if (quest !== undefined) return quest;
+    // A ship watching the boss's fight (src/bossQuest.js): its line stands with it.
+    const watcher = this.bossCrowd.find((w) => w.id === craftId);
+    if (watcher) return { x: watcher.x, y: watcher.y, craft: npcCraft(watcher.code) };
     // A pirate's shout (src/pirates.js pirateShout) stands with it as its hails do with a craft.
     const pirate = this.pirates.find((p) => p.id === craftId);
     if (pirate) return { x: pirate.x, y: pirate.y, craft: { rows: CONFIG.pirates.types[pirate.type].art, scale: CONFIG.pirates.scale } };
