@@ -432,7 +432,7 @@ export function createNotices(game) {
           notifyFind('mark', e.findId, { ...e, sector: sector?.label ?? null }, () => screens.openMapScreen());
           break;
         }
-        // A station a wreck broke (CONFIG.station.breakCost), and repaired.
+        // A station a wreck or hard blows broke (src/stationService.js breakStation, the bill of a lost raid), and repaired.
         case 'stationBroken': notify(`${e.label} DAMAGED`, `REOPEN FOR ${formatCR(e.cost)} CR`, { kind: 'danger', life: 3.6, fate: 'flip' }); break;
         // A station worn by hard blows says so at a tenth lost (CONFIG.station.wear.warn); at a fifth it breaks, as above. The words are
         // the agent's, for SX to read (2026-10-08).

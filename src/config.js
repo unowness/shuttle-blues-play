@@ -219,7 +219,8 @@ export const CONFIG = {
     // out and bounces; a container is held out too. Measured head-on (the soft repel above slows it first; checks/hull.mjs):
     // from 200 u/s nothing, 700 four, the top of 850 six (2026-10-05; 450 a point, 700 three, 1000 seven, 1300 a wreck on the old
     // hull of 10): a wreck only on a worn hull. A ship wrecked against a working
-    // station by a blow of `breakSpeed` u/s or more breaks it: closed until `breakCost` CR repair it
+    // station by a blow of `breakSpeed` u/s or more breaks it: closed until the bill of a lost raid repairs it (src/ruins.js stationBill;
+    // SX's W4 of 2026-10-15, a wreck's break costs a ram's; it was `breakCost` 100 CR, SX 2026-10-01)
     // (World.repairStation), drawn `brokenLook` rebuilt. A hull at its last point that only touches one does not.
     // Six looks grew on 2026-10-15 (SX's round 4 of labs/graphics/sketches/station-round4.html, «Внеси правки в игру»), and HOIST and
     // RELAY 12 again with his picks of round 5 (station-round5.html: HOIST's platforms on its axis with longer joints, RELAY's second
@@ -236,7 +237,6 @@ export const CONFIG = {
     },
     corner: 0.5,
     breakSpeed: 600,
-    breakCost: 100,
     brokenLook: 0.8,
     // A station remembers the hard blows on its hull (SX, 2026-10-08: «врезание в станции я еще хотел бы настроить. Я бы хотел, что
     // если ты прям сильно врезался в станцию, у нее уже минусуется и запоминается минус хп, и когда она, например, достигает минус
@@ -246,7 +246,7 @@ export const CONFIG = {
     // so two blows at the top break it. Kept in the save (ledger.wear: a missing field is a station undamaged, no version step) until
     // it is repaired; `warn` (his 10 %) says it once, `breaks` (his 20 %) breaks it: closed, drawn broken (`brokenLook`) and
     // reopened by money, for the bill of a lost raid (src/ruins.js stationBill: 150 CR and a twenty-fifth of its price, 210 to 338),
-    // not the 100 CR of a wreck against it, which stays. A ruin and HOME remember nothing (a ruin is already broken; HOME is where a
+    // as a wreck against it is since SX's W4 of 2026-10-15. A ruin and HOME remember nothing (a ruin is already broken; HOME is where a
     // pilot with no money mends the hull free). While worn, a docked station's menu has REPAIR STATION for the bill pro rata
     // (the whole bill at `breaks`), and paying it clears the wear.
     wear: { hardSpeed: 500, base: 0.022, refSpeed: 600, power: 3, warn: 0.10, breaks: 0.20 },

@@ -9,7 +9,7 @@
 import { CONFIG } from '../../src/config.js';
 import { ROLES } from '../../src/roles.js';
 import { PIRATE_CUES as CUE } from '../../src/pirateCombatTheme.js';
-import { bossPoint, sledHook, bossCue } from '../../src/boss.js';
+import { bossPoint, sledHook, bossCue, chargeLane } from '../../src/boss.js';
 import { cellNoise, clamp } from '../../src/util.js';
 
 const S = () => CONFIG.boss.scale;
@@ -84,7 +84,7 @@ export function drawBossArt(r, world, RUIN) {
     }
     // A charge warned: its line, dotted, from the nose.
     if (cue?.phase === 'prepare' && cue.kind === 'charge') {
-      const nose = P(bossPoint(b, 0, -60)), lane = CONFIG.boss.patterns.charge.lane;
+      const nose = P(bossPoint(b, 0, -60)), lane = chargeLane(b);
       const far = P({ x: b.x + Math.cos(b.heading) * lane, y: b.y + Math.sin(b.heading) * lane });
       const dx = far.x - nose.x, dy = far.y - nose.y, len = Math.hypot(dx, dy);
       for (let at = CUE.lineStep; at < len; at += CUE.lineStep) r.glyph('·', nose.x + dx * at / len, nose.y + dy * at / len, CUE.warning, 0.5 + 0.35 * cue.u);

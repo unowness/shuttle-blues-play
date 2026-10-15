@@ -696,9 +696,9 @@ export function openingTalk(world, station) {
 // and none once the chapter rests. `select`: the list selects it as it comes (labs/graphics/quest-list.js), so its bearing shows.
 // `pointer`: the word on its mark at the edge of the flight, the name of what the mark leads to (a station's, `CACHE`), never where
 // the call came from (SX, 2026-10-09: «все метки, которые называются радио, это очень непонятно»; it was RADIO on every stage from the
-// call to the work). `keep`: the ruin's restoration, from its pirates to the last of its price, keeps its purple mark on the ruin
-// whatever the pilot clicks (the list's click switches a quest's marks off, labs/graphics/quest-list.js toggleQuestMarks) and whatever
-// the step is (SX: «должна быть всегда метка на станцию, да, фиолетовая оставаться»). `also`: a second place the quest marks, the ruin
+// call to the work). The ruin's restoration, from its pirates to the last of its price, keeps its purple mark on the ruin whatever the
+// step is (SX: «должна быть всегда метка на станцию, да, фиолетовая оставаться»; its `keep`, which held it against the list's click that
+// switched marks off, went with that click at W8, 2026-10-15). `also`: a second place the quest marks, the ruin
 // where the step leads elsewhere (the repair droid's, the first money still to earn at A): drawn at the edge and ringed on the locator as a
 // quest's own, in the quest's tone (flight-frame.js, locator.js radarContacts).
 const questId = (stage) => `opening:${stage}`;
@@ -762,7 +762,7 @@ const OBJECTIVES = {
   guards: (world, r) => {
     const id = ruinOf(world), R = label(id), tally = world.posts?.get(id), fighting = tally?.down > 0;
     const hint = fireLine(world, r);
-    return { pointer: R, keep: true, title: QL.opening.guards(),
+    return { pointer: R, title: QL.opening.guards(),
       sub: fighting ? QL.special.down(tally.down, tally.size) : hint ? QL.opening.fire() : QL.opening.guardsAt(R, guardSize(stationDefById(id, world.ledger))),
       target: stationTarget(id), done: [QL.special.clear(R), QL.guide.bonus(CONFIG.quests.guide.pay['the-guards'])], teach: hint ? 'fire' : null };
   },
@@ -772,8 +772,8 @@ const OBJECTIVES = {
     const L = world.ledger, id = ruinOf(world), R = label(id), def = stationDefById(id, L);
     const done = [QL.guide.fundDone(), QL.guide.bonus(CONFIG.quests.guide.pay['first-coins-in'])];
     if (!guardsDown(L, id)) return again(world, done);
-    if (L.credits < INVEST_STEPS[0] && putIn(L, id) <= 0) return { pointer: label(r.a), keep: true, also: ruinMark(world), title: QL.opening.earn(), sub: QL.opening.earnSub(), target: stationTarget(r.a), done };
-    return { pointer: R, keep: true, title: QL.opening.fund(R), sub: QL.opening.funds(formatCR(putIn(L, id)), formatCR(def.cost)), target: stationTarget(id), done };
+    if (L.credits < INVEST_STEPS[0] && putIn(L, id) <= 0) return { pointer: label(r.a), also: ruinMark(world), title: QL.opening.earn(), sub: QL.opening.earnSub(), target: stationTarget(r.a), done };
+    return { pointer: R, title: QL.opening.fund(R), sub: QL.opening.funds(formatCR(putIn(L, id)), formatCR(def.cost)), target: stationTarget(id), done };
   },
   // The hull check at the repair droid: its bearing is the droid's own while it stands in this sector (the ruin's menu would take the
   // selection from it, so the pilot is led to the droid, which holds clear of the ruin outside its reach), else the ruin it holds clear of.
@@ -782,7 +782,7 @@ const OBJECTIVES = {
   repair: (world, r) => {
     const id = ruinOf(world), def = stationDefById(id, world.ledger), dr = storyDroid(world);
     const target = dr ? { sectorId: def.sectorId, x: def.x, y: def.y, mark: dr.id, reach: CONFIG.droids.interactRadius } : stationTarget(id);
-    return { pointer: dr ? 'DROID' : label(id), keep: true, also: dr ? ruinMark(world) : null, title: QL.opening.repairer(), sub: QL.opening.checkHull(), target,
+    return { pointer: dr ? 'DROID' : label(id), also: dr ? ruinMark(world) : null, title: QL.opening.repairer(), sub: QL.opening.checkHull(), target,
       done: [r.repair === 'served' ? QL.opening.hullMended() : QL.opening.hullSound(), QL.opening.droidMet()] };
   },
   // The work: the rest of R's price as the pilot likes, the freight and the calls as anywhere. The radio's 200 when it opens.
@@ -790,14 +790,14 @@ const OBJECTIVES = {
     const L = world.ledger, id = ruinOf(world), R = label(id), def = stationDefById(id, L);
     const done = [QL.restore.done(R), QL.guide.bonus(CONFIG.quests.guide.pay.rebuild)];
     if (!guardsDown(L, id)) return again(world, done);
-    return { pointer: R, keep: true, title: QL.opening.reopen(R), sub: QL.opening.funds(formatCR(putIn(L, id)), formatCR(def.cost)), target: stationTarget(id), done };
+    return { pointer: R, title: QL.opening.reopen(R), sub: QL.opening.funds(formatCR(putIn(L, id)), formatCR(def.cost)), target: stationTarget(id), done };
   },
 };
 // The pirates are back on R (every quarter hour after they were beaten, until it is restored): the fight is the objective again, the
 // stage's own ending kept.
 function again(world, done) {
   const id = ruinOf(world);
-  return { pointer: label(id), keep: true, title: QL.opening.guards(), sub: QL.opening.guardsBack(), target: stationTarget(id), done };
+  return { pointer: label(id), title: QL.opening.guards(), sub: QL.opening.guardsBack(), target: stationTarget(id), done };
 }
 // The ruin's purple mark as a place a quest keeps beside its own (`also`): the quest's tone and the station's name on the mark, the station as the
 // target. A fresh object a call, like the quest it rides on.

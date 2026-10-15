@@ -75,13 +75,14 @@ class WorldDrawing {
 
   updateCamera(r, dt) {
     const ship = this.ship;
-    // Docked, the camera holds the station in the sky's middle (SX, 2026-10-15: «когда корабль в доке, станция должна находится в
+    // Docked, the camera holds the station in the screen's middle (SX, 2026-10-15: «когда корабль в доке, станция должна находится в
     // центре экрана, как и гараж ... камера должна плавно и естественно приводить нас к центру экрана»), easing there and back at the
-    // follow's own pace: the point src/docking.js dockView names, placed at the middle of the sky (Renderer.view), not at the ship's
-    // own place on the screen (r.cy, below it).
+    // follow's own pace: the point src/docking.js dockView names. It stood at the middle of the sky (Renderer.view) until SX flew it the
+    // same day: «нужно точно центр космоса определить пониже, сейчас когда мы докаемся в станцию она висит чуть выше чем нужно»; the
+    // screen's middle is 83 px lower at 1512 x 982 (491 against 408), 80 at 1280 x 960, and under the ship's own place (r.cy, 424).
     const held = dockView(this);
     if (held) {
-      const midY = r.view ? r.view.y + r.view.h / 2 : r.cy, midX = r.view ? r.view.x + r.view.w / 2 : r.cx;
+      const midY = r.height ? r.height / 2 : r.cy, midX = r.width ? r.width / 2 : r.cx;
       const to = this.delta(held.x + (r.cx - midX), held.y + (r.cy - midY), this.cam.x, this.cam.y);
       const kh = clamp(CONFIG.camera.follow * dt * 60, 0, 1);
       this.cam.x += to.x * kh; this.cam.y += to.y * kh;

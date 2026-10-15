@@ -29,7 +29,8 @@ export function replaceRoster(existing, { restored = 0, context = 'ordinary', rn
     // Authored recovery is a same-type DART allocation before replacement.
     return restored >= unlocks.jackal && existing.every((id) => id === 'dart') ? result.map(() => 'jackal') : result;
   }
-  if (!['raid', 'gather'].includes(context)) return result;
+  // A gang (src/encounters.js spawnPirates: different hulls in one paint) is replaced slot by slot, as a raid's mix is.
+  if (!['raid', 'gather', 'gang'].includes(context)) return result;
   let tenderUsed = false;
   return result.map((id) => {
     if (id === 'brute' && restored >= unlocks.weaver && rng() < chance) return 'weaver';

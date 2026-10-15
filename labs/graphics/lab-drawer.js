@@ -8,6 +8,7 @@ import { SECTORS } from '../../src/sectors.js';
 import { spawnVisitor } from '../../src/traffic.js';
 import { startRaid } from '../../src/raids.js';
 import { offerSideQuest } from '../../src/quests.js';
+import { pickupAction } from '../../src/errands.js';
 import { offerSpecial } from '../../src/specials.js';
 import { SPECIAL_IDS } from '../../src/specialShips.js';
 import { createScaleState } from '../../src/visualScale.js';
@@ -23,14 +24,16 @@ export function applyReviewLinks(game) {
   const { GAME, LAB_SAVE, pageParams, world, renderer } = game, screens = game.screens;
   // `?scene=<id>` visits a lab review location, like the drawer's buttons.
   const requestedScene = GAME ? null : new URLSearchParams(location.search).get('scene');
-  if (requestedScene && SCENE_IDS.includes(requestedScene)) visitScene(world, renderer, requestedScene);
+  const sceneAsked = !!requestedScene && SCENE_IDS.includes(requestedScene);
+  if (sceneAsked) visitScene(world, renderer, requestedScene);
   if (!GAME && new URLSearchParams(location.search).has('room')) screens.openGarageRoom();
   if (!GAME && pageParams.has('map')) {
     if (pageParams.get('map') === 'all') for (const s of SECTORS) if (!s.hidden) noteVisit(screens.map, s.id);
     screens.openMapScreen();
   }
-  // (Not `?focus=`: it plays a new pilot's opening from HOME, labs/graphics/opening-focus.js.)
-  else if (game.labFresh && LAB_SAVE && !pageParams.has('focus')) visitScene(world, renderer, 'flight');
+  // (Not `?focus=`: it plays a new pilot's opening from HOME, labs/graphics/opening-focus.js; nor a `?scene=` asked for, which it
+  // would overwrite on a fresh lab save.)
+  else if (game.labFresh && LAB_SAVE && !pageParams.has('focus') && !sceneAsked) visitScene(world, renderer, 'flight');
   // `?pirates=N` (1-4): a group of pirates at load, on open ground; `&kind=maw&paint=ember` name its hull and paint.
   const launch = new URLSearchParams(location.search);
   const wantedPirates = GAME ? 0 : Number(launch.get('pirates'));
@@ -65,7 +68,7 @@ export function applyReviewLinks(game) {
   if (!GAME && launch.has('npcs')) world.fleet.gather(world, Math.max(1, Math.min(world.fleet.walkers.length, Number(launch.get('npcs')) || 4)));
   // `?raid` (or `?raid=station-yard-k05`, a station of an open sector: the lab's own save opens J-05 and K-05 only, so a raid
   // asked for a station past them is refused): a raid at once, its plate in the quest list and its pointer on; `?quest` (or
-  // `?quest=find`, `rebuild`, `signal`, `stranger`, `rescue`, `wreck`, `planet`, `pester`, `freight`): a quest at once, the wallet raised to reach a cache.
+  // `?quest=find`, `rebuild`, `signal`, `stranger`, `rescue`, `wreck`, `planet`, `pester`, `freight`, `suitcase`): a quest at once, the wallet raised to reach a cache.
   // In the game they come by themselves (src/raids.js, src/quests.js); the lab's review scenes turn pirates off, so
   // `?raid` turns them on (zone squads stay off).
   if (!GAME && launch.has('raid')) {
@@ -95,12 +98,16 @@ export function applyReviewLinks(game) {
   // `?quest=pester|wreck|planet`: the second round (QUESTS_V2_HANDOFF.md), placed in this sector; pirates are turned on for
   // the two that bring them (the zone squads stay off), as `?raid` does.
   if (!GAME && launch.has('quest')) {
-    const kind = launch.get('quest') || null;
+    // `?quest=suitcase`: the planet's errand with its job taken and its suitcase already aboard, to see the suitcase fly (src/errands.js
+    // drawSuitcase); from a scene with a planet, e.g. `?scene=planet&quest=suitcase`.
+    const suitcase = launch.get('quest') === 'suitcase', kind = suitcase ? 'planet' : launch.get('quest') || null;
     // (the freight hint is for a pilot with an empty wallet and no cargo, src/freight.js: `?quest=freight` empties the one and returns the other)
     if (kind === 'freight') { world.ledger.credits = 0; if (world.ledger.active) { world.ledger.returnActive(); world.cargo = null; } }
     else world.ledger.credits = Math.max(world.ledger.credits, 400);
     if (kind === 'pester' || kind === 'planet') { world.autoEncounters = true; world.pirateReadyAt = Infinity; }
     offerSideQuest(world, kind, { here: true });
+    const errand = suitcase && world.sideQuest?.kind === 'planet' ? world.sideQuest.errand : null;
+    if (errand) { errand.stage = 'fetch'; pickupAction(world, { id: errand.station })?.run(); }
   }
   // `?hull=N` (1-100): the hull at N % of the flown ship's, to see the cockpit's steps of wear (cockpit-fx.js), e.g.
   // `?scene=open&hull=30`.

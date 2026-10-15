@@ -67,7 +67,8 @@ export const PIRATES = {
     // корабля»; a lone pirate was 40 % of encounters until then).
     groupSize: [[2, 0.5], [3, 0.35], [4, 0.15]],   // [ships, share]
     // Before a new pilot's first delivery (the opening's guided stretch, src/opening.js openingCalm) a group is a patrol of `patrol`
-    // ships, never a squad of three or four (SX, 2026-10-04, his answer 4 to chat SC: «a two-ship patrol instead of a squad»).
+    // ships, never a squad of three or four (SX, 2026-10-04, his answer 4 to chat SC: «a two-ship patrol instead of a squad»). A gang
+    // of two like any other since 2026-10-15 (two different hulls in one paint): SX's «от 2 до 4» holds it.
     patrol: 2,
     maxGroup: 4,
     cooldown: 60,           // s of peace after an encounter ends (240, 120, then 75 until the evening of 2026-09-30)
@@ -88,8 +89,9 @@ export const PIRATES = {
     // Four kinds of pirate. SX picked the first three from labs/graphics/sketches/pirate-squads.html
     // (2026-09-30, evening: «Я решил перевыбрать корабли пиратов, плюс оставь наш оригинальный Dart»):
     // the BRUTE, the MAW and the WARLORD of that sheet, and the DART of 2026-09-29, painted. The
-    // TALON and the HOOK (the morning's pick) and the RAIDER (2026-09-29) are gone. A squad is one
-    // kind (SX: «пираты летают только отрядами по 2-4 корабля в одном типе спрайта»), drawn by
+    // TALON and the HOOK (the morning's pick) and the RAIDER (2026-09-29) are gone. A squad was one
+    // kind (SX: «пираты летают только отрядами по 2-4 корабля в одном типе спрайта»), a gang of different hulls in one paint since
+    // 2026-10-15 (SX: «разные типы кораблей у них но в одной раскраске»; src/encounters.js spawnPirates); a kind is drawn by
     // `share` (all four equal for now: a placeholder until SX has met each); a type lists only what
     // differs from the blocks below. The numbers turn each role of the sheet into something a
     // pilot can tell from the flying: tools/pirate-sim.mjs has the fights they make.

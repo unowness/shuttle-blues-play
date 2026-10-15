@@ -7,7 +7,7 @@
 // it is, is under the station a moment while its dock gets ready, and rises in the dock; leaving, it dives out of the dock and rises
 // outside on the side it came from, nose out. A station's docks are its look's (CONFIG.station.docks): the pad, where the pilot's own
 // ships stand, and the external dock, where a reference ship always hangs and every ship at a station without a pad. While the ship is
-// docked the camera holds the station in the sky's middle (`dockView`, read by src/worldDraw.js). The garage HOME keeps its own docking
+// docked the camera holds the station in the screen's middle (`dockView`, read by src/worldDraw.js). The garage HOME keeps its own docking
 // (src/home.js). Nothing here is drawn: `stationDockState` and `dockLook` tell the page what to draw.
 import { CONFIG } from './config.js';
 import { isHome, startHomeDocking, berthPoint, dockRefusal, cellSize as homeCell, BOARD, BOARD_INK } from './home.js';
@@ -23,8 +23,9 @@ const NOSE = { up: -Math.PI / 2, left: Math.PI, right: 0, down: Math.PI / 2 };
 // its body's over this.
 const BODY_SHARE = 0.9;
 
-// Whether the pilot flies one of the six reference ships (src/specialShips.js, chassis `special-<id>`): it always docks outside.
-const flyingReference = (world) => String(world.ship?.chassis?.id ?? '').startsWith('special-');
+// Whether the pilot flies one of the six reference ships (src/specialShips.js, chassis `special-<id>` in its quest, `crew-<id>` from the
+// hangar: src/chassis.js `reference`): it always docks outside.
+const flyingReference = (world) => !!world.ship?.chassis?.reference;
 
 // The ship's drawing's half width and half height in u, nose up: what a hanging ship needs beside the external dock. Measured off its
 // model's cells at the game's cell, as the world measures a station's pieces (labs/graphics/world-art.js stationPieces); the hull's
@@ -257,7 +258,7 @@ export function dockLook(world) {
   return { phase: 'rise', u: (t - P.dive - P.under) / P.rise, e: t - P.dive - P.under };
 }
 
-// The point the camera holds in the sky's middle while the ship is docked (src/worldDraw.js updateCamera), or null to follow the ship:
+// The point the camera holds in the screen's middle while the ship is docked (src/worldDraw.js updateCamera), or null to follow the ship:
 // the station's own middle with a pad, the middle of the station and its hanging ship at the external dock; the garage HOME's drawn
 // rock's middle (src/home.js BOARD_INK). Leaving, the camera goes back to the ship as it rises outside.
 export function dockView(world) {

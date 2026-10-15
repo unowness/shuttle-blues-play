@@ -233,7 +233,8 @@ export function pickGroupSize(rng, table = CONFIG.pirates.groupSize) {
 
 // The kinds of a squad of `count` ships: one kind, drawn by each kind's
 // `share`, for all of them (SX, 2026-09-30: «пираты летают только отрядами по
-// 2-4 корабля в одном типе спрайта»).
+// 2-4 корабля в одном типе спрайта»). Since SX's gangs (2026-10-15) a zone's squad is mixed (pickMixedTypes); one kind is a
+// single ship's, a ruin's guards' and a pestering squad's.
 export function pickTypes(count, rng, C = CONFIG.pirates) {
   const ids = LEGACY_PIRATE_TYPES.filter((id) => C.types[id]);
   const total = ids.reduce((sum, id) => sum + C.types[id].share, 0);
@@ -245,7 +246,7 @@ export function pickTypes(count, rng, C = CONFIG.pirates) {
   return Array.from({ length: count }, () => kind);
 }
 
-// The hulls of a raid's squad, mixed (SX, 2026-10-02: «причем разные типы кораблей но все в одной раскраске»): one of
+// The hulls of a raid's squad and of a gang (every squad of two or more that comes for the ship), mixed (SX, 2026-10-02: «причем разные типы кораблей но все в одной раскраске»): one of
 // each kind in a random order first, then the rest drawn by each kind's `share`, so a squad of four or more shows every
 // hull and a bigger one repeats them. The paint stays the squad's one (spawnPirates), so the drawing varies, the colour does not.
 export function pickMixedTypes(count, rng, C = CONFIG.pirates) {

@@ -126,7 +126,8 @@ export function drawPilotCard(r, world, ui) {
   const xT = xL + (CARD.ship.cols + UI.line.cols) * cw;
   sw.text(def.label, xT, first(A.ship), W);
   sw.text(def.note, xT, first(A.ship + 1), G);
-  [['SPEED', fig.speed], ['TURN', fig.turn], ['HULL', fig.hull], ['TANK', fig.tank]]
+  // SPD, not SPEED: a four-figure top (SPEED1270) filled the nine columns to the last and touched its label (SX, 2026-10-15, W7 «A»).
+  [['SPD', fig.speed], ['TURN', fig.turn], ['HULL', fig.hull], ['TANK', fig.tank]]
     .forEach(([label, v], i) => pair(xT + (i % 2) * CARD.ship.step * cw, CARD.ship.figure, first(A.ship + 2 + Math.floor(i / 2)), label, v));
 
   // The switches, a row each: the label, its leaders, ‹ VALUE › flush right. The row is a button: the inverted row under the pointer.

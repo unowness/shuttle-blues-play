@@ -63,7 +63,7 @@ import { buildLostCargo, restingPoint, clearOfStrangers, lostCargoActions, recov
 import { collectPickups, stepDrops, releaseDrop, spillCoins } from './pickups.js';
 import { settleGround } from './groundPlane.js';
 import { dock, undock, leaveStation, onStation, stepDocked } from './docking.js';
-import { damageShip, bumpShip, stepBullets, resolveHits, breakAsteroid } from './hits.js';
+import { damageShip, bumpShip, stepBullets, resolveHits, breakAsteroid, ramAsteroid } from './hits.js';
 import { acceptContract, deliver } from './delivery.js';
 
 // The most events the queue holds before the oldest go (World.emit).
@@ -1076,6 +1076,7 @@ export class World {
   stepBullets(dt) { stepBullets(this, dt); }
   resolveHits() { resolveHits(this); }
   breakAsteroid(index) { breakAsteroid(this, index); }
+  ramAsteroid(index, nx, ny, closing) { ramAsteroid(this, index, nx, ny, closing); }
 
   // A wreck's pieces hanging in space (src/debris.js).
   wreckDebris(x, y, pieces, vx = 0, vy = 0) { wreckDebris(this, x, y, pieces, vx, vy); }
@@ -1571,8 +1572,8 @@ export class World {
   // The station service (src/stationService.js): a broken station's menu, a station broken by a wreck, and its repair.
   brokenActions(station) { return brokenActions(this, station); }
   // A station a wreck broke loses pieces that hang in space (src/debris.js stationDebris; SX's item 8).
-  breakStation(station, cost) {
-    const broke = breakStation(this, station, cost);
+  breakStation(station) {
+    const broke = breakStation(this, station);
     if (broke) stationDebris(this, station);
     return broke;
   }

@@ -21,15 +21,11 @@ const M = FLIGHT.trick.motion;
 
 // The drift and the jump the game flies: the drift G1 GLIDE (SX, 2026-10-06, after flying it: «да по заносу это то что я хотел») and the
 // jump J2 (SX, the same day, after flying it); the lab's `?drift=`, `?trick=` and `?jump=` to fly the others beside them went once he
-// had picked, 2026-10-07. The lab still compares the figures' pace against their length of the morning of 2026-10-05, `?figure=1.2 |
-// 1.3 | 1.5` (FLIGHT.trick.figures.pace, 1.3 the game's; SX's pick of T1 SLOW, a little quicker than its 1.5; the switch goes once he
-// picks one), and `&driftMode=pro | normal` puts the pilot's own setting aside. The game reads no switch (`params` empty). NORMAL or PRO
+// had picked, 2026-10-07, and its `?figure=` that compared the figures' pace once SX had picked 1.5 (2026-10-15, FLIGHT.trick.figures.pace).
+// `&driftMode=pro | normal` puts the pilot's own setting aside. The game reads no switch (`params` empty). NORMAL or PRO
 // is the pilot's, kept in this browser with the GAMEPLAY settings (`driftPro`, the pause's DRIFT row).
-export const FIGURE_PACES = Object.freeze(['1.2', '1.3', '1.5']);
 export function readStuntSwitches(params, store) {
-  const drift = FLIGHT.drift.presets.G1, jump = FLIGHT.trick.presets.J2;
-  const pace = params.get('figure');
-  const trick = FIGURE_PACES.includes(pace) ? { ...jump, pace: Number(pace) } : jump;
+  const drift = FLIGHT.drift.presets.G1, trick = FLIGHT.trick.presets.J2;
   const mode = (params.get('driftMode') || '').toLowerCase();
   const pro = mode === 'pro' || (mode !== 'normal' && readGameplay(store).driftPro === true);
   return { drift, trick, pro };

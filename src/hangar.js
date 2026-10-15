@@ -22,15 +22,16 @@ const STARTER_SHIP = 'standard';
 
 // The reference ships' own (SX, 2026-10-13: «Я хочу чтобы после квеста с отсылочным персонажем ты мог брать в гараже его корабль в полет»;
 // how it flies, «Со своей физикой»): each one the pilot's once its crew's run is done, which the pilot's record already says (src/pilot.js
-// `notes`: a quest won leaves its note), so the save holds nothing new for it; never bought or sold. It flies on its quest's chassis
-// (src/chassis.js `special-<id>`: its speed, turn, hull, tank and gun) in its quest's drawing (src/specialShips.js specialModel, made in code,
-// in its own colours, never the pilot's paint). `note` is what its chassis is, in the hangar's words.
+// `notes`: a quest won leaves its note), so the save holds nothing new for it; never bought or sold. It flies on its quest's chassis with the
+// STANDARD's tank and gun (src/chassis.js `crew-<id>`: its speed, turn, body and hull; SX's W6, 2026-10-15) in its quest's drawing
+// (src/specialShips.js specialModel, made in code, in its own colours, never the pilot's paint). `note` is what its chassis is, in the
+// hangar's words: SWORDFISH II's TWIN GUN and the FALCON's QUICK GUN stay in their quests.
 const CREW_NOTES = Object.freeze({
-  delorean: 'FAST / FRAGILE', swordfish: 'FIGHTER / TWIN GUN', express: 'SLOW / STRONG',
-  falcon: 'TOUGH / QUICK GUN', serenity: 'BIG / THIN HULL', xwing: 'AGILE / SMALL',
+  delorean: 'FAST / FRAGILE', swordfish: 'NIMBLE / FIGHTER', express: 'SLOW / STRONG',
+  falcon: 'TOUGH / SLOW TURN', serenity: 'BIG / THIN HULL', xwing: 'AGILE / SMALL',
 });
 export const CREW_SHIPS = Object.freeze(SPECIALS.map((sp) => Object.freeze({
-  id: sp.id, label: sp.label, chassis: `special-${sp.id}`, note: CREW_NOTES[sp.id], who: sp.who, crew: true,
+  id: sp.id, label: sp.label, chassis: `crew-${sp.id}`, note: CREW_NOTES[sp.id], who: sp.who, crew: true,
 })));
 
 export const shipById = (id) => SHIPS.find((s) => s.id === id) || CREW_SHIPS.find((s) => s.id === id) || null;

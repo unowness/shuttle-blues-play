@@ -65,10 +65,10 @@ export function shipContacts(world) {
 
   // Rocks are solid. Every contact is a bump (World.bumpShip): the hull
   // takes World.rockDamage(closing) points first -- nothing below
-  // touchSpeed, the existing 1-point bump up to the SAFE step, a taper past
-  // it -- and only reaching 0 wrecks the ship, through the same flow as a
-  // planet (World.damageShip). A rock is never broken by ship contact, only
-  // by being shot.
+  // touchSpeed, then the cube -- and only reaching 0 wrecks the ship, through the same flow as a
+  // planet (World.damageShip). A blow of `ram.breaks` points or more (a heavy one, the warning's own: CONFIG.asteroid.bump.ram)
+  // breaks the rock instead of bouncing the hull off it (World.ramAsteroid; SX's FC1, 2026-10-15), whether the hull paid it or was
+  // untouchable; a wreck leaves the rock whole (the ghost draws it).
   if (ship.alive && !world.docked && !up) {
     for (let ai = world.asteroids.length - 1; ai >= 0; ai--) {
       const a = world.asteroids[ai];
@@ -80,10 +80,11 @@ export function shipContacts(world) {
       if (dist > touch) continue;
       const nx = dist > 1e-6 ? dx / dist : 1, ny = dist > 1e-6 ? dy / dist : 0;
       const closing = -((ship.vx - a.vx) * nx + (ship.vy - a.vy) * ny);
-      world.damageShip(landed ? world.impactDamage(Math.max(closing, speedOn(a.vx, a.vy)), 'rock', true) : world.rockDamage(closing), 'asteroid',
-        { obstacle: { x: a.x, y: a.y, r: a.radius }, ...(landed ? { landed } : null) });
+      const blow = landed ? world.impactDamage(Math.max(closing, speedOn(a.vx, a.vy)), 'rock', true) : world.rockDamage(closing);
+      world.damageShip(blow, 'asteroid', { obstacle: { x: a.x, y: a.y, r: a.radius }, ...(landed ? { landed } : null) });
       if (!ship.alive) return;
-      world.bumpShip(a, nx, ny, closing, touch);
+      if (blow >= CONFIG.asteroid.bump.ram.breaks) world.ramAsteroid(ai, nx, ny, closing);
+      else world.bumpShip(a, nx, ny, closing, touch);
     }
   }
 

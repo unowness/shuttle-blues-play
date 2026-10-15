@@ -200,6 +200,19 @@ CHASSIS['special-xwing'] = {
   thrust: 980, retro: 750, turnRate: 4.8, turnAccel: 24, maxSpeed: 1200, colliderRadius: 34,
   fireInterval: 0.09, hull: 90, tank: 100, burn: 0.5,
 };
+// All six are reference ships: whatever the dock has, one docks outside (src/docking.js), and so does a crew's ship below.
+for (const id of ['delorean', 'swordfish', 'express', 'falcon', 'serenity', 'xwing']) CHASSIS[`special-${id}`].reference = true;
+
+// The crews' ships in the pilot's hangar once their run is won (src/hangar.js CREW_SHIPS): each its quest's chassis (its top, its turn,
+// its body, its hull), with the STANDARD's tank and gun (SX's W6 «B», 2026-10-15, labs/graphics/sketches/firefox-checks.html: the
+// quest's tank and burn gave twice the STANDARD's range, 11:07 to 5:33, and SWORDFISH II's gun four times its fire). In its quest the
+// ship is borrowed and keeps all of its own (`special-<id>`).
+const STANDARD_TANK_AND_GUN = ['tank', 'burn', 'fireInterval', 'muzzleSpeed', 'gun'];
+for (const id of ['delorean', 'swordfish', 'express', 'falcon', 'serenity', 'xwing']) {
+  const own = { ...CHASSIS[`special-${id}`], id: `crew-${id}` };
+  for (const key of STANDARD_TANK_AND_GUN) if (key in CHASSIS.standard) own[key] = CHASSIS.standard[key]; else delete own[key];
+  CHASSIS[`crew-${id}`] = own;
+}
 
 // SCOOTY JR., the mechanic's courtesy shuttle of the opening (src/loaner.js; SX, 2026-10-04: «нет scooty jr.», its look L01 SCOOTER
 // of labs/graphics/sketches/loaner-shuttle.html, whose line on its feel is «nimble and light; turns on a coin, tops out early»). Flown

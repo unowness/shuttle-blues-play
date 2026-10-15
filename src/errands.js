@@ -2,7 +2,8 @@ import { CONFIG } from './config.js';
 import { sectorById, stationDefById, SECTOR_SIZE } from './sectors.js';
 import { reachableStationIds, formatCR } from './ruins.js';
 import { questSectors } from './spots.js';
-import { drawCraft } from './traffic.js';
+import { ROLES } from './roles.js';
+import { PALETTE } from './palette.js';
 import { clamp } from './util.js';
 import { payFor } from './pacing.js';
 import { restSide } from './sideSlot.js';
@@ -27,8 +28,8 @@ import { contentLinks } from './mapContent.js';
 //
 // The suitcase is a light thing carried, not the cargo system's job (the tow, the ledger's active contract, par and pay,
 // a stranded cargo on a wreck): that machinery is built for one contract at a time with its own economy and its own save,
-// and an errand is a small favour outside it. It hangs at the hull's side, rigid, drawn small, and a wreck loses it (the
-// quest turns late). A pilot already towing a cargo may take it too: it is not the cargo.
+// and an errand is a small favour outside it. It hangs on a short rope behind the hull, drawn only (no body, nothing reads where
+// it is), and a wreck loses it (the quest turns late). A pilot already towing a cargo may take it too: it is not the cargo.
 //
 // The planet is big, so its menu and its voice stand at the point of its limb that faces the pilot (one point per
 // frame, moving as the pilot moves), not at its middle, where they would be off the screen.
@@ -268,16 +269,70 @@ function ambush(world, e) {
 
 // ----------------------------------------------------------------------------------------------------- drawing
 
-// The suitcase aboard: two rows of a case with its handle, in the quest's blue, hung at the hull's side and turned with
-// the ship; rigid and small (a light thing: nothing here is a tether).
-const CASE = { rows: ['┌─┐', '╞═╡'], inks: {}, get ink() { return CONFIG.hud.edge; }, get scale() { return 1.15; } };
+// The suitcase aboard (SX's L4C on labs/graphics/sketches/quest-objects.html, 2026-10-15; until then two rows, `┌─┐ ╞═╡`, «напоминает
+// табуретку»): a cabin trolley standing up («багаж должен быть вертикальным, как вертикальный самолетный чемодан»), the errand's blue,
+// its handle's grip and its wheels the world's gray, its button white; on a short rope behind the hull, its handle toward the ship,
+// swinging as the charm does, and now and then a bit of what is packed comes out of it, turns away from the ship and fades
+// (CONFIG.quests.errand.suitcase). Drawn only: the bits are the page's, kept apart from the world's state and drawn from its clock by a
+// hash, so the same frames draw the same bits.
+const CASE_ROWS = [' ╭─╮ ', '╭┴─┴╮', '│   │', '│ ● │', '╰───╯', '•   •'];
+const WHEEL_LIFT = 0.5;   // the wheels' row drawn half a cell up, against the case's foot
+// The case's cells read once, each with its place in cells from the case's middle and its ink's role (the handle's grip, the button, a
+// wheel, or the case's edge): a frame walks them and makes nothing.
+const CASE_CELLS = CASE_ROWS.flatMap((row, j) => Array.from(row).flatMap((ch, i) => (ch === ' ' ? [] : [{
+  ch, x: i - (row.length - 1) / 2, y: j - (ch === '•' ? WHEEL_LIFT : 0) - (CASE_ROWS.length - 1) / 2,
+  ink: ch === '●' ? 'button' : ch === '•' || j === 0 ? 'gray' : 'edge',
+}])));
+const caseInk = (role) => (role === 'button' ? PALETTE.white : role === 'gray' ? ROLES.material : CONFIG.hud.edge);
+const ROPE_MARKS = [1 / 3, 2 / 3];
+const BIT_GLYPHS = ['▪', '•', '∙', '◦', '≈', '·'];   // glyphs the boot already warms (labs/graphics/warmup.js)
+const BIT_INK_COUNT = 5;
+const bitInk = (k) => (k < 2 ? PALETTE.white : k === 2 ? ROLES.material : k === 3 ? CONFIG.hud.edge : PALETTE.amber);
+const hash = (n, k) => { const v = Math.sin(n * 91.7 + k * 47.3) * 43758.5453; return v - Math.floor(v); };
+const spills = new WeakMap();   // world -> { next, n, last, bits }
 export function drawSuitcase(world, r) {
   const e = errandOf(world), ship = world.ship;
   if (!e || e.stage !== 'return' || !ship.alive || world.docked) return;
-  const m = ship.metrics || ship.measureDrawing(r.cellW, r.cellH);
-  let half = 0;
-  for (const c of ship.frameCells) half = Math.max(half, Math.abs(c.x));
-  const s = world.project(r, ship.x, ship.y), a = ship.angle;
-  const out = (half + 0.5) * m.w + CASE.rows[0].length * r.cellW * CASE.scale * 0.5 + 6;
-  drawCraft(r, CASE, s.x - Math.sin(a) * out - Math.cos(a) * 4, s.y + Math.cos(a) * out - Math.sin(a) * 4, a);
+  const C = E().suitcase, t = world.time, a = ship.angle;
+  const ra = a + C.swing[0] * Math.sin(t * C.swing[1]) + C.swing[2] * Math.sin(t * C.swing[3]) + (world.cargo ? C.side : 0);
+  const s = world.project(r, ship.x, ship.y), rear = ship.drawnRear();
+  const fx = s.x - Math.cos(a) * rear, fy = s.y - Math.sin(a) * rear;
+  const half = (CASE_ROWS.length / 2) * r.cellH * C.scale, cx = fx - Math.cos(ra) * (C.rope + half), cy = fy - Math.sin(ra) * (C.rope + half);
+  // The rope: two of the tether's marks between the hull and the handle.
+  const tx = cx + Math.cos(ra) * half, ty = cy + Math.sin(ra) * half;
+  for (const k of ROPE_MARKS) r.glyphRot(CONFIG.cargo.tetherGlyph, tx + (fx - tx) * k, ty + (fy - ty) * k, 0, CONFIG.cargo.color, 1, 1.4);
+  // The case, its handle toward the ship.
+  const turn = ra + Math.PI / 2, co = Math.cos(turn), si = Math.sin(turn), w = r.cellW * C.scale, h = r.cellH * C.scale;
+  for (const c of CASE_CELLS) {
+    const lx = c.x * w, ly = c.y * h;
+    r.glyphRot(c.ch, cx + lx * co - ly * si, cy + lx * si + ly * co, turn, caseInk(c.ink), 1, C.scale);
+  }
+  drawSpill(world, r, C.spill, ship.x + (cx - s.x), ship.y + (cy - s.y), ra, turn, h);
+}
+// The bits: one comes out at the case's lower half now and then, flies off away from the ship easing to a stop, turning, and fades.
+function drawSpill(world, r, S, wx, wy, ra, turn, h) {
+  const t = world.time;
+  let st = spills.get(world);
+  if (!st || t < st.last || t - st.last > 2) { st = { next: t + S.every, n: st?.n ?? 0, last: t, bits: [] }; spills.set(world, st); }
+  st.last = t;
+  while (t >= st.next) {
+    const n = ++st.n;
+    if (hash(n, 7) > S.skip) {
+      const lx = (hash(n, 3) - 0.5) * 3 * r.cellW * (h / r.cellH), ly = (0.2 + hash(n, 4) * 0.3) * CASE_ROWS.length * h;
+      st.bits.push({ n, born: st.next, x: wx + lx * Math.cos(turn) - ly * Math.sin(turn), y: wy + lx * Math.sin(turn) + ly * Math.cos(turn),
+        dir: ra + Math.PI + (hash(n, 5) - 0.5) * S.spread, speed: S.speed[0] + hash(n, 6) * (S.speed[1] - S.speed[0]),
+        life: S.life[0] + hash(n, 2) * (S.life[1] - S.life[0]) });
+    }
+    st.next += S.every + hash(n, 1) * S.jitter;
+  }
+  // The bits gone are dropped in place (a frame makes no new list).
+  let kept = 0;
+  for (const b of st.bits) if (t - b.born < b.life) st.bits[kept++] = b;
+  st.bits.length = kept;
+  for (const b of st.bits) {
+    const age = t - b.born, u = age / b.life, dist = (b.speed * b.life * (1 - (1 - u) * (1 - u))) / 2;
+    const p = world.project(r, b.x + Math.cos(b.dir) * dist, b.y + Math.sin(b.dir) * dist);
+    r.glyphRot(BIT_GLYPHS[Math.floor(hash(b.n, 8) * BIT_GLYPHS.length)], p.x, p.y, age * (hash(b.n, 9) - 0.5) * 2 * S.spin,
+      bitInk(Math.floor(hash(b.n, 10) * BIT_INK_COUNT)), u < 0.6 ? 1 : 1 - (u - 0.6) / 0.4, S.size);
+  }
 }

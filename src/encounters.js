@@ -103,15 +103,17 @@ export function inSafeZone(world, x, y, pad = 0) {
 }
 
 // A group of `count` (1 to 4; the encounters make squads of 2 to 4) appears
-// outside the view and comes for the ship, aimed at it, one kind in one paint
-// unless `types` or `paint` say otherwise. Options: `angle` (the bearing from the ship to try first),
+// outside the view and comes for the ship, aimed at it: a gang, its hulls all different (as far as the four go) in its one paint
+// (SX, 2026-10-15, FC4: «разные банды прилетаеют и это от 2 до 4 пиратов, и разные типы кораблей у них но в одной раскраске»;
+// one kind until then), unless `types`, `mixed: false` or `paint` say otherwise. Options: `angle` (the bearing from the ship to try first),
 // `distance`, `at` ({ x, y }, the centre of the group), `speed` (a share of
 // top speed), `silent` (no announcement). Returns the pirates made, or an
 // empty list when nowhere in the sector would do. A group joins a fight
 // already on. Each has a character (src/personas.js, a squad's drawn together) unless `traits` gives them (a list,
 // or null entries for none) or `personas` is false. A squad at a post (src/raids.js) comes with `places` (each one's
 // { x, y, heading }), `post` (what it guards) and `passive`: circling, no fight begun, nothing announced. A raid's squad is
-// bigger than a zone's (`max`) and made of every hull (`mixed`, or the hulls named in `types`) in the one paint.
+// bigger than a zone's (`max`) and made of every hull (`mixed`, or the hulls named in `types`) in the one paint; a ruin's guards and a
+// pestering squad say `mixed: false`, one hull (src/raids.js spawnPost).
 export function spawnPirates(world, count = 1, options = {}) {
   const C = CONFIG.pirates;
   const rng = world.rng('pirate');
@@ -135,8 +137,11 @@ export function spawnPirates(world, count = 1, options = {}) {
     }
   }
   if (!centre) return [];
-  const kinds = options.types || replaceRoster(options.mixed ? pickMixedTypes(n, rng) : pickTypes(n, rng), {
-    restored: world.ledger.restored.size, context: options.context ?? (options.post?.kind ?? (options.mixed ? 'raid' : 'ordinary')),
+  // A gang of two or more by default; a single ship is any kind.
+  const mixed = options.mixed ?? n > 1;
+  const kinds = options.types || replaceRoster(mixed ? pickMixedTypes(n, rng) : pickTypes(n, rng), {
+    restored: world.ledger.restored.size,
+    context: options.context ?? (options.post?.kind ?? (options.mixed ? 'raid' : mixed ? 'gang' : 'ordinary')),
     rng: world.rng('pirate-roster'),
   });
   // One paint for the squad (CONFIG.pirates.paints).

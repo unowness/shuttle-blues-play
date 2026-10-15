@@ -1,6 +1,6 @@
 // Shots and blows (cut out of src/world.js, PLAN D3, 2026-10-09; the code is as it was, `this` now `world`): what costs the hull points (the
 // one entry point, damageShip), a touch against a rock (bumpShip), the pilot's and the pirates' shots in flight and what they hit
-// (stepBullets, resolveHits, which ends in what the hull meets, src/contact.js), and a rock broken (breakAsteroid). The calls between them go
+// (stepBullets, resolveHits, which ends in what the hull meets, src/contact.js), and a rock broken (breakAsteroid; by the hull, ramAsteroid). The calls between them go
 // through the world, as they did, so a tool that swaps one on a World (tools/asteroid-balance-sim.mjs) still reaches the others. World keeps
 // a one-line method of each name the contact, the pirates, the tow, the tools and the checks call.
 import { CONFIG } from './config.js';
@@ -44,7 +44,7 @@ export function damageShip(world, amount, cause = 'impact', detail = {}) {
 // take the closing speed away with a little bounce, hand some of it to a
 // free rock, and shed bright sparks and a few of the hull's own glyphs, the
 // way damage looks. Reused for every rock contact, gentle or hard alike
-// (World.damageShip decides what, if anything, it costs); no break, and no
+// (World.damageShip decides what, if anything, it costs); a hard one breaks the rock instead (ramAsteroid); no
 // coins: a bump spilled the wallet until 2026-10-01 (CONFIG.asteroid.bump
 // `spillOnBump`).
 export function bumpShip(world, rock, nx, ny, closing, touch) {
@@ -137,6 +137,29 @@ export function resolveHits(world) {
 
   // What the hull meets: a hole's horizon, rocks, droids, stations, the NPC ships and the planets' surfaces (src/contact.js).
   shipContacts(world);
+}
+
+// A rock broken by a hard blow of the hull (SX's FC1, 2026-10-15: «камень должен разбиться если столкновение сильное»; src/contact.js,
+// a blow of CONFIG.asteroid.bump.ram `breaks` points or more): broken as a shot breaks it (World.breakAsteroid: its drop, its dust, its
+// pieces), the pieces laid either side of the hull's way, clear of it, and flung off sideways at `scatter` u/s, so the hull goes on
+// between them; it gives no bounce (the rock gave way), and the hull loses `loss` of its closing speed along the contact. The hull paid
+// its blow before (World.damageShip).
+export function ramAsteroid(world, index, nx, ny, closing) {
+  const R = CONFIG.asteroid.bump.ram, ship = world.ship, a = world.asteroids[index];
+  if (closing > 0) { ship.vx += nx * closing * R.loss; ship.vy += ny * closing * R.loss; }
+  const before = world.asteroids.length;
+  world.breakAsteroid(index);
+  // The hull's way past the rock (its speed on the rock's), or straight in along the contact when it has none.
+  let dx = ship.vx - a.vx, dy = ship.vy - a.vy, len = Math.hypot(dx, dy);
+  if (len < 1e-6) { dx = -nx; dy = -ny; len = 1; }
+  dx /= len; dy /= len;
+  const along = world.topology.dx(a.x, ship.x) * dx + world.topology.dy(a.y, ship.y) * dy, bx = ship.x + dx * along, by = ship.y + dy * along;
+  world.asteroids.slice(before - 1).forEach((child, k) => {
+    // Either side of the way, by the outline's farthest lobe (src/bodies.js Asteroid: 1.19 of the radius) and the hull's radius.
+    const side = k % 2 ? 1 : -1, off = child.radius * 1.2 + ship.radius + R.gap;
+    child.x = bx - dy * side * off; child.y = by + dx * side * off;
+    child.vx = a.vx * 0.55 - dy * side * R.scatter; child.vy = a.vy * 0.55 + dx * side * R.scatter;
+  });
 }
 
 export function breakAsteroid(world, index) {

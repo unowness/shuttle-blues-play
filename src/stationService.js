@@ -13,8 +13,8 @@ import { stationDefById } from './sectors.js';
 //   patchHull        a freight hub's, at the same price, up to CONFIG.hull.patchShare of the chassis' whole hull (2026-10-04,
 //                    the economy SX chose: freight docks had no repair, and a pilot far from a garage flew on damaged)
 //   buyChalk         chalk, up to a box at a time (CONFIG.chalk)
-//   breakStation     a working station a ship was wrecked against is closed until repaired (CONFIG.station.breakCost); one worn out by
-//                    hard blows (wearStation), for the bill of a lost raid (stationBill)
+//   breakStation     a working station a ship was wrecked against, or one worn out by hard blows (wearStation), is closed until
+//                    repaired, for the bill of a lost raid (stationBill)
 //   wearStation      a hard blow on a working station's hull is remembered (CONFIG.station.wear): `ledger.wear`, a notice at 10 %, broken at 20 %
 //   brokenActions    a broken station's menu: a cargo bound to it, UNDOCK, REPAIR STATION, INFO
 //   repairStation    the broken station's price paid, and it works again; a worn one's pro rata, and the wear is gone
@@ -157,7 +157,7 @@ export function patchHull(world) {
   mendTo(world, world.hull + Math.floor(ceiling - world.hull));
 }
 
-// A station a wreck broke (CONFIG.station.breakCost): closed but for a cargo bound to it, until repaired.
+// A station a wreck broke (breakStation): closed but for a cargo bound to it, until repaired.
 export function brokenActions(world, station) {
   const actions = [];
   const active = world.ledger.activeJob();
@@ -174,10 +174,13 @@ export function brokenActions(world, station) {
 }
 
 // A working station that a ship was wrecked against breaks (SX, 2026-10-01: «станция ломается на 100
-// монет и ее снова нужно починить немного»), or one that hard blows wore out (wearStation, `cost` its bill). A ruin, or one already
-// broken, has nothing more to break. Broken, it remembers no wear: the repair starts it again whole.
-export function breakStation(world, station, cost = CONFIG.station.breakCost) {
+// монет и ее снова нужно починить немного»), or one that hard blows wore out (wearStation). Either costs the bill of a lost raid
+// (src/ruins.js stationBill, 210 to 338 CR; SX's W4 of 2026-10-15: a wreck breaks it for the ram's bill, where it was a flat 100 CR and
+// the cheaper way to break one). A ruin, or one already broken, has nothing more to break. Broken, it remembers no wear: the repair
+// starts it again whole.
+export function breakStation(world, station) {
   if (workingKind(world.ledger, station) === 'ruin' || world.ledger.broken.has(station.id)) return false;
+  const cost = stationBill(stationDefById(station.id, world.ledger));
   world.ledger.broken.set(station.id, cost);
   world.ledger.wear.delete(station.id);
   world.emit('stationBroken', { stationId: station.id, label: station.label, cost, sectorId: world.sector.id, x: station.x, y: station.y });
@@ -196,7 +199,7 @@ export function wearStation(world, station, closing) {
   if (!kind || kind === 'ruin' || kind === 'home') return 0;
   const lost = W.base * (closing / W.refSpeed) ** W.power, before = L.wear.get(station.id) ?? 0, after = before + lost;
   if (after >= W.breaks) {
-    world.breakStation(station, stationBill(stationDefById(station.id, L)));
+    world.breakStation(station);
     return lost;
   }
   L.wear.set(station.id, after);

@@ -80,10 +80,9 @@ export const bearingGlyph = (a) => BEARINGS[(Math.round(a / (Math.PI / 4)) % 8 +
 const glyphs = (s) => Array.from(String(s ?? ''));
 
 export function createQuestBoard() {
-  // `off`: the quests whose marks the pilot switched off by a click on their plate (src/tasks.js markedQuests). `auto`: the id the chapter
-  // selected by itself (activeId while it is the pilot's own pick no more than that): the selection that gives the banner, the locator and the
-  // map their one task, and dims no other plate or pointer.
-  return { plates: [], activeId: null, auto: null, off: new Set(), boxes: [], box: null, hintBox: null, serial: 0 };
+  // `auto`: the id the chapter selected by itself (activeId while it is the pilot's own pick no more than that): the selection that gives the
+  // banner, the locator and the map their one task, and dims no other plate or pointer.
+  return { plates: [], activeId: null, auto: null, boxes: [], box: null, hintBox: null, serial: 0 };
 }
 
 // The board follows the world's list: a quest new to it comes (A2), one no longer there goes, green or red if the world
@@ -97,7 +96,6 @@ export function syncQuestBoard(board, quests, outcomes, now) {
     plate.doneAt = now;
     plate.outcome = outcomes?.get(plate.id) ?? null;
     if (board.activeId === plate.id) board.activeId = null;
-    board.off.delete(plate.id);
   }
   for (const q of quests) {
     if (board.plates.some((p) => p.id === q.id)) continue;
@@ -136,25 +134,21 @@ export function cycleQuestBoard(board) {
 }
 // The pilot's own click or key on a plate: its sign stops blinking (BLINK).
 export function seen(board, id) { const p = board.plates.find((q) => q.id === id); if (p) p.seen = true; }
-// A click: the plate under (x, y) switches its quest's marks off, or on again if they were off (SX, 2026-10-09: «все квесты, когда
-// они появляются, они показывают метки на карте. Если пользователь кликнул в него, то он его отключил просто»; until then a click
-// selected the quest and only a selected one showed its marks); the list's head (R QUESTS, `hintBox`) does what the next quest's key
-// did before the new layout: the next quest's pointer (SX, 2026-10-02: «квесты надо как-то выбирать не только кликом в мышку»).
-// Returns whether the list was hit.
+// A click: the plate under (x, y) picks its quest, the pilot's own pick (every other plate and pointer dimmed), or lets it go if it was
+// the pick; a quest the chapter selected by itself (`auto`) becomes the pilot's. SX's W8 «B», 2026-10-15 (labs/graphics/sketches/
+// firefox-checks.html): «выбирает квест, остальные тускнеют», as a click did until 2026-10-09; from then to W8 it switched the quest's
+// marks off and on and picked nothing («Я кликаю по нему, он все равно остается серым»). Every quest still shows its marks as it comes
+// (src/tasks.js markedQuests). The list's head (R QUESTS, `hintBox`) does what the next quest's key did before the new layout: the next
+// quest's pointer (SX, 2026-10-02: «квесты надо как-то выбирать не только кликом в мышку»). Returns whether the list was hit.
 export function clickQuestBoard(board, x, y) {
   const hit = board.boxes.find((b) => inBox(b, x, y));
-  if (hit) { seen(board, hit.id); toggleQuestMarks(board, hit.id); return true; }
+  if (hit) {
+    seen(board, hit.id);
+    board.activeId = board.activeId === hit.id && board.auto !== hit.id ? null : hit.id;
+    board.auto = null;
+    return true;
+  }
   if (inBox(board.hintBox, x, y)) return cycleQuestBoard(board);
-  return false;
-}
-// A quest's marks off, or on again; switched off, it is no longer the selected one either. Returns whether they show now.
-export function toggleQuestMarks(board, id) {
-  if (board.off.delete(id)) return true;
-  // The ruin's restoration keeps its purple mark on the station whatever is clicked (src/opening.js `keep`; SX, 2026-10-09: «должна
-  // быть всегда метка на станцию, да, фиолетовая оставаться»).
-  if (board.plates.some((p) => p.id === id && p.q?.keep)) return true;
-  board.off.add(id);
-  if (board.activeId === id) board.activeId = null;
   return false;
 }
 export const questBoardHit = (board, x, y) => board.boxes.some((b) => inBox(b, x, y)) || inBox(board.hintBox, x, y);
@@ -337,10 +331,9 @@ function drawPlate(r, plate, x, y, g, now, clock, bearing, reduced, dim = false,
 // the quest's name (SX, 2026-10-05: «что конкретно за квест выбран будет подсвечено слева в списке квестов»), its plate is marked as a
 // selected one is, in the list's own way: the other plates' titles quiet (gray). A selected quest marks itself so already (its sign
 // the bearing's arrow, the others quiet); a quest the notch holds with none selected (a red one by its clock, or the first) did not.
-// `markedIds`: the quests whose marks stand in the sky (src/tasks.js markedQuests: every one but those switched off by a click): their
-// plates show the bearing's arrow, as a selected one does, and their titles stand lit; a plate whose marks the pilot switched off reads
-// quiet (gray, its sign the tone's diamond), so a click shows (SX, 2026-10-09: a blue quest that «остается серым» whatever was clicked:
-// the chapter's purple, selected by itself, had every other plate gray beside it). With no list told (`null`) no plate is quiet for want of marks.
+// `markedIds`: the quests whose marks stand in the sky (src/tasks.js markedQuests: every one): their plates show the bearing's arrow, as a
+// selected one does, and their titles stand lit; a plate not in it reads quiet (gray, its sign the tone's diamond). With no list told
+// (`null`) no plate is quiet for want of marks.
 // The chapter's own selection (`board.auto`) is no pick: the others are neither dimmed nor grayed by it.
 export const drawQuestBoard = keptDraw(function drawQuestBoard(r, board, x, y, now, clock,
   { bearingOf = () => null, reducedMotion = false, pointer = null, button = null, attached = false, width = QUEST_WIDTH, focusId = null,

@@ -210,8 +210,8 @@ export function createGame(env) {
   // not interrupted.
   world.autoEncounters = !REVIEW;
   // The drift G1 GLIDE and the jump J2, the game's (chat F1: src/drift.js, src/trick.js, FLIGHT's presets in src/flightConfig.js); the lab
-  // compares other jumps and figure paces by its switches (labs/graphics/stunt-fx.js readStuntSwitches). NORMAL or PRO is kept in this
-  // browser; nothing else of it is saved.
+  // may put the pilot's NORMAL or PRO aside (labs/graphics/stunt-fx.js readStuntSwitches). NORMAL or PRO is kept in this browser; nothing
+  // else of it is saved.
   world.stunts = readStuntSwitches(GAME ? new URLSearchParams() : pageParams, saveBackend);
   // The cockpit's smoke on or off (GRAPHICS, COCKPIT SMOKE), kept in this browser.
   world.cockpitSmoke = readCockpitSmoke(saveBackend);

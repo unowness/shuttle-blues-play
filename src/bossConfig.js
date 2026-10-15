@@ -15,8 +15,9 @@
 export const BOSS = {
   boss: {
     label: 'TOLLKEEPER',
-    // The core's hit points: a pilot's shot takes one (a chassis's `gun` more, as from a pirate). The sleds have their own.
-    hp: 160,
+    // The core's hit points: a pilot's shot takes one (a chassis's `gun` more, as from a pirate). The sleds have their own. 160 until SX
+    // flew it (2026-10-15, FC5: «может на 10% хп срезать»).
+    hp: 144,
     // A hit flashes the core or a sled white as a pirate flashes (CONFIG.pirates.flash), at most once in `flashEvery` s: the STANDARD
     // fires seven times a second, and a boss flashed at each hit is white all the time, read as its warning.
     flashEvery: 0.6,
@@ -68,27 +69,39 @@ export const BOSS = {
     // the third breaks it).
     shot: { damage: 10, onPirates: 2 },
     // The patterns: each warned for `prepare` s (its cells in the warning white), worked for `commit` s (the guns' orange), then `recover`
-    // s of rest (the resting gray, the pirates' dot), src/pirateAttacks.js's three steps.
+    // s of rest (the resting gray, the pirates' dot), src/pirateAttacks.js's three steps. The rests are about 15 % longer than the first
+    // tuning's (SX, 2026-10-15, FC5: «чуть чуть длинее паузы между атаками»): aimed 1.8, spiral 2.2, launch 1.6, charge 2.6 until then.
     patterns: {
       // The core's central guns, a little less often than the sheet's (SX: «пусть он сам из своих центральных пушек попадает чуть реже»):
       // two pairs, not three.
-      aimed: { prepare: 0.9, commit: 0.75, recover: 1.8, cue: 'shoulders', shots: 2, every: 0.34, speed: 520, life: 2.2 },
+      aimed: { prepare: 0.9, commit: 0.75, recover: 2.1, cue: 'shoulders', shots: 2, every: 0.34, speed: 520, life: 2.2 },
       // The circular attack comes out of the sleds, `arms` streams from each (SX: «а круговые атаки происходят из боковых»); a sled shot off
       // takes its streams with it.
-      spiral: { prepare: 1.0, commit: 3.4, recover: 2.2, cue: 'sleds', arms: 2, spin: 0.75, every: 0.3, speed: 330, life: 2.6 },
+      spiral: { prepare: 1.0, commit: 3.4, recover: 2.5, cue: 'sleds', arms: 2, spin: 0.75, every: 0.3, speed: 330, life: 2.6 },
+      // The sleds' streams (S2, X1C), each live sled's gun at once: warned on the gun, `sledGun.shots` at where the pilot is. Their own
+      // clocks until SX flew it (SX, 2026-10-15, FC5: «пусть порядок атак будет структуированым»): a slot of the turn now, so one attack
+      // flies at a time and every one is followed by its rest.
+      stream: { prepare: 0.8, commit: 0.6, recover: 2.0, cue: 'sleds' },
       // Now and then (CONFIG.boss.escort: `below`, `apart`); at most `slots` of it attack at once (the pirates' own pressure slots).
-      launch: { prepare: 1.3, commit: 1.0, recover: 1.6, cue: 'bay', every: 0.35, out: 260 },
-      charge: { prepare: 1.1, commit: 1.1, recover: 2.6, cue: 'drives', speed: 760, push: 1400, lane: 900, lockTurn: 1.3 },
+      launch: { prepare: 1.3, commit: 1.0, recover: 1.8, cue: 'bay', every: 0.35, out: 260 },
+      charge: { prepare: 1.1, commit: 1.1, recover: 3.0, cue: 'drives', speed: 760, push: 1400, lane: 900, lockTurn: 1.3 },
     },
-    // What it does in turn, by the share of its hit points left (highest first): under a third, the rage.
+    // What it does in turn, by the share of its hit points left (highest first): under a third, the rage. The turn is a fixed order, one
+    // attack at a time (SX, 2026-10-15: «пусть порядок атак будет структуированым»): a launch it cannot make is an aimed burst in its place,
+    // so the order never shifts. Until then the sleds fired on their own clocks over it, and a launch put off moved the turn on.
     phases: [
-      { from: 1, script: ['aimed', 'spiral', 'launch'] },
-      { from: 1 / 3, script: ['aimed', 'spiral', 'charge', 'launch'], rage: true },
+      { from: 1, script: ['aimed', 'stream', 'spiral', 'stream', 'launch'] },
+      { from: 1 / 3, script: ['aimed', 'stream', 'charge', 'spiral', 'stream', 'launch'], rage: true },
     ],
+    // Both sleds shot off: its own turn, whatever its phase, charging every other attack in long dashes from farther off instead of shoving
+    // close (SX, 2026-10-15: «пусть он когда без саней остается начинает чаще таранить длинными выбросами а не запинывать впритык»). It holds
+    // `range` u off (the hold's 560 else), a charge's commit is `commit` s (1.1 else: some 1,200 u of dash against 630), its warned line `lane`.
+    bare: { script: ['charge', 'aimed', 'charge', 'launch'], range: 820, commit: 1.8, lane: 1500 },
     // The rage: warnings and rests this much as long, shots this much faster.
     rage: { prepare: 0.8, recover: 0.6, speed: 1.1 },
-    // The sleds' guns, each on its own clock (S2) and a stream (X1C): warned, `shots` at where the pilot is, a rest.
-    sledGun: { prepare: 0.8, shots: 6, every: 0.14, recover: 2.2, speed: 520, life: 2.2, turn: 1.4, muzzle: 30 },
+    // The sleds' guns, a stream (X1C) in the turn's `stream` slot: `shots` at where the pilot is, `every` s apart. Six until SX flew it
+    // (2026-10-15: «чуть нужно его очереди уменьшить»), each sled on its own clock (S2) with a 0.8 s warning and a 2.2 s rest.
+    sledGun: { shots: 4, every: 0.14, speed: 520, life: 2.2, turn: 1.4, muzzle: 30 },
     // Its escort: three DARTs a launch, at most `cap` alive.
     // «иногда»: a launch only once the last escort is all down (`below` 0), `apart` s after the last. (18 s and one still out until
     // 2026-10-14's fight sim: three DARTs a launch then cost the pilot as much as an ordinary squad of three, about 40 of 100 hull by

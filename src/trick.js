@@ -6,8 +6,7 @@
 // let go, it comes down, and the speed the top gave is taken back off. In the air the course is held and the ship passes over
 // everything smaller than a planet; a planet bounces it off like a pinball (SX, 2026-10-03). The motion of the height is J1 SMOOTH UP,
 // FIRM DOWN (docs/plans/2026-10-04-jump-motion.md). The rules and the numbers are FLIGHT.trick (src/flightConfig.js); this file is
-// the step and the curves the drawing and the checks read. It runs only where the page turned it on (`world.stunts.trick`: J2, its
-// figures' pace the lab's `?figure=` to compare); without it (a check's world) nothing here is ever called. T1, T2 and T3, the jumps
+// the step and the curves the drawing and the checks read. It runs only where the page turned it on (`world.stunts.trick`: J2); without it (a check's world) nothing here is ever called. T1, T2 and T3, the jumps
 // before J2 (T2 the game's until 2026-10-06: a figure only at the top, a let-go green that landed it clean), went with the lab's
 // `?trick=` and `?jump=` once SX had picked, 2026-10-07.
 //
@@ -71,9 +70,8 @@ export const liftOffset = (h, radius) => ({ dx: LIFT.x * radius * h, dy: LIFT.y 
 
 // How long a jump taken at `speed` u/s may stay up, rise included.
 export const hangOf = (preset, speed) => clamp(speed * preset.perSpeed, preset.hang[0], preset.hang[1]);
-// A figure's length, s: its base, the preset's share, and the pace (FLIGHT.trick.figures.pace; the lab's `?figure=` puts its own on
-// the preset, labs/graphics/stunt-fx.js readStuntSwitches).
-export const figureLength = (preset, kind) => FIGURES[kind] * preset.figure * (preset.pace ?? T.figures.pace);
+// A figure's length, s: its base, the preset's share, and the pace (FLIGHT.trick.figures.pace).
+export const figureLength = (preset, kind) => FIGURES[kind] * preset.figure * T.figures.pace;
 
 // The share of a figure's turn done at `u` of its length (SX's pick of T1 SLOW, FLIGHT.trick.figures): an even speed, reached over the
 // first `ease` of the length and given up over the last, each on a smoothstep of the speed (so the speed itself has no step), never

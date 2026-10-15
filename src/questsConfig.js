@@ -81,6 +81,13 @@ export const QUESTS = {
   // a working station between `minLeg` and `maxLeg` u of it and brought back for `pay` CR; on the way back, once the pilot has flown
   // `ambush.after` of the way (at least `min`, at most `max` u) and at least `minLeft` u remain, a squad of `squad`
   // comes after the pilot. Its legs, like the reference ships', are the layout's u grown with the world (src/worldScale.js spread).
+  // `errand.suitcase`, how the suitcase aboard is drawn (src/errands.js drawSuitcase; SX's L4C on labs/graphics/sketches/quest-objects.html,
+  // 2026-10-15: «пусть он наверное тоже будет на короткой веревочке и из него должны вылетать иногда детальки как будто что то из него
+  // сыпется», then «этот»): its glyphs at `scale` of the world's cell (the cargo container's 1.0, a cache's 1.15: SX, «рядом с кораблем
+  // не должно ощущаться резкое изменение масштаба»), `rope` px of rope from the hull's drawn rear to its handle, swinging by
+  // `swing` (two waves: [rad, rad/s, rad, rad/s]), turned `side` rad off the line behind while a cargo is towed (the two never cross);
+  // `spill`: a bit of what is packed comes out every `every` s plus up to `jitter` s, a `skip` share of the moments with none, lives
+  // `life` s, flies `speed` px/s away from the ship within `spread` rad, turns by up to `spin` rad/s, drawn at `size`.
   // The money quests' pays since the economy SX chose (2026-10-04: «по экономике согласен»; Codex's study, proposal.json `quests`):
   // `rescue.pay` 150 (75 until then), `pester.pay` 300 (150), `errand.pay` 450 (220), `stranger.fee` 75 (50); a raid won's thanks
   // are CONFIG.raids.thanks (350). Each grows by `grow` a station restored, as before; the radio's and the reference ships' as they were.
@@ -172,5 +179,7 @@ export const QUESTS = {
     errand: {
       pay: 450, reach: 460, minLeg: spread(2500), maxLeg: spread(9000),
       ambush: { after: 0.4, min: 900, max: 2600, minLeft: 1500, squad: [[2, 0.6], [3, 0.4]] },
+      suitcase: { scale: 1.05, rope: 26, swing: [0.28, 1.4, 0.08, 3.1], side: 0.6,
+        spill: { every: 0.6, jitter: 0.4, skip: 0.25, life: [1.6, 2.5], speed: [34, 80], spread: 1.8, spin: 4, size: 1.15 } },
     } },
 };

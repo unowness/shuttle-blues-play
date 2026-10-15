@@ -170,11 +170,12 @@ export const FLIGHT = {
     swing: { angle: 35 * DEG, stiffness: 320, damping: 14 },
     // The figures' motion, SX's pick of T1 SLOW on labs/graphics/sketches/trick-readable.html (2026-10-05: «T1 SLOW Берем вот этот
     // вариант ... нужно его прям блин чуть-чуть ... побыстрее»): each figure `pace` times as long as it was that morning (the page's
-    // T1 was 1.5; the lab compares `?figure=1.2 | 1.3 | 1.5` until SX picks one), its turn at an even speed, eased in over the first `ease` of its length
+    // T1 was 1.5; 1.3 until SX flew the lab's `?figure=1.2 | 1.3 | 1.5` on 2026-10-15: «по трюку нравится третий вариант 1,5»; the switch
+    // went with his pick), its turn at an even speed, eased in over the first `ease` of its length
     // and out over the last (src/trick.js figureTurn), never past its end and back (the back-out it had did 95 % of the turn in the
     // first 37 % of the figure and then rocked); the hull drawn in every frame (the blink at a figure's start is gone); a PLAIN tips
     // the hull `tip` (17 degrees until then: hardly seen).
-    figures: { pace: 1.3, ease: 0.12, tip: 30 * DEG },
+    figures: { pace: 1.5, ease: 0.12, tip: 30 * DEG },
     // The soft abort (SX, 2026-10-05: «превентивное аккуратное завершение трюка если ты сделал его на не очень большой высоте ... как
     // будто бы пробел нажали в воздухе, чтобы он чуть-чуть занес угол, но не стал ничего делать»): a figure asked with too little air
     // for it plays nothing; the hull swings `angle` to the key's side, out over `out` s on an ease-out and back over `back` s on an

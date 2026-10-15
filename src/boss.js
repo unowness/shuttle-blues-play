@@ -3,8 +3,8 @@
 // labs/graphics/boss-art.js. The fight grew from the sheet's prototype (labs/graphics/sketches/boss-arena.js), measured there.
 //
 //   spawnBoss        the boss at a place, whole, nose to the pilot: World.boss
-//   stepBoss         its step: the motion (M1, it holds a range), its sleds on their tethers, its patterns in turn by its phase, the sleds'
-//                    own guns, its launches
+//   stepBoss         its step: the motion (M1, it holds a range), its sleds on their tethers, its patterns in a fixed turn by its phase
+//                    (the sleds' streams a slot of it), its own turn of long charges once both sleds are off, its launches
 //   resolveBossHits  the pilot's shots on the core and the sleds; a touch of the core or a sled on the hull (a ram)
 //   bossCue          what its warning lights now, for the drawing
 //
@@ -52,8 +52,8 @@ export function spawnBoss(world, { x, y, heading = null, entrance = false, dorma
     x, y, vx: 0, vy: 0, heading: h, hp: B.hp, flash: 0, flashAt: -Infinity, phase: 0, strafe: 0, queue: 0, launchedAt: -Infinity,
     attack: { kind: null, phase: 'recover', t: 0, dur: 1, n: 0, next: 0, data: {} },
     sleds: [-1, 1].map((side) => ({ side, x, y, vx: 0, vy: 0, angle: h, hp: B.body.sled.hp, on: true, spin: 0, flash: 0, flashAt: -Infinity,
-      gun: { phase: 'recover', t: side > 0 ? B.sledGun.recover / 2 : 0, shots: 0 } })),
-    defeated: false, armT: 0, armPose: 0,
+      gun: { phase: 'recover', shots: 0 } })),
+    defeated: false, bare: false, armT: 0, armPose: 0,
     // Lying at its quest's mark until it reacts (src/bossQuest.js): it drifts and sways, its guns silent; a hit `provoked` it.
     dormant, provoked: false,
   };
@@ -71,12 +71,12 @@ export function spawnBoss(world, { x, y, heading = null, entrance = false, dorma
 export function healBoss(world) {
   const b = world.boss, B = CONFIG.boss;
   if (!b || b.defeated) return;
-  b.hp = B.hp; b.phase = 0; b.queue = 0;
+  b.hp = B.hp; b.phase = 0; b.queue = 0; b.bare = false;
   Object.assign(b.attack, { kind: null, phase: 'recover', t: 0, dur: 2, n: 0, next: 0, data: {} });
   for (const s of b.sleds) {
     const at = sledRest(b, s);
     Object.assign(s, { x: at.x, y: at.y, vx: b.vx, vy: b.vy, angle: b.heading, hp: B.body.sled.hp, on: true, spin: 0, flash: 0 });
-    Object.assign(s.gun, { phase: 'recover', t: 0, shots: 0 });
+    Object.assign(s.gun, { phase: 'recover', shots: 0 });
   }
   world.emit('bossHealed', { sectorId: world.sector.id });
 }
@@ -88,6 +88,10 @@ const phaseOf = (b) => {
   return k;
 };
 const raging = (b) => !!CONFIG.boss.phases[b.phase].rage;
+// Both sleds off: its own turn (CONFIG.boss.bare).
+const bareOf = (b) => b.sleds.every((s) => !s.on);
+// The line a charge is warned along and runs: longer once it is bare.
+export const chargeLane = (b) => (b.bare ? CONFIG.boss.bare.lane : CONFIG.boss.patterns.charge.lane);
 const escortOut = (world) => world.pirates.filter((p) => p.escort && p.hp > 0 && p.mode !== 'leave').length;
 
 // What the warning lights now: the cells of the core's `cue`, the step the pattern is in and how far through it.
@@ -123,6 +127,8 @@ export function stepBoss(world, dt) {
     b.phase = phase;
     world.emit('bossPhase', { phase, rage: raging(b), sectorId: world.sector.id, x: b.x, y: b.y });
   }
+  // Bare, its turn starts over at its top: the first long charge comes next.
+  if (!b.bare && bareOf(b)) { b.bare = true; b.queue = 0; }
   b.flash = Math.max(0, b.flash - dt);
   const atk = b.attack;
   atk.t += dt;
@@ -146,13 +152,13 @@ function moveBoss(world, b, dt) {
     // M1: its range from the pilot along its own bearing, sliding to and fro across it; the bearing turned slowly, at `level` rad/s, to
     // `tilt` above the level, so it fights beside the pilot and a little above, where the view is wide and the cockpit is not. (The
     // bearing is the boss's own, not read from where it is: read so, the slide added up frame on frame into a swing of fifty degrees.)
-    const H = B.hold;
+    const H = B.hold, range = b.bare ? B.bare.range : H.range;
     b.strafe += dt * H.rate;
     b.bearing ??= Math.atan2(-to.y, -to.x);
     const flat = Math.abs(wrapPi(b.bearing)) < Math.PI / 2 ? -H.tilt : Math.PI + H.tilt;
     b.bearing += clamp(wrapPi(flat - b.bearing), -H.level * dt, H.level * dt);
     const ux = Math.cos(b.bearing), uy = Math.sin(b.bearing), slide = Math.sin(b.strafe) * H.slide;
-    const tx = ship.x + ux * H.range - uy * slide, ty = ship.y + uy * H.range + ux * slide;
+    const tx = ship.x + ux * range - uy * slide, ty = ship.y + uy * range + ux * slide;
     const d = world.delta(tx, ty, b.x, b.y);
     let wx = d.x * H.gain, wy = d.y * H.gain;
     const w = Math.hypot(wx, wy);
@@ -179,27 +185,31 @@ function moveBoss(world, b, dt) {
   }
 }
 
-// The pattern's next step: prepare -> commit -> recover -> the next pattern of its phase's turn.
+// The pattern's next step: prepare -> commit -> recover -> the next pattern of its turn: its phase's, or its own once bare.
 function nextStep(world, b) {
   const B = CONFIG.boss, atk = b.attack;
   if (atk.kind && atk.phase === 'prepare') { begin(world, b, atk.kind, 'commit'); return; }
   if (atk.kind && atk.phase === 'commit') { begin(world, b, atk.kind, 'recover'); return; }
-  const script = B.phases[b.phase].script, ship = world.ship;
+  const script = b.bare ? B.bare.script : B.phases[b.phase].script, ship = world.ship;
   const to = world.delta(ship.x, ship.y, b.x, b.y);
   // Too far from the pilot to be on its screen: it waits (and comes on, holding its range).
   if (world.docked || Math.hypot(to.x, to.y) > B.reach) { Object.assign(atk, { kind: null, phase: 'recover', t: 0, dur: 0.3 }); return; }
   let kind = script[b.queue % script.length];
   b.queue++;
-  // A launch with the escort still out in strength, or too soon after the last, gives its turn to the next pattern.
-  if (kind === 'launch' && !canLaunch(world, b)) kind = script[b.queue++ % script.length];
+  // A fixed order: a launch it cannot make (the escort still out, or too soon after the last) is an aimed burst in its place, and a stream
+  // with no sled left is one too; the turn never shifts.
   if (kind === 'launch' && !canLaunch(world, b)) kind = 'aimed';
+  if (kind === 'stream' && !b.sleds.some((s) => s.on)) kind = 'aimed';
   begin(world, b, kind, 'prepare');
 }
 
 function begin(world, b, kind, phase) {
   const B = CONFIG.boss, k = B.patterns[kind], rage = raging(b) ? B.rage : null, atk = b.attack;
-  const dur = phase === 'prepare' ? k.prepare * (rage ? rage.prepare : 1) : phase === 'recover' ? k.recover * (rage ? rage.recover : 1) : k.commit;
+  const commit = kind === 'charge' && b.bare ? B.bare.commit : k.commit;
+  const dur = phase === 'prepare' ? k.prepare * (rage ? rage.prepare : 1) : phase === 'recover' ? k.recover * (rage ? rage.recover : 1) : commit;
   Object.assign(atk, { kind, phase, t: 0, dur, n: 0, next: 0 });
+  // The sleds' guns follow the turn's stream: warned with it, firing in its commit, resting after.
+  if (kind === 'stream') for (const sl of b.sleds) if (sl.on) Object.assign(sl.gun, { phase, shots: 0, t: 0 });
   if (phase === 'prepare') atk.data = {};
   if (phase === 'commit' && kind === 'spiral') atk.data = { base: world.rng('boss')() * TAU, dir: world.rng('boss')() < 0.5 ? -1 : 1 };
   if (phase === 'commit' && kind === 'launch') b.launchedAt = world.time;
@@ -269,7 +279,8 @@ function commitStep(world, b) {
 }
 
 // The sleds: held on the rig by a spring toward their places behind the core, their tethers a rope that never stretches past its length;
-// each fires its own stream on its own clock. A sled shot off is loose debris that hits nothing, drifting and turning.
+// each fires its stream in the turn's `stream` slot (begin sets their guns' phase). A sled shot off is loose debris that hits nothing,
+// drifting and turning.
 function stepSleds(world, b, dt) {
   const B = CONFIG.boss, S = B.body.sled, G = B.sledGun, ship = world.ship;
   for (const sl of b.sleds) {
@@ -290,26 +301,19 @@ function stepSleds(world, b, dt) {
       const out = (sl.vx - b.vx) * nx + (sl.vy - b.vy) * ny;
       if (out > 0) { sl.vx -= nx * out; sl.vy -= ny * out; }
     }
-    // Its gun turns to the pilot while it is to fire (and in the last of its rest), else it faces as the core does.
-    const g = sl.gun, toP = world.delta(ship.x, ship.y, sl.x, sl.y), gap = Math.hypot(toP.x, toP.y);
-    const aiming = g.phase !== 'recover' || g.t > G.recover * 0.6;
-    const want = aiming ? Math.atan2(toP.y, toP.x) : b.heading;
+    // Its gun turns to the pilot while it is warned and fires, else it faces as the core does.
+    const g = sl.gun, toP = world.delta(ship.x, ship.y, sl.x, sl.y);
+    const want = g.phase !== 'recover' ? Math.atan2(toP.y, toP.x) : b.heading;
     sl.angle += clamp(wrapPi(want - sl.angle), -G.turn * dt, G.turn * dt);
-    // Its own clock: warned, a stream at where the pilot is, a rest; only near the pilot, and not while the pilot is docked, nor while the
-    // boss lies in wait.
-    if (b.dormant) { g.phase = 'recover'; g.t = 0; continue; }
+    // The stream, in the turn's commit: `shots` at where the pilot is, `every` s apart; never while the boss lies in wait.
+    if (b.dormant) { g.phase = 'recover'; continue; }
+    if (g.phase !== 'commit') continue;
     g.t += dt;
-    const recover = G.recover * (raging(b) ? B.rage.recover : 1);
-    if (g.phase === 'recover' && g.t >= recover && gap < B.reach && !world.docked) { g.phase = 'prepare'; g.t = 0; }
-    else if (g.phase === 'prepare' && g.t >= G.prepare) { g.phase = 'commit'; g.t = 0; g.shots = 0; }
-    else if (g.phase === 'commit') {
-      const speed = G.speed * (raging(b) ? B.rage.speed : 1);
-      while (g.shots < G.shots && g.t >= g.shots * G.every) {
-        const mx = sl.x + Math.cos(sl.angle) * G.muzzle, my = sl.y + Math.sin(sl.angle) * G.muzzle, aim = world.delta(ship.x, ship.y, mx, my);
-        shoot(world, mx, my, Math.atan2(aim.y, aim.x), speed, G.life);
-        g.shots++;
-      }
-      if (g.shots >= G.shots) { g.phase = 'recover'; g.t = 0; }
+    const speed = G.speed * (raging(b) ? B.rage.speed : 1);
+    while (g.shots < G.shots && g.t >= g.shots * G.every) {
+      const mx = sl.x + Math.cos(sl.angle) * G.muzzle, my = sl.y + Math.sin(sl.angle) * G.muzzle, aim = world.delta(ship.x, ship.y, mx, my);
+      shoot(world, mx, my, Math.atan2(aim.y, aim.x), speed, G.life);
+      g.shots++;
     }
   }
 }

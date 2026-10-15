@@ -157,8 +157,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     const guideArgs = { reducedMotion: feedback.reducedMotion, plate: GUIDE_PLATE };
     // In O-08 with no route of its own, the way out (src/navigation.js exitNavigation).
     const guides = [guideOf(r, world, { ...guideArgs, route: exitNavigation(world) })];
-    // The quests whose marks stand in the sky (src/tasks.js markedQuests): every quest but those the pilot switched off by a click on
-    // its plate (SX, 2026-10-09), beside the cargo's (P3).
+    // The quests whose marks stand in the sky (src/tasks.js markedQuests): every quest (SX, 2026-10-09), beside the cargo's (P3).
     const marked = markedQuests(world, questBoard, MARKED);
     // The selected quest's pointer is the one at full light, the others dimmed, and it pings as it is selected (src/tasks.js MARK_FOCUS:
     // SX's M3 PING, 2026-10-08).

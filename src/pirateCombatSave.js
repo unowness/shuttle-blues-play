@@ -36,8 +36,16 @@ export function readPiratePosts(raw, ledger) {
     if (p.kind !== 'gather' && (s.kind !== 'ruin' || ledger.restored.has(id))) continue;
     const mix = readPirateRoster(p.mix, p.size - p.down);
     if (!mix) continue;
+    const paint = CONFIG.pirates.paints.some((q) => q.id === p.paint) ? p.paint : null;
+    // A ruin's guards come back whole at a load (SX, 2026-10-15, W3 «B»: «весь отряд заново»): the tally beaten in part is the whole
+    // squad again, in its paint and its one hull (a mix of several is drawn afresh), with fresh supplies. Re-entering the sector without
+    // a load still meets the rest of it. A gathering keeps its part, as a raid does.
+    if (p.kind !== 'gather' && p.down > 0) {
+      posts.set(id, { size: p.size, down: 0, at: p.at, mix: new Set(mix).size === 1 ? Array(p.size).fill(mix[0]) : null, paint });
+      continue;
+    }
     posts.set(id, { ...(p.kind === 'gather' ? { kind: 'gather' } : {}), size: p.size, down: p.down, at: p.at,
-      mix, paint: CONFIG.pirates.paints.some((q) => q.id === p.paint) ? p.paint : null, combat: readPirateCombat(p.combat) });
+      mix, paint, combat: readPirateCombat(p.combat) });
   }
   return posts;
 }

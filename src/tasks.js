@@ -94,18 +94,16 @@ export function pingShare(age, reduced = false) {
   return 1 - (1 - P.low) * (0.5 - 0.5 * Math.cos(2 * Math.PI * P.blinks * (age / P.life)));
 }
 
-// The quests whose marks stand in the sky (their pointer on the rim, or by their thing on the screen: labs/graphics/main.js): every
-// quest as it comes, until the pilot switches its marks off by a click on its plate (the quest list's `off`; a click again turns
-// them back on), and the selected one always (a key or a notice selects; SX, 2026-10-09: «все квесты, когда они появляются, они
-// показывают метки на карте. Если пользователь кликнул в него, то он его отключил просто»), and the one that `keep`s its marks (the
-// ruin's restoration in the opening, src/opening.js: «должна быть всегда метка на станцию, да, фиолетовая оставаться»). Until then only a clicked quest and the
-// purple, the timed and a stranger's lost cargo showed them (SX, 2026-10-07). The cargo is no quest: its pointer (to its station
+// The quests whose marks stand in the sky (their pointer on the rim, or by their thing on the screen: labs/graphics/flight-frame.js): every
+// quest, as it comes and while it stands (SX, 2026-10-09: «все квесты, когда они появляются, они показывают метки на карте»); the pilot's
+// pick dims the others' (MARK_FOCUS), it hides none. From 2026-10-09 to SX's W8 «B» (2026-10-15) a click on a quest's plate switched its
+// marks off and picked nothing; a click picks again now (labs/graphics/quest-list.js clickQuestBoard). Until 2026-10-09 only a clicked quest
+// and the purple, the timed and a stranger's lost cargo showed them (SX, 2026-10-07). The cargo is no quest: its pointer (to its station
 // while carried, to where it lies once lost) is drawn whatever is selected, until it is delivered or goes back to its station
-// (src/navigation.js deliveryNavigation). `out` (an array kept by the caller) is filled.
+// (src/navigation.js deliveryNavigation). `board` is the quest list's, read by no rule now. `out` (an array kept by the caller) is filled.
 export function markedQuests(world, board, out = []) {
   out.length = 0;
-  const id = board?.activeId ?? null, off = board?.off;
-  for (const q of currentQuests(world)) if (q.id === id || q.keep || !off?.has(q.id)) out.push(q);
+  for (const q of currentQuests(world)) out.push(q);
   return out;
 }
 

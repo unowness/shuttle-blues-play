@@ -18,8 +18,9 @@ import { contentLinks } from './mapContent.js';
 //           станций нет пиратов даже в квестах, должно быть от 4 до 8 всегда»), funded or not. No money goes in while it flies there;
 //           once every one of it is down (or has run), the ruin is clear (the ledger's `cleared`, which the quests count once) and its
 //           guards are back `guardsEvery` s later on the pilot's clock (the ledger's `guardsAt`), until it is restored. The tally is
-//           saved since v25 (World.posts, `piratePosts`, src/pirateCombatSave.js; Codex, 2026-10-09): a reload keeps the part not yet
-//           beaten, and `guardsEvery` s with part of it beaten bring the whole squad back. A squad at
+//           saved since v25 (World.posts, `piratePosts`, src/pirateCombatSave.js; Codex, 2026-10-09): leaving the sector and coming back
+//           meets the part not yet beaten, a reload the whole squad (SX, 2026-10-15, W3 «B»), and so do `guardsEvery` s with part of it
+//           beaten. A squad at
 //           its post is not wrecked by the rocks that drift through its ring (src/pirates.js): until 2026-10-08 they were, and a ruin was
 //           cleared, and a raid won, with no shot fired.
 //   RAIDS  one at a time, on the pilot's clock (CONFIG.raids): a working station is besieged and the pilot has `time`
@@ -142,7 +143,7 @@ export function stepPosts(world, dt) {
 // he has been elsewhere that long. Then, the first time he is in the sector and not within `clear` u of the station (they
 // would appear in view), there is a squad of `size[0]` ships, one more for each `grow` s past `after` up to `size[1]`: the
 // longer away, the more of them. It circles the station as a ruin's guards do (kind 'gather'), and the station is no refuge
-// while it does. Every one down or run, and the wait starts over. A reload keeps the part not yet beaten (save v25), as the guards'.
+// while it does. Every one down or run, and the wait starts over. A reload keeps the part not yet beaten (save v25); a ruin's guards come back whole (W3).
 function gatherTally(world, s) {
   const L = world.ledger, G = R().regather;
   const held = world.posts.get(s.id);
@@ -158,7 +159,7 @@ function gatherTally(world, s) {
   return tally;
 }
 
-// A ruin's guards' tally (saved since v25: a reload keeps the part not yet beaten): `guardSize` ships by its price, made at `at` on the pilot's
+// A ruin's guards' tally (saved since v25; a reload makes it whole again, src/pirateCombatSave.js readPiratePosts): `guardSize` ships by its price, made at `at` on the pilot's
 // clock; one met in part and left is whole again once `guardsEvery` s have passed since.
 function guardTally(world, s) {
   const L = world.ledger;

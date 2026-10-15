@@ -4,6 +4,8 @@
 // on, the same objects), so every reader is unchanged. The code is src/bodies.js, src/field.js, src/secretHole.js and src/progression.js
 // (the rocks' drops).
 
+import { FLIGHT } from './flightConfig.js';
+
 export const BODIES = {
   asteroid: {
     tiers: [
@@ -104,17 +106,25 @@ export const BODIES = {
     // contact (src/hits.js bumpShip, src/contact.js rebound). 0.35 until SX's word of 2026-10-09 («фрикшн от столкновений слишком
     // большой. Можешь сделать его поменьше»), 0.65 since: the speed a touch takes off the hull falls by about half (a head-on blow
     // leaves the hull at 0.65 of the closing speed where it left it at 0.35; a blow 45 degrees off the normal keeps 0.84 of the hull's
-    // speed where it kept 0.75). `knockRestitution`: the same for a thing that is knocked along, a droid or a friendly ship, whose share
+    // speed where it kept 0.75). 0.3 since SX's FC1 of 2026-10-15 («отскок от камней очень сильный, нужно значительно уменьшить ...
+    // должен быть некоторый отскок, но не как от резинки»): a head-on rock sends the hull back at 0.3 of its closing speed, not 0.65;
+    // a hard blow breaks the rock instead (`ram` below), so a fast head-on hit no longer stops the hull dead. `knockRestitution`: the same for a thing that is knocked along, a droid or a friendly ship, whose share
     // of the blow is worked out from it (CONFIG.droids.mass; CONFIG.traffic.npcSolid.knock.share is (1 + 0.35) / 2 of equal masses):
     // raised there, the thing would take more of the blow and the hull keep less of its way, so it stays 0.35, as it was.
     bump: {
       speed: 140,
-      restitution: 0.65,
+      restitution: 0.3,
       knockRestitution: 0.35,
       sparkMin: 15,        // u/s: resting contact makes no sparks
       sparks: ['*', '+', '\u2726', '\u00b7', '\u00d7'],
       colors: ['#ffffff', '#ffe7a3', '#ffd27f', '#ff9d4d'],
       rockPush: 0.25,      // share of the closing speed a free rock takes away
+      // A hard blow breaks the rock (SX's FC1, 2026-10-15: «камень должен разбиться если столкновение сильное»; src/hits.js ramAsteroid):
+      // one of `breaks` points or more by the hull's rule (CONFIG.hull, the cube), the heavy blow the warning says (FLIGHT.warn.heavy 10):
+      // head-on from about 470 u/s of closing, or a jump landed on it from about 335. The hull pays it as before (SX: the rocks' damage stays), is
+      // not bounced, and loses `loss` of its closing speed along the contact; the pieces go `gap` u clear either side of its way, flung
+      // off at `scatter` u/s.
+      ram: { breaks: FLIGHT.warn.heavy, loss: 0.5, scatter: 140, gap: 6 },
       // A collision costs coins (SX, 2026-09-24): `spill` CR leave the wallet
       // as a scatter of 1 CR coins around the contact, flung past the hull's
       // pull and untouchable for `spillDelay` seconds, then free to gather
