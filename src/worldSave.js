@@ -209,6 +209,7 @@ export function restoreWorld(world, data) {
   world.docked = null;
   world.home = null;
   world.berth = null;
+  world.dockHeld = null;
   // A ship saved in a berth (or anywhere in a station's body) flies out of it as if undocking.
   const inside = world.stations.find((st) => st.contact(world.ship.x, world.ship.y, world.ship.radius, world.delta.bind(world)));
   world.leavingStation = inside ? inside.id : null;

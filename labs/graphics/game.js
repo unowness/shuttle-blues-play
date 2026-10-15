@@ -64,6 +64,7 @@ import { createCursor, CURSORS } from './cursor.js';
 import { createPause } from './pause.js';
 import { createNotices, NOTICE_FATES } from './notices.js';
 import { createOpeningFocus, readFocusSwitch, FOCUS_DEFAULT } from './opening-focus.js';
+import { createTalkBeat } from './talk-beat.js';
 import { createScreens } from './screens.js';
 import { createInputRouter } from './input-router.js';
 import { createSaveKeeper } from './save-keeper.js';
@@ -291,6 +292,8 @@ export function createGame(env) {
   // and the screens (labs/graphics/screens.js) themselves.
   // The opening's beats (labs/graphics/opening-focus.js): the game's FOCUS_DEFAULT, the lab's `?focus=` to compare.
   game.focus = createOpeningFocus(game, GAME ? FOCUS_DEFAULT : readFocusSwitch(pageParams));
+  // A talk as a beat of its own (labs/graphics/talk-beat.js, SX's D4C of 2026-10-15): the veil, the world slowed, the speaker's window.
+  game.beat = createTalkBeat(game);
   const notices = game.notices = createNotices(game);
   const screens = game.screens = createScreens(game);
   const tabs = typeof env.BroadcastChannel === 'function' && storage.available

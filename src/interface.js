@@ -146,14 +146,16 @@ export function drawObjectFocus(r, world, target, { cargoAcknowledged = false } 
   else if (target && lock > FOCUS_LOCK.gone) {
     withAlpha(r.ctx, lock, () => drawTargetBrackets(r, focusBox(r, world, target), accent(), (1 - lock) * FOCUS_LOCK.spread));
   }
-  if (world.cargo) {
+  // As faint as the container is drawn while the hull dives into a station's dock and rises (src/worldDraw.js, `cargoShade`).
+  const shade = world.cargo ? (world.cargoShade?.() ?? 1) : 0;
+  if (shade > 0.01) {
     const p = world.project(r, world.cargo.x, world.cargo.y);
     const model = sprite('cargo-container');
     // A square envelope accommodates the rotating container in every heading.
     const side = Math.hypot((model?.width || 7) * r.cellW,
       (model?.height || 7) * r.cellH) * CONFIG.cargo.spriteScale + 12;
-    drawTargetBrackets(r, { x: p.x - side / 2, y: p.y - side / 2, w: side, h: side },
-      cargoAcknowledged ? ink() : accent());
+    const box = { x: p.x - side / 2, y: p.y - side / 2, w: side, h: side }, tone = cargoAcknowledged ? ink() : accent();
+    if (shade < 1) withAlpha(r.ctx, shade, () => drawTargetBrackets(r, box, tone)); else drawTargetBrackets(r, box, tone);
   }
 }
 

@@ -12,9 +12,11 @@ import { keptDraw } from '../../src/grade.js';
 import { ROLES } from '../../src/roles.js';
 import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, MOTION_INKS } from './ship-motion.js';
 import { BLOCK_TONES, planetTones, ROCK_EDGE, ROCK_INKS, ROCK_LIT, ROCK_SHADE, SHADE_GAP, ROCK_RELIEF } from './art-tones.js';
-import { stationLook, stationCells, LOOK_SCALE, MAX_CELLS } from './station-art.js';
+import { stationLook, stationCells, lookOrigin, LOOK_SCALE, MAX_CELLS } from './station-art.js';
 import { prepareHome, drawHome, homeLive } from './garage-art.js';
 import { BOARD, BOARD_INK, dockState, homeDockState } from '../../src/home.js';
+import { stationDockState, dockLook, cargoStowed } from '../../src/docking.js';
+import { shipDockLook } from './dock-fx.js';
 import { flyingLoaner, LOANER_LIVERY } from '../../src/loaner.js';
 import { airLook, drawAirShip } from './stunt-fx.js';
 import { passedOver, underShip } from '../../src/trick.js';
@@ -159,11 +161,12 @@ function floating(x, y, n, t) {
     angle: t * spin + n * 20,
   };
 }
-// `angle`: the station's turn in the float (src/float.js), drawn in steps of CONFIG.float.step degrees.
+// `angle`: the station's turn in the float (src/float.js), drawn in steps of CONFIG.float.step degrees. `dock`: the home garage's docking
+// state (src/home.js homeDockState), or a look's (src/docking.js stationDockState: which of its docks works and at what step).
 export function drawStation(r, sx, sy, station, active = false, rebuilt = 1, t = 0, lookScale = LOOK_SCALE, dock = null, angle = 0) {
   if (station.kind === 'home') { drawHomeLook(r, sx, sy, rebuilt, t, lookScale, dock, dock ? station : null); return; }
   const look = station.look ? stationLook(station.look) : null;
-  if (look) { drawLook(r, sx, sy, look, active, rebuilt, t, lookScale, angle); return; }
+  if (look) { drawLook(r, sx, sy, look, active, rebuilt, t, lookScale, angle, dock); return; }
   const art = stations[station.becomes || station.kind] || stations.garage;
   const scale = station.model.scale / 2;
   const w = r.cellW * scale, h = r.cellH * scale;
@@ -192,10 +195,14 @@ export function drawStation(r, sx, sy, station, active = false, rebuilt = 1, t =
 // boards above: a ruin keeps `rebuilt` of its cells, the rest gone (some of them
 // drifting beside it) or hanging loose in the quiet ink, and nothing in it moves
 // or lights until it is whole. Docked or selected, its lights are the
-// interaction's green.
-function drawLook(r, sx, sy, st, active, rebuilt, t, sc, angle = 0) {
-  const w = r.cellW * sc, h = r.cellH * sc;
-  if (r.onScreen && !r.onScreen(sx, sy, Math.hypot(st.W * w, st.H * h) / 2 + (RUIN.drift + RUIN.float.sway) * w)) return;
+// interaction's green. Drawn about its own middle (station-art.js lookOrigin): the
+// board holds its external dock and a docked ship beside it. `dock`: its docks'
+// steps (src/docking.js stationDockState), idle without.
+function drawLook(r, sx, sy, st, active, rebuilt, t, sc, angle = 0, dock = null) {
+  const w = r.cellW * sc, h = r.cellH * sc, o = lookOrigin(st);
+  const reach = Math.hypot(Math.max(o.x, st.W - 1 - o.x) * w, Math.max(o.y, st.H - 1 - o.y) * h);
+  if (r.onScreen && !r.onScreen(sx, sy, reach + (RUIN.drift + RUIN.float.sway) * w)) return;
+  st.S.dockState = dock;
   const broken = 1 - Math.max(0, Math.min(1, rebuilt));
   const gone = broken * RUIN.gone, loose = gone + broken * RUIN.loose;
   // Turned in the float: each cell about the middle, each glyph by the turn, held to its steps (CONFIG.float.step).
@@ -203,7 +210,7 @@ function drawLook(r, sx, sy, st, active, rebuilt, t, sc, angle = 0) {
   const ca = Math.cos(a), sa = Math.sin(a);
   if (a) r = turnedGlyphs(r, sx, sy, ca, sa, a);
   stationCells(st, broken ? 0 : t, (x, y, ch, ink, alpha, moving) => {
-    const px = sx + (x - (st.W - 1) / 2) * w, py = sy + (y - (st.H - 1) / 2) * h;
+    const px = sx + (x - o.x) * w, py = sy + (y - o.y) * h;
     if (broken) {
       const n = cellNoise(x, y, 1);
       if (n < gone) {
@@ -218,6 +225,7 @@ function drawLook(r, sx, sy, st, active, rebuilt, t, sc, angle = 0) {
     } else if (active && ink === ROLES.highlight) ink = ROLES.interactionActive;
     r.glyph(ch, px, py, ink, alpha, sc);
   });
+  st.S.dockState = null;
 }
 
 // A renderer whose glyphs are turned by `a` about (sx, sy) (cosine `ca`, sine `sa`): a station's cells in the float.
@@ -260,7 +268,7 @@ function drawHomeLook(r, sx, sy, rebuilt, t, sc, dock, station = null) {
 // A station's look in a window (src/stationPanel.js): drawn at once rather than
 // queued behind the world, at CONFIG.station.panelScale, one scale for every
 // look so their sizes compare; a ruin as broken as it is.
-export function drawStationNow(r, cx, cy, station, rebuilt = 1, t = 0) {
+export function drawStationNow(r, cx, cy, station, rebuilt = 1, t = 0, fit = null) {
   const now = Object.create(r);
   now.onScreen = () => true;
   now.glyph = (ch, x, y, ink, a = 1, s = 1) => r.glyphNow(ch, x, y, ink, a, s);
@@ -270,8 +278,14 @@ export function drawStationNow(r, cx, cy, station, rebuilt = 1, t = 0) {
     r.glyphNow(ch, 0, 0, ink, a, s);
     ctx.restore();
   };
-  // The home garage's board is wider than any look's: its scale is the one that gives it the width of the widest look.
-  const scale = station.kind === 'home' ? CONFIG.station.panelScale * MAX_CELLS.w / BOARD.W : CONFIG.station.panelScale;
+  // The home garage's board is wider than any look's: its scale is the one that gives it the width of the widest look. A look is drawn at
+  // the panel's own scale; one grown past it (the looks of 2026-10-15) a whole px less a cell till its station (its `core`, without the
+  // dock) fits: in `fit` ({ w, h } px, the box it is shown in less its air) when the caller gives one, else in the old largest look's
+  // cells (42 x 22) at that scale. So the picture keeps to its box and its rows still fall on whole px.
+  const R = CONFIG.render, core = station.look ? stationLook(station.look)?.core : null, most = Math.floor(R.fontSize * CONFIG.station.panelScale + 1e-9);
+  const px = !core ? most : fit ? Math.min(most, Math.floor(Math.min(fit.w * R.fontSize / (core.W * r.cellW), fit.h * R.fontSize / (core.H * r.cellH)) + 1e-9))
+    : Math.floor(R.fontSize * CONFIG.station.panelScale * Math.min(1, MAX_CELLS.w / core.W, MAX_CELLS.h / core.H) + 1e-9);
+  const scale = station.kind === 'home' ? CONFIG.station.panelScale * MAX_CELLS.w / BOARD.W : Math.max(4, px) / R.fontSize;
   drawStation(now, cx, cy, station, false, rebuilt, t, scale);
 }
 
@@ -839,7 +853,8 @@ export function createWorldPresentation(world, settings) {
     group.stations.forEach(s => {
       // A look is drawn at its own size: the menus stand clear of that, not of the model's.
       const look = s.look ? stationLook(s.look) : null;
-      if (look) s.footprint = { model: { width: look.W, height: look.H }, scale: LOOK_SCALE };
+      // The station itself, without its external dock and the ship it holds (station-art.js `core`, its middle the look's origin).
+      if (look) s.footprint = { model: { width: look.core?.W ?? look.W, height: look.core?.H ?? look.H }, scale: LOOK_SCALE };
       else if (s.kind === 'home') {
         // The drawing's own box (BOARD_INK), off the board's middle by as much (`dx`, `dy` are screen cells: scaled here).
         const I = BOARD_INK;
@@ -853,7 +868,7 @@ export function createWorldPresentation(world, settings) {
         const rebuilt = Math.min(broken, this.kind === 'ruin' ? rebuiltShare(world.ledger, this) : 1);
         // Under the pointer it stays its size: the pointer shows its window instead (SX, 2026-10-04; labs/graphics/world-pointer.js).
         drawStation(r, x, y, this, world.docked === this.id || world.selected?.id === this.id, rebuilt, world.time, LOOK_SCALE,
-          this.kind === 'home' ? homeDockState(world, this) : null, this.angle);
+          this.kind === 'home' ? homeDockState(world, this) : stationDockState(world, this), this.angle);
       });
     });
     return group;
@@ -893,8 +908,8 @@ export function createWorldPresentation(world, settings) {
     const now = world.time, dt = motionAt === null ? 0 : Math.min(0.1, Math.max(0, now - motionAt));
     motionAt = now;
     const speed = Math.hypot(this.vx, this.vy);
-    // The home garage flies the ship in and out (src/home.js), and the way in glides it into a station (src/approach.js):
-    // the burns they ask of the engines are drawn, the pilot's stick and brake are not.
+    // The home garage flies the ship in and out (src/home.js): the burns it asks of the engines are drawn, the pilot's stick and
+    // brake are not. A station's dive and rise (src/docking.js) ask none.
     const driven = !!world.home || !!world.berth;
     const flying = !world.docked || driven;
     stepShipMotion(motion, {
@@ -905,10 +920,30 @@ export function createWorldPresentation(world, settings) {
       const inks = flownShipInks(world, ship.thrusting || ship.retroing);
       drawPilotShip(r, ship, x, y, motion, inks.ink, inks.paint, { docked: !!world.docked, reducedMotion: api.reducedMotion, shade: api.shipShade });
     };
+    // Diving into a station's dock or out of it, and rising (src/docking.js, labs/graphics/dock-fx.js): grown or shrunk, sunk, faded;
+    // not drawn at all while it is under the station.
+    const docking = world.berth && !world.home ? shipDockLook(dockLook(world), { reducedMotion: api.reducedMotion }) : null;
+    if (docking) {
+      if (docking.hidden || docking.alpha <= 0.01) return;
+      const m = this.metrics || this.measureDrawing(r.cellW, r.cellH), model = Object.create(this.model);
+      model.scale = this.model.scale * docking.grow;
+      const ship = Object.create(this, { model: { value: model }, metrics: { value: { ...m, w: m.w * docking.grow, h: m.h * docking.grow } } });
+      const inks = flownShipInks(world, false);
+      drawPilotShip(r, ship, sx, sy + docking.dy, motion, inks.ink, inks.paint, { docked: true, reducedMotion: api.reducedMotion, shade: (api.shipShade ?? 1) * docking.alpha });
+      return;
+    }
     // Up in a jump, or squashed by its contact (src/trick.js): lifted, grown, folded by a figure.
     const look = world.stunts?.trick ? airLook(world, { reducedMotion: api.reducedMotion }) : null;
     if (look) drawAirShip(this, sx, sy, look, paint); else paint(this, sx, sy);
   });
+  // The cargo dives and rises with the hull (src/worldDraw.js draws it this faint): unseen while the hull is under the station, and
+  // stowed in the station while the ship stands on a pad (src/docking.js cargoStowed).
+  world.cargoShade = () => {
+    if (!world.docked || world.home) return 1;
+    if (cargoStowed(world)) return 0;
+    const d = world.berth ? shipDockLook(dockLook(world), { reducedMotion: api.reducedMotion }) : null;
+    return !d ? 1 : d.hidden ? 0 : d.alpha;
+  };
   const starsDraw = world.starfield.draw;
   const starInk = new Map();
   world.starfield.layers.forEach(({ stars }, i) => stars.forEach(s => starInk.set(s.color, STAR_ROLES[i])));
@@ -952,9 +987,10 @@ export function createWorldPresentation(world, settings) {
     if (!look) return null;
     const w = CONFIG.render.fontSize * 0.62 * LOOK_SCALE, h = CONFIG.render.fontSize * CONFIG.render.lineRatio * LOOK_SCALE, out = [];
     const c = Math.cos(station.angle ?? 0), s = Math.sin(station.angle ?? 0);   // turned with it in the float (src/float.js)
+    const o = lookOrigin(look);
     stationCells(look, world.time, (x, y, ch, ink, alpha) => {
       if (ch === ' ' || alpha < 0.3) return;
-      const dx = (x - (look.W - 1) / 2) * w, dy = (y - (look.H - 1) / 2) * h;
+      const dx = (x - o.x) * w, dy = (y - o.y) * h;
       out.push({ ch, color: ink, dx: dx * c - dy * s, dy: dx * s + dy * c, size: LOOK_SCALE, raw: true });
     });
     return out;

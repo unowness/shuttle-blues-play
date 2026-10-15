@@ -156,8 +156,10 @@ export class World {
     // drawing shows as rings from the dish; nothing here reads it.
     this.home = null;
     this.homeGuide = false;
-    // The way in (src/approach.js): `berth` while the ship glides from where DOCK found it into a station's middle, held docked.
+    // A docking at a station (src/docking.js): `berth` while the ship dives and rises into its dock (or out of it, `leaving`), null
+    // once it is held there; `dockHeld` which dock holds it (the pad or the external one) and since when, null when not docked.
     this.berth = null;
+    this.dockHeld = null;
     // The station a ship has just left the berth of (or loaded inside): its body does not hold the ship
     // until the ship is clear of it (World.resolveHits).
     this.leavingStation = null;
@@ -392,6 +394,9 @@ export class World {
     this.stationPieces = null;
     // And how the boss is drawn (labs/graphics/boss-art.js through world-art.js; a World without the page draws none: src/boss.js).
     this.drawBoss = null;
+    // And how faint the towed cargo is drawn while the hull dives into a station's dock and rises (world-art.js; src/worldDraw.js reads
+    // it, and a World without the page draws its cargo whole).
+    this.cargoShade = null;
     this.egg = { held: 0, done: false }; // src/eggs.js's own
 
     if (quiet) this.quieten();
@@ -462,6 +467,7 @@ export class World {
     this.docked = null;
     this.home = null;
     this.berth = null;
+    this.dockHeld = null;
     this.leavingStation = null;
     this.drops = [];
     suspendPirateCombat(this);
@@ -930,6 +936,7 @@ export class World {
     // A wreck or a sector load takes the ship out of the garage's hands: its docking ends with them.
     if (this.home && this.docked !== this.home.stationId) this.home = null;
     if (this.berth && this.docked !== this.berth.stationId) this.berth = null;
+    if (this.dockHeld && this.docked !== this.dockHeld.stationId) this.dockHeld = null;
     if (this.docked) {
       if (this.home) stepHome(this, dt);
       else stepDocked(this, dt);

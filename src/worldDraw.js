@@ -23,6 +23,7 @@ import { drawPestered } from './pester.js';
 import { drawWreck } from './wrecked.js';
 import { drawSuitcase, PLANET_ID } from './errands.js';
 import { drawSpecial, drawFlownShip, boarded } from './specials.js';
+import { dockView } from './docking.js';
 import { towSize, anchorOf } from './tow.js';
 import { liftOffset, cargoHeight, passedOver, underShip } from './trick.js';
 import { drawDroid, drawServiceFx, DROID_INKS, DROID_CAPTION, droidFootprint } from './droids.js';
@@ -74,6 +75,19 @@ class WorldDrawing {
 
   updateCamera(r, dt) {
     const ship = this.ship;
+    // Docked, the camera holds the station in the sky's middle (SX, 2026-10-15: «когда корабль в доке, станция должна находится в
+    // центре экрана, как и гараж ... камера должна плавно и естественно приводить нас к центру экрана»), easing there and back at the
+    // follow's own pace: the point src/docking.js dockView names, placed at the middle of the sky (Renderer.view), not at the ship's
+    // own place on the screen (r.cy, below it).
+    const held = dockView(this);
+    if (held) {
+      const midY = r.view ? r.view.y + r.view.h / 2 : r.cy, midX = r.view ? r.view.x + r.view.w / 2 : r.cx;
+      const to = this.delta(held.x + (r.cx - midX), held.y + (r.cy - midY), this.cam.x, this.cam.y);
+      const kh = clamp(CONFIG.camera.follow * dt * 60, 0, 1);
+      this.cam.x += to.x * kh; this.cam.y += to.y * kh;
+      if (this.topology.mode === WRAP) { this.cam.x = wrapTo(this.cam.x, this.width); this.cam.y = wrapTo(this.cam.y, this.height); }
+      return;
+    }
     const d = this.delta(ship.x, ship.y, this.cam.x, this.cam.y);
     const lead = CONFIG.camera.lead;
     let lx = clamp(ship.vx * lead, -CONFIG.camera.leadMax, CONFIG.camera.leadMax);
@@ -899,7 +913,10 @@ class WorldDrawing {
     }
 
     lap('cargo');
-    if (this.cargo) {
+    // Diving into a station's dock and rising with the hull (src/docking.js; the page's `cargoShade`, labs/graphics/world-art.js): as
+    // faint as the hull is drawn, unseen while it is under the station.
+    const cargoShade = this.cargo ? (this.cargoShade?.() ?? 1) : 0;
+    if (this.cargo && cargoShade > 0.01) {
       const c = CONFIG.cargo;
       const size = towSize(this);
       const tow = this.cargo;
@@ -931,10 +948,10 @@ class WorldDrawing {
       const marks = clamp(Math.round(len / 18), 3, 8);
       for (let i = 1; i <= marks; i++) {
         const k = i / (marks + 1), q = 1 - k;
-        r.glyph(c.tetherGlyph, q * q * from.x + 2 * q * k * mx + k * k * to.x, q * q * from.y + 2 * q * k * my + k * k * to.y, c.color, 0.9);
+        r.glyph(c.tetherGlyph, q * q * from.x + 2 * q * k * mx + k * k * to.x, q * q * from.y + 2 * q * k * my + k * k * to.y, c.color, 0.9 * cargoShade);
       }
-      if (art) drawSprite(r, art, t, a.x, a.y, { scale, angle: tow.angle + Math.PI / 2, alpha: 1 });
-      else r.glyph(c.glyph, a.x, a.y, c.color, 1, 1.6);
+      if (art) drawSprite(r, art, t, a.x, a.y, { scale, angle: tow.angle + Math.PI / 2, alpha: cargoShade });
+      else r.glyph(c.glyph, a.x, a.y, c.color, cargoShade, 1.6);
     }
 
     lap('sparks');

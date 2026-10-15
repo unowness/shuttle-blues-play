@@ -15,6 +15,7 @@ import { FIND_COLS } from './find-notice.js';
 import { moneyRuns, drawRuns } from '../../src/money.js';
 import { W, G, QT, ledger, finish, layoutWindow, paintWindow, lines, leaf, col, sec, len } from './ledger.js';
 import { drawGreetOffer, DEFAULT_GREETING } from './greeting.js';
+import { PAD, LOOK_SCALE } from './station-art.js';
 
 // A menu with words (`target.talk` { name, lines }: an NPC's thanks once its quest is done, src/world.js) is a dialog window:
 // the name in the first row, then what it says, as wide as a find's notice's words (SX, 2026-10-02: «в диалоговом окне ...
@@ -114,10 +115,37 @@ function offAvoid(view, b, avoid, m = PLATE.margin) {
   return out;
 }
 
+// Docked at its object (src/docking.js, 2026-10-15), the ship stands on the station's pad or hangs at its external dock, beside the
+// station where the window leans, and the grown stations held in the view's middle all but fill it. So the window stands by the dock:
+// under it, `gap` clear of the hull and of a pad's frame (the largest own ship with a cell round, labs/graphics/station-art.js PAD); where
+// under is no room, over it, then at its right, then at its left; whole in the room and off `avoid`. Over the station's edge if it must,
+// never over the ship (SX, 2026-10-08: «в сторону нашего корабля тянуться, но не перекрывать его»): where nothing fits, under the hull
+// itself, held in the room. The side it takes is kept while the station floats (its memory's `dockSide`), held into the room, for as long
+// as it stays off the ship: a side that only just fitted came and went with the float, and the window crossed the ship going between.
+function dockedPlace(r, world, view, room, hull, w, h, avoid, it) {
+  const m = PLATE.margin, g = PLATE.gap, cx = hull.x + hull.w / 2, cy = hull.y + hull.h / 2, pad = world.dockHeld.kind === 'pad';
+  const bw = pad ? Math.max(hull.w, PAD.W * r.cellW * LOOK_SCALE) : hull.w, bh = pad ? Math.max(hull.h, PAD.H * r.cellH * LOOK_SCALE) : hull.h;
+  const dock = { x: cx - bw / 2, y: cy - bh / 2, w: bw, h: bh };
+  const inX = (x) => clamp(x, room.x + m, Math.max(room.x + m, room.x + room.w - m - w));
+  const inY = (y) => clamp(y, room.y + m, Math.max(room.y + m, room.y + room.h - m - h));
+  const tries = [[inX(cx - w / 2), dock.y + bh + g], [inX(cx - w / 2), dock.y - g - h], [dock.x + bw + g, inY(cy - h / 2)], [dock.x - g - w, inY(cy - h / 2)]];
+  if (it.dockSide != null) {
+    const [x, y] = tries[it.dockSide], b = { x: inX(x), y: inY(y), w, h };
+    if (!avoid.some((q) => overlaps(b, q)) && !overlaps(b, dock, PLATE.clear)) return b;
+  }
+  for (let i = 0; i < tries.length; i++) {
+    const b = { x: tries[i][0], y: tries[i][1], w, h };
+    if (shownShare(room, b, m) > 0.999 && !avoid.some((q) => overlaps(b, q)) && !overlaps(b, dock, PLATE.clear)) { it.dockSide = i; return b; }
+  }
+  return offAvoid(view, { x: inX(cx - w / 2), y: inY(hull.y + hull.h + g), w, h }, avoid);
+}
+
 // One step of the window about `target`, `w` x `h`: where it stands now. `t` the world's time.
 function stepPlace(r, world, target, w, h, avoid, { live = true, still = false, area = null } = {}) {
   const t = world.time ?? 0, v = r.view;
   let it = plates.get(target.id);
+  // A memory from a clock that has gone back since (a save loaded, another world) is no window's now: it comes again from where it should.
+  if (it && t < it.at) { plates.delete(target.id); it = null; }
   if (!it) plates.set(target.id, (it = { a: null, av: 0, goal: null, rel: null, relV: null, pos: null, at: t, born: t, box: null, marks: null, held: false,
     steady: isStation(world, target.id) }));
   const M = it.steady ? PLATE.station : PLATE;
@@ -181,6 +209,9 @@ function stepPlace(r, world, target, w, h, avoid, { live = true, still = false, 
     goal = offAvoid(v, { ...goal, x: across ? clamp(goal.x, room.x + m, room.x + room.w - m - w) : goal.x,
       y: clamp(goal.y, room.y + m, Math.max(room.y + m, room.y + room.h - m - h)) }, avoid);
   }
+  // Docked at its object, the window stands by the dock, not round the station (dockedPlace).
+  if (world.docked === target.id && world.dockHeld) goal = dockedPlace(r, world, v, room, hull, w, h, avoid, it);
+  else it.dockSide = null;
   const to = { x: goal.x - marks.x, y: goal.y - marks.y };
   if (!it.rel || still) { it.rel = to; it.relV = { x: 0, y: 0 }; }
   // Under the hull (`under` px deep, not a corner grazing it), or the ship up in a jump: it keeps its place by its object.

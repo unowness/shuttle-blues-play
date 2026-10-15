@@ -26,6 +26,7 @@ import { drawPilotCard, drawStationInfo, drawHangar, drawSignComposer, drawContr
 import { QUEST_TONES } from './quest-list.js';
 import { SOUVENIR_LORE } from './souvenir-lore.js';
 import { inBox } from '../../src/util.js';
+import { UI } from '../../src/uiGrid.js';
 import { drawTabsWindow } from './tabs-window.js';
 import { drawFinaleWindow } from './finale-window.js';
 import { createRoomScreen } from './garage-room.js';
@@ -571,7 +572,7 @@ export function createScreens(game) {
       // The station's own look on the window's sheet, animated on the page's clock, `now` (the world goes on under the window, and
       // the picture is not the world's).
       drawStationInfo(renderer, world, { ...stationUI, drawLook: (r, cx, cy, w, h, st) =>
-        drawStationNow(r, cx, cy, st, st.kind === 'ruin' ? rebuiltShare(world.ledger, st) : 1, now / 1000) });
+        drawStationNow(r, cx, cy, st, st.kind === 'ruin' ? rebuiltShare(world.ledger, st) : 1, now / 1000, { w: w - 2 * UI.air.inset, h: h - 2 * UI.air.inset }) });
     }) },
   ];
 

@@ -221,10 +221,15 @@ export const CONFIG = {
     // hull of 10): a wreck only on a worn hull. A ship wrecked against a working
     // station by a blow of `breakSpeed` u/s or more breaks it: closed until `breakCost` CR repair it
     // (World.repairStation), drawn `brokenLook` rebuilt. A hull at its last point that only touches one does not.
+    // Six looks grew on 2026-10-15 (SX's round 4 of labs/graphics/sketches/station-round4.html, «Внеси правки в игру»), and HOIST and
+    // RELAY 12 again with his picks of round 5 (station-round5.html: HOIST's platforms on its axis with longer joints, RELAY's second
+    // mast under it), and the five the illustrator redrew with his round 6 (HALCYON, FOUNDRY 2, SPOOL 8, PHAROS, WHARF 9): every body is
+    // nine tenths of the station itself as drawn now (its `core`: the board without its external dock and docked ship),
+    // checks/station-docks.mjs holding them to it.
     bodies: {
-      ring: [278, 231], spindle: [285, 143], foundry: [285, 231], greenhouse: [278, 209],
-      beacon: [238, 241], lattice: [278, 231], wheel: [238, 231], hive: [238, 231],
-      depot: [285, 209], array: [278, 209], spire: [156, 241], anchor: [183, 241],
+      ring: [401, 296], spindle: [408, 296], foundry: [367, 296], greenhouse: [306, 296],
+      beacon: [326, 296], lattice: [387, 263], wheel: [333, 340], hive: [292, 296],
+      depot: [442, 296], array: [279, 274], spire: [374, 296], anchor: [326, 296],
       // The home garage's: nine tenths of its rock's extent over a whole turn of its sway (48 x 25 cells of 15.1 x 24.4 u,
       // labs/graphics/garage-art.js stoneExtent; checks/home-garage.mjs measures it again).
       home: [326, 274],
@@ -272,8 +277,37 @@ export const CONFIG = {
     // она будет там чтобы ровно сложились символы, да, 70, 75 процентов. От текущей станции»).
     panelScale: 7 / 15,
     // The pilot's home garage is not one of the twelve looks (src/home.js): its body and its soft hull stand in
-    // these tables under its look's name, `home` (its body is `bodies.home`, above, measured off the drawn rock).
-    hulls: { home: 300 },
+    // these tables under its look's name, `home` (its body is `bodies.home`, above, measured off the drawn rock). The looks that grew
+    // on 2026-10-15 keep their soft hull a little past their bodies' longest half, as `hullRadius` was past the old ones'.
+    hulls: { home: 300, ring: 405, lattice: 391, wheel: 344, hive: 300, depot: 446, spire: 378, spindle: 412, foundry: 371, greenhouse: 310, beacon: 330, anchor: 330 },
+    // Where a look's docks are (SX, 2026-10-15; the rule in docs/station-art.md section 4, the drawing in labs/graphics/station-art.js,
+    // checks/station-docks.mjs holding this table to it): u from the station's own place, in its own frame (turned with it in the
+    // float). `pad` [dx, dy, nose]: where the pilot's own ship stands on the pad and which way its nose points ('up', or 'left' on
+    // HOIST's platform as SX marked it), null at a station without one. `ext` [dx, dy, dir, face]: the external dock's root, the side
+    // it reaches out to (1 right, -1 left) and how far out the module's face is at full stretch (its module five cells wide since SX's
+    // pick M0 of 2026-10-15); a ship hangs there nose up, `gap` past the face. Every reference ship docks at `ext` («корабль отсылка точно не должен вставать на станцию. Он внешним доком всегда
+    // соединяется»), and every ship at a station with no pad.
+    docks: {
+      ring: { pad: null, ext: [438.3, 0, 1, 151.1] },
+      spindle: { pad: [-355.1, -24.4, 'up'], ext: [-113.3, 219.4, -1, 151.1] },
+      foundry: { pad: [279.6, 0, 'up'], ext: [-400.5, 0, -1, 151.1] },
+      greenhouse: { pad: [90.7, 0, 'up'], ext: [317.4, 0, 1, 151.1] },
+      beacon: { pad: [219.1, 0, 'up'], ext: [-355.1, 0, -1, 151.1] },
+      lattice: { pad: [0, 0, 'up'], ext: [423.2, 12.2, 1, 151.1] },
+      wheel: { pad: [0, 0, 'up'], ext: [347.6, 0, 1, 151.1] },
+      hive: { pad: null, ext: [302.3, 0, 1, 136] },
+      depot: { pad: null, ext: [423.2, 73.1, 1, 136] },
+      array: { pad: null, ext: [302.3, -48.7, 1, 151.1] },
+      spire: { pad: [317.4, 0, 'left'], ext: [-408, 0, -1, 151.1] },
+      anchor: { pad: [52.9, 0, 'up'], ext: [355.1, 0, 1, 151.1] },
+    },
+    // How a ship docks (SX, 2026-10-15: «когда докаешься, то наш корабль уходит вниз в глубину, а потом всплывает в доке ... как при
+    // респауне»; «Ныряет обратно» to leave; «Нужна анимация, короче, как на респауне. Ныряет внутрь, выплывает снизу»), s: it dives where
+    // it is, coasting to rest, is under the station a moment while the dock gets ready, and rises in the dock as a respawned ship rises
+    // (rise 1.1 s, labs/graphics/reboot.js REBOOT.rise); leaving, it dives out of the dock and rises outside, `exitAir` u off the station as
+    // drawn (its external dock counted) on the side it came from, nose out, a towed cargo as clear. `gap`: a hanging ship's clearance from
+    // the external dock's face (a cell); `grip` how long the claws take to close.
+    docking: { arrive: { dive: 0.5, under: 0.8, rise: 1.1 }, leave: { dive: 0.45, under: 0.65, rise: 1.1 }, gap: 15, exitAir: 60, grip: 0.6 },
     // ... and its body's corners are fully round (a stadium, `corner` 1): the rock is lumpy and the box's corners stood up
     // to 61 u out of it at the turn of its sway, 44 u (one hull's radius) with the round ends (checks/home-garage.mjs).
     corners: { home: 1 },

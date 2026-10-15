@@ -1,9 +1,11 @@
 // The way in (SX, 2026-10-03: «напиши красивый плавный движок заезда в гараж и в станции»).
 //
-// One engine flies the ship in to its berth: a station's middle, or the home garage's berth (src/home.js), from where DOCK on its
-// window's row finds it (World.dock; a click on a station from afar, World.flyIn and its dive, went on 2026-10-07: SX, «нет убери клик в
-// станцию саму везде только по контекстной меню»). It is handed the way's points, in the station's own frame (so a drifting station takes its berth with it), the ship as it is
-// (velocity, heading, push), and plans once:
+// One engine flies the ship in to its berth: the home garage's berth (src/home.js), from where DOCK on its window's row finds it
+// (World.dock; a click on a station from afar, World.flyIn and its dive, went on 2026-10-07: SX, «нет убери клик в станцию саму везде
+// только по контекстной меню»). A station's middle was its other berth until 2026-10-15, when a ship docking at a station came to dive
+// where it is and rise in the station's own dock (src/docking.js; SX: «уходит вниз в глубину, а потом всплывает в доке»). It is handed
+// the way's points, in the station's own frame (so a drifting station takes its berth with it), the ship as it is (velocity, heading,
+// push), and plans once:
 //
 //   the path   a curve through the points, a cubic Hermite piece between each two, each point passed halfway between its
 //              two chords and each piece as near a circle's arc as its ends allow (no hooks). It leaves along the ship's

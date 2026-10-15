@@ -8,6 +8,8 @@ import { candidatesNear } from './menus.js';
 
 // Chooses what the ship is next to now: its id in `selectedId`, its menu built in `selected`; both null when there is none.
 export function updateSelection(world) {
+  // Diving into a station's dock or out of it (src/docking.js), the ship has no menu: the station's opens once the ship is held.
+  if (world.berth && !world.home) { world.selectedId = null; world.selected = null; return; }
   const list = candidatesNear(world);
   // A berthed ship's menu is its station's whatever else comes nearer (a droid, a cache, a ship that passes): it is the
   // way out (SX, 2026-10-02: «Когда ты докнулся в станцию нет способа вылететь из нее»).

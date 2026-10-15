@@ -17,11 +17,9 @@
 import { drawPilotShip, flownShipInks } from './world-art.js';
 import { createShipMotion, stepShipMotion } from './ship-motion.js';
 import { noise3 as hash } from '../../src/util.js';
+import { REBOOT } from './reboot.js';
 
-export const REBOOT = Object.freeze({
-  sweep: 0.5, lean: 0.7, band: 0.1, ragged: 0.03, glyphs: '01/:·_', tick: 0.05, ink: '#000000',
-  rise: Object.freeze({ start: 0.85, from: 150, small: 0.4, fade: 0.3, zeta: 0.55, peak: 0.42, time: 1.1, hands: 0.6 }),
-});
+export { REBOOT };
 export function createRespawnFx() {
   return { at: null, shot: null, kept: false, corner: { sx: 1, sy: 1 }, seed: 0, motion: createShipMotion(7), motionAt: null };
 }

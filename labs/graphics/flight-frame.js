@@ -181,7 +181,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     // goes; a menu closed or the pause takes them at once. Beside it, the window of what the pointer is over (SX, 2026-10-04: a hover
     // shows the context window; world-pointer.js pointedMenu), shown, not used. Over the marks.
     const hover = pause.pauseShown() ? null : pointedMenu(world);
-    occupied.push(...drawContextPlates(r, world, open ? target : null, avoid, { dismissed: !!target && !open, reducedMotion: feedback.reducedMotion, hover, area,
+    occupied.push(...drawContextPlates(r, world, open && !game.beat.shown() ? target : null, avoid, { dismissed: !!target && !open, reducedMotion: feedback.reducedMotion, hover, area,
       greeting: game.greeting.style }));
     return occupied;
   }
@@ -285,15 +285,17 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     brakeHands.damp = schemes.scheme() === 'M' ? page.mouseDamp : Boolean(input.damp);
     if (!world.paused && !game.labOpen) {
       // (At the opening's slow beat, F3, a frame runs fewer of the world's steps: labs/graphics/opening-focus.js.)
-      const steps = game.focus.steps(clock.advance(rawDt));
+      // (A talk's beat, labs/graphics/talk-beat.js, slows the world the same way while its line stands.)
+      game.beat.step();
+      const steps = game.beat.steps(game.focus.steps(clock.advance(rawDt)));
       // A pop-up does not pause the game (SX, 2026-10-02: «давай на паузу игру при поп апах не ставить»): the world flies
       // on under it, the ship with its controls let go, so the keys a screen reads (arrows, digits) do not fly it.
-      const controls = flown = screens.anyScreen() || handsOff(respawnFx, pageTime()) ? IDLE_CONTROLS : router.flyControls();
+      const controls = flown = screens.anyScreen() || game.beat.shown() || handsOff(respawnFx, pageTime()) ? IDLE_CONTROLS : router.flyControls();
       page.mouseDamp = !!controls.damp;
       // The kick's camera is the drawing's: the world steps and the camera follows from where it truly is.
       liftKick(world, kick);
       for (let i = 0; i < steps; i++) world.step(CONFIG.sim.step, controls);
-      world.updateCamera(renderer, clock.frameDt(rawDt) * game.focus.pace());
+      world.updateCamera(renderer, clock.frameDt(rawDt) * game.focus.pace() * game.beat.pace());
       updateShipScale(rawDt);
       // A drift is not a brake on the camera (it leans out of the turn instead), nor is Space up in a jump.
       const drifting = world.drift && world.drift.side ? world.drift : null;
@@ -544,6 +546,8 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     // tabs window is a lock and is not closed by a click. The pointer is theirs (src/hover.js), and the pause's after them.
     muteNotes(false);
     hoverReach(true);
+    // A talk's beat (labs/graphics/talk-beat.js): its veil over the whole frame and the speaker's window, under any pop-up.
+    timed('talk beat', () => game.beat.draw(renderer));
     game.popupOnTop = timed('pop-ups', () => screens.drawPopups(now));
     game.hud.boxes = hudPlaceBoxes(hudLayout);
     // A moved group held inside the screen, above the cockpit and off the ship for the next frame (hud-place.js; a resize brings it back).

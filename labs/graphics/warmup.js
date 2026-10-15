@@ -32,6 +32,7 @@ export const WARM_EXTRA = [
   '▲▶▸◀◂◇○●◉◦▣▴▾◜◝◞◟◢◣◤◥✦',              // shapes, the edge arrows, the signal, the COURIER's nose, the pod's porthole
   '∙˙╎◠◡',                               // the ship's motion options (ship-motion.js, 2026-09-30)
   '•╳◆',                                 // the station looks' lights, braces and hubs (station-art.js, 2026-09-30)
+  '♣✿≈',                                 // HALCYON's garden and WHARF 9's capsule of water (station-art.js, 2026-10-15)
   '✳╋',                                  // pirate mine cue and NEEDLE hull
   '╿▼',                                  // the pirates' guns and the TALON's and HOOK's keels (2026-09-30)
   '╽',                                   // THUNDER's and BLACKBIRD's pitot probe (ships/thunder.json, ships/blackbird.json, 2026-10-08)
