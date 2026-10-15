@@ -22,6 +22,7 @@ import { npcCraft } from './npcShips.js';
 import { drawPestered } from './pester.js';
 import { drawWreck } from './wrecked.js';
 import { drawSuitcase, PLANET_ID } from './errands.js';
+import { drawRecorderLying, drawRecorderAboard } from './chorusArt.js';
 import { drawSpecial, drawFlownShip, boarded } from './specials.js';
 import { dockView } from './docking.js';
 import { towSize, anchorOf } from './tow.js';
@@ -813,6 +814,8 @@ class WorldDrawing {
     // The second round: a ship held by pirates, a wreck sparking (src/pester.js, src/wrecked.js).
     drawPestered(this, r);
     drawWreck(this, r, t);
+    // A voice's recorder where it lies (src/chorus.js, COMMONS's chain).
+    drawRecorderLying(this, r, t);
     drawSpecial(this, r, t);
 
     // A visitor out of O-08 (src/traffic.js), on its pass, named while the pilot is near.
@@ -962,6 +965,7 @@ class WorldDrawing {
     const s = this.project(r, this.ship.x, this.ship.y);
     if (boarded(this)) drawFlownShip(this, r, s.x, s.y, t); else this.ship.draw(r, s.x, s.y);
     drawSuitcase(this, r);
+    drawRecorderAboard(this, r, t);
     // A hull in a cloud: its smoke at the view's sides, over everything of the world.
     lap('clouds');
     drawCloudSides(this, r);

@@ -181,5 +181,18 @@ export const QUESTS = {
       ambush: { after: 0.4, min: 900, max: 2600, minLeft: 1500, squad: [[2, 0.6], [3, 0.4]] },
       suitcase: { scale: 1.05, rope: 26, swing: [0.28, 1.4, 0.08, 3.1], side: 0.6,
         spill: { every: 0.6, jitter: 0.4, skip: 0.25, life: [1.6, 2.5], speed: [34, 80], spread: 1.8, spin: 4, size: 1.15 } },
-    } },
+    },
+    // `chorus`, COMMONS's chain THE CHORUS (src/chorus.js; SX, 2026-10-15: «Давай цепочку»): it begins when the pilot comes within `hear` u
+    // of the ring restored (a little past its window's 620, so the ring and the pieces over it are on the screen), and the AI greets again once the pilot has been `again` times as far; a recorder buoy lies `clear` u off
+    // everything in its sector and is taken within `reach` u; each voice played back pays an errand's pay (src/pacing.js 'planet'), the
+    // four back `finale` CR once. `beat`: how long a piece stands before the next (s): `base` and `perChar` a recording by its length,
+    // `noise` the static, `hole` a missing one. `line`: a said piece over the station (src/feedback.js) lives `life` s, `shown` at once.
+    // `art`, the recorder (SX's C2, labs/graphics/sketches/quest-objects.html; src/chorusArt.js): drawn at `lying` of the world's cell where
+    // it lies and `carried` on the rope (the suitcase's rope and swing, turned to the other side); its inks COMMONS's own tones (the RING
+    // look's `lit` and `mid`, labs/graphics/station-art.js) and its pupil white as the ring's lamps; the AI's own words in `own`.
+    chorus: { hear: 750, again: 2, clear: 700, reach: 460, finale: 1000,
+      beat: { base: 0.9, perChar: 0.05, noise: 1.2, hole: 1.6 },
+      line: { life: 6, shown: 3 },
+      art: { lying: 1.35, carried: 1.05, body: '#A99BE0', inner: '#7e73a6', own: '#A99BE0' } },
+  },
 };

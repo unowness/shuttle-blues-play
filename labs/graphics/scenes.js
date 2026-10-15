@@ -6,6 +6,8 @@ import { spawnDroid } from '../../src/droids.js';
 import { WORLD_SCALE } from '../../src/worldScale.js';
 import { ruinIdsOf } from '../../src/ruins.js';
 import { stepBossQuest } from '../../src/bossQuest.js';
+import { COMMONS_ID, CHORUS_CLAIM, VOICES } from '../../src/chorus.js';
+import { payCash } from '../../src/rewardLedger.js';
 
 // A place of SX's layout (u of its sector), where it stands in the game's sector (src/worldScale.js): the same spot of the map.
 const L = (u) => u * WORLD_SCALE;
@@ -273,6 +275,30 @@ export function visitBossQuest(world, renderer, { distance = 1800 } = {}) {
   world.pirates.length = 0; world.encounter = null;
   void renderer;
   return { boss: true, sectorId: q.sectorId };
+}
+
+// Lab-only: COMMONS's chain on demand (`?chorus=call|carry|roll|done`, src/chorus.js): on the lab's own save COMMONS is restored and the
+// pilot jumped east of it at rest. `call`: the chain not begun, the ship just out of its hearing: flying in hears the call and the first
+// hole, and the first recorder is laid. `carry`: the first recorder aboard, COMMONS's window offers PLAY BACK. `roll`: the last recorder
+// aboard: played back, the roll call and the chain's pay. `done`: the chain done: coming near, the AI greets in its own words.
+export function visitChorus(world, renderer, how) {
+  const L = world.ledger, def = stationDefById(COMMONS_ID);
+  L.restored.add(COMMONS_ID);
+  L.claims = L.claims.filter((c) => c.id !== CHORUS_CLAIM);
+  world.loadSector(sectorById(def.sectorId), { announce: false });
+  const s = world.stations.find((x) => x.id === COMMONS_ID);
+  world.chorus = null;
+  if (how === 'carry' || how === 'roll') {
+    world.chorus = { stage: 'carry', voice: how === 'roll' ? VOICES.length - 1 : 0, buoy: { sectorId: def.sectorId, x: def.x, y: def.y },
+      queue: [], greeted: true, saidAt: null, ownAt: null };
+  } else if (how === 'done') payCash(L, CHORUS_CLAIM, 0);
+  const distance = how === 'call' ? CONFIG.quests.chorus.hear + 500 : 1500;
+  Object.assign(world.ship, { x: s.x + distance, y: s.y, vx: 0, vy: 0, angle: Math.PI, angVel: 0, alive: true });
+  world.cam = { x: world.ship.x, y: world.ship.y };
+  world.hull = world.hullMax; world.hullGrace = 0;
+  world.pirates.length = 0; world.encounter = null;
+  void renderer;
+  return { chorus: how };
 }
 
 // Lab-only: a service droid on demand (`?droid=fuel|repair`). The pilot is jumped to

@@ -29,6 +29,7 @@ import { Fleet } from './npcFleet.js';
 import { Hangar, shipById, shipLimits } from './hangar.js';
 import { spawnBoss, stepBoss, resolveBossHits } from './boss.js';
 import { stepBossQuest } from './bossQuest.js';
+import { stepChorus } from './chorus.js';
 import { npcCraft } from './npcShips.js';
 // The four sides of the boss's smoke square as dead edges (World.edgeDepths): an axis and the way out.
 const ARENA_EDGES = Object.freeze([['x', -1], ['x', 1], ['y', -1], ['y', 1]].map(([axis, dir]) => Object.freeze({ axis, dir, arena: true })));
@@ -259,6 +260,8 @@ export class World {
     // waits ({ sectorId, x, y, from, stage }, in the save as a quest), and the smoke's square round its fight ({ x, y, half }) or null.
     this.boss = null;
     this.bossQuest = null;
+    // COMMONS's chain THE CHORUS (src/chorus.js), or null before it begins: its stage, the voices back, the recorder, what is still to be said.
+    this.chorus = null;
     this.bossArena = null;
     // The NPC ships watching its fight from the smoke's edges (src/bossQuest.js gatherCrowd), and when the next calls a line.
     this.bossCrowd = [];
@@ -983,6 +986,7 @@ export class World {
     stepPirates(this, dt);
     stepBoss(this, dt);
     stepBossQuest(this, dt);
+    stepChorus(this);
     stepQuests(this, dt);
     giveCursors(this);
     giveRadio(this);

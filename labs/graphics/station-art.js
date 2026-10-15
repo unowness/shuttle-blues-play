@@ -353,6 +353,14 @@ function ring() {
       const top0 = (t % 2.6) < 0.4, bottom = ((t + 1.3) % 2.6) < 0.4;
       D.put(cx, 0, top0 ? 'o' : '·', top0 ? HI : DIM);
       D.put(cx, H - 1, bottom ? 'o' : '·', bottom ? HI : DIM);
+      // Its AI speaking (src/chorus.js, `S.voice` from labs/graphics/world-art.js): each piece said lights both pole lamps and a flash
+      // runs the band; its own words hold the band lit.
+      const V = S.voice;
+      if (V && (V.since < 0.35 || (V.own && V.since < 3))) {
+        const k = V.own ? 0.9 : 1 - V.since / 0.35;
+        for (const c of S.band) if (V.own ? c.w < 0.5 : c.w < 0.3) D.put(c.x, c.y, '•', tone.lit, k);
+        D.put(cx, 0, 'o', HI); D.put(cx, H - 1, 'o', HI);
+      }
     },
   }, { at: { x: W - 1, y: cy }, dir: 1, len: 4, style: 'eye' });
 }

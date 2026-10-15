@@ -1,6 +1,7 @@
 import { CONFIG } from './config.js';
 import { sectorById, SECTOR_SIZE, stationDefById } from './sectors.js';
 import { bossQuestToJSON, readBossQuest } from './bossQuest.js';
+import { chorusToJSON, readChorus } from './chorus.js';
 import { findDef, isAvailable } from './rewards.js';
 import { SIGNALS, WORDS } from './progression.js';
 import { STRANGERS, strangerOpen } from './strangers.js';
@@ -71,6 +72,8 @@ export function questsToJSON(world) {
   if (world.special) out.push(writeSpecial(world, world.special));
   const boss = bossQuestToJSON(world);
   if (boss) out.push(boss);
+  const chorus = chorusToJSON(world);
+  if (chorus) out.push(chorus);
   return out;
 }
 
@@ -126,12 +129,14 @@ export function restoreQuests(world, raw) {
   world.pester = null;
   world.special = null;
   world.bossQuest = null;
+  world.chorus = null;
   for (const r of Array.isArray(raw) ? raw : []) {
     try {
       if (r?.kind === 'guide') world.guide ??= readGuide(world, r);
       else if (r?.kind === 'pester') world.pester ??= readPester(world, r);
       else if (r?.kind === 'special') world.special ??= readSpecial(world, r);
       else if (r?.kind === 'boss') world.bossQuest ??= readBossQuest(world, r);
+      else if (r?.kind === 'chorus') world.chorus ??= readChorus(world, r);
       else if (SIDE_KINDS.includes(r?.kind) && !world.sideQuest) world.sideQuest = readSide(world, r);
     } catch {
       // A record that cannot be read is dropped; the pilot's load never fails for a quest.

@@ -377,6 +377,20 @@ export function createNotices(game) {
         case 'bossQuestDone':
           screens.openFinale?.();
           break;
+        // COMMONS's chain (src/chorus.js): begun, the first voice to find; a recorder dropped by a wreck, after the wreck's own; a voice
+        // back, how many of the four; the four back, the roll call and its pay. The collage itself is said over the station (src/feedback.js).
+        case 'chorusBegun':
+          notify(QL.chorus.begun(), QL.chorus.begunSub(e.voice), { kind: 'news', life: 4.4, after: true });
+          break;
+        case 'chorusDropped':
+          notify(QL.chorus.dropped(), QL.chorus.droppedSub(), { kind: 'news', life: 3.6, after: true });
+          break;
+        case 'chorusVoiceBack':
+          notify(QL.chorus.back(e.voice), QL.chorus.backSub(e.n), { kind: 'gain', life: 3.6 });
+          break;
+        case 'chorusDone':
+          if (!e.alreadySettled) notify(QL.chorus.roll(), QL.chorus.rollSub(formatCR(e.pay)), { kind: 'gain', life: 4.4, after: true });
+          break;
         case 'collectionComplete':
           notify(`${e.kind === 'paint' ? 'PAINTS' : 'SOUVENIRS'} ${e.of} OF ${e.of}`, 'COLLECTION COMPLETE', { kind: 'gain', life: 4 });
           break;

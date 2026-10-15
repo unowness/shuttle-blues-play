@@ -343,6 +343,12 @@ export const EVENT_SOUNDS = {
   bossDefeated: () => 'explosion',
   // Its quest come: the radio's word, as a signal heard (the quest is the story's, not an alarm); its waking is its own `bossSpawned`.
   bossQuestOffered: () => 'word',
+  // COMMONS's chain (src/chorus.js): begun, the radio's word; a recorder taken, the cargo's link; a voice back, the coins it pays; the four
+  // back, the all-clear.
+  chorusBegun: () => 'word',
+  chorusTaken: () => 'cargoLinked',
+  chorusVoiceBack: () => 'coins',
+  chorusDone: () => 'allClear',
   encounterEnded: (e) => (e.cause === 'wrecked' ? null : 'allClear'),
   creditsSeized: () => 'loss',
   pickupClaimed: (e) => (e.drop ? 'coin' : 'coins'),
@@ -446,6 +452,8 @@ export const SILENT = {
   bossSpawned: 'it comes lying in wait at its quest\'s mark (or in the lab): the alarm is for when it reacts (bossWoke)',
   bossMoved: 'it moves as the pilot is wrecked: the wreck\'s own sounds are playing; its banner says it',
   bossQuestDone: 'its end is bossDefeated\'s explosion, the same step; the window says the rest',
+  chorusLine: 'its pieces are seen over the station, the ring\'s lamps answering each (SX\'s V1 HAIL); no voice is synthesised',
+  chorusDropped: 'it drops as the pilot is wrecked: the wreck\'s own sounds are playing; its banner says it',
   pirateAttackPhase: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
   piratePattern: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',
   mineLaid: 'combat is signalled by its world glyph cue; shots and impacts keep their own sound',

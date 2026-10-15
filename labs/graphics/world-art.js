@@ -1,5 +1,6 @@
 import { CONFIG } from '../../src/config.js';
 import { TAU, clamp, fbmWrapped, hypot2, lerp, mixHex, mulberry32, rampGlyph, cellNoise } from '../../src/util.js';
+import { chorusVoice } from '../../src/chorus.js';
 import { Planet } from '../../src/bodies.js';
 import { planetHue } from '../../src/sectors.js';
 import { registerSprite } from '../../src/sprites.js';
@@ -866,6 +867,8 @@ export function createWorldPresentation(world, settings) {
         // was lost at as much as the raid took (src/raids.js), a restored ruin among them.
         const broken = world.ledger.broken?.has(this.id) ? world.ledger.brokenLook?.get(this.id) ?? CONFIG.station.brokenLook : 1;
         const rebuilt = Math.min(broken, this.kind === 'ruin' ? rebuiltShare(world.ledger, this) : 1);
+        // COMMONS's AI speaking (src/chorus.js): its look's lamps answer each piece (the RING look reads `S.voice`).
+        if (look) look.S.voice = chorusVoice(world, this.id);
         // Under the pointer it stays its size: the pointer shows its window instead (SX, 2026-10-04; labs/graphics/world-pointer.js).
         drawStation(r, x, y, this, world.docked === this.id || world.selected?.id === this.id, rebuilt, world.time, LOOK_SCALE,
           this.kind === 'home' ? homeDockState(world, this) : stationDockState(world, this), this.angle);

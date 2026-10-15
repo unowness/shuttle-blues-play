@@ -216,6 +216,22 @@ export const QUEST_LINES = Object.freeze({
   // The six reference ships' quests (src/specialQuests.js; src/specials.js gives the done row its pay).
   // The boss TOLLKEEPER's quest (src/bossQuest.js): story purple, its mark EXPLORE; in its fight its own name; the banners at its waking,
   // after a wreck and when it is beaten.
+  // COMMONS's chain THE CHORUS (src/chorus.js): the story's purple; a voice's recorder found, then played back at COMMONS; its banners.
+  chorus: Object.freeze({
+    title: line(0, ['voice'], (voice) => `VOICE: ${voice}`),
+    seekSub: line(1, ['sector'], (sector) => `${sector} / FIND IT`, { act: true }),
+    carrySub: line(1, [], () => 'COMMONS / PLAY BACK', { act: true }),
+    done: line(0, [], () => 'THE CHORUS IS BACK'),
+    paid: line(1, ['cr'], (cr) => `+${cr} CR / CHORUS`),
+    begun: line(0, [], () => 'COMMONS IS CALLING', { banner: true }),
+    begunSub: line(1, ['voice'], (voice) => `FIND THE ${voice}`, { banner: true }),
+    back: line(0, ['voice'], (voice) => `${voice} IS BACK`, { banner: true }),
+    backSub: line(1, ['count'], (n) => `${n} OF 4 VOICES`, { banner: true }),
+    dropped: line(0, [], () => 'RECORDER DROPPED', { banner: true }),
+    droppedSub: line(1, [], () => 'IT WAITS WHERE IT LAY', { banner: true }),
+    roll: line(0, [], () => 'ROLL CALL', { banner: true }),
+    rollSub: line(1, ['cr'], (cr) => `+${cr} CR / THE CHORUS`, { banner: true }),
+  }),
   boss: Object.freeze({
     pointer: line(0, [], () => 'EXPLORE'),
     title: line(0, [], () => 'STRANGE ACTIVITY'),

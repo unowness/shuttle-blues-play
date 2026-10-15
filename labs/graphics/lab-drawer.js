@@ -13,7 +13,7 @@ import { offerSpecial } from '../../src/specials.js';
 import { SPECIAL_IDS } from '../../src/specialShips.js';
 import { createScaleState } from '../../src/visualScale.js';
 import { applyStyle, labStyle, cleanSettings, PALETTES } from './style.js';
-import { visitScene, visitPirates, visitDroid, visitBoss, visitBossQuest, SCENES } from './scenes.js';
+import { visitScene, visitPirates, visitDroid, visitBoss, visitBossQuest, visitChorus, SCENES } from './scenes.js';
 import { noteVisit } from './map-screen.js';
 import { COCKPIT_FX } from './cockpit-fx.js';
 import { createLabKeys, respawnNow } from './lab-keys.js';
@@ -49,6 +49,12 @@ export function applyReviewLinks(game) {
   } else if (!GAME && launch.get('boss') === 'quest') {
     Object.assign(game.shipScale, createScaleState());
     visitBossQuest(world, renderer);
+  }
+  // `?chorus=call|carry|roll|done`: COMMONS's chain (src/chorus.js), COMMONS restored on the lab's save, the ship east of it.
+  const wantedChorus = GAME ? null : launch.get('chorus');
+  if (['call', 'carry', 'roll', 'done'].includes(wantedChorus)) {
+    Object.assign(game.shipScale, createScaleState());
+    visitChorus(world, renderer, wantedChorus);
   }
   // `?droid=fuel` or `?droid=repair`: a service droid beside the ship, on open ground.
   const wantedDroid = GAME ? null : launch.get('droid');

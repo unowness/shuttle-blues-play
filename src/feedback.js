@@ -3,6 +3,7 @@ import { drawLocalLabel, drawTargetBrackets, overlaps } from './interface.js';
 import { formatCR } from './ruins.js';
 import { moneyRuns, hasMoney, drawRuns } from './money.js';
 import { UI, uiMetrics } from './uiGrid.js';
+import { ROLES } from './roles.js';
 
 // What is said when a pirate goes down and when a fight ends (World.killPirate,
 // World.endEncounter). A fight that ends in a wreck says nothing here: the wreck
@@ -74,6 +75,8 @@ export const QUEST_END_LIFE = 3.2;
 export class Feedback {
   constructor() {
     this.items = [];
+    // COMMONS's collage (src/chorus.js chorusLine): the pieces said over the station, newest last (drawChorus).
+    this.chorus = [];
     this.reducedMotion = false;
     // How a friendly ship's words and the pilot's greeting are drawn (`greet` on the hail: labs/graphics/greeting.js, GAMEPLAY's
     // GREETING), the page's: (r, world, item) -> the box it took, or null. Without it they are drawn as every hail is (drawHail).
@@ -83,6 +86,14 @@ export class Feedback {
   handle(event, world) {
     if (event.type === 'sectorEntered' || event.type === 'shipWrecked') {
       this.items.length = 0;
+      if (event.type === 'sectorEntered') this.chorus.length = 0;
+      return false;
+    }
+    // A piece of COMMONS's collage: it rises over the station with the ones before it (SX's V1 HAIL).
+    if (event.type === 'chorusLine') {
+      this.chorus.push({ stationId: event.stationId, sectorId: event.sectorId, who: event.who, at: event.at, line: event.line,
+        own: !!event.own, faint: !!(event.hole || event.noise), age: 0, life: CONFIG.quests.chorus.line.life });
+      if (this.chorus.length > CONFIG.quests.chorus.line.shown * 2) this.chorus.shift();
       return false;
     }
     if (event.alreadySettled) return false;
@@ -180,6 +191,9 @@ export class Feedback {
       case 'suitcaseTaken': label = 'SUITCASE ABOARD'; break;
       case 'suitcaseDelivered': label = `+${formatCR(event.pay)} CR`; break;
       case 'suitcaseLost': label = 'SUITCASE LOST'; break;
+      // COMMONS's chain (src/chorus.js): a recorder taken, at it; a voice played back, what it paid, at the station.
+      case 'chorusTaken': label = 'RECORDER ABOARD'; break;
+      case 'chorusVoiceBack': label = `+${formatCR(event.pay)} CR`; break;
       // A ship boarded has said its three lines (src/specials.js): they go.
       case 'specialBoarded':
         this.items = this.items.filter((it) => !(it.hail && it.hail.craftId === 'special-ship'));
@@ -197,6 +211,8 @@ export class Feedback {
   step(dt) {
     for (const item of this.items) item.age += Math.max(0, dt);
     this.items = this.items.filter(item => item.age < item.life);
+    for (const piece of this.chorus) piece.age += Math.max(0, dt);
+    if (this.chorus.length && this.chorus[0].age >= this.chorus[0].life) this.chorus = this.chorus.filter((p) => p.age < p.life);
   }
 
   get cargoAcknowledged() {
@@ -248,8 +264,62 @@ export class Feedback {
       const box = drawLocalLabel(r, item.label, p, [...occupied, objectBox], labelInk(item.type), 50, gold ? MONEY_LABEL : null);
       if (box) occupied.push(box);
     }
+    const chorus = drawChorus(r, world, this.chorus);
+    if (chorus) occupied.push(chorus);
     return occupied;
   }
+}
+
+// COMMONS's collage over the station (src/chorus.js; SX's V1 HAIL on labs/graphics/sketches/commons-voice.html, 2026-10-15: «hail над
+// станцией»): from the ring's upper shoulder a slash rises as a hail's does, and on it stand the newest `shown` pieces, the newest at the
+// slash and the older above it, fading; each a recording's tag (who and when) over its line in capitals, a missing recording and the
+// static faint, and the AI's own words lowercase in the station's hue with no tag. Mirrored to the left where the right leaves the view.
+function drawChorus(r, world, pieces) {
+  if (!pieces.length) return null;
+  const station = world.stations.find((s) => s.id === pieces.at(-1).stationId);
+  if (!station || pieces.at(-1).sectorId !== world.sector.id) return null;
+  const shown = pieces.filter((p) => p.age < p.life).slice(-CONFIG.quests.chorus.line.shown);
+  if (!shown.length) return null;
+  const p = world.project(r, station.x, station.y), v = r.view, row = r.cellH, pad = HAIL.pad;
+  const f = station.footprint, halfW = f ? (f.model.width * r.cellW * f.scale) / 2 : 120, halfH = f ? (f.model.height * r.cellH * f.scale) / 2 : 80;
+  // Each piece: its tag (none for the AI's own words, the static or a gap) over its line in capitals (the AI's own lowercase).
+  const blocks = shown.map((piece) => {
+    const text = piece.own || piece.faint ? [piece.line] : hailRows(piece.line.toUpperCase());
+    const tag = piece.own || piece.faint ? null : `${piece.who} · ${piece.at}`;
+    return { piece, tag, text, h: (text.length + (tag ? 1 : 0)) * row };
+  });
+  const width = Math.max(...blocks.flatMap((b) => [...b.text, b.tag ?? ''].map((t) => t.length))) * r.cellW;
+  const height = blocks.reduce((h, b) => h + b.h, 0) + (blocks.length - 1) * row * 0.8;
+  const rise = HAIL.rise * row * 1.5, run = rise / 2;
+  const dir = p.x + halfW * 0.45 + run + pad + width > v.x + v.w ? -1 : 1;
+  const sx = p.x + dir * halfW * 0.45, sy = p.y - halfH * 0.45, ex = sx + dir * run, ey = sy - rise;
+  // Where the stack would leave the view (the ring near its edge, or off it), it is kept inside, at the edge toward the ring, with no slash.
+  let tx = dir > 0 ? ex + pad : ex - pad - width, bottom = ey;
+  const x0 = v.x + pad, x1 = v.x + v.w - pad - width, y0 = v.y + pad + height, y1 = v.y + v.h - pad;
+  const kept = Math.min(Math.max(tx, x0), Math.max(x0, x1)), held = Math.min(Math.max(bottom, y0), Math.max(y0, y1));
+  const moved = Math.abs(kept - tx) > 0.5 || Math.abs(held - bottom) > 0.5;
+  tx = kept; bottom = held;
+  const newest = shown.at(-1);
+  if (!moved) {
+    const ctx = r.ctx;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, newest.age / HAIL.fade);
+    ctx.strokeStyle = CONFIG.hud.color; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(Math.round(sx) + 0.5, Math.round(sy) + 0.5); ctx.lineTo(Math.round(ex) + 0.5, Math.round(ey) + 0.5); ctx.stroke();
+    ctx.restore();
+  }
+  let y = bottom;
+  for (let k = blocks.length - 1; k >= 0; k--) {
+    const { piece, tag, text } = blocks[k], older = blocks.length - 1 - k;
+    const a = Math.max(0, Math.min(1, piece.age / HAIL.fade, (piece.life - piece.age) / HAIL.fade)) * (1 - older * 0.3);
+    y -= text.length * row;
+    const ink = piece.own ? CONFIG.quests.chorus.art.own : piece.faint ? ROLES.textHint : ROLES.textPrimary;
+    if (a > 0) text.forEach((t, j) => r.text(t, tx, y + j * row, ink, a));
+    if (tag) { y -= row; if (a > 0) r.text(tag, tx, y, ROLES.textSecondary, a); }
+    y -= row * 0.8;
+  }
+  const top = bottom - height;
+  return { x: tx - pad, y: top - pad, w: width + 2 * pad, h: height + 2 * pad };
 }
 
 // A craft's hail (SX, 2026-10-01: «как говорят при встрече ... делал слэш снизу и надпись какую-то сверху с небольшим

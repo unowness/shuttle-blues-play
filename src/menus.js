@@ -6,6 +6,7 @@
 // and `menu()` to build the rest), `menuFor` builds the menu of one, `candidates` of all. The step chooses on the first and builds one.
 // Pure functions of the world: nothing here keeps state.
 import { CONFIG } from './config.js';
+import { buoyMenu, buoyHere, BUOY_ID, chorusStationAction } from './chorus.js';
 import { addressOf } from './sectors.js';
 import { contractById, offersAt, parTime, clockText, cargoOf, quoteJob, jobQuote } from './contracts.js';
 import { captionOf, signBox } from './signs.js';
@@ -243,6 +244,9 @@ export function candidatesNear(world) {
   const paints = world.paintCaches.map((c) => near(c.id, c.x, c.y, c.interactRadius, () => paintMenu(world, c)));
   const looks = world.lookCaches.map((c) => near(c.id, c.x, c.y, c.interactRadius, () => lookMenu(world, c)));
   const lost = world.lostCargo.map((c) => near(c.id, c.x, c.y, c.interactRadius, () => lostMenu(world, c)));
+  // A voice's recorder lying in space (src/chorus.js, COMMONS's chain): TAKE THE RECORDER.
+  const buoy = buoyHere(world);
+  const recorder = buoy ? [near(BUOY_ID, buoy.x, buoy.y, CONFIG.quests.chorus.reach, () => buoyMenu(world))] : [];
   const drifter = drifterHere(world);
   const stray = drifter ? [near(drifter.id, drifter.x, drifter.y, CONFIG.stranded.interactRadius, () => drifterMenu(world, drifter))] : [];
   const wreck = wreckHere(world);
@@ -253,7 +257,7 @@ export function candidatesNear(world) {
   const pestered = held ? [near(PESTER_ID, held.x, held.y, CONFIG.stranded.interactRadius, () => pesteredMenu(world, held))] : [];
   const signs = world.signs.inSector(world.sector.id).map((s) => near(s.id, s.x, s.y, CONFIG.sign.interactRadius, () => signMenu(world, s)));
   const droids = world.droids.map((dr) => near(dr.id, dr.x, dr.y, CONFIG.droids.interactRadius, () => droidMenu(world, dr)));
-  return [...special, ...stations, ...caches, ...paints, ...looks, ...lost, ...stray, ...wrecked, ...pestered, ...(asking ? [built(asking)] : []), ...signs,
+  return [...special, ...stations, ...caches, ...paints, ...looks, ...lost, ...recorder, ...stray, ...wrecked, ...pestered, ...(asking ? [built(asking)] : []), ...signs,
     ...flagCandidates(world).map(built), ...droids, ...craftsNear(world)];
 }
 
@@ -282,6 +286,9 @@ export function stationActions(world, station) {
   // A planet's suitcase waiting here (src/errands.js).
   const suitcase = pickupAction(world, station);
   if (suitcase) actions.push({ ...suitcase, tone: QUEST_TONE.planet });
+  // A voice's recorder aboard, played back at COMMONS (src/chorus.js).
+  const playBack = chorusStationAction(world, station);
+  if (playBack) actions.push(playBack);
 
   if (active && active.to === station.id) {
     actions.push({ label: `DELIVER ${active.label}`, run: () => world.deliver(station) });
