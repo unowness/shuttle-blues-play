@@ -168,6 +168,16 @@ export const BODIES = {
       split: { name: 'TWO-TONE', two: 'zone', wobble: 0.22, lean: 0.16, seam: 0.035 },
       ringed: { name: 'RINGED', two: 'ring', lines: [1.4, 1.52, 1.72], outer: 1.72, open: [0.26, 0.42], tilt: 0.5, step: 1.1 },
       cratered: { name: 'CRATERED', two: 'dust', perRadius: 13, size: [24, 90], maxRho: 0.45, rim: [0.74, 1.2], least: 8 },
+      // The eight SX picked on labs/graphics/sketches/planets-stations.html (2026-10-14; their painters labs/graphics/planet-types.js):
+      // `two` what the second ink is (`tint2`), null for one ink.
+      storm: { name: 'STORM', two: 'band' },
+      glacier: { name: 'GLACIER', two: 'crack' },
+      forge: { name: 'FORGE', two: 'lava' },
+      tidewater: { name: 'TIDEWATER', two: 'land' },
+      dunes: { name: 'DUNES', two: null },
+      facets: { name: 'FACETS', two: null },
+      nightside: { name: 'NIGHTSIDE', two: 'lights' },
+      shell: { name: 'SHELL', two: 'lattice' },
     },
     // The size the map editor offers (a planet's radius in u) and what follows it: `pull` keeps its ratio, a new
     // planet's is `pullShare` of its radius. Over `wall` a planet stops being a body (checks/planets.mjs).

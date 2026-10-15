@@ -67,7 +67,11 @@ export const SECTORS = [
       // colour distance) to a slightly bluer one, 22 clear of it. Now in the
       // south-east, beside the hole and off the first route (DRY DOCK to RELAY 12
       // runs through the middle of the sector).
-      { x: 0.84, y: 0.86, radius: 275, pull: 158, ...hue('#47C2BE'), seed: 43, bands: 0, spin: -0.062, label: 'TESSERA' },
+      // The planets after SX's notes on labs/graphics/sketches/planets-stations.html (2026-10-14, verbatim in docs/decisions/2026-10.md
+      // "The planets after SX's sheet"): six replaced by the new types in their place and size (SORREL GLACIER, DAMASK STORM, TORTUGA
+      // FACETS, FATHOM NIGHTSIDE, ISOBAR FORGE, CAIRN SHELL), TESSERA a calmer turquoise, MAGRATHEA grey, GLOAMING's and GREEN ROOM's
+      // craters darker in their own tone, PARQUET in CAIRN's colour, CAMEO a lighter blue, PLANET EXPRESS smaller.
+      { x: 0.84, y: 0.86, radius: 275, pull: 158, ...hue('#78B9C6'), seed: 43, bands: 0, spin: -0.062, label: 'TESSERA' },
     ],
     holes: [
       { id: 'hole-j04', x: 0.4, y: 0.84, horizon: 52, disc: 300, mass: 3.1e7, spinDir: 1 },
@@ -84,9 +88,9 @@ export const SECTORS = [
   {
     id: 'sector-j05', label: 'J-05', name: 'NARROWS', col: 1, row: 0,
     planets: [
-      { x: 0.54, y: 0.51, radius: 405, pull: 249, ...hue('#C98A5E'), seed: 86002, bands: 0.17, spin: -0.116, style: 'blocks', tint2: '#B0B86C', label: 'MAGRATHEA' },
+      { x: 0.54, y: 0.51, radius: 405, pull: 249, ...hue('#B3B5BA'), seed: 86002, bands: 0.17, spin: -0.116, style: 'blocks', tint2: '#8D9097', label: 'MAGRATHEA' },
       // New with the colour pass (2026-09-30), in the open south-west.
-      { x: 0.72, y: 0.88, radius: 400, pull: 233, ...hue('#C0D8E8'), seed: 80454, bands: 0.12, spin: 0.063, style: 'cratered', tint2: '#86B4D6', label: 'SORREL' },
+      { x: 0.72, y: 0.88, radius: 400, pull: 233, ...hue('#DCEAF2'), seed: 80454, bands: 0.12, spin: 0.063, style: 'glacier', tint2: '#7FA6D9', label: 'SORREL' },
     ],
     holes: [
       // The smallest hole, 15 % larger since SX's word (2026-10-01: «Возьми самую маленькую черную дыру по размеру и
@@ -122,7 +126,7 @@ export const SECTORS = [
     // the ground checks/pirates.mjs uses as open: a run west along y = 4200 and
     // a ship parked at (5000, 2000).
     planets: [
-      { x: 0.32, y: 0.63, radius: 320, pull: 190, ...hue('#C79BC8'), seed: 1274, bands: 0.42, spin: -0.11, style: 'cratered', tint2: '#D080D0', label: 'GLOAMING' },
+      { x: 0.32, y: 0.63, radius: 320, pull: 190, ...hue('#C79BC8'), seed: 1274, bands: 0.42, spin: -0.11, style: 'cratered', tint2: '#8C5E8D', label: 'GLOAMING' },
       { x: 0.68, y: 0.35, radius: 260, pull: 145, ...hue('#A6DED6'), seed: 163, bands: 0, spin: 0.09, label: 'BERYL' },
     ],
     holes: [
@@ -140,8 +144,8 @@ export const SECTORS = [
   {
     id: 'sector-k05', label: 'K-05', name: 'LEEWARD', col: 1, row: 1,
     planets: [
-      { x: 0.49, y: 0.48, radius: 520, pull: 330, ...hue('#A99BE0'), seed: 71, bands: 0, spin: 0.083, label: 'DAMASK' },
-      { x: 0.76, y: 0.75, radius: 295, pull: 163, ...hue('#C2E0B2'), seed: 88, bands: 0, spin: 0.1, label: 'TORTUGA' },
+      { x: 0.49, y: 0.48, radius: 520, pull: 330, ...hue('#D8B48E'), seed: 71, bands: 0, spin: 0.083, style: 'storm', tint2: '#B7A0C9', label: 'DAMASK' },
+      { x: 0.76, y: 0.75, radius: 295, pull: 163, ...hue('#B9C2CC'), seed: 88, bands: 0, spin: 0.1, style: 'facets', label: 'TORTUGA' },
     ],
     holes: [],
     stations: [
@@ -161,8 +165,8 @@ export const SECTORS = [
   {
     id: 'sector-j06', label: 'J-06', name: 'DOLDRUMS', col: 2, row: 0,
     planets: [
-      { x: 0.53, y: 0.43, radius: 520, pull: 316, ...hue('#C0D8E8'), seed: 85534, bands: 0.2, spin: 0.055, label: 'FATHOM' },
-      { x: 0.67, y: 0.8, radius: 250, pull: 150, ...hue('#DDE28E'), seed: 181, bands: 0, spin: -0.08, label: 'PARQUET' },
+      { x: 0.53, y: 0.43, radius: 520, pull: 316, ...hue('#9FB3C8'), seed: 85534, bands: 0.2, spin: 0.055, style: 'nightside', tint2: '#6FA9E8', label: 'FATHOM' },
+      { x: 0.67, y: 0.8, radius: 250, pull: 150, ...hue('#D080D0'), seed: 181, bands: 0, spin: -0.08, label: 'PARQUET' },
     ],
     holes: [],
     stations: [
@@ -175,8 +179,8 @@ export const SECTORS = [
   {
     id: 'sector-k06', label: 'K-06', name: 'BACKWATER', col: 2, row: 1,
     planets: [
-      { x: 0.43, y: 0.33, radius: 300, pull: 180, ...hue('#DFBECB'), seed: 191, bands: 0.35, spin: 0.07, style: 'split', tint2: '#A99BE0', label: 'ISOBAR' },
-      { x: 0.64, y: 0.75, radius: 270, pull: 160, ...hue('#D080D0'), seed: 197, bands: 0, spin: -0.06, label: 'CAIRN' },
+      { x: 0.43, y: 0.33, radius: 300, pull: 180, ...hue('#A8A3B4'), seed: 191, bands: 0.35, spin: 0.07, style: 'forge', tint2: '#B98CF2', label: 'ISOBAR' },
+      { x: 0.64, y: 0.75, radius: 270, pull: 160, ...hue('#EBC3DE'), seed: 197, bands: 0, spin: -0.06, style: 'shell', tint2: '#E8A3D2', label: 'CAIRN' },
     ],
     holes: [
       { id: 'hole-k06', x: 0.56, y: 0.48, horizon: 44, disc: 250, mass: 2.4e7, spinDir: 1 },
@@ -208,11 +212,13 @@ SECTORS.push({
     // The aliens' worlds stay in the green family of the accepted sketch, but
     // one hue each, told apart and clear of the interface's route green: a
     // yellower one (CAMEO) and a bluer emerald (GREEN ROOM).
-    { x: 0.28, y: 0.24, radius: 320, pull: 190, ...hue('#86B4D6'), seed: 11621, bands: 0.4, spin: -0.114, style: 'blocks', tint2: '#C98A5E', label: 'CAMEO',
+    { x: 0.28, y: 0.24, radius: 320, pull: 190, ...hue('#B8D6EC'), seed: 11621, bands: 0.4, spin: -0.114, style: 'blocks', tint2: '#C98A5E', label: 'CAMEO',
       aliens: { at: [-Math.PI / 2 - 0.5, -Math.PI / 2, -Math.PI / 2 + 0.5], waving: 1 } },
-    { x: 0.80, y: 0.72, radius: 425, pull: 265, ...hue('#72A843'), seed: 9366, bands: 0, spin: -0.05, style: 'cratered', tint2: '#46AF7E', label: 'GREEN ROOM',
+    { x: 0.80, y: 0.72, radius: 425, pull: 265, ...hue('#72A843'), seed: 9366, bands: 0, spin: -0.05, style: 'cratered', tint2: '#3F6427', label: 'GREEN ROOM',
       aliens: { at: [-2.4, -1.1, -0.2, 0.9, 2.2], waving: 3 } },
-    { x: 0.70, y: 0.18, radius: 415, pull: 237, ...hue('#72A843'), seed: 127, bands: 0, spin: 0.12, style: 'ringed', tint2: '#D080D0',
+    // Smaller (SX, 2026-10-14: «поменьше бы планету сделать саму ... перерисовать а не заскейлить»): its body 330 where it was 415, drawn
+    // on the same cells (a planet is drawn cell by cell at its radius, never scaled), its pull in the same proportion.
+    { x: 0.70, y: 0.18, radius: 330, pull: 188, ...hue('#72A843'), seed: 127, bands: 0, spin: 0.12, style: 'ringed', tint2: '#D080D0',
       label: 'PLANET EXPRESS' },
   ],
   holes: [

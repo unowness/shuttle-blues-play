@@ -14,6 +14,7 @@ import { ROLES } from '../../src/roles.js';
 import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, MOTION_INKS } from './ship-motion.js';
 import { BLOCK_TONES, planetTones, ROCK_EDGE, ROCK_INKS, ROCK_LIT, ROCK_SHADE, SHADE_GAP, ROCK_RELIEF } from './art-tones.js';
 import { stationLook, stationCells, lookOrigin, LOOK_SCALE, MAX_CELLS } from './station-art.js';
+import { paintPlanetType } from './planet-types.js';
 import { prepareHome, drawHome, homeLive } from './garage-art.js';
 import { BOARD, BOARD_INK, dockState, homeDockState } from '../../src/home.js';
 import { stationDockState, dockLook, cargoStowed } from '../../src/docking.js';
@@ -558,7 +559,8 @@ export function paintPlanet(r, sx, sy, planet, t = 0) {
     case 'split': return drawSplit(r, sx, sy, planet);
     case 'ringed': return drawRinged(r, sx, sy, planet, t);
     case 'cratered': return drawCratered(r, sx, sy, planet);
-    default: return Planet.prototype.draw.call(planet, r, sx, sy, t);
+    default: if (paintPlanetType(planetSurfaceStyle(planet), r, sx, sy, planet, t)) return;
+      return Planet.prototype.draw.call(planet, r, sx, sy, t);
   }
 }
 
