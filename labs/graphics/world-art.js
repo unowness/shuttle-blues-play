@@ -2,7 +2,7 @@ import { CONFIG } from '../../src/config.js';
 import { TAU, clamp, fbmWrapped, hypot2, lerp, mixHex, mulberry32, rampGlyph, cellNoise } from '../../src/util.js';
 import { chorusVoice } from '../../src/chorus.js';
 import { Planet } from '../../src/bodies.js';
-import { planetHue } from '../../src/sectors.js';
+import { planetHue, stationDefById } from '../../src/sectors.js';
 import { registerSprite } from '../../src/sprites.js';
 import { Pirate, PIRATE_INKS } from '../../src/pirates.js';
 import { rebuiltShare } from '../../src/ruins.js';
@@ -896,6 +896,8 @@ export function createWorldPresentation(world, settings) {
     return pirateDraw.call(this, inkRenderer(r, ink => (ink === CONFIG.pirates.ink ? ROLES.caution
       : PIRATE_INKS.has(ink) ? ink : shipInk(ink)), underShip(world, r, this, args[0], args[1], this.radius)), ...args);
   });
+  // A station's own light tone, for what goes to it (the containers' bodies, src/worldDraw.js cargoInks): its look's `lit`, or null.
+  world.stationHue = (id) => { const def = stationDefById(id); const look = def?.look ? stationLook(def.look) : null; return look?.tone?.lit ?? null; };
   const sectorBodies = world.sectorBodies;
   world.sectorBodies = function (...args) { return bodies(sectorBodies.apply(this, args)); };
   for (const group of world.bodyCache.values()) bodies(group);

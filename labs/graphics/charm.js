@@ -43,8 +43,14 @@ import { columnLayout, COLUMN_GAPS, SCOPE_RADIUS } from './locator.js';
 // `link` 2 (1.5) `pitch` 5 (4) apart, 30 % larger; `cord` 2.25 (1.875), a fifth longer; and the chain gives like rubber past its
 // length: `stretch` the pull back per px it is drawn out (u/s²; the weight's own pull draws it 3 px at rest, the ring still in the
 // legend's row), `rubber` the bounce its give loses a second, `give` the most px it is drawn out before it stops hard as the cord did.
+// Then (SX, 2026-10-15, on the Firefox checks' FC7: «у брелок надо приблизительно на 15-20% меньше, посмотри как ровнее будет по символам,
+// цепочку надо другую придумать, может просто ряд бусин из символов точек типо»; again after a flight: «брелок на другого типа цепочки
+// должен быть. И меньше размером процентов на 15-20 ... чтобы ровно остался»): the chain a row of beads, `bead` glyphs `pitch` px apart in a
+// font of `beadPx` px (it was rings of `link` 2 px). The picture went to 80 for a night (80 to 84 px at 2x, whole cells) and back to 96 on
+// SX's «Брелок верни к 96, бусины оставь» (2026-10-16), after «брелок чуть побольше»: on whole cells a 32-cell art is 80 or 96 px at 2x,
+// nothing between.
 export const CHARM = Object.freeze({ size: 96, ring: 3, row: 16, cord: 2.25, pull: 80, gain: 0.22, drift: 6, damp: 0.8, swap: 0.35, come: 0.2,
-  step: 0.008, accel: 200, smooth: 0.06, link: 2, pitch: 5, stretch: 80 / 3, rubber: 2, give: 8 });
+  step: 0.008, accel: 200, smooth: 0.06, bead: '•', beadPx: 9, pitch: 5, stretch: 80 / 3, rubber: 2, give: 8 });
 // The cord from the eyelet's centre to the charm's ring's centre unstretched, and the nearest the two rings come (where a new one
 // starts). The push the ship's acceleration gives at most (gain x accel, 44) and the drift (6) are under the pull (80): the weight never
 // rises past its eyelet, and no clamp stands there (checks/charm.mjs holds the three numbers apart).
@@ -221,20 +227,16 @@ function charm(r, p, id, hx, hy, alpha, c) {
   if (c !== null || p === REST) {
     const d = Math.sqrt(p.x * p.x + p.y * p.y), slack = Math.max(0, CORD - d);
     const ux = d > 0 ? p.x / d : 0, uy = d > 0 ? p.y / d : 1;
-    // The chain: links along the cord from the eyelet's edge to the charm's ring's (its sag a curve while it is slack), as many as fit
-    // `pitch` apart at rest and always that many (drawn out, they part: the rubber), their centres on the half pixels (the pixel each
-    // falls in: a centre at x.5 stays there).
+    // The chain: beads along the cord from the eyelet's edge to the charm's ring's (its sag a curve while it is slack), as many as fit
+    // `pitch` apart at rest and always that many (drawn out, they part: the rubber), each a `bead` glyph centred on a whole device pixel.
     const x0 = hx + ux * R, y0 = hy + uy * R, x1 = ringX - ux * R, y1 = ringY - uy * R;
     const bx = slack > 1 ? (x0 + x1) / 2 + slack * 0.35 : (x0 + x1) / 2, by = slack > 1 ? (y0 + y1) / 2 + slack * 0.2 : (y0 + y1) / 2;
     const n = LINKS;
-    ctx.save(); ctx.globalAlpha = alpha; ctx.lineWidth = 1; ctx.strokeStyle = ROLES.textSecondary;
-    ctx.beginPath();
+    const size = CHARM.beadPx / r.fontSize, dpr = r.dpr || 1, snap = (v) => Math.round(v * dpr) / dpr;
     for (let i = 0; i <= n; i++) {
       const t = (i + 0.5) / (n + 1), u = 1 - t;
-      const lx = Math.floor(u * u * x0 + 2 * u * t * bx + t * t * x1) + 0.5, ly = Math.floor(u * u * y0 + 2 * u * t * by + t * t * y1) + 0.5;
-      ctx.moveTo(lx + CHARM.link, ly); ctx.arc(lx, ly, CHARM.link, 0, TAU);
+      r.glyphNow(CHARM.bead, snap(u * u * x0 + 2 * u * t * bx + t * t * x1), snap(u * u * y0 + 2 * u * t * by + t * t * y1), ROLES.textSecondary, alpha, size);
     }
-    ctx.stroke(); ctx.restore();
   }
   ring(ctx, ringX, ringY, ROLES.textSecondary, alpha);
   const sx = ringX - (ink.x0 + ink.x1) / 2, sy = ringY + R - ink.y0, half = CHARM.size / 2;

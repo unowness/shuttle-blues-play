@@ -57,7 +57,7 @@ import { createHudSide } from './hud-sides.js';
 import { loadFrames } from '../../src/frames.js';
 import { createRadio } from './radio.js';
 import { readVolumes } from './volume-panel.js';
-import { readOpening, readCockpitSmoke } from '../../src/prefs.js';
+import { readOpening } from '../../src/prefs.js';
 import { beginOpening, skipOpening } from '../../src/opening.js';
 import { createMouseFlight, readMouseReach } from './mouse-flight.js';
 import { createCursor, CURSORS } from './cursor.js';
@@ -213,8 +213,6 @@ export function createGame(env) {
   // may put the pilot's NORMAL or PRO aside (labs/graphics/stunt-fx.js readStuntSwitches). NORMAL or PRO is kept in this browser; nothing
   // else of it is saved.
   world.stunts = readStuntSwitches(GAME ? new URLSearchParams() : pageParams, saveBackend);
-  // The cockpit's smoke on or off (GRAPHICS, COCKPIT SMOKE), kept in this browser.
-  world.cockpitSmoke = readCockpitSmoke(saveBackend);
   // The smoke clouds (chat W2, 2026-10-04; src/clouds.js), C3 FILL (the shade alone, no outline; SX, 2026-10-04): the game's since SX's
   // word of 2026-10-06 («почему-то нет облаков в космосе»), in the lab too.
   world.clouds = CLOUD_LOOKS.C3;

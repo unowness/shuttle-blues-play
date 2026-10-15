@@ -57,14 +57,15 @@ export function objectFrame(model, time) {
 
 // Draws a sprite centred on its idle-pose pivot. `angle` turns the drawing and
 // its glyphs together, the same rule a hull follows.
-export function drawSprite(r, model, time, sx, sy, { scale = 1, angle = 0, alpha = 1 } = {}) {
+// `inks`, a Map from an ink of the file to the one drawn in its place (the cargo's body in its destination's hue), or null.
+export function drawSprite(r, model, time, sx, sy, { scale = 1, angle = 0, alpha = 1, inks = null } = {}) {
   const cells = objectFrame(model, time);
   const w = r.cellW * scale;
   const h = r.cellH * scale;
   const ca = Math.cos(angle), sa = Math.sin(angle);
   for (const c of cells) {
     const lx = c.x * w, ly = c.y * h;
-    r.glyphRot(c.ch, sx + lx * ca - ly * sa, sy + lx * sa + ly * ca, angle, c.color, alpha, scale);
+    r.glyphRot(c.ch, sx + lx * ca - ly * sa, sy + lx * sa + ly * ca, angle, inks?.get(c.color) ?? c.color, alpha, scale);
   }
 }
 

@@ -7,8 +7,8 @@
 // out, are smoke of the same cloud: laid into its thickness, never a second layer of shade over it. The hull's way through a cloud is
 // the fog's (src/fogCells.js: the puffs src/clouds.js lays, the hull's own hole and its bow): holes with lumpy sides, the smoke they
 // push aside heaped round them, a cone behind the hull that closes after it. A jump over a cloud dims it a little under the hull, as
-// it dims the rocks (src/trick.js underShip), section by section. The view's side smoke is the same cells laid in from the screen's
-// four edges, streaming past with the ship's way, as far in as `world.cloudSide` (in a cloud or in the fog past a dead edge).
+// it dims the rocks (src/trick.js underShip), section by section. (The view's side smoke, the same cells laid in from the screen's
+// edges while the hull was in a cloud, was cut on 2026-10-15: SX, «затемнение кабины при дыме ... вырежи».)
 import { CONFIG } from './config.js';
 import { easeOut } from './util.js';
 import { fogHash, wakeHoles, stampHoles } from './fogCells.js';
@@ -22,7 +22,7 @@ export const CLOUD_INK = CONFIG.smoke.ink;
 // The look's numbers beside the fog's (CONFIG.sector.boundary.fog): how thick a cell is to be smoke (`front`, where the outline ran
 // when there was one), the noise's blocks in cells (the fog's 2 and 6) and its weights. The shade is the smoke's (CONFIG.smoke.shade,
 // SX's V1 FAINT: 0.28; it was 0.34 inside an outline of 0.62, then 0.28 inside one of 0.35), the side smoke's too (it was 0.25).
-const LOOK = Object.freeze({ front: 0.06, blocks: [2, 6], noise: [0.26, 0.1], drift: 9, side: { share: 0.12, rate: 0.9 } });
+const LOOK = Object.freeze({ front: 0.06, blocks: [2, 6], noise: [0.26, 0.1], drift: 9 });
 
 let buf = null;
 // Fills the cells i0..i1, j0..j1 of a field with the shade, `thick(i, j)` a cell's thickness. Cell (i, j)'s middle stands on the
@@ -200,47 +200,3 @@ function drawSector(world, r, sector, ox, oy, V) {
   for (const c of cloudsOf(world, sector)) drawCloud(world, r, c, ox, oy, V);
 }
 
-// The view's side smoke while the hull is in a cloud or in the fog past a dead edge (`world.cloudSide`, src/clouds.js stepClouds):
-// the smoke's shade laid in from the screen's four edges, `side.share` of its width deep at the most (the same depth at the top and
-// bottom), their fronts ragged by the noise and streaming past with the ship's way. Over everything of the world, under the interface.
-// It was the left and right alone, and in a cloud alone (SX, 2026-10-07: «когда мы пролетаем в дыму по бокам под интервейсом слева и
-// справа у нас эффект дыма, он должен быть еще сверху и снизу тоже под интерфейсом и когда в дым скраю влетаем тоже»). Each side's
-// ragged front is one number a line (a row for the left and right, a column for the top and bottom), worked once a frame into kept
-// arrays; a row's shade is then laid as runs (Renderer.glyphRow): its left side's, its right side's, and between them the cells the
-// top or the bottom reach, so no cell is laid twice and the corners are filled. A cell is smoke `front` thick or more, as in a cloud.
-const SIDE = { lumps: [new Float32Array(64), new Float32Array(64), new Float32Array(64), new Float32Array(64)] };
-// A side's lump at line `n`, `along` lines streamed past: two sizes of blocks of the fog's noise, salted by side.
-const SALT = [[-31, 17, -57, 29], [31, 17, 57, 29], [101, 41, 131, 43], [151, 53, 173, 59]];
-// A run of the shade (Renderer.glyphRow), cell by cell where a renderer has no rows (a check's).
-const sideRow = (r, ch, x, y, n, ink, a) => { if (r.glyphRow) r.glyphRow(ch, x, y, n, ink, a); else for (let c = 0; c < n; c++) r.glyph(ch, x + c * r.cellW, y, ink, a); };
-const sideLump = (n, along, salt) => fogHash(Math.floor((n + along) / 3) + salt[0], salt[1]) * 0.45 + fogHash(Math.floor((n + along) / 1.5) + salt[2], salt[3]) * 0.2;
-export function drawCloudSides(world, r) {
-  const k = world.cloudSide ?? 0;
-  if (k <= 0.01 || world.cockpitSmoke === false) return;
-  const S = LOOK.side, cw = r.cellW, ch = r.cellH, t = world.time, deep = r.width * S.share * easeOut(k);
-  const nx = Math.ceil(r.width / cw), ny = Math.ceil(r.height / ch);
-  const cols = Math.max(1, Math.min(nx >> 1, Math.ceil(deep / cw))), rows = Math.max(1, Math.min(ny >> 1, Math.ceil(deep / ch)));
-  if (SIDE.lumps[0].length < Math.max(nx, ny)) for (let q = 0; q < 4; q++) SIDE.lumps[q] = new Float32Array(Math.max(nx, ny) * 2);
-  // The smoke streams along the ship's way: the lines slide past by the ship's speed (in cells), as the fog's blocks slide.
-  const speed = Math.hypot(world.ship.vx, world.ship.vy) * S.rate * t, alongY = speed / ch, alongX = speed / cw;
-  const [L0, L1, L2, L3] = SIDE.lumps, keep = 1 - LOOK.front;
-  for (let j = 0; j < ny; j++) { L0[j] = sideLump(j, alongY, SALT[0]); L1[j] = sideLump(j, alongY, SALT[1]); }
-  for (let i = 0; i < nx; i++) { L2[i] = sideLump(i, alongX, SALT[2]); L3[i] = sideLump(i, alongX, SALT[3]); }
-  const a = CONFIG.smoke.shade * k, shadeCh = CONFIG.sector.boundary.fog.shade.ch;
-  for (let j = 0; j < ny; j++) {
-    // A side's depth is 1 at the screen's edge and 0 at its front, `deep` cells times 0.55 and its lump in: smoke where it is `front`
-    // or more, the cells nearer the edge than `deep (0.55 + lump) (1 - front)`.
-    const y = (j + 0.5) * ch;
-    const nL = Math.min(cols, Math.max(0, Math.ceil(cols * (0.55 + L0[j]) * keep)));
-    const nR = Math.min(cols, Math.max(0, Math.ceil(cols * (0.55 + L1[j]) * keep)));
-    if (nL > 0) sideRow(r, shadeCh, 0.5 * cw, y, nL, CLOUD_INK, a);
-    if (nR > 0) sideRow(r, shadeCh, (nx - nR + 0.5) * cw, y, nR, CLOUD_INK, a);
-    if (j >= rows && j < ny - rows) continue;
-    let from = -1;
-    for (let i = nL; i <= nx - nR; i++) {
-      const on = i < nx - nR && ((j < rows && j < rows * (0.55 + L2[i]) * keep) || (ny - 1 - j < rows && ny - 1 - j < rows * (0.55 + L3[i]) * keep));
-      if (on && from < 0) from = i;
-      else if (!on && from >= 0) { sideRow(r, shadeCh, (from + 0.5) * cw, y, i - from, CLOUD_INK, a); from = -1; }
-    }
-  }
-}

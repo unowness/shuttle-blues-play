@@ -61,7 +61,8 @@ export const PREFS = Object.freeze({
   // display is, never the save's. CLASSIC (SX's ship) unless another is kept; a look the game no longer has (FORCE, ONE-HAND, CARTRIDGE
   // and OWL went on 2026-10-08) reads as CLASSIC.
   ship:       Object.freeze({ key: 'spaser.ship.v1',      area: 'local',   fallback: 'classic', shape: '{"look":"classic"|"thunder"|"edges"|"blackbird"}' }),
-  // The cockpit's smoke, the view's sides while the hull is in smoke (GRAPHICS, COCKPIT SMOKE; SX, 2026-10-07): shown unless kept off.
+  // The cockpit's smoke, the view's sides while the hull was in smoke (GRAPHICS, COCKPIT SMOKE; SX, 2026-10-07): the smoke cut on 2026-10-15
+  // (SX: «затемнение кабины при дыме ... вырежи»); its key kept so no later preference takes its name, read by nothing.
   smoke:      Object.freeze({ key: 'spaser.smoke.v1',     area: 'local',   fallback: true,      shape: '{"cockpit":true|false}' }),
   // The frames and rules of the windows in the Swiss manner (src/frames.js, the pause's GRAPHICS > FRAMES; SX, 2026-10-09): neutral grays
   // unless TINTED is kept, which tints them slightly toward the worn look of the interface.
@@ -111,9 +112,6 @@ export const writeSound = (on, store) => writeJSON('sound', { on: !!on }, store)
 export const readShipLook = (ids, store) => { const kept = readJSON('ship', store); return ids.includes(kept?.look) ? kept.look : PREFS.ship.fallback; };
 export const writeShipLook = (look, store) => writeJSON('ship', { look }, store);
 
-// The cockpit's smoke (PREFS.smoke): on unless kept off.
-export const readCockpitSmoke = (store) => readJSON('smoke', store)?.cockpit !== false;
-export const writeCockpitSmoke = (on, store) => writeJSON('smoke', { cockpit: !!on }, store);
 
 // The windows' frames (PREFS.frames): one of `styles`, else GRAY.
 export const readFrames = (styles, store) => { const kept = readJSON('frames', store); return styles.includes(kept?.style) ? kept.style : PREFS.frames.fallback; };

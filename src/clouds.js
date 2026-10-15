@@ -12,28 +12,26 @@
 // разрезаешь его, то есть он по физике дыма себя ведет просто»): the fog's own way through (src/fogCells.js, the edge's `cone` and
 // `jet`, CONFIG.sector.boundary.fog), a fat cone behind the hull with puffy sides that the smoke fills again from its far end, the
 // exhaust blowing a widening stream in it, the smoke pushed aside heaped round the way:
-//   flown through on the ground  the hull cuts it from where it goes in to where it comes out, a wisp at each, and the view's sides
-//                                fill with its smoke while the hull is in it (`world.cloudSide`, 0..1, eased in and out);
+//   flown through on the ground  the hull cuts it from where it goes in to where it comes out, a wisp at each (the view's sides no
+//                                longer fill with its smoke: cut on 2026-10-15, SX: «затемнение кабины при дыме ... вырежи»);
 //   jumped over                  the hull is up (src/trick.js `ship.airborne`), over the smoke: it cuts nothing;
 //   a jump that falls short      the hull comes down onto the smoke from above and cuts on through it from where it touched, the
-//                                side smoke with it. It was a splash: a ring of puffs and a hoop opened in the cloud round the hull.
+//                                It was a splash: a ring of puffs and a hoop opened in the cloud round the hull.
 //
 // State on the world (each declared with its first value in World's constructor; none saved: a sector's clouds are drawn from the world's seed the first time it is entered, and kept, as its
 // bodies are; they are where they were when the ship comes back):
 //   world.clouds       null (none: a check's world), or the look the page sets: CLOUD_LOOKS.C3
 //   world.cloudCache   Map sector id -> [cloud], cloud = { id, ax, ay, x, y, reach, parts: [{ dx, dy, r, period, phase }], wander }
 //   world.inCloud      null, or { id, sectorId, since }: the hull on the ground inside one
-//   world.cloudSide    0..1, how far the view's side smoke is in
 //   world.cloudPuffs   [{ x, y, t, size, sectorId, cloudId }]: wisps where a hull went in and came out, smoke of their cloud (a look;
 //                      kept `puff.life` s)
 //   world.cloudWake    the puffs the hull and its exhaust leave in the clouds of the ship's sector (src/fogCells.js wakePuff: a look,
 //                      on the world's clock and the world's counter, so one flight leaves the same way through), as World.fogWake;
 //                      cloudWakeIn the sector they are in, cloudHullAt and cloudJetAt when the last was laid, cloudSerial their jitter's count
 // Events: cloudEntered, cloudLeft, cloudSplash (src/events.js).
-import { TAU, between, clamp } from './util.js';
+import { TAU, between } from './util.js';
 import { CONFIG } from './config.js';
 import { LAYOUT_SECTOR } from './worldScale.js';
-import { PLANE } from './topology.js';
 import { fogHash, stepWake, wakePuff, enginePower, jetPuff } from './fogCells.js';
 import { contentAreas } from './mapContent.js';
 import { MAP_PLACEMENT, sampleArea } from './mapContentConfig.js';
@@ -54,8 +52,6 @@ export const CLOUDS = Object.freeze({
   // A wisp grows from `puff.from` to `puff.to` u over its `puff.life` s, thinning away as it does. (The splash's ring is gone: it was
   // `ring.r` 240 u opened round the hull where it came down, and six puffs round it.)
   puff: { from: 40, to: 150, life: 1.1 },
-  // The view's side smoke: in over `side.in` s, out over `side.out` s.
-  side: { in: 0.3, out: 0.8 },
 });
 
 // The look: the shade alone, no outline (SX, 2026-10-04: «дым слишком неотличим от камней ... дым брали без контура»).
@@ -155,7 +151,7 @@ export function nearCloud(world, x, y, reach) {
 // One step of the clouds (World.step, after the ship's): their places, the hull going in and out on the ground, coming down onto one,
 // and its way through them.
 export function stepClouds(world, dt) {
-  if (!world.clouds) { stepSides(world, dt, false); return; }
+  if (!world.clouds) return;
   const t = world.time, C = CLOUDS, ship = world.ship;
   for (const c of cloudsOf(world, world.sector)) placeCloud(c, t);
   world.cloudPuffs = world.cloudPuffs.filter((p) => t - p.t < C.puff.life);
@@ -176,28 +172,9 @@ export function stepClouds(world, dt) {
     world.emit('cloudLeft', { cloudId: was.id, sectorId: world.sector.id, x: ship.x, y: ship.y });
   }
   world.inCloud = here ? { id: here.id, sectorId: world.sector.id, since: was && was.id === here.id ? was.since : t } : null;
-  stepSides(world, dt, !!here);
   stepWayThrough(world, dt, here);
 }
 
-// The view's side smoke (`world.cloudSide`, src/cloudDraw.js drawCloudSides): in over `side.in` s while the hull is on the ground in a
-// cloud (`inCloud`) or in the fog past a dead edge, out over `side.out` s after. In the fog is past the front's middle depth: `front`
-// of the way from the fog's `start` to its `full` (CONFIG.sector.boundary.fog; 155 u past the line, where the front's noise lays it
-// 25 to 285 u). SX, 2026-10-07: «и когда в дым скраю влетаем тоже».
-function stepSides(world, dt, inCloud) {
-  const C = CLOUDS, on = inCloud || inEdgeFog(world);
-  world.cloudSide = clamp(world.cloudSide + (on ? dt / C.side.in : -dt / C.side.out), 0, 1);
-}
-function inEdgeFog(world) {
-  const ship = world.ship, F = CONFIG.sector.boundary.fog, edges = world.deadEdges;
-  if (!ship.alive || ship.airborne || world.docked || !edges || world.topology.mode !== PLANE) return false;
-  const from = F.start + F.front * (F.full - F.start);
-  for (let k = 0; k < edges.length; k++) {
-    const e = edges[k], p = e.axis === 'x' ? ship.x : ship.y, size = e.axis === 'x' ? world.width : world.height;
-    if ((e.dir < 0 ? -p : p - size) >= from) return true;
-  }
-  return false;
-}
 
 // The hull's way through the clouds, the fog's own (World.stepFogWake, CONFIG.sector.boundary.fog `cone` and `jet`): on the ground in
 // a cloud, a puff at the hull every `cone.every` s; the engine (or the retro) running within `jet.reach` u of one, a puff out along

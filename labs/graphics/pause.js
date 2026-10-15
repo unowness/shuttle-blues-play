@@ -16,7 +16,7 @@
 //   graphics   SCREEN: DISPLAY (the whole screen, as V), LOOK, FRAMES (the grays or the look's tint, src/frames.js), from the wider to the
 //              narrower; PILOT: SHIP, the drawing the pilot's ship wears (src/shipLooks.js, SX 2026-10-07), over PAINT, what it is painted in,
 //              and CURSOR, the collections (UI SHADOW went with the interface's shadow, 2026-10-06: only its text casts one now,
-//              src/textShadow.js, and that one is not chosen); COCKPIT: COCKPIT SMOKE and SIDES, which side the locator stands on (the quests
+//              src/textShadow.js, and that one is not chosen); COCKPIT: SIDES, which side the locator stands on (the quests
 //              and the radio take the other: SX, 2026-10-08, the mirror switch of «HUD PLACE: S3 + MIRROR SWITCH»)
 //   audio      SOUND (as O), then VOLUME: MASTER over the three it scales; DEFAULTS in the foot
 //   gameplay   CONTROLS (KEYS + CLICKS or MOUSE + HOTKEYS), STEERING (TANK or SCREEN; quiet where the mouse flies); FLIGHT: HOME BEARING,
@@ -25,7 +25,7 @@
 //   layout     where the interface's groups stand (labs/graphics/hud-place.js), moved under the pause
 // The toy ship's square is the main page's alone (the Swiss pages give the room to the rows); it is not stepped while another page stands.
 import { CONFIG } from '../../src/config.js';
-import { readSeen, writeSeen, writeCockpitSmoke } from '../../src/prefs.js';
+import { readSeen, writeSeen } from '../../src/prefs.js';
 import { frames, FRAME_STYLES, FRAME_STYLE_NAMES, setFrames } from '../../src/frames.js';
 import { lookById, ownedLooks } from '../../src/looks.js';
 import { paintById } from '../../src/paint.js';
@@ -176,9 +176,6 @@ export function createPause(game) {
       choice('CURSOR', o.cursors.map((id) => ({ label: cursorName(id), worn: P.cursor === id, dot: isNew('cursors', id),
         run: () => { game.pointerAsked = null; game.applyCursor(P.wearCursor(id)); game.persist('cursor'); } }))),
       blank, { kind: 'heading', title: 'COCKPIT' },
-      // The smoke at the view's sides while in smoke (SX, 2026-10-07: «отключать дым в настройке графики ... именно который в кабине»).
-      { kind: 'toggle', label: 'COCKPIT SMOKE', on: world.cockpitSmoke !== false,
-        set: () => { world.cockpitSmoke = world.cockpitSmoke === false; writeCockpitSmoke(world.cockpitSmoke, game.saveBackend); } },
       // The mirror switch (labs/graphics/hud-sides.js): the locator and the shelf under it on one side, the quests and the radio on the
       // other; kept in this browser, and the layout's kept offsets are mirrored with it.
       ...(game.hudSide ? [choice('SIDES', HUD_SIDES.map((side) => ({ label: HUD_SIDE_NAMES[side], worn: game.hudSide.locator === side,

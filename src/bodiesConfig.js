@@ -4,8 +4,6 @@
 // on, the same objects), so every reader is unchanged. The code is src/bodies.js, src/field.js, src/secretHole.js and src/progression.js
 // (the rocks' drops).
 
-import { FLIGHT } from './flightConfig.js';
-
 export const BODIES = {
   asteroid: {
     tiers: [
@@ -124,7 +122,10 @@ export const BODIES = {
       // head-on from about 470 u/s of closing, or a jump landed on it from about 335. The hull pays it as before (SX: the rocks' damage stays), is
       // not bounced, and loses `loss` of its closing speed along the contact; the pieces go `gap` u clear either side of its way, flung
       // off at `scatter` u/s.
-      ram: { breaks: FLIGHT.warn.heavy, loss: 0.5, scatter: 140, gap: 6 },
+      // Then lower (SX, 2026-10-16: «камни не разломались когда я в них врезался»): a blow of 6 points (about 400 u/s of closing; 10, the
+      // warning's heavy blow, was about 470, and a rock met off its middle is met slower than the hull flies), so at 600 u/s about three
+      // blows in four break it, at 500 three in five.
+      ram: { breaks: 6, loss: 0.5, scatter: 140, gap: 6 },
       // A collision costs coins (SX, 2026-09-24): `spill` CR leave the wallet
       // as a scatter of 1 CR coins around the contact, flung past the hull's
       // pull and untouchable for `spillDelay` seconds, then free to gather

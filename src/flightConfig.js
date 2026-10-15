@@ -103,7 +103,8 @@ export const FLIGHT = {
   // NORMAL and PRO (the pause's DRIFT row; SX, 2026-10-07: «режим про пусть будет таким же а не про наоборот помягче вход и выход из
   // дрифта, побольше контроля в дрифте, чтобы поменьше было столкновений», then «в нормальном дрифте еще не ускоряй так сильно
   // корабль при дрифте можно чуть чуть»): PRO flies G1 as it is; NORMAL, the default, flies it with `normal` laid over it
-  // (src/drift.js driftPreset). Measured at 999 u/s, Space and a turn key held (PRO -> NORMAL): the way in, the stick's extra eased
+  // (src/drift.js driftPreset). NORMAL's numbers softened on 2026-10-15 (the preset's own note: its course at most 63 deg/s at 999); what
+  // follows is as measured on 2026-10-07. Measured at 999 u/s, Space and a turn key held (PRO -> NORMAL): the way in, the stick's extra eased
   // in over 0.35 s, the slide growing at most 179 -> 142 deg/s; inside, the course a 0.35 s lag behind the nose, the stick 1.3 times
   // the hull's and the slide at most 60 deg: 90 deg of turn in 1.23 -> 0.83 s, the arc's radius 649 -> 394 u, the slide 61 -> 50 deg;
   // the way out over 0.7 s catching 0.9 of the lag: the course 15 -> 2 deg off where the nose was let go, the course's turn at most
@@ -127,7 +128,17 @@ export const FLIGHT = {
       G1: { code: 'G1', name: 'GLIDE', kind: 'glide', steer: 1.2, steerIn: 0.2, maxSlide: 70 * DEG, lag: 0.7,
         refund: { window: 0.12, time: 0.15 }, tiers: [25 * DEG, 50 * DEG, 80 * DEG], boost: [0, 0, 0, 0], flat: true, back: 0,
         exit: 0.5, caught: 0.7, catchMost: 4, reflex: 0, surf: true, throttle: 1,
-        normal: { steer: 1.3, steerIn: 0.35, maxSlide: 60 * DEG, lag: 0.35, exit: 0.7, caught: 0.9, throttle: 0.1 } },
+        // NORMAL softened (SX, 2026-10-15: «нажимаешь дрифт, и тебя как-то резко кидает с инерции, сворачивает. Очень быстро, очень
+        // неожиданно. Не ощущается, как тягучий дрифт ... мега ускорение ... И тормозить не надо, просто это должен быть такой плавный
+        // угол ... перебор какой-то есть в кривой»): it was steer 1.3, steerIn 0.35, maxSlide 60 deg, lag 0.35, exit 0.7, caught 0.9, the
+        // course turning 145 deg/s at any speed, 2,500 u/s² across the way at 999 (twice the hull's own thrust), 90 deg in 0.83 s, a
+        // spike of 2,900 at the let-go. Now, measured at 999 (Space and a turn key held 2.2 s): the course at most 63 deg/s, about
+        // 1,100 u/s² across the way (the hull's thrust), 90 deg in 1.7 s, the nose up to 47 deg off the course, no spike at the let-go
+        // (1,040); at 600 two thirds of that. The speed is kept as before (no brake). Then halfway between the two (SX, 2026-10-16, after
+        // flying it: «сейчас неплохо но ... я хочу как будто ровно между этими двумя состояниями Сейчас немного мало влево уходит»): every
+        // number the middle of the two, the course at most 95 deg/s at 999, about 1,650 u/s² across the way, 90 deg in 1.22 s (0.83 and
+        // 1.68 the two), the nose up to 50 deg off, 1,635 at the let-go (no spike over the turn itself).
+        normal: { steer: 1.15, steerIn: 0.42, maxSlide: 55 * DEG, lag: 0.55, exit: 0.85, caught: 0.75, throttle: 0.1 } },
     },
   },
 

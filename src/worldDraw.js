@@ -30,7 +30,7 @@ import { liftOffset, cargoHeight, passedOver, underShip } from './trick.js';
 import { drawDroid, drawServiceFx, DROID_INKS, DROID_CAPTION, droidFootprint } from './droids.js';
 import { drawOil } from './oil.js';
 import { fogHash, FOG_EDGE, wakeHoles, stampHoles } from './fogCells.js';
-import { drawClouds, drawCloudSides } from './cloudDraw.js';
+import { drawClouds } from './cloudDraw.js';
 import { lap } from './frameProfile.js';
 import { drawPirateCues, drawPirateFields } from './pirateCombatDraw.js';
 
@@ -656,6 +656,7 @@ class WorldDrawing {
       drawSprite(r, crate, t, s.x, s.y, {
         scale: CONFIG.cargo.spriteScale * cargoOf(rec.job).scale,
         angle: (seedOf(contractId) % 628) / 100 + t * CONFIG.stranded.spin,
+        inks: cargoInks(this, crate, rec.job?.from),
       });
     }
     // Other pilots' cargo over there, too, while it lies untaken.
@@ -852,8 +853,8 @@ class WorldDrawing {
     for (const c of this.lostCargo) {
       const s = this.project(r, c.x, c.y);
       const angle = c.spin + t * CONFIG.stranded.spin;
-      const size = cargoOf(c.stranger ? contractById(c.contractId) : this.ledger.job(c.contractId)).scale;
-      if (crate) drawSprite(r, crate, t, s.x, s.y, { scale: CONFIG.cargo.spriteScale * size, angle });
+      const job = c.stranger ? contractById(c.contractId) : this.ledger.job(c.contractId);
+      if (crate) drawSprite(r, crate, t, s.x, s.y, { scale: CONFIG.cargo.spriteScale * cargoOf(job).scale, angle, inks: cargoInks(this, crate, job?.from) });
       else r.glyph(CONFIG.cargo.glyph, s.x, s.y, CONFIG.cargo.color, 1, 1.6);
     }
 
@@ -954,7 +955,7 @@ class WorldDrawing {
         const k = i / (marks + 1), q = 1 - k;
         r.glyph(c.tetherGlyph, q * q * from.x + 2 * q * k * mx + k * k * to.x, q * q * from.y + 2 * q * k * my + k * k * to.y, c.color, 0.9 * cargoShade);
       }
-      if (art) drawSprite(r, art, t, a.x, a.y, { scale, angle: tow.angle + Math.PI / 2, alpha: cargoShade });
+      if (art) drawSprite(r, art, t, a.x, a.y, { scale, angle: tow.angle + Math.PI / 2, alpha: cargoShade, inks: cargoInks(this, art, this.ledger.activeJob()?.from) });
       else r.glyph(c.glyph, a.x, a.y, c.color, cargoShade, 1.6);
     }
 
@@ -966,14 +967,32 @@ class WorldDrawing {
     if (boarded(this)) drawFlownShip(this, r, s.x, s.y, t); else this.ship.draw(r, s.x, s.y);
     drawSuitcase(this, r);
     drawRecorderAboard(this, r, t);
-    // A hull in a cloud: its smoke at the view's sides, over everything of the world.
-    lap('clouds');
-    drawCloudSides(this, r);
     lap(null);
   }
 }
 
 // Puts the drawing's methods on `World` (src/world.js), as its own: not enumerable, as a class's methods are.
+
+// A container in the hue of the station it was taken from (SX, 2026-10-15: «грузы ... должен быть оформлен в цветах. Этой станции. Чтобы
+// разные по цвету грузы были»; then, 2026-10-16, after the destination's hue: «грузы должны быть в цвете откуда ты их забираешь это же по
+// сути у нас задача одна станция просит отнести другой что-то»): the crate's body (its file's most used ink) drawn in the sending station's
+// look's own light tone (`world.stationHue`, lent by the page: labs/graphics/world-art.js), its bands and marks as they are; a job towed, a
+// lost one and a stranded one alike; a station without a look (HOME) or a world without the page's hue keeps the file's. One Map a hue.
+const crateInks = new Map();
+let crateBody = null;
+function cargoInks(world, crate, stationId) {
+  const hue = stationId ? world.stationHue?.(stationId) : null;
+  if (!hue || !crate) return null;
+  if (crateBody === null) {
+    const count = new Map();
+    for (const c of crate.frames ? crate.frames[0] : crate.cells) count.set(c.color, (count.get(c.color) ?? 0) + 1);
+    crateBody = [...count].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+  }
+  let inks = crateInks.get(hue);
+  if (!inks) { inks = new Map([[crateBody, hue]]); crateInks.set(hue, inks); }
+  return inks;
+}
+
 export function addDrawing(World) {
   for (const name of Object.getOwnPropertyNames(WorldDrawing.prototype)) {
     if (name !== 'constructor') Object.defineProperty(World.prototype, name, Object.getOwnPropertyDescriptor(WorldDrawing.prototype, name));

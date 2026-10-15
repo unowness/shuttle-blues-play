@@ -274,10 +274,6 @@ export class World {
     // Whether the fog past a dead edge is worked cell by cell only in its band and laid as rows deeper in (src/worldDraw.js, chat R),
     // the game's since SX's word of 2026-10-04; off only for a check that reads the whole field cell by cell (the same glyphs).
     this.fogBand = true;
-    // Whether the smoke at the view's sides is drawn while the hull is in smoke (src/cloudDraw.js drawCloudSides): GRAPHICS' COCKPIT
-    // SMOKE, kept in the browser (SX, 2026-10-07: «дайь возможность тогда отключать дым в настройке графики ... именно который в кабине
-    // когда ты дыму»). Only the drawing: the state it reads (`cloudSide`) goes on.
-    this.cockpitSmoke = true;
     // The smoke clouds (src/clouds.js, whose head says each): the lab's switch (`clouds`, the look the page asks for; none in the
     // game yet, nor in a check's World that does not ask), the clouds laid per sector, the hull in one and since when, the side
     // smoke's share, the wisps where a hull went in or out, whether the ship was up last step, the wake in the ship's sector and
@@ -285,7 +281,6 @@ export class World {
     this.clouds = null;
     this.cloudCache = new Map();
     this.inCloud = null;
-    this.cloudSide = 0;
     this.cloudPuffs = [];
     this.cloudWasUp = false;
     this.cloudWake = [];
@@ -400,6 +395,9 @@ export class World {
     // And how faint the towed cargo is drawn while the hull dives into a station's dock and rises (world-art.js; src/worldDraw.js reads
     // it, and a World without the page draws its cargo whole).
     this.cargoShade = null;
+    // A station's own light tone for what goes to it (the containers' bodies, src/worldDraw.js cargoInks), lent by the page
+    // (labs/graphics/world-art.js): (stationId) -> ink or null; null in a check's world (the file's inks).
+    this.stationHue = null;
     this.egg = { held: 0, done: false }; // src/eggs.js's own
 
     if (quiet) this.quieten();
