@@ -94,6 +94,9 @@ export function createInputRouter(game) {
       sound.play('blip');
       toggleTracker(game.tracker);
     }
+    // − and = (or the pause's GRAPHICS > CAMERA): the camera a step higher, more of the world in the screen, or a step lower (src/zoom.js).
+    if (key('cameraUp') && game.stepZoom?.(1)) sound.play('blip');
+    if (key('cameraDown') && game.stepZoom?.(-1)) sound.play('blip');
 
     // Contextual actions, the one way the keys act on a station or a ship (SX, 2026-10-07: «и со станциями, и с кораблями всё делается
     // только через их контекстное окно вблизи»). Edge-triggered, so holding a number does not repeat,

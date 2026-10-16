@@ -101,7 +101,7 @@ function hullBox(r, world) {
   let half = 24;
   if (ship?.alive && ship.model) {
     const mt = ship.metrics || ship.measureDrawing(r.cellW, r.cellH);
-    half = Math.max(ship.model.width * mt.w, ship.model.height * mt.h) / 2;
+    half = Math.max(ship.model.width * mt.w, ship.model.height * mt.h) / 2 * (r.zoom ?? 1);     // (as the camera draws it, src/zoom.js)
   }
   return { at, box: { x: at.x - half, y: at.y - half, w: 2 * half, h: 2 * half } };
 }
@@ -124,7 +124,8 @@ function offAvoid(view, b, avoid, m = PLATE.margin) {
 // as it stays off the ship: a side that only just fitted came and went with the float, and the window crossed the ship going between.
 function dockedPlace(r, world, view, room, hull, w, h, avoid, it) {
   const m = PLATE.margin, g = PLATE.gap, cx = hull.x + hull.w / 2, cy = hull.y + hull.h / 2, pad = world.dockHeld.kind === 'pad';
-  const bw = pad ? Math.max(hull.w, PAD.W * r.cellW * LOOK_SCALE) : hull.w, bh = pad ? Math.max(hull.h, PAD.H * r.cellH * LOOK_SCALE) : hull.h;
+  const z = r.zoom ?? 1;
+  const bw = pad ? Math.max(hull.w, PAD.W * r.cellW * LOOK_SCALE * z) : hull.w, bh = pad ? Math.max(hull.h, PAD.H * r.cellH * LOOK_SCALE * z) : hull.h;
   const dock = { x: cx - bw / 2, y: cy - bh / 2, w: bw, h: bh };
   const inX = (x) => clamp(x, room.x + m, Math.max(room.x + m, room.x + room.w - m - w));
   const inY = (y) => clamp(y, room.y + m, Math.max(room.y + m, room.y + room.h - m - h));
@@ -326,9 +327,10 @@ export function drawLabContext(r, world, target, avoid = []) {
 
 // ------------------------------------------------------------------------------------------------ the windows, coming and going
 
-// The hull as it is drawn up in a jump: lifted toward the light and grown (src/trick.js liftOffset, the page's stunt-fx.js).
-function liftedHull(ship, hull) {
-  const lift = liftOffset(ship.air ?? 0, ship.radius ?? 0), cx = hull.x + hull.w / 2 + lift.dx, cy = hull.y + hull.h / 2 + lift.dy;
+// The hull as it is drawn up in a jump: lifted toward the light and grown (src/trick.js liftOffset, the page's stunt-fx.js); `z` the
+// camera's zoom (src/zoom.js), the lift's units in px.
+function liftedHull(ship, hull, z = 1) {
+  const lift = liftOffset(ship.air ?? 0, ship.radius ?? 0), cx = hull.x + hull.w / 2 + lift.dx * z, cy = hull.y + hull.h / 2 + lift.dy * z;
   return { x: cx - hull.w / 2 * lift.grow, y: cy - hull.h / 2 * lift.grow, w: hull.w * lift.grow, h: hull.h * lift.grow };
 }
 
@@ -398,7 +400,7 @@ export function drawContextPlates(r, world, target, avoid = [], { dismissed = fa
     const alpha = reducedMotion ? 1 : easeOut(s.p);
     const box = withAlpha(r.ctx, alpha, () => (live ? paintPlate(r, s.target, L, x, y, true) : unnoted(() => paintPlate(r, s.target, L, x, y, false))));
     it.box = box;
-    if (world.ship?.airborne && overlaps(box, liftedHull(world.ship, it.hull), 0)) over = true;
+    if (world.ship?.airborne && overlaps(box, liftedHull(world.ship, it.hull, r.zoom ?? 1), 0)) over = true;
     out.push(box);
   }
   for (const [id, it] of plates) if (!shown.has(id) && t - (it.seen ?? t) > FORGET) plates.delete(id);

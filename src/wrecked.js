@@ -269,7 +269,7 @@ export function drawWreck(world, r, t) {
     drawCraft(r, craft, s.x, s.y, here.angle + t * 0.05);
     if (Math.hypot(here.x - world.ship.x, here.y - world.ship.y) < HAIL_REACH * 2.5) {
       // Under the square its menu's marks stand round (it turns, so the marks hold its whole reach), not under the drawing.
-      const label = `${here.name} / WRECK`, w = label.length * r.cellW;
+      const label = `${here.name} / WRECK`, w = label.length * r.cellW * (r.textScale ?? 1);
       const reach = Math.hypot(craft.rows[0].length * r.cellW, craft.rows.length * r.cellH) * craft.scale / 2;
       r.text(label, s.x - w / 2, s.y + reach + r.cellH * 1.5, CONFIG.hud.color, 0.9);
     }

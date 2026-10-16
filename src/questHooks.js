@@ -96,7 +96,7 @@ export function drawDrifter(world, r, t) {
   // The distress light, a second on and a second off, over its nose.
   if (still && Math.floor(t) % 2 === 0) r.glyph('·', s.x, s.y - reach * 0.8, CONFIG.hud.warning, 1, 1.6);
   if (still && Math.hypot(d.x - world.ship.x, d.y - world.ship.y) < HAIL_REACH * 2.5) {
-    const label = craft.name, w = label.length * r.cellW;
+    const label = craft.name, w = label.length * r.cellW * (r.textScale ?? 1);
     r.text(label, s.x - w / 2, s.y + reach + r.cellH * 1.5, CONFIG.hud.color, 0.9);
   }
 }

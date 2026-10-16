@@ -67,7 +67,8 @@ let skyDiscs = 0;
 function skyDisc(world, r, k, x, y, radius) {
   const d = SKY_DISCS[skyDiscs] ?? (SKY_DISCS[skyDiscs] = { x: 0, y: 0, r: 0 });
   skyDiscs++;
-  d.x = world.projectX(r, x) + world.lean.x * k; d.y = world.projectY(r, y) + world.lean.y * k; d.r = radius;
+  const z = r.zoom ?? 1;
+  d.x = world.projectX(r, x) + world.lean.x * k * z; d.y = world.projectY(r, y) + world.lean.y * k * z; d.r = radius * z;
   SKY.push(d);
 }
 
@@ -477,20 +478,21 @@ class WorldDrawing {
   drawPlanetLabel(r, p, s) {
     if (!p.label) return;
     const { x, y } = this.planetLabelAt(r, p, s);
-    const w = p.label.length * r.cellW;
-    if (!r.onScreen(x + w / 2, y + r.cellH / 2, w / 2)) return;
+    const k = r.textScale ?? 1, w = p.label.length * r.cellW * k;
+    if (!r.onScreen(x + w / 2, y + r.cellH * k / 2, w / 2)) return;
     r.text(p.label, x, y, this.planetLabelInk(p), 1);
   }
 
   // Where a planet's name stands now (its top left on screen), going round the planet (CONFIG.planet.label):
   // the text's box is pushed out along its angle by half its width and height, so the side of it nearest
-  // the planet is always `gap` rows off the rim, at the bottom as at the sides.
+  // the planet is always `gap` rows off the rim, at the bottom as at the sides. (The name is the interface's text, its size the same
+  // whatever the camera's height: `textScale`, src/zoom.js.)
   planetLabelAt(r, p, s, t = this.time) {
     const L = CONFIG.planet.label;
     const seed = seedOf(p.label);
     const dir = seed % 2 ? 1 : -1;
     const a = Math.PI / 2 + ((seed % 628) / 100) + dir * (t / L.period) * TAU;
-    const w = p.label.length * r.cellW, h = r.cellH;
+    const k = r.textScale ?? 1, w = p.label.length * r.cellW * k, h = r.cellH * k;
     const ux = Math.cos(a), uy = Math.sin(a);
     const reach = p.rim + L.gap * r.cellH;
     const cx = s.x + ux * reach + (w / 2) * ux, cy = s.y + uy * reach + (h / 2) * uy;
@@ -546,15 +548,17 @@ class WorldDrawing {
     // is nudged into the safe view, off the strip and the cockpit, where it would
     // be drawn over an instrument with no backing (QA, 2026-09-30: 21 px above the helm).
     const ship = this.ship;
+    // (In the interface's letters, their size the same whatever the camera's height: `textScale`, src/zoom.js.)
+    const k = r.textScale ?? 1, cw = r.cellW * k, ch = r.cellH * k;
     const name = (label, x, y) => {
       const s = this.project(r, x, y);
-      const half = (label.length * r.cellW) / 2;
+      const half = (label.length * cw) / 2;
       if (!r.onScreen(s.x, s.y, half)) return;
       const v = r.view;
-      const sx = clamp(s.x, v.x + half + r.cellW * 2, Math.max(v.x + half + r.cellW * 2, v.x + v.w - half - r.cellW * 2));
-      const sy = clamp(s.y, v.y + r.cellH * 2, Math.max(v.y + r.cellH * 2, v.y + v.h - r.cellH * 2));
+      const sx = clamp(s.x, v.x + half + cw * 2, Math.max(v.x + half + cw * 2, v.x + v.w - half - cw * 2));
+      const sy = clamp(s.y, v.y + ch * 2, Math.max(v.y + ch * 2, v.y + v.h - ch * 2));
       for (let i = 0; i < label.length; i++) {
-        r.glyph(label[i], sx + (i - (label.length - 1) / 2) * r.cellW, sy, CONFIG.hud.color, 1);
+        r.glyph(label[i], sx + (i - (label.length - 1) / 2) * cw, sy, CONFIG.hud.color, 1, k);
       }
     };
     for (const n of this.neighbours) {
@@ -666,8 +670,9 @@ class WorldDrawing {
 
   // Where a point of the world is on the screen: the camera's way to it (Topology.dx and dy, so no {x, y} is made of it first) from the
   // screen's middle. A loop over many things asks the axes (projectX, projectY) and makes nothing; this makes the one object.
-  projectX(r, x) { return r.cx + this.topology.dx(x, this.cam.x); }
-  projectY(r, y) { return r.cy + this.topology.dy(y, this.cam.y); }
+  // On the page's renderer a unit is `r.zoom` px (the camera's height, src/zoom.js); on the world's layer it is one.
+  projectX(r, x) { return r.cx + (r.zoom ?? 1) * this.topology.dx(x, this.cam.x); }
+  projectY(r, y) { return r.cy + (r.zoom ?? 1) * this.topology.dy(y, this.cam.y); }
   project(r, x, y) {
     return { x: this.projectX(r, x), y: this.projectY(r, y) };
   }
@@ -683,7 +688,7 @@ class WorldDrawing {
   // Where a planet or a black hole is drawn: its place, leaned by the mouse as a body behind the flight's plane
   // (CONFIG.depth.bodies). Its occluding disc, its name and its aliens go with it.
   projectBody(r, x, y) {
-    const k = leanLook(CONFIG.depth?.bodies ?? 0, this.lean.layers);
+    const k = leanLook(CONFIG.depth?.bodies ?? 0, this.lean.layers) * (r.zoom ?? 1);
     return { x: this.projectX(r, x) + this.lean.x * k, y: this.projectY(r, y) + this.lean.y * k };
   }
 
@@ -721,20 +726,32 @@ class WorldDrawing {
     return SKY;
   }
 
+  // (A sign's letters go with the world: its plate at the camera's zoom round its place on the page's renderer.)
   coverSigns(r, sectorId, ox, oy) {
+    const z = r.zoom ?? 1;
     for (const s of this.signsIn(sectorId)) {
       const x = this.projectX(r, s.x + ox), y = this.projectY(r, s.y + oy);
-      if (r.onScreen(x, y, Math.max(30 * r.cellW, glyphCount(signText(s)) * 20))) SKY.push(signCoverBox(r, x, y, signText(s), s.author, s.type));
+      if (!r.onScreen(x, y, Math.max(30 * r.cellW, glyphCount(signText(s)) * 20) * z)) continue;
+      const b = signCoverBox(r, x, y, signText(s), s.author, s.type);
+      if (z !== 1) { b.x = x + (b.x - x) * z; b.y = y + (b.y - y) * z; b.w *= z; b.h *= z; }
+      SKY.push(b);
     }
   }
 
-  // Each part a section of the lab's H profiler (src/frameProfile.js `lap`: one flag's test while it is off).
-  draw(r) {
+  // The stars, behind the bodies and the signs in front of the sky. On the page's renderer: they are infinitely far, and a higher camera
+  // (src/zoom.js) makes them neither smaller nor fewer.
+  drawSky(r) {
     lap('stars');
+    const sky = this.skyCamera();
+    this.starfield.draw(r, sky.x, sky.y, this.time, this.skyOccluders(r), this.lean);
+  }
+
+  // Each part a section of the lab's H profiler (src/frameProfile.js `lap`: one flag's test while it is off). `sky` false: the page drew
+  // the stars itself (drawSky; labs/graphics/flight-frame.js, the world's layer drawn after them under its camera).
+  draw(r, sky = true) {
+    if (sky) this.drawSky(r);
     const t = this.time;
     const body = (x, y) => this.projectBody(r, x, y);
-    const sky = this.skyCamera();
-    this.starfield.draw(r, sky.x, sky.y, t, this.skyOccluders(r), this.lean);
     lap('fog');
     this.drawDeadEdges(r);
     lap('seams');
@@ -823,7 +840,7 @@ class WorldDrawing {
       if (!r.onScreen(s.x, s.y, 120)) continue;
       drawDroid(passedOver(this, r, dr, s.x, s.y, dr.radius), dr, s.x, s.y, t);
       if (Math.hypot(dr.x - this.ship.x, dr.y - this.ship.y) < HAIL_REACH * 2.5) {
-        const label = DROID_CAPTION[dr.kind], w = label.length * r.cellW;
+        const label = DROID_CAPTION[dr.kind], w = label.length * r.cellW * (r.textScale ?? 1);
         r.text(label, s.x - w / 2, s.y + droidFootprint(dr).model.height * r.cellH * CONFIG.droids.scale * 0.5 + r.cellH, CONFIG.hud.color, 0.9);
       }
     }

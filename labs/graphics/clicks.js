@@ -21,7 +21,7 @@ let only = null;     // a set of key codes to keep, or null for all
 let regions = [];    // the last frame's: { x, y, w, h, code }
 
 const NAMED = { ESC: 'Escape', TAB: 'Tab', ENTER: 'Enter', SPACE: 'Space', BACKSPACE: 'Backspace', BKSP: 'Backspace', '←': 'ArrowLeft',
-  '→': 'ArrowRight', '↑': 'ArrowUp', '↓': 'ArrowDown', '?': 'Slash' };
+  '→': 'ArrowRight', '↑': 'ArrowUp', '↓': 'ArrowDown', '?': 'Slash', '-': 'Minus', '=': 'Equal' };
 const ARROWS = new Set(['←', '→', '↑', '↓']);
 
 // A key's name as drawn ("0", "P", "ESC", "←") to its KeyboardEvent code, or null.

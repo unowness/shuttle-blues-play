@@ -55,6 +55,7 @@ import { cornerTile } from './ui-parts.js';
 import { drawHelmet } from './helmet.js';
 import { drawModernHud, wearNotch, stepModernFx, MODERN_HOLD } from './hud-modern.js';
 import { hungCharm } from './charm.js';
+import { fitWorldLayer, inWorld } from '../../src/zoom.js';
 
 export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, followPixelRatio, followCursor }) {
   const { world, renderer, input, crt, sound, canvas, feedback, ghost, presentation, notices, screens, pause, router, schemes, keyFocus, questBoard,
@@ -96,7 +97,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
       const at = world.project(r, p.x, p.y);
       if (at.x >= v.x && at.x <= v.x + v.w && at.y >= v.y && at.y <= v.y + v.h) continue;
       const dist = Math.hypot(at.x - ship.x, at.y - ship.y);
-      if (dist > PIRATE_EDGE_RANGE || dist < 1) continue;
+      if (dist > PIRATE_EDGE_RANGE * r.zoom || dist < 1) continue;
       out.push({ id: p.id, at });
     }
     return out;
@@ -129,7 +130,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     if (gMag > 14 && ship.alive) {
       const a = Math.atan2(g.y, g.x);
       for (let i = 1; i <= 4; i++) {
-        const rr = 46 + i * 11;
+        const rr = (46 + i * 11) * r.zoom;                   // (round the hull as drawn: src/zoom.js)
         r.glyphNow('·', r.cx + Math.cos(a) * rr, r.cy + Math.sin(a) * rr,
           ROLES.structure, clamp(gMag / 320, 0.08, 0.7) * (1 - i * 0.14));
       }
@@ -258,6 +259,9 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
 
   function flightFrame(now) {
     followPixelRatio();
+    // The camera's height (src/zoom.js; the pilot's −, = and GRAPHICS > CAMERA): the world's layer fitted to the page's measures as they
+    // are now, before the camera follows (a docked station is held in the screen's middle, in units) and the pointer is read.
+    const layer = fitWorldLayer(renderer, game.zoom?.value ?? 1);
     // H's per-effect profiler goes on and off with the diagnostics (the lab only).
     diagnostics.follow();
     // Under the pause the toy's ship is the ship (pause-toy.js): the world's is not drawn while it stands in for it.
@@ -278,7 +282,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     if (schemes.rests(pointer, now)) cursorSleep(pointer);
     keyFocus.step();
     // The pause let go: the camera carries the world under the toy's ship meanwhile (ship-kick.js carryKick; flightFrame).
-    if (pause.state.leave) { liftKick(world, kick); stepKick(kick, rawDt, { still: feedback.reducedMotion }); putKick(world, kick); }
+    if (pause.state.leave) { liftKick(world, kick); stepKick(kick, rawDt, { still: feedback.reducedMotion }); putKick(world, kick, renderer.zoom); }
     if (!game.labOpen) router.gameKeys();
     if (screens.tabLocked()) world.holdPause('tab-locked');
     // The map knows the sectors the pilot has been in (the hidden one is never on it).
@@ -304,7 +308,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
       // The kick's camera is the drawing's: the world steps and the camera follows from where it truly is.
       liftKick(world, kick);
       for (let i = 0; i < steps; i++) world.step(CONFIG.sim.step, controls);
-      world.updateCamera(renderer, clock.frameDt(rawDt) * game.focus.pace() * game.beat.pace());
+      world.updateCamera(layer, clock.frameDt(rawDt) * game.focus.pace() * game.beat.pace());
       updateShipScale(rawDt);
       // A drift is not a brake on the camera (it leans out of the turn instead), nor is Space up in a jump.
       const drifting = world.drift && world.drift.side ? world.drift : null;
@@ -314,7 +318,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
       page.stuntLandings = world.stuntLog?.landings ?? 0;
       stepKick(kick, rawDt, { braking: !!controls.damp && world.ship.alive && !world.drift && !world.ship.airborne, vx: world.ship.vx, vy: world.ship.vy,
         still: feedback.reducedMotion, drift: lean });
-      putKick(world, kick);
+      putKick(world, kick, renderer.zoom);
     }
     if (world.stunts) stepStuntFx(stuntFx, world, renderer, world.paused || game.labOpen ? 0 : rawDt, { reducedMotion: feedback.reducedMotion });
     if (!world.paused && !game.labOpen) {
@@ -379,29 +383,37 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     stepPointed(world, pointer.inside ? router.worldPointAt(pointer.x, pointer.y) : null);
     renderer.begin();
     presentation.prepare();
-    // The drift's and the trick's smoke, sparks and rings go with the world's glyphs (labs/graphics/stunt-fx.js).
-    world.draw(renderer);
-    lap('stunt fx');
-    if (world.stunts) drawStuntFx(renderer, world, stuntFx);
-    lap('ghost');
-    ghost.draw(renderer, world);
-    flushing(renderer);
-    renderer.flush();
+    // The stars on the screen as it is, then the world on its layer under the camera's height (src/zoom.js): the stars are infinitely far.
+    world.drawSky(renderer);
+    renderer.flushPart();
+    inWorld(renderer, (v) => {
+      world.draw(v, false);
+      // The drift's and the trick's smoke, sparks and rings go with the world's glyphs (labs/graphics/stunt-fx.js).
+      lap('stunt fx');
+      if (world.stunts) drawStuntFx(v, world, stuntFx);
+      lap('ghost');
+      ghost.draw(v, world);
+      flushing(renderer);
+      v.flush();
+    });
+    // The dust before the world, near the eye, on the screen as it is.
     lap('dust');
     drawDust(renderer, world, world.lean, world.sector?.hidden ? STAR_PINK[1] : STAR_ROLES[1]);
     lap('marks');
     // The flight a step darker behind the interface at the opening's slow beat (F3).
     const beatDim = game.focus.dim();
     if (beatDim > 0.004) renderer.fill(0, 0, renderer.width, renderer.height, CONFIG.render.background, beatDim);
-    // A heavy hit ahead ringed in the world (W3 only; labs/graphics/hit-warning.js).
-    drawWarnMark(renderer, world, hitWarning);
-    // The map's flags standing in space (map-screen.js), the same mark as on the map and the locator.
-    drawWorldFlags(renderer, world, pageTime(), { reducedMotion: feedback.reducedMotion });
-    // The ship coming back up (respawn-fx.js), by itself while the world's is hidden.
-    if (respawning(respawnFx, pageTime()) && world.ship.alive) {
-      const at = world.project(renderer, world.ship.x, world.ship.y);
-      drawRisingShip(renderer, respawnFx, pageTime(), world, at.x, at.y, { reducedMotion: feedback.reducedMotion });
-    }
+    inWorld(renderer, (v) => {
+      // A heavy hit ahead ringed in the world (W3 only; labs/graphics/hit-warning.js).
+      drawWarnMark(v, world, hitWarning);
+      // The map's flags standing in space (map-screen.js), the same mark as on the map and the locator.
+      drawWorldFlags(v, world, pageTime(), { reducedMotion: feedback.reducedMotion });
+      // The ship coming back up (respawn-fx.js), by itself while the world's is hidden.
+      if (respawning(respawnFx, pageTime()) && world.ship.alive) {
+        const at = world.project(v, world.ship.x, world.ship.y);
+        drawRisingShip(v, respawnFx, pageTime(), world, at.x, at.y, { reducedMotion: feedback.reducedMotion });
+      }
+    });
     lap(null);
     const tWorld = performance.now();
     // The interface answers the pointer from here on (src/hover.js sinks what is under it, labs/graphics/clicks.js
@@ -479,7 +491,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
         if (skillHints.shown) drawSkillHint(r, world, skillHints.shown, { scheme: schemes.scheme(), reducedMotion: feedback.reducedMotion });
       });
       // Up in a jump over a menu, the ship is drawn over it (SX's M5+: «если ... перепрыгнуть, то он сверху в нее пролетает»).
-      if (shipOverPlate()) { const s = world.project(renderer, world.ship.x, world.ship.y); renderer.drawOver(() => world.ship.draw(renderer, s.x, s.y)); }
+      if (shipOverPlate()) inWorld(renderer, (v) => { const s = world.project(v, world.ship.x, world.ship.y); v.drawOver(() => world.ship.draw(v, s.x, s.y)); });
     }
     const legacyColumn = fitted && !modern && !scooter;
     if (legacyColumn && colMoved) { renderer.ctx.save(); renderer.ctx.translate(colShift.x, colShift.y); }

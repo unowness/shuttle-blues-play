@@ -514,19 +514,21 @@ export function drawPauseToy(r0, toy, box0, { world, age = 1e6, reducedMotion = 
   return { x: px - e.x, y: py - e.y, w: 2 * e.x, h: 2 * e.y };
 }
 
-// The pilot's ship, as the game draws it, turned to its drift and lit while it jerks; its disc measured from its drawing once.
+// The pilot's ship, as the game draws it, turned to its drift and lit while it jerks; its disc measured from its drawing once. At the
+// camera's zoom (src/zoom.js), as the world's ship it stands in for is drawn.
 function drawShip(r, toy, box, world, reducedMotion) {
-  const ship = world?.ship, s = toy.ship;
+  const ship = world?.ship, s = toy.ship, z = r.zoom ?? 1;
   if (!ship) return;
   if (!s.measured) {
     const m = ship.metrics || { w: r.cellW * ship.model.scale, h: r.cellH * ship.model.scale };
     const cells = (ship.model.frames && ship.model.frames[ship.model.idleFrame]) || ship.model.cells || [];
-    s.r = Math.max(10, 0.8 * Math.max(...cells.map((c) => Math.hypot(c.x * m.w, c.y * m.h))));
+    s.r = Math.max(10, 0.8 * z * Math.max(...cells.map((c) => Math.hypot(c.x * m.w, c.y * m.h))));
     s.measured = true;
   }
   const proxy = Object.create(ship, {
     angle: { value: s.a, writable: true }, invuln: { value: 0 }, thrusting: { value: false }, retroing: { value: false },
   });
-  const inks = flownShipInks(world);
-  drawPilotShip(r, proxy, box.x + s.x, box.y + s.y, toy.motion, inks.ink, inks.paint, { reducedMotion });
+  const inks = flownShipInks(world), x = box.x + s.x, y = box.y + s.y, ctx = r.ctx;
+  if (z !== 1) { ctx.save(); ctx.translate(x, y); ctx.scale(z, z); ctx.translate(-x, -y); }
+  try { drawPilotShip(r, proxy, x, y, toy.motion, inks.ink, inks.paint, { reducedMotion }); } finally { if (z !== 1) ctx.restore(); }
 }

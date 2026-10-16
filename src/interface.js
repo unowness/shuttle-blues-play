@@ -129,10 +129,11 @@ export const FOCUS_LOCK = Object.freeze({ spread: UI.row, gone: 0.004 });
 export function focusBox(r, world, target) {
   const anchor = world.projectTarget ? world.projectTarget(r, target) : world.project(r, target.x, target.y);
   // Art drawn off its anchor (a sign stands above its diamond) says by how
-  // many cells, so the marks frame the drawing rather than the anchor.
-  const p = { x: anchor.x + (target.art?.dx || 0) * r.cellW, y: anchor.y + (target.art?.dy || 0) * r.cellH };
-  let w = (target.art?.model?.width || 4) * r.cellW * (target.art?.scale || 1);
-  let h = (target.art?.model?.height || 4) * r.cellH * (target.art?.scale || 1);
+  // many cells, so the marks frame the drawing rather than the anchor. (Its cells as the camera draws them: `zoom`, src/zoom.js.)
+  const z = r.zoom ?? 1;
+  const p = { x: anchor.x + (target.art?.dx || 0) * r.cellW * z, y: anchor.y + (target.art?.dy || 0) * r.cellH * z };
+  let w = (target.art?.model?.width || 4) * r.cellW * (target.art?.scale || 1) * z;
+  let h = (target.art?.model?.height || 4) * r.cellH * (target.art?.scale || 1) * z;
   // Art that turns in place needs the square that holds it at any angle.
   if (target.art?.turns) w = h = Math.hypot(w, h);
   return { x: p.x - w / 2 - FOCUS_GAP, y: p.y - h / 2 - FOCUS_GAP, w: w + 2 * FOCUS_GAP, h: h + 2 * FOCUS_GAP };
@@ -153,7 +154,7 @@ export function drawObjectFocus(r, world, target, { cargoAcknowledged = false } 
     const model = sprite('cargo-container');
     // A square envelope accommodates the rotating container in every heading.
     const side = Math.hypot((model?.width || 7) * r.cellW,
-      (model?.height || 7) * r.cellH) * CONFIG.cargo.spriteScale + 12;
+      (model?.height || 7) * r.cellH) * CONFIG.cargo.spriteScale * (r.zoom ?? 1) + 12;
     const box = { x: p.x - side / 2, y: p.y - side / 2, w: side, h: side }, tone = cargoAcknowledged ? ink() : accent();
     if (shade < 1) withAlpha(r.ctx, shade, () => drawTargetBrackets(r, box, tone)); else drawTargetBrackets(r, box, tone);
   }
@@ -263,7 +264,8 @@ export function guideOf(r, world, { reducedMotion = false, plate = null, route: 
   // The arrow leads along the route's course (src/course.js): round a rock, a pirate or a body in the way, else straight at it.
   const way = courseOf(route);
   const angle = Math.atan2(way.dy, way.dx);
-  const at = { x: ship.x + Math.cos(angle) * route.distance, y: ship.y + Math.sin(angle) * route.distance };
+  const far = route.distance * (r.zoom ?? 1);       // (in px on the screen: the camera's height, src/zoom.js)
+  const at = { x: ship.x + Math.cos(angle) * far, y: ship.y + Math.sin(angle) * far };
   // The arrow travels a little along its bearing and back, so it is seen (SX, 2026-10-01:
   // «стрелку там анимированной, а то его сложно заметить»); still under reduced motion.
   const pulse = reducedMotion || route.arrived ? 0 : GUIDE_PULSE.reach * (0.5 - 0.5 * Math.cos(world.time * Math.PI * 2 / GUIDE_PULSE.period));

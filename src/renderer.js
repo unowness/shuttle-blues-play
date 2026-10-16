@@ -142,6 +142,12 @@ export class Renderer {
     // hundred more from staying optimized (900 compiles in 10 s of flight), a garbage of boxed numbers every frame.
     this.text = this.text;
     this.fill = this.fill;
+    // The camera's height (src/zoom.js, CONFIG.camera.zoom): the px a world unit is drawn at on this renderer (World.project reads it), the
+    // interface's text in this renderer's units (1: its px), and the world's own view of it, whose units are the world's (made once, by
+    // src/zoom.js worldLayer). Declared here, so setting them never changes the shape of a prototype every adapter reads through.
+    this.zoom = 1;
+    this.textScale = 1;
+    this.worldLayer = null;
     this.resize();
   }
 
@@ -238,7 +244,7 @@ export class Renderer {
     ctx.fillStyle = CONFIG.render.background;
     ctx.fillRect(0, 0, this.width, this.height);
     for (const b of this.buckets.values()) {
-      if (b.n || b.rows) { b.n = 0; b.rows = 0; b.idle = 0; }
+      if (b.n || b.rows || b.used) { b.n = 0; b.rows = 0; b.idle = 0; b.used = false; }
       else if (++b.idle > BUCKET_IDLE_FRAMES) {
         this.buckets.delete(b.key);
         b.styles.delete(b.style);
@@ -279,7 +285,7 @@ export class Renderer {
       const a = aq / 16, s = sq / 20;
       b = { key: `${color}|${a}|${s}|${rotated ? 1 : 0}${layer ? '|k' : ''}`, color, alpha: a, size: s, rotated, layer, aq, sq, styles, style,
         n: 0, chs: [], xs: new Float64Array(32), ys: new Float64Array(32), angs: rotated ? new Float64Array(32) : null, idle: 0,
-        runs: false, hold: 0, rows: 0, row: null };
+        runs: false, hold: 0, rows: 0, row: null, used: false };
       this.buckets.set(b.key, b);
       styles.set(style, b);
     }
@@ -448,6 +454,13 @@ export class Renderer {
     const empty = () => { for (const b of this.buckets.values()) { b.n = 0; b.rows = 0; } };
     empty();
     try { draw(); this.flush(); } finally { empty(); }
+  }
+
+  // What is queued so far drawn now, and the buckets emptied for what the frame queues after it, each kept as used this frame (`used`:
+  // begin() does not count it idle). The sky goes so, on the screen as it is, before the world under its camera's scale (src/zoom.js).
+  flushPart() {
+    this.flush();
+    for (const b of this.buckets.values()) if (b.n || b.rows) { b.n = 0; b.rows = 0; b.used = true; }
   }
 
   flush() {

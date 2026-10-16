@@ -14,8 +14,8 @@ import { ROLES, PALETTE } from '../../src/roles.js';
 //   brake   - short alternating puffs from the two side nozzles, outward
 //   glass   - the left @ goes one ink step darker while turning left, the right @ while
 //             turning right (a glint sliding off the cockpit glass)
-//   wings   - MODERN's side of a turn darkens from the nose back: the whisker, the glass's
-//             half, the wing (bankDraws); in reverse the wing also flips to its brake pose
+//   wings   - MODERN's side of a turn darkens from the nose back, each row's outermost
+//             glyph on that side (bankDraws); in reverse both wings take their brake pose
 //             (wingFlip)
 //
 // Data flow: input -> stepShipMotion (state) -> drawShipMotion (glyph calls). The state
@@ -42,7 +42,7 @@ export const MOTION = Object.freeze({
   brakeShare: 0.9,
   // Glass: seconds to swing between the two inks (a crossfade by alpha).
   glassSeconds: 0.12,
-  // MODERN's side of a turn: how far toward black it goes (bankDraws), and the seconds the darkening takes to run from the nose to the wing.
+  // MODERN's side of a turn: how far toward black it goes (bankDraws), and the seconds the darkening takes to run from the nose to the tail.
   wingDark: 0.45,
   bankSeconds: 0.28,
   // A port at or below this level is not firing (and is not drawn).
@@ -241,7 +241,7 @@ export function createShipMotion(seed = 1) {
     puffs: [],         // live puffs { port, age, life, reach, side, k }
     glass: { left: 0, right: 0 },
     bank: { left: 0, right: 0 },   // MODERN's side of a turn darkening, 0..1 (bankDraws)
-    flip: { left: 0, right: 0 },   // a wing turned over in reverse, 0..1 (wingFlip)
+    flip: 0,                       // the wings turned over in reverse, 0..1 (wingFlip)
     rng: mulberry32(seed),
   };
 }
@@ -303,9 +303,8 @@ export function stepShipMotion(state, input, dt) {
   const b = 1 / M.bankSeconds;
   state.bank.left = clamp(state.bank.left + (turn < -0.1 ? b : -b) * dt, 0, 1);
   state.bank.right = clamp(state.bank.right + (turn > 0.1 ? b : -b) * dt, 0, 1);
-  // A wing turned over: in reverse, on the side of the turn, on the glass's timing.
-  state.flip.left = clamp(state.flip.left + (retro && turn < -0.1 ? g : -g) * dt, 0, 1);
-  state.flip.right = clamp(state.flip.right + (retro && turn > 0.1 ? g : -g) * dt, 0, 1);
+  // The wings turned over: in reverse, both, on the glass's timing.
+  state.flip = clamp(state.flip + (retro ? g : -g) * dt, 0, 1);
 
   stepPuffs(state, dt);
   return state;
@@ -348,7 +347,7 @@ export function firingNozzles(state, min = MOTION.fire) {
 }
 export function isAtRest(state) {
   return state.puffs.length === 0 && firingPorts(state, 0).length === 0
-    && state.glass.left === 0 && state.glass.right === 0 && state.flip.left === 0 && state.flip.right === 0
+    && state.glass.left === 0 && state.glass.right === 0 && state.flip === 0
     && state.bank.left === 0 && state.bank.right === 0;
 }
 
@@ -371,37 +370,51 @@ export function glassDraws(state, cell, baseInk, inks = MOTION_INKS) {
 }
 
 // ---- the side of a turn ------------------------------------------------------------
-// MODERN's side of a turn darkens (SX, 2026-10-16: «при поворотах делай крылошки затемняющимися во в сторону поворотов»; then «нужно
-// покрасить еще какие-то символы на этой стороне, кроме крыла. Но не все ... либо стекло кабины, это внутренний овал, либо, может,
-// спереди вот боковой ус ... нужна чуть было мне реализованная анимация поворачивания»): from the nose back, as if the hull banked into
-// it, the front whisker first, then the glass's half on that side, then the wing (its triangles and the flats under them), each over its
-// share of `bankSeconds` (BANK); the tail stays. The cell's own ink `wingDark` toward black, a crossfade by alpha as the glass's. A drawing
-// without these glyphs (SX's CLIPPER) has none.
+// MODERN's side of a turn darkens (SX, 2026-10-16: «при поворотах делай крылошки затемняющимися во в сторону поворотов»; then the whisker,
+// the glass's half and the wing; since 2026-10-17: «Кабину давай самолету красить не будем ... красить каждый левый символ в ряду и каждый
+// правый символ в ряду ... самые боковые символы только затемняем. Остальные не трогаем»): each row's outermost glyph on the turn's side,
+// the rows from the nose back, each over its share of `bankSeconds` (the nose's row first, the tail's last), the cell's own ink `wingDark`
+// toward black, a crossfade by alpha as the glass's. A drawing with no wing (WING_GLYPHS: SX's CLIPPER, SCOOTY JR.) has none.
 export const WING_GLYPHS = new Set(['◢', '◣', '◤', '◥', '▔']);
-const BANK = Object.freeze([
-  Object.freeze({ glyphs: new Set(['◟', '◞']), from: 0, to: 0.5 }),              // the front whiskers
-  Object.freeze({ glyphs: new Set(['╭', '╮', '╰', '╯']), from: 0.2, to: 0.75 }),  // the glass
-  Object.freeze({ glyphs: WING_GLYPHS, from: 0.45, to: 1 }),                      // the wing
-]);
-export const BANK_GLYPHS = new Set(BANK.flatMap((g) => [...g.glyphs]));
+// Of a pose's cells, the outermost of each row, left and right of the axis, each with its row's share of the way from the nose (0) to the
+// tail (1); empty for a drawing with no wing. Made once a pose.
+const outerCells = new WeakMap();
+function outerOf(cells) {
+  let outer = outerCells.get(cells);
+  if (outer) return outer;
+  outer = new Map();
+  if (cells.some((c) => WING_GLYPHS.has(c.ch))) {
+    const rows = [...new Set(cells.map((c) => c.y))].sort((a, b) => a - b), last = Math.max(1, rows.length - 1);
+    rows.forEach((y, i) => {
+      const row = cells.filter((c) => c.y === y);
+      const l = row.reduce((a, c) => (c.x < a.x ? c : a)), r = row.reduce((a, c) => (c.x > a.x ? c : a));
+      if (l.x < 0) outer.set(l, i / last);
+      if (r.x > 0) outer.set(r, i / last);
+    });
+  }
+  outerCells.set(cells, outer);
+  return outer;
+}
 const wingInks = new Map();
-export function bankDraws(state, cell, baseInk) {
-  const group = cell ? BANK.find((g) => g.glyphs.has(cell.ch)) : null, side = !cell ? 0 : cell.x < 0 ? state.bank.left : cell.x > 0 ? state.bank.right : 0;
-  const k = group ? smooth(group.from, group.to, side) : 0;
+// The draws for `cell` of the pose `cells` in a turn: null for a cell that is not a row's outermost (the caller draws it as it would).
+export function bankDraws(state, cells, cell, baseInk) {
+  const row = outerOf(cells).get(cell);
+  if (row === undefined) return null;
+  const side = cell.x < 0 ? state.bank.left : state.bank.right, from = row * 0.55;
+  const k = smooth(from, from + 0.45, side);
   if (k < 0.02 || typeof baseInk !== 'string' || baseInk.length !== 7) return [{ ink: baseInk, alpha: 1 }];
   let dark = wingInks.get(baseInk);
   if (!dark) { dark = mixHex(baseInk, '#000000', MOTION.wingDark); wingInks.set(baseInk, dark); }
   if (k > 0.98) return [{ ink: dark, alpha: 1 }];
   return [{ ink: baseInk, alpha: 1 }, { ink: dark, alpha: k }];
 }
-// In reverse the wing on the side of the turn turns over (SX, 2026-10-16: «когда задний ход крылья корабля тоже должны реагировать, когда в
-// лево поворачиваешь левое крыло переворачивается, когда вправо то правое»): the glyph its drawing's brake pose has in that cell (MODERN's
-// ◢ ◤, ◣ ◥), once the flip is past half. The glyph to draw for `cell` of `model`'s idle pose; its own where the drawing has no brake pose.
+// In reverse the wings turn over as in the brake (SX, 2026-10-16: «когда задний ход крылья корабля тоже должны реагировать»; first the
+// turn's side alone, since 2026-10-17 both, the key alone: «когда я нажимаю назад, S, то крылья тоже должны переворачиваться, как при
+// тормозе»): the glyph its drawing's brake pose has in that cell (MODERN's ◢ ◤, ◣ ◥), once the flip is past half. The glyph to draw for
+// `cell` of `model`'s idle pose; its own where the drawing has no brake pose.
 const flips = new WeakMap();
 export function wingFlip(state, model, cell) {
-  if (!WING_GLYPHS.has(cell.ch) || model.brakeFrame == null) return cell.ch;
-  const k = cell.x < 0 ? state.flip.left : cell.x > 0 ? state.flip.right : 0;
-  if (k < 0.5) return cell.ch;
+  if (!WING_GLYPHS.has(cell.ch) || model.brakeFrame == null || state.flip < 0.5) return cell.ch;
   let turned = flips.get(model);
   if (!turned) {
     turned = new Map(model.frames[model.brakeFrame].filter((c) => WING_GLYPHS.has(c.ch)).map((c) => [`${c.x},${c.y}`, c.ch]));

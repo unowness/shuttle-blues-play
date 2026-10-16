@@ -139,6 +139,11 @@ const ROWS = [
   // The ruins' tracker on the deck's left shoulder, shown or hidden (SX, 2026-10-08: «позволил бы скрывать как и легенду»; labs/graphics/
   // tracker.js). B: free in the flight, as the legend's M and the radio's T are.
   { id: 'tracker', name: "Ruin tracker: show or hide", on: 'flight', keys: ['KeyB'], mouse: 'click:tracker' },
+  // The camera's height over the world (src/zoom.js; SX, 2026-10-17: «в идеале было бы прикольно на плюс-минус дать пользователю выбирать
+  // масштаб»): − a step higher, more of the world in the screen, = a step lower; in the pause, GRAPHICS's CAMERA (the wheel is the jump in
+  // grammar D, so the mouse's way is the pause's row). Free everywhere; with Cmd or Ctrl they stay the browser's own zoom (src/input.js).
+  { id: 'cameraUp', name: 'Camera: higher, more of the world', on: 'flight', keys: ['Minus'], mouse: 'click:pause' },
+  { id: 'cameraDown', name: 'Camera: lower', on: 'flight', keys: ['Equal'], mouse: 'click:pause' },
   // In the pause: GRAPHICS's DISPLAY and AUDIO's SOUND.
   { id: 'display', name: 'Screen filter', on: 'page', keys: ['KeyV'], mouse: 'click:pause' },
   { id: 'sound', name: 'Sound on / off', on: 'page', keys: ['KeyO'], mouse: 'click:pause' },
@@ -232,7 +237,7 @@ export const stuntPair = () => STUNT_PAIR;
 // A code as the interface writes it, and back (labs/graphics/clicks.js keyCodeOf reads these names: a drawn key is a button).
 
 const NAMES = { Space: 'SPACE', Escape: 'ESC', Tab: 'TAB', Enter: 'ENTER', NumpadEnter: 'ENTER', Backspace: 'BKSP', Slash: '?',
-  ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', ShiftLeft: 'SHIFT', ShiftRight: 'SHIFT' };
+  ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', ShiftLeft: 'SHIFT', ShiftRight: 'SHIFT', Minus: '-', Equal: '=' };
 export function codeName(code) {
   if (NAMES[code]) return NAMES[code];
   const m = /^(?:Key|Digit)(.)$/.exec(code);
@@ -277,6 +282,9 @@ const PILOT_NEXT = ['PILOT', [[k('map'), 'Map'], [k('card'), 'Pilot card'], [k('
   [k('homeGuide'), 'Home bearing'], [k('pause'), 'Pause']]];
 const DISPLAY_NEXT = ['DISPLAY', [[k('legend'), 'Locator legend'], [k('radio'), 'Radio'], [k('tracker'), "Ruin tracker"], [k('display'), 'Screen filter'],
   [k('sound'), 'Sound on / off'], [k('nextCursor'), 'Cursor']]];
+// The camera's height (src/zoom.js), the last row of the keys' FLY (the columns of PILOT and DISPLAY are as tall as the window may be, and
+// MOUSE + HOTKEYS's are full: its pilot finds it in the pause's GRAPHICS > CAMERA, the mouse's way to it).
+const CAMERA = [k('cameraUp', 'cameraDown'), 'Camera higher / lower'];
 // A page for each mode (C0's pages of controls.html, «Справка», since 2026-10-07 two), the mode the pilot plays in first, ← → to the
 // other. KEYS + CLICKS: the keys fly, a click does what it does on the screen. MOUSE + HOTKEYS: the mouse flies, Space jumps, every key
 // of the PILOT and DISPLAY lists still works, a keycap on the screen is a button.
@@ -284,7 +292,7 @@ HELP.K = [
   [['FLY', [[k('thrust'), 'Thrust', TANK], [k('retro'), 'Reverse thrust', TANK], [k('turnLeft', 'turnRight'), 'Turn', TANK],
     [k('thrust', 'turnLeft', 'retro', 'turnRight'), SCREEN_FLY, SCREEN], [k('brake'), 'Brake, drift in turns', TANK_BRAKE],
     [k('brake'), 'Brake, drift to a side', SCREEN_BRAKE], [k('fire'), 'Fire', NO_FIRE], [k('jump'), 'Jump; hold to stay airborne'],
-    [k('figure'), 'Trick: press the other key']]],
+    [k('figure'), 'Trick: press the other key'], CAMERA]],
   ['NEAR AN OBJECT', [[{ range: ['choices', MENU_ROWS] }, "Choose or click an action"], [k('close', 'back'), 'Close, or click away'],
     [k('banner'), 'Open the notice']]]],
   [PILOT_NEXT, DISPLAY_NEXT],

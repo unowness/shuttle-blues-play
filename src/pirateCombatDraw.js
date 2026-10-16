@@ -18,7 +18,7 @@ function dotted(r, a, b, ink) {
   const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy);
   for (let at = C.lineStep; at < length; at += C.lineStep) r.glyph('·', a.x + dx * at / length, a.y + dy * at / length, ink, C.cueAlpha);
 }
-function caption(r, text, x, y, ink) { r.text(text, x - text.length * r.cellW / 2, y, ink, C.cueAlpha); }
+function caption(r, text, x, y, ink) { r.text(text, x - text.length * r.cellW * (r.textScale ?? 1) / 2, y, ink, C.cueAlpha); }
 
 // No ring round a pirate (SX, 2026-10-13: «Убираем это кольцо вообще», asked how long the warning ring before an attack should
 // last): the attack is read from the ship itself, its turn and its shots. A resting one keeps its dot, a repair its line.

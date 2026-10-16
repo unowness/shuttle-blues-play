@@ -113,7 +113,8 @@ export function drawRimMarks(r, { area, guides = NONE, bearings = NONE, pirates 
       s.arrow = arrow; s.name = d.label; s.dist = dist; s.label = `${arrow} ${d.label}  ${formatDistance(d.dist)}`;
     }
     s.w = (s.label.length + 2) * cw; s.h = UI.row;
-    s.angle = Math.atan2(ship.y + Math.sin(d.angle) * d.dist - e.cy, ship.x + Math.cos(d.angle) * d.dist - e.cx);
+    const far = d.dist * (r.zoom ?? 1);              // (its units in px on the screen: the camera's height, src/zoom.js)
+    s.angle = Math.atan2(ship.y + Math.sin(d.angle) * far - e.cy, ship.x + Math.cos(d.angle) * far - e.cx);
     wishes.push(s);
   }
   for (const p of pirates) {

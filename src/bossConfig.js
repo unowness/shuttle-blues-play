@@ -21,18 +21,19 @@ export const BOSS = {
     // A hit flashes the core or a sled white as a pirate flashes (CONFIG.pirates.flash), at most once in `flashEvery` s: the STANDARD
     // fires seven times a second, and a boss flashed at each hit is white all the time, read as its warning.
     flashEvery: 0.6,
-    // Its drawing's scale, the pirates' 1.5 times 1.12 (SX, 2026-10-14: «босса сделай по сетке немного крупнее, то есть аккуратно заскейль его
-    // процентов на 10-15»); its body below grew with it, every length times 1.12.
-    scale: 1.68,
+    // Its drawing's scale, 2 (SX's scales of 2026-10-17, with the camera's height: «Давай Toolkeeper сделаем 2»); the pirates' 1.5 times 1.12,
+    // 1.68, from 2026-10-14 («босса сделай по сетке немного крупнее, то есть аккуратно заскейль его процентов на 10-15»). Its body grew with it
+    // each time: every length below is the first one's (at 1.5) times 2 / 1.5.
+    scale: 2,
     body: {
-      core: { radius: 96, maxSpeed: 230, accel: 170, turnRate: 0.7, drag: 0.12 },
-      sled: { radius: 45, hp: 8, rest: { x: 156, y: 145 }, hook: { x: 76, y: 50 }, tether: 123, stiffness: 8, damping: 3.2 },
+      core: { radius: 115, maxSpeed: 230, accel: 170, turnRate: 0.7, drag: 0.12 },
+      sled: { radius: 53, hp: 8, rest: { x: 185, y: 172 }, hook: { x: 90, y: 60 }, tether: 147, stiffness: 8, damping: 3.2 },
       // The sleds move as arms (SX: «они не должны просто так висеть, они двигаются как руки»): each swings round its hook on its tether,
       // `sway` rad at `rate` rad/s, the two half a turn apart; reaching forward `reach` rad while the core aims, spread aside `spread` rad
       // while they spin their spiral.
       arms: { sway: 0.35, rate: 0.9, reach: 0.7, spread: -0.55 },
       // Where its shots leave and its escort comes out, local u.
-      muzzles: { shoulders: [{ x: -45, y: -50 }, { x: 45, y: -50 }], middle: { x: 0, y: 0 }, bay: { x: 0, y: 81 } },
+      muzzles: { shoulders: [{ x: -54, y: -60 }, { x: 54, y: -60 }], middle: { x: 0, y: 0 }, bay: { x: 0, y: 96 } },
       // A touch costs the pilot a ram's price (CONFIG.hull: the pirates' heavy contact) and pushes the hull off at `push` u/s.
       ram: { damage: 25, push: 220 },
     },
@@ -101,7 +102,7 @@ export const BOSS = {
     rage: { prepare: 0.8, recover: 0.6, speed: 1.1 },
     // The sleds' guns, a stream (X1C) in the turn's `stream` slot: `shots` at where the pilot is, `every` s apart. Six until SX flew it
     // (2026-10-15: «чуть нужно его очереди уменьшить»), each sled on its own clock (S2) with a 0.8 s warning and a 2.2 s rest.
-    sledGun: { shots: 4, every: 0.14, speed: 520, life: 2.2, turn: 1.4, muzzle: 30 },
+    sledGun: { shots: 4, every: 0.14, speed: 520, life: 2.2, turn: 1.4, muzzle: 36 },          // (`muzzle` 30 at the scale of 1.68)
     // Its escort: three DARTs a launch, at most `cap` alive.
     // «иногда»: a launch only once the last escort is all down (`below` 0), `apart` s after the last. (18 s and one still out until
     // 2026-10-14's fight sim: three DARTs a launch then cost the pilot as much as an ordinary squad of three, about 40 of 100 hull by

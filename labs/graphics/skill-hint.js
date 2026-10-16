@@ -33,8 +33,8 @@ const CAP = { reach: 0, ink: W, cap: ROLES.structure };
 export const CROSS = Object.freeze([[0, 1], [0, -1], [-1, 0], [1, 0]]);
 // The air between the hull's reach and the hint, in cells: a step.
 export const AIR = UI.line.cols;
-// How far off the ship's middle a hint's nearest stroke stands, px: the hull's reach and the air.
-export const hintReach = (r, ship) => ship.radius + AIR * r.cellW;
+// How far off the ship's middle a hint's nearest stroke stands, px: the hull's reach as the camera draws it (its zoom, src/zoom.js) and the air.
+export const hintReach = (r, ship) => ship.radius * (r.zoom ?? 1) + AIR * r.cellW;
 
 // How much of itself the hint shows: in over HINT.fade s as it comes, out as it goes (`s.out`), whole when it stands; whole always for
 // reduced motion (the fade is none then, src/skillHints.js stepSkillHints).

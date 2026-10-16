@@ -12,7 +12,7 @@ import { paintInk, paintedHull, paintedMotion, LAMP } from '../../src/paint.js';
 import { SPECIAL_INKS } from '../../src/specialShips.js';
 import { keptDraw } from '../../src/grade.js';
 import { ROLES } from '../../src/roles.js';
-import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, bankDraws, wingFlip, WING_GLYPHS, BANK_GLYPHS, MOTION_INKS } from './ship-motion.js';
+import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, bankDraws, wingFlip, WING_GLYPHS, MOTION_INKS } from './ship-motion.js';
 import { scrambledPlaces, slotOfCell } from './ship-scramble.js';
 import { BLOCK_TONES, planetTones, ROCK_EDGE, ROCK_INKS, ROCK_LIT, ROCK_SHADE, SHADE_GAP, ROCK_RELIEF } from './art-tones.js';
 import { stationLook, stationCells, lookOrigin, LOOK_SCALE, MAX_CELLS } from './station-art.js';
@@ -405,8 +405,8 @@ export function shipAlpha(invuln, { docked = false, reducedMotion = false } = {}
 // `options.shade`: the hull's cells this much as opaque (the brake's, src/visualScale.js brakeShade; the puffs keep theirs); `options.brake`
 // the brake's own share of it, which the glass does not take (SX, 2026-10-16: «при тормозе стекло кабины не делай прозрачнее»).
 // `options.braking`: the brake held, as the scale reads it (labs/graphics/flight-frame.js): a drawing with a brake pose (ships/modern.json
-// `brake`, src/asciiModel.js brakeFrame) is drawn in it. Its side of a turn darkens from the nose back, the whisker, the glass, the wing
-// (ship-motion.js bankDraws), and in reverse the wing on the turn's side takes its brake pose (wingFlip).
+// `brake`, src/asciiModel.js brakeFrame) is drawn in it. Its side of a turn darkens from the nose back, each row's outermost glyph
+// (ship-motion.js bankDraws), and in reverse its wings take their brake pose (wingFlip).
 // `options.scramble`: the ship back from a wreck, mixed ({ plan, u }, labs/graphics/ship-scramble.js): each cell drawn at its piece's place,
 // whole and steady (no blink) while it is.
 // The canopy seen from below, a hatch: its rounded corners straight (SX, 2026-10-16: «это дно с точками. Они накладываются на стыке друг
@@ -446,7 +446,7 @@ export const drawPilotShip = keptDraw(function drawPilotShip(r, ship, sx, sy, mo
     const cellAlpha = isGlass(c) ? glassAlpha : alpha;
     const wing = WING_GLYPHS.has(c.ch);
     const ch = belly && isGlass(c) ? BELLY_HATCH[c.ch] ?? c.ch : wing && pose !== model.brakeFrame ? wingFlip(motion, model, c) : c.ch;
-    const draws = BANK_GLYPHS.has(c.ch) ? bankDraws(motion, c, base) : glassDraws(motion, c, base, inks);
+    const draws = bankDraws(motion, cells, c, base) ?? glassDraws(motion, c, base, inks);
     for (const d of draws) r.glyphRot(ch, x, y, a, d.ink, cellAlpha * d.alpha, model.scale);
   }
   drawShipMotion(r, motion, model, sx, sy, a, model.scale, inks, model.baseScale ?? model.scale);

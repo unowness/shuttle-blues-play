@@ -155,10 +155,11 @@ export const PAINT_TIN = Object.freeze({
   // Rounded corners, as every cache has since SX, 2026-09-30: «Сделай всем сундукам закругленные края».
   // Then «Сундуки крупноваты, и углы ты забыл сделать закругленными»: a corner arc is half a cell whatever
   // the scale, so on a crate seven cells wide it read as square. Five cells wide, the arc is a tenth of
-  // the width, as on the TIN SX pointed at, and at 1.15 the crate stands as tall as the ship.
+  // the width, as on the TIN SX pointed at, and at 1.15 the crate stood as tall as the ship. 1.25 with every cache since SX's scales of
+  // 2026-10-17 (CONFIG.cache.scale).
   rows: Object.freeze(['╭───╮', '│╱╱╱│', '├─◇─┤', '│╱╱╱│', '╰───╯']),
   roles: Object.freeze(['ggggg', 'gmmmg', 'gghgg', 'gsssg', 'ggggg']),
-  scale: 1.15,
+  scale: 1.25,
   // The shimmer: every `every` seconds it crosses the three stripes, `step` s each.
   shimmer: Object.freeze({ every: 2.6, step: 0.1 }),
 });

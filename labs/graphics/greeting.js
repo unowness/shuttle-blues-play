@@ -84,7 +84,7 @@ const HULL = { x: 0, y: 0, w: 0, h: 0 };
 function pilotHull(r, world) {
   const ship = world.ship, at = world.project(r, ship.x, ship.y);
   let half = 24;
-  if (ship?.alive && ship.model) { const mt = ship.metrics || ship.measureDrawing(r.cellW, r.cellH); half = Math.max(ship.model.width * mt.w, ship.model.height * mt.h) / 2; }
+  if (ship?.alive && ship.model) { const mt = ship.metrics || ship.measureDrawing(r.cellW, r.cellH); half = Math.max(ship.model.width * mt.w, ship.model.height * mt.h) / 2 * (r.zoom ?? 1); }
   HULL.x = at.x - half; HULL.y = at.y - half; HULL.w = 2 * half; HULL.h = 2 * half;
   return HULL;
 }
@@ -130,7 +130,8 @@ export function drawGreetOffer(r, world, target, presence, { live = true, far = 
   else s.a = out ? Math.max(0, s.a - dt / GREETING.fade) : Math.min(1, s.a + dt / GREETING.fade);
   const alpha = presence * s.a;
   if (alpha <= 0.01) return null;
-  const C = world.project(r, target.x, target.y), rows = craft.rows, scale = craft.scale ?? 1;
+  // (`scale` the craft's drawing as the camera draws it: its zoom, src/zoom.js.)
+  const C = world.project(r, target.x, target.y), rows = craft.rows, scale = (craft.scale ?? 1) * (r.zoom ?? 1);
   const word = GREET_WORDS[style] ?? GREET_WORDS.wave, key = keyName('choices') || '1';
   const wide = KEYCAP_PAD * 2 + key.length * r.cellW + r.cellW + word.length * r.cellW;
   O.r = r; O.key = key; O.word = word; O.lit = lit; O.ink = far ? QUIET : G; O.live = live; O.hover = s.hover;
@@ -193,12 +194,14 @@ export function drawGreetAnswer(r, world, item, style = DEFAULT_GREETING) {
   const at = world.craftAt?.(id);
   if (!at) return null;
   const C = world.project(r, at.x, at.y), rows = item.hail.rows, box = item.box ?? (item.box = { x: 0, y: 0, w: 0, h: 0 });
+  // (The ships' sizes as the camera draws them: its zoom, src/zoom.js.)
+  const z = r.zoom ?? 1;
   if (style === 'notch') {
     if (pilot) {
       const ship = world.ship, mt = ship.metrics || ship.measureDrawing(r.cellW, r.cellH);
-      return bubble(r, rows, C.x + ship.model.width * mt.w / 2 * 0.3, C.y - ship.model.height * mt.h / 2 - UI.pad, G, alpha, box);
+      return bubble(r, rows, C.x + ship.model.width * mt.w / 2 * 0.3 * z, C.y - ship.model.height * mt.h / 2 * z - UI.pad, G, alpha, box);
     }
-    const craft = at.craft, scale = craft.scale ?? 1;
+    const craft = at.craft, scale = (craft.scale ?? 1) * z;
     const hw = colsOf(craft.rows) * r.cellW * scale / 2, hh = craft.rows.length * r.cellH * scale / 2;
     return bubble(r, rows, C.x - hw * 0.3, C.y - hh - UI.pad, W, alpha, box, craft.label ?? null);
   }
@@ -207,11 +210,11 @@ export function drawGreetAnswer(r, world, item, style = DEFAULT_GREETING) {
   let hw, hh, ink, to, hull = null, name = null;
   if (pilot) {
     const ship = world.ship, mt = ship.metrics || ship.measureDrawing(r.cellW, r.cellH), other = world.craftAt?.(item.hail.to);
-    hw = ship.model.width * mt.w / 2; hh = ship.model.height * mt.h / 2;
+    hw = ship.model.width * mt.w / 2 * z; hh = ship.model.height * mt.h / 2 * z;
     ink = paintById(world.pilot?.paint)?.inks?.material ?? ROLES.structure;
     to = other ? world.project(r, other.x, other.y) : { x: C.x + 1, y: C.y };
   } else {
-    const craft = at.craft, scale = craft.scale ?? 1;
+    const craft = at.craft, scale = (craft.scale ?? 1) * z;
     offerOf(id, world.time ?? 0).spoke = world.time ?? 0;
     hw = colsOf(craft.rows) * r.cellW * scale / 2; hh = craft.rows.length * r.cellH * scale / 2;
     ink = item.hail.angry ? ROLES.danger : hullInk(craft); hull = pilotHull(r, world);   // a ship's curse or rage: the line in the danger ink

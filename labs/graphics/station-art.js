@@ -188,7 +188,8 @@ function sphereFill(D, cells, cx, cy, R, tone, seed, spin, t, bias = 0, airy = f
 // (CONFIG.station.docks), never read from here; checks/station-docks.mjs holds the table to these drawings.
 
 export const PAD = Object.freeze({ cols: 11, rows: 8, W: 13, H: 10 });
-export const LARGEST = Object.freeze({ own: { cols: 9, rows: 6 }, reference: { cols: 12, rows: 9 } });
+// (The reference ships' 13 since LOOK_SCALE went to 1.5, 2026-10-17: a station's cell is smaller, and SWORDFISH II 12.3 of them across.)
+export const LARGEST = Object.freeze({ own: { cols: 9, rows: 6 }, reference: { cols: 13, rows: 9 } });
 const ease = (u) => { const c = clamp(u, 0, 1); return c * c * (3 - 2 * c); };
 const IDLE = Object.freeze({ name: 'idle', u: 0, e: 0, open: 0, grip: 0, present: false });
 export const dockPhase = (S, which) => S.dockState?.[which] ?? IDLE;
@@ -1301,8 +1302,9 @@ export const lookOrigin = (st) => st.origin ?? { x: (st.W - 1) / 2, y: (st.H - 1
 // (2026-10-01: «Станции реально слишком маленькие»); half again since, with their bodies (CONFIG.station.bodies).
 // Then half of that growth back (SX, the same night: «посмотри, насколько ты увеличил станции в прошлый раз. И ровно в
 // половину от этого уменьши их снова, потому что они сейчас большие, никогда не помещаются в экран»): a quarter over
-// the garage's 1.3, with their bodies.
-export const LOOK_SCALE = 1.625;
+// the garage's 1.3, with their bodies. Then 1.5, the scale of the pilot's ship, the pirates and the friendly ships (SX, 2026-10-17, with
+// the camera's height, src/zoom.js: «Сделать 1.5»; the home garage with them: «оставь 1.5 Home»), the bodies and the docks 12/13 of theirs.
+export const LOOK_SCALE = 1.5;
 export const LOOKS = Object.freeze(Object.fromEntries(STATION_MAKERS.map((make) => [make().key, make])));
 // Every ink a look draws besides the roles: its hue's tones, the quiet gray of its unlit lamps, and the few
 // mixes `tint` has made between those (checks/graphics-lab.mjs holds the world's inks to these).

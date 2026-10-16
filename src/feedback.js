@@ -281,7 +281,9 @@ function drawChorus(r, world, pieces) {
   const shown = pieces.filter((p) => p.age < p.life).slice(-CONFIG.quests.chorus.line.shown);
   if (!shown.length) return null;
   const p = world.project(r, station.x, station.y), v = r.view, row = r.cellH, pad = HAIL.pad;
-  const f = station.footprint, halfW = f ? (f.model.width * r.cellW * f.scale) / 2 : 120, halfH = f ? (f.model.height * r.cellH * f.scale) / 2 : 80;
+  // (The station as the camera draws it: its zoom, src/zoom.js.)
+  const z = r.zoom ?? 1, f = station.footprint;
+  const halfW = (f ? (f.model.width * r.cellW * f.scale) / 2 : 120) * z, halfH = (f ? (f.model.height * r.cellH * f.scale) / 2 : 80) * z;
   // Each piece: its tag (none for the AI's own words, the static or a gap) over its line in capitals (the AI's own lowercase).
   const blocks = shown.map((piece) => {
     const text = piece.own || piece.faint ? [piece.line] : hailRows(piece.line.toUpperCase());
@@ -352,7 +354,7 @@ function drawHail(r, world, item, occupied = []) {
   const v = r.view, row = r.cellH;
   // How far the craft's drawing reaches from its middle: the shoulder the slash starts from.
   const craft = at?.craft;
-  const half = craft ? Math.max(craft.rows[0].length * r.cellW, craft.rows.length * row) * craft.scale / 2 : 40;
+  const half = (craft ? Math.max(craft.rows[0].length * r.cellW, craft.rows.length * row) * craft.scale / 2 : 40) * (r.zoom ?? 1);     // (as drawn: src/zoom.js)
   const alpha = Math.max(0, Math.min(1, item.age / HAIL.fade, (item.life - item.age) / HAIL.fade));
   if (alpha <= 0) return null;
   // Its name a row over its words, in the quiet ink (SX, 2026-10-16: «имя там приглушенная фразочка белая»); the world writes none under it.

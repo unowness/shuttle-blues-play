@@ -262,7 +262,7 @@ export function drawPestered(world, r) {
   if (!r.onScreen(s.x, s.y, craftReach(r, b.craft))) return;
   drawCraft(r, b.craft, s.x, s.y, b.angle, here ? 1 : b.alpha);
   if (here && Math.hypot(b.x - world.ship.x, b.y - world.ship.y) < HAIL_REACH * 2.5) {
-    const w = b.name.length * r.cellW;
+    const w = b.name.length * r.cellW * (r.textScale ?? 1);
     r.text(b.name, s.x - w / 2, s.y + b.craft.rows.length * r.cellH * b.craft.scale * 0.5 + r.cellH, CONFIG.hud.color, 0.9);
   }
 }

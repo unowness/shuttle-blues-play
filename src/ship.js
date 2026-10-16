@@ -202,7 +202,10 @@ export class Ship {
       this.vy += uy * P.thrust * authority * thrustGrip * dt;
     }
     if (this.retroing) {
-      const retro = P.retro * this.retroSpool * this.limp * thrustGrip * dt;
+      // Tail first the retro pushes no faster than the hull's reverse top (src/chassis.js reverseShare): its push this step at most what
+      // is left below it; a hull already flying tail first faster (turned round at speed) keeps what it has.
+      const back = -(this.vx * ux + this.vy * uy), reverseTop = P.maxSpeed * P.reverseShare;
+      const retro = Math.min(P.retro * this.retroSpool * this.limp * thrustGrip * dt, Math.max(0, reverseTop - back));
       this.vx -= ux * retro; this.vy -= uy * retro;
     }
 

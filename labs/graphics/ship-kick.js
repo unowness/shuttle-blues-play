@@ -103,10 +103,12 @@ export function stepKick(kick, dt, { braking = false, vx = 0, vy = 0, still = fa
 
 // The camera moved against the kick for the frame's drawing (the ship then stands `kick` px off its place), and back
 // before the world steps. A camera replaced meanwhile (a respawn, a sector loaded) is not moved back.
-export function putKick(world, kick) {
-  world.cam.x -= kick.x;
-  world.cam.y -= kick.y;
-  kick.applied = { x: kick.x, y: kick.y };
+// (`zoom` the camera's height, src/zoom.js: the kick is in the screen's px, a unit of the world `zoom` of them.)
+export function putKick(world, kick, zoom = 1) {
+  const x = kick.x / zoom, y = kick.y / zoom;
+  world.cam.x -= x;
+  world.cam.y -= y;
+  kick.applied = { x, y };
   kick.cam = world.cam;
 }
 export function liftKick(world, kick) {

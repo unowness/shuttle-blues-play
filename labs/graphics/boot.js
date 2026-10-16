@@ -32,6 +32,7 @@ import { createPlan } from './plan.js';
 import { warmSizes, warmChars, warmSize } from './warmup.js';
 import { prepareSound } from '../../src/audio.js';
 import { LOOK_SCALE } from './station-art.js';
+import { inWorld } from '../../src/zoom.js';
 
 // Sizes that come from a module's own constant and no configuration: the aliens of the
 // hidden sector (src/aliens.js SCALE), and the station looks (station-art.js LOOK_SCALE).
@@ -64,6 +65,15 @@ export function tourCameras(world) {
 //   prepareSound() -> iterator of shares done (optional: src/audio.js's by default)
 //   makeWorld(), makePresentation(world), makeRenderer(), drawHud(renderer, world)
 //   renderer (the real one), stationModels()
+// The smoke's shade tiles: '░' in the smoke's ink at each sixteenth up to its strength (a bucket's alpha is in sixteenths; the side smoke and
+// a cloud's dimmed cells lay it fainter), baked on the world's layer where the page has one (src/zoom.js: at the camera's scale, which the
+// page bakes again when the pilot changes it), else on `renderer`.
+export function warmSmoke(renderer, config) {
+  const alphas = [];
+  for (let q = 0; q <= Math.round(config.smoke.shade * 16); q++) alphas.push(q / 16);
+  return (renderer.worldLayer ?? renderer).warmRows?.(config.sector.boundary.fog.shade.ch, config.smoke.ink, alphas);
+}
+
 export function buildBootPlan(deps, planOptions) {
   const { world, config } = deps;
   const plan = createPlan(planOptions);
@@ -171,20 +181,17 @@ export function buildBootPlan(deps, planOptions) {
       for (let i = 0; i < sizes.length; i++) {
         step.label = `TEXT ${Math.round(renderer.fontSize * sizes[i] * 100) / 100} PX`;
         warmSize(renderer, sizes[i], warmChars(sizes[i]), config);
+        // And at the camera's height (src/zoom.js): the world's glyphs reach the canvas at the zoom's own device size.
+        if (renderer.worldLayer && renderer.zoom !== 1) inWorld(renderer, (v) => warmSize(v, sizes[i], warmChars(sizes[i]), config));
         yield (i + 1) / sizes.length;
       }
     },
   });
 
-  // The smoke's shade tiles (Renderer.warmRows): '░' in the smoke's ink at each sixteenth up to its strength (a bucket's alpha is in
-  // sixteenths; the side smoke and a cloud's dimmed cells lay it fainter). They were made on the first frame in the smoke.
+  // The smoke's shade tiles (warmSmoke, Renderer.warmRows): they were made on the first frame in the smoke.
   plan.add({
     id: 'smoke', label: 'SMOKE', weight: 1,
-    run() {
-      const alphas = [];
-      for (let q = 0; q <= Math.round(config.smoke.shade * 16); q++) alphas.push(q / 16);
-      deps.renderer.warmRows?.(config.sector.boundary.fog.shade.ch, config.smoke.ink, alphas);
-    },
+    run() { warmSmoke(deps.renderer, config); },
   });
 
   return plan;

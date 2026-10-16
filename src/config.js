@@ -18,6 +18,16 @@ import { PIRATE_ATTACKS } from './pirateAttackConfig.js';
 import { GROUND } from './groundConfig.js';
 import { MAP_PLACEMENT } from './mapContentConfig.js';
 
+// The camera's height over the world (src/zoom.js; SX, 2026-10-17: «нам надо не уменьшать, не изменять размер мира и элементов. Нам надо
+// просто как бы камеру чуть повыше взять, чтобы чуть-чуть побольше в экран помещался»; «в идеале было бы прикольно на плюс-минус дать
+// пользователю выбирать масштаб»; his pick the same day: three steps, 90 % unless the pilot chooses). `steps` the screen px a world unit is
+// drawn at, from the lowest camera to the highest, chosen on − and = and in the pause's GRAPHICS; `start` a browser's with none kept.
+// How far from the ship the world is out of sight at the highest (UNSEEN): the widest window's half diagonal (2560 x 1600, 1,509 px) seen
+// from it, the camera's lead (CONFIG.camera.leadMax) and a big rock's 130 u; rocks laid or put back come no nearer (`sector.spawnClear`,
+// src/field.js refillClear). 1,300 and 1,900 until then, for the camera at 1.
+const ZOOM = Object.freeze({ steps: Object.freeze([1, 0.9, 5 / 6]), start: 0.9 });
+const UNSEEN = Math.ceil((Math.hypot(2560, 1600) / 2 / Math.min(...ZOOM.steps) + 220 + 130) / 100) * 100;
+
 export const CONFIG = {
   pirateAttacks: PIRATE_ATTACKS,
   pirateCues: PIRATE_CUES,
@@ -102,11 +112,11 @@ export const CONFIG = {
     // sectors back and forth. Rocks within `carryRange` of the ship, shots,
     // sparks and loose coins cross with it; objects past a live seam live on
     // for `neighbourStrip` u, where the next sector is drawn; a fresh field
-    // tops up at least `spawnClear` u away, off screen.
+    // tops up at least `spawnClear` u away, off screen (UNSEEN above: the highest camera's sight).
     seamSlack: 80,
     carryRange: 2200,
     neighbourStrip: 2400,
-    spawnClear: 1300,
+    spawnClear: UNSEEN,
     // The seam itself: a faint dashed line with a slow light running along
     // it, and the next sector's name beside it once the ship is within
     // `labelRange` u.
@@ -200,7 +210,7 @@ export const CONFIG = {
     // bodies below and this soft hull with them (it was 230).
     // Then back by half of that growth (SX, the same night: «ровно в половину от этого уменьши их снова ... никогда не
     // помещаются в экран»): a quarter over the old sizes, LOOK_SCALE 1.625, this hull 288 and the bodies below.
-    hullRadius: 288,       // soft exclusion, matches the drawn footprint
+    hullRadius: 266,       // soft exclusion, matches the drawn footprint (288 until LOOK_SCALE went to 1.5, 2026-10-17)
     repelAccel: 900,       // world units / s^2 at the hull centre
     // A station drifts a little round its place (src/stations.js; SX, 2026-10-01: «Пусть станции чуть чуть
     // дрейфуют в космосе, а то они как вкопанные стоят это нереалистично»): up to `amount` u across and
@@ -227,13 +237,15 @@ export const CONFIG = {
     // mast under it), and the five the illustrator redrew with his round 6 (HALCYON, FOUNDRY 2, SPOOL 8, PHAROS, WHARF 9): every body is
     // nine tenths of the station itself as drawn now (its `core`: the board without its external dock and docked ship),
     // checks/station-docks.mjs holding them to it.
+    // Every length of the stations twelve thirteenths of what it was since 2026-10-17, when LOOK_SCALE went from 1.625 to 1.5 (SX, asked
+    // what the stations should be, with the camera's height: «Сделать 1.5», the bodies with their drawings: «Да, вместе»).
     bodies: {
-      ring: [401, 296], spindle: [408, 296], foundry: [367, 296], greenhouse: [306, 296],
-      beacon: [326, 296], lattice: [387, 263], wheel: [333, 340], hive: [292, 296],
-      depot: [442, 296], array: [279, 274], spire: [374, 296], anchor: [326, 296],
-      // The home garage's: nine tenths of its rock's extent over a whole turn of its sway (48 x 25 cells of 15.1 x 24.4 u,
+      ring: [370, 273], spindle: [377, 273], foundry: [339, 273], greenhouse: [282, 273],
+      beacon: [301, 273], lattice: [358, 243], wheel: [308, 314], hive: [270, 273],
+      depot: [408, 273], array: [257, 253], spire: [345, 273], anchor: [301, 273],
+      // The home garage's: nine tenths of its rock's extent over a whole turn of its sway (48 x 25 cells of 13.95 x 22.5 u,
       // labs/graphics/garage-art.js stoneExtent; checks/home-garage.mjs measures it again).
-      home: [326, 274],
+      home: [301, 253],
     },
     corner: 0.5,
     breakSpeed: 600,
@@ -279,7 +291,7 @@ export const CONFIG = {
     // The pilot's home garage is not one of the twelve looks (src/home.js): its body and its soft hull stand in
     // these tables under its look's name, `home` (its body is `bodies.home`, above, measured off the drawn rock). The looks that grew
     // on 2026-10-15 keep their soft hull a little past their bodies' longest half, as `hullRadius` was past the old ones'.
-    hulls: { home: 300, ring: 405, lattice: 391, wheel: 344, hive: 300, depot: 446, spire: 378, spindle: 412, foundry: 371, greenhouse: 310, beacon: 330, anchor: 330 },
+    hulls: { home: 277, ring: 374, lattice: 362, wheel: 318, hive: 277, depot: 412, spire: 349, spindle: 381, foundry: 343, greenhouse: 286, beacon: 305, anchor: 305 },
     // Where a look's docks are (SX, 2026-10-15; the rule in docs/station-art.md section 4, the drawing in labs/graphics/station-art.js,
     // checks/station-docks.mjs holding this table to it): u from the station's own place, in its own frame (turned with it in the
     // float). `pad` [dx, dy, nose]: where the pilot's own ship stands on the pad and which way its nose points ('up', or 'left' on
@@ -288,18 +300,18 @@ export const CONFIG = {
     // pick M0 of 2026-10-15); a ship hangs there nose up, `gap` past the face. Every reference ship docks at `ext` («корабль отсылка точно не должен вставать на станцию. Он внешним доком всегда
     // соединяется»), and every ship at a station with no pad.
     docks: {
-      ring: { pad: null, ext: [438.3, 0, 1, 151.1] },
-      spindle: { pad: [-355.1, -24.4, 'up'], ext: [-113.3, 219.4, -1, 151.1] },
-      foundry: { pad: [279.6, 0, 'up'], ext: [-400.5, 0, -1, 151.1] },
-      greenhouse: { pad: [90.7, 0, 'up'], ext: [317.4, 0, 1, 151.1] },
-      beacon: { pad: [219.1, 0, 'up'], ext: [-355.1, 0, -1, 151.1] },
-      lattice: { pad: [0, 0, 'up'], ext: [423.2, 12.2, 1, 151.1] },
-      wheel: { pad: [0, 0, 'up'], ext: [347.6, 0, 1, 151.1] },
-      hive: { pad: null, ext: [302.3, 0, 1, 136] },
-      depot: { pad: null, ext: [423.2, 73.1, 1, 136] },
-      array: { pad: null, ext: [302.3, -48.7, 1, 151.1] },
-      spire: { pad: [317.4, 0, 'left'], ext: [-408, 0, -1, 151.1] },
-      anchor: { pad: [52.9, 0, 'up'], ext: [355.1, 0, 1, 151.1] },
+      ring: { pad: null, ext: [404.6, 0, 1, 139.5] },
+      spindle: { pad: [-327.8, -22.5, 'up'], ext: [-104.6, 202.5, -1, 139.5] },
+      foundry: { pad: [258.1, 0, 'up'], ext: [-369.7, 0, -1, 139.5] },
+      greenhouse: { pad: [83.7, 0, 'up'], ext: [293, 0, 1, 139.5] },
+      beacon: { pad: [202.3, 0, 'up'], ext: [-327.8, 0, -1, 139.5] },
+      lattice: { pad: [0, 0, 'up'], ext: [390.6, 11.3, 1, 139.5] },
+      wheel: { pad: [0, 0, 'up'], ext: [320.9, 0, 1, 139.5] },
+      hive: { pad: null, ext: [279, 0, 1, 125.6] },
+      depot: { pad: null, ext: [390.6, 67.5, 1, 125.6] },
+      array: { pad: null, ext: [279, -45, 1, 139.5] },
+      spire: { pad: [293, 0, 'left'], ext: [-376.7, 0, -1, 139.5] },
+      anchor: { pad: [48.8, 0, 'up'], ext: [327.8, 0, 1, 139.5] },
     },
     // How a ship docks (SX, 2026-10-15: «когда докаешься, то наш корабль уходит вниз в глубину, а потом всплывает в доке ... как при
     // респауне»; «Ныряет обратно» to leave; «Нужна анимация, короче, как на респауне. Ныряет внутрь, выплывает снизу»), s: it dives where
@@ -307,7 +319,7 @@ export const CONFIG = {
     // (rise 1.1 s, labs/graphics/reboot.js REBOOT.rise); leaving, it dives out of the dock and rises outside, `exitAir` u off the station as
     // drawn (its external dock counted) on the side it came from, nose out, a towed cargo as clear. `gap`: a hanging ship's clearance from
     // the external dock's face (a cell); `grip` how long the claws take to close.
-    docking: { arrive: { dive: 0.5, under: 0.8, rise: 1.1 }, leave: { dive: 0.45, under: 0.65, rise: 1.1 }, gap: 15, exitAir: 60, grip: 0.6 },
+    docking: { arrive: { dive: 0.5, under: 0.8, rise: 1.1 }, leave: { dive: 0.45, under: 0.65, rise: 1.1 }, gap: 14, exitAir: 60, grip: 0.6 },
     // ... and its body's corners are fully round (a stadium, `corner` 1): the rock is lumpy and the box's corners stood up
     // to 61 u out of it at the turn of its sway, 44 u (one hull's radius) with the round ends (checks/home-garage.mjs).
     corners: { home: 1 },
@@ -328,7 +340,7 @@ export const CONFIG = {
     // A board cell is a glyph cell times this, and `cellEm` ems wide (the game's cells are 0.62 x 1.0 em): the scale
     // the stations' looks are drawn at (labs/graphics/station-art.js LOOK_SCALE; checks/home-garage.mjs holds them
     // equal), so the ship's place in the berth is worked out in the world's units without a renderer.
-    scale: 1.625,
+    scale: 1.5,
     cellEm: 0.62,
     // 0.5 since 2026-10-04 (the economy SX chose, proposal.json `fuel`: a station's is 2, a droid's 3); a whole tank 50 CR.
     fuelPrice: 0.5,                       // CR a unit
@@ -502,8 +514,8 @@ export const CONFIG = {
     // такого размера»: 15 % more again (1.56 to 1.8), the canister as it is. Then,
     // the same evening: «Монеты сделай на 5% меньше»: 1.71. Then, with the scales sheet
     // (labs/graphics/sketches/scales.html, deleted 2026-10-03): «текущую монетку сделай на 10% меньше и все
-    // дальше мерий от нее»: 1.539, 60 x 71 px of ink, the unit every size is measured in.
-    scale: 1.539,
+    // дальше мерий от нее»: 1.539, 60 x 71 px of ink, the unit every size is measured in. That `scale` went on 2026-10-17: no coin
+    // lies authored any more and nothing read it (the loose coin's drawing is CONFIG.asteroid.drops.coinScale).
     sparkColor: '#ffe7a3',
   },
 
@@ -806,6 +818,8 @@ export const CONFIG = {
     follow: 0.085,         // lerp factor per 60fps step
     lead: 0.28,            // how much the camera leads the velocity vector
     leadMax: 220,
+    zoom: ZOOM,            // its height: the steps and a new browser's (above)
+    unseen: UNSEEN,        // u from the ship that no window shows at any step (above)
   },
 
   // sim: src/flightConfig.js, the flight's numbers in a file of their own (chat F1, 2026-10-04).

@@ -85,7 +85,7 @@ export const kindName = (id) => KINDS.find((k) => k.id === id)?.one ?? id.toUppe
 const cfg = (read, fallback) => { try { const v = read(); return Number.isFinite(v) ? v : fallback; } catch { return fallback; } };
 export const RADII = Object.freeze({
   orbit: cfg(() => CONFIG.planet.orbit.height, 200),            // a planet's cushion above its surface
-  hull: cfg(() => CONFIG.station.hullRadius, 288),
+  hull: cfg(() => CONFIG.station.hullRadius, 266),
   menu: cfg(() => CONFIG.station.interactRadius, 620),          // the station's menu opens inside it
   pirateFree: cfg(() => CONFIG.pirates.stationClear, 1200),     // no automatic pirate fight this close to a working station
   guardWake: cfg(() => CONFIG.pirates.guard.wake, 1000),        // a ruin's guards notice a pilot within it

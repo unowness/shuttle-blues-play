@@ -78,8 +78,10 @@ export const BODIES = {
       drag: 1.2,           // per second, so a scatter settles within ~150 u
       life: 24,            // seconds an uncollected coin lasts
       fadeFrom: 4,         // its last seconds are drawn fading
-      scale: 0.7,          // a fuel canister's drawing
-      coinScale: 0.828,    // a coin's: 0.7 until SX's «монетки на 20% крупнее», then «чуть побольше еще» (+15 %), then «на 5% меньше», then «на 10% меньше» (0.92 -> 0.828)
+      // A coin's drawing: 0.7 until SX's «монетки на 20% крупнее», then «чуть побольше еще» (+15 %), then «на 5% меньше», then «на 10% меньше»
+      // (0.92 -> 0.828), then a round 0.8 with the camera's height (SX, 2026-10-17: «Почему не 0,80 хотя бы?»). (A fuel canister's drawing,
+      // `scale` 0.7, went the same day: fuel lies loose as drops since 2026-10-08, src/oil.js, and nothing read it.)
+      coinScale: 0.8,
       // A coin that the hull passes close to is drawn in, so a flight through
       // the scatter gathers it. Authored pickups have no pull: those are
       // taken by touch, which is what makes braking into them matter.

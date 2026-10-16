@@ -20,17 +20,18 @@ export function targetAt(world, r, x, y) {
   if (!world?.sector) return null;
   let best = null;
   const take = (kind, id, thing, d) => { if (!best || d < best.d) best = { kind, id, [kind]: thing, d }; };
+  const z = r.zoom ?? 1;                             // (the drawings' boxes as the camera draws them: src/zoom.js)
   for (const craft of world.trafficHere(world.sector.id, world.time)) {
     if (isEnraged(craft)) continue;                  // an enraged ship is not pointed at for a greeting (src/npcFleet.js)
     const pose = craftPose(craft, world.time, world.width, world.height), s = world.project(r, pose.x, pose.y);
-    const reach = Math.hypot(craft.rows[0].length * r.cellW, craft.rows.length * r.cellH) * craft.scale / 2 * POINT.craftBox;
+    const reach = Math.hypot(craft.rows[0].length * r.cellW, craft.rows.length * r.cellH) * craft.scale / 2 * POINT.craftBox * z;
     const d = Math.hypot(x - s.x, y - s.y);
     if (d <= reach) take('craft', craft.id, craft, d / reach);
   }
   for (const st of world.stations) {
     const f = st.footprint, s = world.project(r, st.x, st.y);
-    const hw = f ? f.model.width * r.cellW * f.scale / 2 * POINT.stationBox : st.hullRadius ?? 200;
-    const hh = f ? f.model.height * r.cellH * f.scale / 2 * POINT.stationBox : st.hullRadius ?? 200;
+    const hw = (f ? f.model.width * r.cellW * f.scale / 2 * POINT.stationBox : st.hullRadius ?? 200) * z;
+    const hh = (f ? f.model.height * r.cellH * f.scale / 2 * POINT.stationBox : st.hullRadius ?? 200) * z;
     const dx = Math.abs(x - s.x) / hw, dy = Math.abs(y - s.y) / hh;
     if (dx <= 1 && dy <= 1) take('station', st.id, st, Math.max(dx, dy) + 0.5);
   }

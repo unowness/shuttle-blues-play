@@ -322,7 +322,7 @@ export function drawSpecial(world, r, t) {
     if (r.onScreen(p.x, p.y, 220)) {
       drawModel(r, model, p.x, p.y, s.site.angle + Math.sin(t * 0.6) * 0.04);
       if (Math.hypot(s.site.x - world.ship.x, s.site.y - world.ship.y) < 1150) {
-        const label = specialById(s.id).label, w = label.length * r.cellW;
+        const label = specialById(s.id).label, w = label.length * r.cellW * (r.textScale ?? 1);
         r.text(label, p.x - w / 2, p.y + model.height * r.cellH * model.scale * 0.5 + r.cellH, CONFIG.hud.color, 0.9);
       }
     }

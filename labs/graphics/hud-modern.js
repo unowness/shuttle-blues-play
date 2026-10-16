@@ -75,14 +75,17 @@ export function setMapShape(ui, shape, store) {
 
 // ------------------------------------------------------------------------------------------------ the numbers
 
-// `margin` the edge line from the screen's top and bottom (SX: «сделай отступ пожалуйста 28»); `s` and `c` the windows' air; a gauge's
+// `margin` the edge line from the screen's top and bottom (SX: «сделай отступ пожалуйста 28»); `side` the corners' blocks (the stations,
+// the locator, the radio, the quests, the charm's mount and their key rows) from the screen's sides, a level in from the gauges on the edge
+// line (SX, 2026-10-17: «у текста и локатора по бокам побольше отступы ... 36»); `wide` the bottom notch's floor wider than BRAKES needs,
+// each side, the gauges keeping the width the narrower notch gave them (SX: «Добавь ... по 28 по бокам нижней челки»); `s` and `c` the windows' air; a gauge's
 // cube as tall as the notch's line, the windows' squares' gap between two; a wall's S `run` times its drop; the fade at the edges, as high as
 // the margin, black at the edge to none; the mount's box, its reel and holes; `cord` the charm's chain from the reel's edge to the charm's
 // ring at rest, in the game's hangs (charm.js HANG). It was twice the game's (SX: «на 50% длиннее цепочку», then lower again on his
 // picture), drawn as a straight run of beads, an eyelet and the game's chain under it; one chain off the reel, a third shorter, since SX,
 // 2026-10-16: «у сувенира какая-то двойная цепочка, ты ее укороти на 1/3 и сделай просто без дополнительного скрепления в середине».
 export const MODERN = Object.freeze({
-  margin: 28, s: ORG.S, c: ORG.C, cube: BAR.outer, gap: ORG.squareGap, run: 1.5, samples: 24,
+  margin: 28, side: 36, wide: 28, s: ORG.S, c: ORG.C, cube: BAR.outer, gap: ORG.squareGap, run: 1.5, samples: 24,
   fade: Object.freeze([[0, 1], [0.3, 0.6], [0.65, 0.2], [1, 0]]),
   mount: Object.freeze({ w: 64, round: 8, reel: 7, hub: 1.5, holes: 2, hole: 2, holePitch: 4 }), cord: (2 * 2) / 3,
 });
@@ -238,13 +241,15 @@ export function drawModernHud(r, game, args) {
   const { world, tracker, radio, questBoard, charm } = game, fx = game.modernFx, ui = game.interface;
   const { given, brake, lamp, speed, maxSpeed, input, now, scopeArgs, reducedMotion, level } = args;
   const ctx = r.ctx, W = r.width, H = r.height, mid = W / 2, cw = r.cellW, m = uiMetrics(r), L = modernLines(r), ink = L.ink, S = MODERN.s, C = MODERN.c;
+  const X = MODERN.side;
   const out = { modern: true, deck: false, column: null, quests: null, radioArea: null, avoid: [], area: null, charm: null, wheelAt: null };
 
   // The notches: the top one round the task's line (helmet.js, its floor and row in NOTCH_MODE), the bottom one round BRAKES.
   const h = game.notices.notch(r);
   const top = notch(h.left, h.right, h.y, L.railT);
   const brakeW = (4 + BRAKE_LABEL.length) * cw + 2 * BRAKE_OPEN * cw, floorB = L.capsB - L.capH - C - BAR.outer / 2;
-  const bottom = notch(Math.round(mid - brakeW / 2 - S), Math.round(mid + brakeW / 2 + S), floorB, L.railB);
+  const fit = notch(Math.round(mid - brakeW / 2 - S), Math.round(mid + brakeW / 2 + S), floorB, L.railB);
+  const bottom = notch(Math.round(mid - brakeW / 2 - S - MODERN.wide), Math.round(mid + brakeW / 2 + S + MODERN.wide), floorB, L.railB);
   // The fades at both edges, under the notches.
   for (const [y0, y1] of [[0, L.M], [H, H - L.M]]) {
     const g = ctx.createLinearGradient(0, y0, 0, y1);
@@ -260,8 +265,13 @@ export function drawModernHud(r, game, args) {
   }
   if (given.deck) drawBrake(r, { y: L.textB, h: UI.row }, brake, lamp);
 
-  // The gauges: as wide as the bottom notch at BRAKES' capitals' middle, S past the notches' line.
-  const wx = wallAt(bottom, L.capsB - L.capH / 2), n = Math.max(4, Math.floor((2 * (mid - wx) + MODERN.gap) / L.pitch));
+  // The corners' widths: the locator's (round or square, the radio's width when square) and the radio's.
+  const sq = ui.map === 'square', Lc = columnLayout(r), R0 = Lc ? Lc.radius : 119;
+  const side = sq ? radioSize(r).w : 2 * (R0 + MODERN_SCOPE.apart + 0.5), Wm = radioSize(r).w;
+  // The gauges: as wide as the bottom notch fitted to BRAKES at their capitals' middle (`fit`, before it was widened), S past the notches' line,
+  // and no nearer the bottom corners' blocks than C (a narrow screen: the widened notch pushes the bottom ones out toward them).
+  const room = Math.min(bottom.shoulders[0] - S - (X + Math.round(side) + C), W - X - Wm - C - (bottom.shoulders[1] + S));
+  const wx = wallAt(fit, L.capsB - L.capH / 2), n = Math.max(4, Math.min(Math.floor((2 * (mid - wx) + MODERN.gap) / L.pitch), Math.floor((room - L.cube) / L.pitch) + 1));
   const gw = (n - 1) * L.pitch + L.cube;
   const at = {
     hull: { x: Math.round(top.shoulders[0] - S - gw), y: L.railT, row: L.textT },
@@ -307,27 +317,25 @@ export function drawModernHud(r, game, args) {
   }
 
   // The locator in the bottom left corner (round or square, the radio's width when square), N LEGEND (its key from the table) and the wallet under it.
-  const sq = ui.map === 'square', Lc = columnLayout(r), R0 = Lc ? Lc.radius : 119;
-  const side = sq ? radioSize(r).w : 2 * (R0 + MODERN_SCOPE.apart + 0.5);
-  const locBox = { x: L.M, y: Math.round(L.keyRowB + ink.top - S - side), w: Math.round(side), h: Math.round(side) };
+  const locBox = { x: X, y: Math.round(L.keyRowB + ink.top - S - side), w: Math.round(side), h: Math.round(side) };
   if (given.column) {
     drawModernScope(r, world, { ...scopeArgs, box: locBox, shape: sq ? 'square' : 'round', reducedMotion, level, seed: cockpitSeed() + 11, wreck: cockpitCrack() });
-    // The legend's button on the bottom line at the margin; its rows over the locator while they show.
+    // The legend's button on the bottom line under the locator's edge; its rows over the locator while they show.
     const phase = Lc?.phase, open = !!phase?.open, key = keyName('legend'), wordL = open ? 'HIDE LEGEND' : 'LEGEND';
-    const x0 = L.M + 1, edge = x0 + KEYCAP_PAD + (Array.from(key).length + 1 + wordL.length + 1) * cw + 2 * KEY_MARK_HALF + 1;
+    const x0 = X + 1, edge = x0 + KEYCAP_PAD + (Array.from(key).length + 1 + wordL.length + 1) * cw + 2 * KEY_MARK_HALF + 1;
     const legendRow = drawColumnButton(r, { x0, edge, rowTop: L.keyRowB, key, word: wordL, turn: phase ? 1 - phase.turn : 0, name: 'locator:legend', note: (box) => noteKey(key, box, r) });
     let column = union(locBox, legendRow);
     if (Lc && phase?.rows) {
       const listTop = locBox.y - C - LEGEND_ROW_COUNT * UI.row;
-      drawLegendRowsAt(r, { ...Lc, legendX: L.M, listTop, colW: locBox.w - (Lc.right - Lc.x0 - Lc.colW) }, phase.lore);
-      column = union(column, { x: L.M, y: listTop, w: locBox.w, h: LEGEND_ROW_COUNT * UI.row });
+      drawLegendRowsAt(r, { ...Lc, legendX: X, listTop, colW: locBox.w - (Lc.right - Lc.x0 - Lc.colW) }, phase.lore);
+      column = union(column, { x: X, y: listTop, w: locBox.w, h: LEGEND_ROW_COUNT * UI.row });
     }
     out.column = column;
   }
   drawWallet(r, { wallet: { x: locBox.x + locBox.w + m.capLeft - 240, y: L.keyRowB, w: 240, h: UI.row, alone: false } }, world.ledger.credits ?? 0);
 
   // The stations in the top left corner under their B row, as wide as the locator.
-  const place = { x0: L.M, x1: L.M + locBox.w, rowTop: L.keyRowT, ink, capH: L.capH, down: true, under: S,
+  const place = { x0: X, x1: X + locBox.w, rowTop: L.keyRowT, ink, capH: L.capH, down: true, under: S,
     rowsTop: Math.round(L.keyRowT + ink.bottom + C), pitch: Math.round(UI.pad + S + L.capH + C), floor: (given.column ? locBox.y : H - L.M) - C,
     rowsBottom: 0, wallet: null, foot: null };
   const stations = drawTracker(r, tracker, place);
@@ -335,7 +343,7 @@ export function drawModernHud(r, game, args) {
 
   // The charm's mount on the edge line at the right column's axis (the charm's right edge on the quests'), the charm on its reel's cord;
   // torn off, it falls (under the quests: drawn before them).
-  const Wm = radioSize(r).w, right = W - L.M, charmId = given.shelf ? hungCharm(world) : null, art = charmId ? charmPlace(r).inks.get(charmId) : null;
+  const right = W - X, charmId = given.shelf ? hungCharm(world) : null, art = charmId ? charmPlace(r).inks.get(charmId) : null;
   const hx = Math.round(right - (art ? (art.x1 - art.x0) / 2 : CHARM.size / 2)) + 0.5;
   const mount = { x: Math.round(hx - MODERN.mount.w / 2), y: L.M, w: MODERN.mount.w, h: Math.round(L.capsT + L.capH - L.M) };
   let charmAt = null;
@@ -370,7 +378,7 @@ export function drawModernHud(r, game, args) {
   }
 
   // The radio in the bottom right corner, its T row on the bottom line, broken where it stands as the hull goes (radio.js).
-  const sides = sidePlaces(r, 'left'), q = sides.quests, left = W - L.M - Wm, dx = left - q.left;
+  const sides = sidePlaces(r, 'left'), q = sides.quests, left = W - X - Wm, dx = left - q.left;
   let radioArea = null;
   if (given.radio) {
     const box = { x: left, y: L.keyRowB + ink.top - S - RADIO_MODERN.h, w: Wm, h: RADIO_MODERN.h };

@@ -79,6 +79,8 @@ import { createKeyFocus } from './key-focus.js';
 import { createDiagnostics } from './diagnostics.js';
 import { createFlightFrame } from './flight-frame.js';
 import { createPageBoot } from './page-boot.js';
+import { warmSmoke } from './boot.js';
+import { createZoom, setZoom, stepZoom, fitWorldLayer } from '../../src/zoom.js';
 import { createPageActions, paintPageColours } from './page-actions.js';
 
 // `env` is the browser's side, as main.js builds it from the page and a check from stand-ins. The body reads these by the names it always had
@@ -405,6 +407,21 @@ export function createGame(env) {
   // unless this browser keeps LEGACY or ROUND (the pause's GRAPHICS > INTERFACE and MAP); what tore off the modern one, falling.
   game.interface = createInterface(saveBackend);
   game.modernFx = createModernFx();
+  // The camera's height over the world (src/zoom.js; SX, 2026-10-17: «камеру чуть повыше взять»): this browser's step, 90 % unless − and = or
+  // the pause's GRAPHICS > CAMERA kept another; the lab's `?zoom=100|90|83` one for this load, not kept. The world's layer is fitted to it
+  // now (the boot bakes the smoke's rows at its scale), and again with the smoke's rows at once when the pilot changes it, so the first
+  // frame at a new height makes no canvas.
+  game.zoom = createZoom(saveBackend, GAME ? null : pageParams.get('zoom'));
+  fitWorldLayer(renderer, game.zoom.value);
+  const zoomed = (moved) => {
+    if (!moved) return false;
+    fitWorldLayer(renderer, game.zoom.value);
+    warmSmoke(renderer, CONFIG);
+    if (game.pause?.state?.toy) game.pause.state.toy.ship.measured = false;     // (the toy's ship drawn at it: its disc measured again)
+    return true;
+  };
+  game.setZoom = (value) => zoomed(setZoom(game.zoom, value, saveBackend));
+  game.stepZoom = (dir) => zoomed(stepZoom(game.zoom, dir, saveBackend));
   // The windows' frames and rules in the Swiss manner (src/frames.js; SX, 2026-10-09): GRAY unless this browser keeps TINTED (the pause's GRAPHICS > FRAMES).
   loadFrames(saveBackend);
   const hudPlace = createHudPlace(saveBackend);

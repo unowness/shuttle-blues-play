@@ -73,7 +73,7 @@ export function drawRecorderLying(world, r, t) {
     if (r.onScreen(s.x, s.y, reach * 2)) {
       paintRecorder(r, s.x, s.y + Math.sin(t * 0.8) * 3, 0.12 * Math.sin(t * 0.35), sc, t);
       if (Math.hypot(b.x - world.ship.x, b.y - world.ship.y) < CONFIG.quests.chorus.reach * 2.5) {
-        const label = 'RECORDER', w = label.length * r.cellW;
+        const label = 'RECORDER', w = label.length * r.cellW * (r.textScale ?? 1);
         r.text(label, s.x - w / 2, s.y + reach + r.cellH, CONFIG.hud.color, 0.9);
       }
     }

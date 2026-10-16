@@ -74,6 +74,9 @@ export const PREFS = Object.freeze({
   // The modern interface's locator, square or round (GRAPHICS > MAP; SX, the same day: «переключать карту с круглой на квадратную. По
   // умолчанию квадратную»).
   mapShape:   Object.freeze({ key: 'spaser.mapshape.v1',  area: 'local',   fallback: 'square', shape: '{"shape":"square"|"round"}' }),
+  // The camera's height over the world (src/zoom.js, − and = and the pause's GRAPHICS > CAMERA; SX, 2026-10-17): a step of
+  // CONFIG.camera.zoom, its start unless another is kept (null here: the steps are the owner's).
+  zoom:       Object.freeze({ key: 'spaser.zoom.v1',      area: 'local',   fallback: null,     shape: '{"zoom":1|0.9|0.833} (a step, to a thousandth)' }),
 });
 
 // The store a preference lives in when none is handed in: this browser's. A browser that blocks site data throws on the global
@@ -129,6 +132,13 @@ export const readInterface = (styles, store) => { const kept = readJSON('interfa
 export const writeInterface = (style, store) => writeJSON('interface', { style }, store);
 export const readMapShape = (shapes, store) => { const kept = readJSON('mapShape', store); return shapes.includes(kept?.shape) ? kept.shape : PREFS.mapShape.fallback; };
 export const writeMapShape = (shape, store) => writeJSON('mapShape', { shape }, store);
+
+// The camera's height (PREFS.zoom): the one of `steps` kept (to a thousandth), else null (the owner's start).
+export function readZoom(steps, store) {
+  const kept = readJSON('zoom', store)?.zoom;
+  return Number.isFinite(kept) ? steps.find((z) => Math.abs(z - kept) < 0.001) ?? null : null;
+}
+export const writeZoom = (zoom, store) => writeJSON('zoom', { zoom: Math.round(zoom * 1000) / 1000 }, store);
 
 // The locator's side (PREFS.hudSide): one of `ids`, else the left.
 export const readHudSide = (ids, store) => { const kept = readJSON('hudSide', store); return ids.includes(kept?.locator) ? kept.locator : PREFS.hudSide.fallback; };

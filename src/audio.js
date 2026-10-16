@@ -614,9 +614,8 @@ export function soundsFor(event, world, r) {
     const cx = r.cx ?? r.width / 2, cy = r.cy ?? r.height / 2;
     const half = Math.max(1, r.width / 2);
     const pan = Math.max(-1, Math.min(1, (p.x - cx) / half)) * S.panWidth;
-    // How far past the edge of the screen, in world units (the view is drawn one
-    // unit a pixel).
-    const past = Math.max(0, Math.abs(p.x - cx) - half, Math.abs(p.y - cy) - r.height / 2);
+    // How far past the edge of the screen, in world units (a unit is `zoom` px: the camera's height, src/zoom.js).
+    const past = Math.max(0, Math.abs(p.x - cx) - half, Math.abs(p.y - cy) - r.height / 2) / (r.zoom ?? 1);
     if (past > S.hearing) return [];
     const fall = 1 - past / S.hearing;
     for (const s of out) { s.pan = pan; s.gain *= fall * fall; }

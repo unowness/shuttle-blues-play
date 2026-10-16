@@ -103,9 +103,10 @@ export function bayHalf(down) {
 export function inBay(world, station) {
   return inCone(worldToBoard(world, station, world.ship.x, world.ship.y));
 }
+// (A millionth of a cell of slack: a place on the cone's edge stays on it through the board's round trip to the world and back.)
 function inCone(p) {
   const B = berthOf(), down = p.y - B.y;
-  return down >= CONFIG.home.bay.top && Math.abs(p.x - B.x) <= bayHalf(down);
+  return down >= CONFIG.home.bay.top - 1e-6 && Math.abs(p.x - B.x) <= bayHalf(down) + 1e-6;
 }
 
 // Where a new game's ship stands: at rest in the bay, below the berth's mouth on its axis, its nose away from the mouth, down the
@@ -129,7 +130,9 @@ export function startPose(station) {
 // gate. From between the greenhouse and the stone (past `ROUND.hang` across) the way goes `ROUND.away` cells across away from the
 // greenhouse before it goes down, so a ship that sets off turning does not swing into its glass. `T` is how long it takes. (Until chat G, 2026-10-04,
 // `under` was 25, the row below the solar wing's and the old tank's last; the tank is set into the stone now, up out of the way.)
-const ROUND = Object.freeze({ side: 6, below: 6, under: 17, hang: 7, away: 4 });
+// (`side` and `below` 6.5 since the board's cells went from LOOK_SCALE 1.625 to 1.5, 2026-10-17: the way round as wide in the world's units as
+// it was, so its bends are no tighter for the ship, whose size did not change.)
+const ROUND = Object.freeze({ side: 6.5, below: 6.5, under: 17, hang: 7, away: 4 });
 export function approachPlan(S, face0, opts = {}) {
   const B = berthOf(), c = cellSize();
   const gate = { x: B.x, y: B.y + GATE_ROWS };

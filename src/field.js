@@ -5,13 +5,15 @@
 //
 // A sector's rocks are a count, not places (src/sectors.js `asteroids`): spawned on the World's 'field' stream when the ship enters
 // the sector, carried across a seam when they are near the ship (World.enterSector), and drawn only in the sector they belong to.
+import { CONFIG } from './config.js';
 import { TAU, between, wrapTo } from './util.js';
 import { PLANE, WRAP } from './topology.js';
 import { mapAreasIn, MAP_PLACEMENT, sampleArea } from './mapContentConfig.js';
 
 // The field's numbers (chat W2, 2026-10-04; SX, after flying: «мало камней мало астероидов ... очень много пустоты ... свободное
 // место должно быть, но пустоту надо тоже заполнять ... астероидами»).
-//   refillClear  a rock put back is at least this far from the ship (keepField below)
+//   refillClear  a rock put back is at least this far from the ship (keepField below): out of every window's sight at the highest
+//                camera (CONFIG.camera.unseen, 2,200; 1,900 while the camera had one height)
 //   density      the sector's count is its layout's (src/sectors.js `rocks`, SX's number on his map) at `density` times the layout's
 //                density: 3, measured (a rock in a 1512 x 860 view about half the flying time on the start's routes, where it was a
 //                quarter; tools/start-dangers.mjs keeps most routes' lines clear); 4.5 since SX, 2026-10-06: «асероидов и нпс маловато»
@@ -33,7 +35,7 @@ import { mapAreasIn, MAP_PLACEMENT, sampleArea } from './mapContentConfig.js';
 //                остальное так же как и раньше отталкиваются оттуда»). A drift at 28 u/s sinks about 10 u past the line; the fog
 //                starts 20 u past it (CONFIG.sector.boundary.fog `start`).
 export const FIELD = Object.freeze({
-  refillClear: 1900,
+  refillClear: CONFIG.camera.unseen,
   density: 3.75,
   drift: Object.freeze({ size: [2, 3], radius: 300, spread: 450, patience: 40, apart: 60, speed: [8, 28], jitter: 6, mix: [0.35, 0.4, 0.25], aim: 0.6 }),
   meet: Object.freeze({ gap: 12, ease: 10, bounce: 0.5 }),

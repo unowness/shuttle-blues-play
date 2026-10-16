@@ -53,6 +53,10 @@ export const CHASSIS = {
     drag: 0.16,           // per second
     damperDrag: 2.6,      // per second, while the brake (SPACE) is held
     maxSpeed: 999,         // 1,500 until 2026-10-04, 1,000 and then 850 until 2026-10-05, 800 and then 900 until 2026-10-06 (above)
+    // Backward the retro pushes no faster than this share of the top (Ship.step): 600 u/s for the standard, every other hull in
+    // proportion (SX, 2026-10-17: «Корабль задом наперед не должен летать с такой же скоростью, как и вперед ... максимальная скорость задом
+    // должна быть типа 600»).
+    reverseShare: 600 / 999,
 
     // Engine spool. SX, 2026-09-26: acceleration read as "too sharp", so
     // forward thrust stopped being all-or-nothing. SX, 2026-09-29: the spool

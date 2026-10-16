@@ -125,9 +125,10 @@ export const TRAFFIC = {
     accel: 60,
     rest: 6,
     gone: 3200,
-    // The hull's touch and a shot's stop: 60, about half the R08B TANKER's width at `scale` (11-12 cells; SX on the picks hub,
-    // 2026-10-04, as labs/graphics/sketches/droids-v2.html proposed: «радиус удара 40 мал для танкера — около 60»). 40 until then.
-    radius: 60,
+    // The hull's touch and a shot's stop: about half the R08B TANKER's width at `scale` (11-12 cells; SX on the picks hub,
+    // 2026-10-04, as labs/graphics/sketches/droids-v2.html proposed: «радиус удара 40 мал для танкера — около 60»). 40 until then; 60 until the
+    // droids were drawn at 1.5 (2026-10-17), the body grown with them.
+    radius: 72,
     mass: 0.6,
     hold: 350,             // 700 until 2026-10-01: it waited further off than its menu reaches (interactRadius)
     holdTime: 30,
@@ -145,7 +146,8 @@ export const TRAFFIC = {
     repair: { price: 3, stock: 60 },   // per point: 30 and 6 until the hull went to 100 (2026-10-01)
     // A part on its way: one of these glyphs, tumbling at up to `spin` rad/s; welded on, `sparks` sparks.
     part: { glyphs: ['╬', '╪', '╫', '┼'], spin: 5, sparks: 10 },
-    scale: 1.25,
+    // Their drawing's scale: the friendly ships' and the pirates' 1.5 since SX's scales of 2026-10-17 («дроиды могут быть как NPC»); 1.25 until then.
+    scale: 1.5,
     bob: { amount: 2, rate: 1.1 },
     // The repair droid the opening chapter binds near the start ruin (src/opening.js, stage `service`; src/droids.js spawnStoryDroid;
     // codex HANDOFF section 4: «D must remain reachable until the lesson is resolved, including after reload»): it holds `air` u

@@ -13,7 +13,8 @@
 //              game knows: when the game last saved itself (honest, never «saved» before the write has gone); the flight's time went the same
 //              day. SAVE GAME's page of facts went (SX on the picks hub, 2026-10-04: «SAVE GAME saves at once»): the pilot card and the HUD
 //              already say the money, the stations and the finds.
-//   graphics   SCREEN: DISPLAY (the whole screen, as V), LOOK, FRAMES (the grays or the look's tint, src/frames.js), from the wider to the
+//   graphics   SCREEN: DISPLAY (the whole screen, as V), CAMERA (the camera's height over the world, as − and =, src/zoom.js), LOOK, FRAMES
+//              (the grays or the look's tint, src/frames.js), from the wider to the
 //              narrower; PILOT: SHIP, the drawing the pilot's ship wears (src/shipLooks.js, SX 2026-10-07), over PAINT, what it is painted in,
 //              and CURSOR, the collections (UI SHADOW went with the interface's shadow, 2026-10-06: only its text casts one now,
 //              src/textShadow.js, and that one is not chosen); COCKPIT: SIDES, which side the locator stands on (the quests
@@ -33,6 +34,7 @@ import { ownedCursors, cursorName } from '../../src/cursors.js';
 import { DISPLAY_LABELS, DISPLAY_MODES } from '../../src/display.js';
 import { ROLES } from '../../src/roles.js';
 import { inBox } from '../../src/util.js';
+import { ZOOM_STEPS, zoomName } from '../../src/zoom.js';
 import { createPauseMenu, drawPauseWindow, PAUSE_WINDOW } from './pause-menu.js';
 import { createPauseToy, stepPauseToy, drawPauseToy, homePauseToy } from './pause-toy.js';
 import { carryKick } from './ship-kick.js';
@@ -164,6 +166,9 @@ export function createPause(game) {
     return [back('GRAPHICS'),
       { kind: 'heading', title: 'SCREEN' },
       choice('DISPLAY', DISPLAY_MODES.map((mode) => ({ label: DISPLAY_LABELS[mode], worn: crt.mode === mode, run: () => game.toggleCrt(mode) }))),
+      // The camera's height over the world, as − and = (src/zoom.js; SX, 2026-10-17: «на плюс-минус дать пользователю выбирать масштаб»);
+      // kept in this browser.
+      ...(game.zoom ? [choice('CAMERA', ZOOM_STEPS.map((z) => ({ label: zoomName(z), worn: game.zoom.value === z, run: () => game.setZoom(z) })))] : []),
       choice('LOOK', o.looks.map((id) => ({ label: lookById(id)?.name ?? id, worn: P.look === id, dot: isNew('looks', id),
         run: () => { P.wearLook(id); game.putOnLook(); game.persist('look'); } }))),
       // The frames and rules of the Swiss windows (src/frames.js; SX, 2026-10-09: «в оригинале они были серые. А там можно было бы включить

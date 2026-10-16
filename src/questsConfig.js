@@ -12,7 +12,7 @@ export const QUESTS = {
     // souvenir 250 CR, a paint 300, 400 or 500); the ladder by souvenirs held is gone.
     interactRadius: 380,
     discoverRadius: 2600,
-    scale: 1.15,            // 1.3 until SX, 2026-09-30: «Сундуки крупноваты»
+    scale: 1.25,            // 1.3 until SX, 2026-09-30: «Сундуки крупноваты»; 1.15 until his scales of 2026-10-17 («тайник может быть ... 1.25»)
     sparkColor: '#b6f5ee',
     shardColor: '#98a1ab',
     // A cache, souvenirs' or a paint's, floats and turns, and is knocked away when run into (SX, 2026-10-01: «флоутинг
@@ -25,7 +25,8 @@ export const QUESTS = {
     // 150 a little over 200; it is set turning by up to `knockSpin` rad/s more, which dies away by `spinDrag` a second.
     // The ship loses `give` of the closing speed and pays a light thing's price (CONFIG.hull.light: 2 to 5). Where it
     // was put back stays only while the pilot is in the sector (a cache is laid out again on coming back).
-    float: { bob: { amount: 5, period: 4.2 }, spin: [0.08, 0.16], radius: 42, touchSpeed: 40, kick: 2, drag: 1.4,
+    // (`radius` 42 while the caches were drawn at 1.15; grown with the drawing to 1.25, 2026-10-17.)
+    float: { bob: { amount: 5, period: 4.2 }, spin: [0.08, 0.16], radius: 46, touchSpeed: 40, kick: 2, drag: 1.4,
       knockSpin: 3, spinDrag: 0.8, give: 0.25 },
     // Where a cache is laid when it becomes the pilot's to find (src/cachePlaces.js; SX, 2026-10-02: «новые тайники не
     // обязательно должны в новом секторе быть ... я расставил их изначально на карте, но тут нужно интереснее сгенерировать
