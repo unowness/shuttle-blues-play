@@ -33,9 +33,9 @@ import { buildScene, buildPalette, InkCtx, visitorCells, layerDepth, rowDepth, L
 import { SOUVENIR_LORE } from './souvenir-lore.js';
 import { SPECIALS } from '../../src/specialShips.js';
 import { keyCodeOf, unnoted, noteKeycap } from './clicks.js';
-import { keycap, KEYCAP_PAD } from './ui-parts.js';
+import { keycap, KEYCAP_PAD, KEYCAP_RISE } from './ui-parts.js';
 import { keyTokens } from './swiss-window.js';
-import { Win, ORG, INK as TONE } from './organism.js';
+import { ORG, INK as TONE, TIER } from './organism.js';
 import { drawRail, railSize } from './rail.js';
 import { roomControls, keyName, DEFAULT_SCHEME } from '../../src/controls.js';
 import { HOVER, hoverItem, hoverScale, pointerOver, screenBox } from '../../src/hover.js';
@@ -416,24 +416,27 @@ function listInside(head, rows, { muted = false } = {}) {
 // the list's heading as the flight's column has it, its key in a cap and QUESTS (keyName('nextQuest')), ROOM_LOOK.rule from the last
 // plate's ink to the cap's. `over` the id of the plate under the pointer (its sign comes up white, as on the flight's list); each
 // plate's box is pushed on `boxes` with its task's id (a click on it selects that task).
+// Laid as the place's keys are (SX, 2026-10-16: «Активные квесты ... та же история. Аккуратнее бы их как-то сверстать»): with none, NO ACTIVE QUESTS and
+// the key's row a row under it; with plates, the key's row `ROOM_LOOK.air` under their ink; the key at the left, its words a cell after it.
 function questsInside(plates, { over = null, boxes = null } = {}) {
   return (r, ox, oy, measuring = false) => {
-    let y = oy;
+    const m = uiMetrics(r);
+    let ty;
     if (!plates.length) {
-      const m = uiMetrics(r);
-      r.text('NO ACTIVE QUESTS', ox - Math.round(m.capLeft), y + m.textY, ROLES.textQuiet);
-      y += UI.row + ROOM_LOOK.gap;
+      r.text('NO ACTIVE QUESTS', ox - m.capLeft, oy + KEYCAP_RISE, ROLES.textQuiet);
+      ty = oy + KEYCAP_RISE + UI.row;
+    } else {
+      let y = oy;
+      for (const b of plates) {
+        const size = railSize(r, b);
+        drawRail(r, b, ox, y, { over: !measuring && over != null && b.id === over });
+        if (!measuring && boxes && b.id != null) boxes.push({ id: b.id, x: Math.round(ox), y: Math.round(y), w: size.w, h: size.h });
+        y += size.h + ROOM_LOOK.gap;
+      }
+      ty = y - ROOM_LOOK.gap + ROOM_LOOK.air + KEYCAP_RISE;   // the cap's top line `air` under the last plate's ink (a cap rises over its text)
     }
-    for (const b of plates) {
-      const size = railSize(r, b);
-      drawRail(r, b, ox, y, { over: !measuring && over != null && b.id === over });
-      if (!measuring && boxes && b.id != null) boxes.push({ id: b.id, x: Math.round(ox), y: Math.round(y), w: size.w, h: size.h });
-      y += size.h + ROOM_LOOK.gap;
-    }
-    y -= ROOM_LOOK.gap;
-    const ty = y + ROOM_LOOK.rule + 2;   // the cap's top stroke `rule` under the last plate's ink (a cap rises over its text)
-    const next = keyCell(r, keyName('nextQuest') || 'R', ox, ty, ROLES.textSecondary, { muted: true });
-    r.text('QUESTS', next, ty, ROLES.textSecondary);
+    const next = keyCell(r, keyName('nextQuest') || 'R', ox, ty, TONE.text, { muted: true });
+    r.text('QUESTS', next, ty, TONE.text);
     void measuring;
   };
 }
@@ -486,38 +489,33 @@ export function blackGlyphs(ctx, font, each, tick, clip = null) {
 
 // ---- drawing -------------------------------------------------------------------------------------------------------------
 
-// The place's window on the organism (labs/graphics/organism.js; SX's sketch W-ORG of 2026-10-16, his S9 of 2026-10-09 before it): HOME at the left
-// of its head, J-05 and YOUR GARAGE at the right, the head's rule frame to frame, and `C` inside it the room's keys, a row each, its words at the
-// left and its key flush right as the cockpit's keycap (a way that is no key, POINT or CLICK in the mouse's mode, the words themselves). A row with
-// a key of its own is a button: under the pointer it stands on the focus bar, and a click presses its key. Returns its size and how to draw it in
+// The place's keys (SX, 2026-10-16, on the room: «хоткей написано справа. А у нас везде хоткей написано слева ... убери там home g05 your garage
+// ... можно без шапки тут сделать. И без рамки»): a plate of black with no frame and no head, `ROOM_LOOK.air` round its ink as the quests' plate
+// has, a row each, its key at the left as the cockpit's keycap (the way out, ESC, in the way back's gray: labs/graphics/organism.js TIER; a way that
+// is no key, POINT or CLICK in the mouse's mode, the words themselves) and its words in one column after the widest key. A row with a key of its own
+// is a button: under the pointer it stands on the focus bar, and a click on it, words or cap, presses its key. Returns its size and how to draw it in
 // a box of that size.
 export function homeWindow(r, controls) {
-  const cw = r.cellW;
+  const cw = r.cellW, m = uiMetrics(r), A = ROOM_LOOK.air, capH = r.cellH + KEYCAP_RISE + 1;
   const rows = controls.map((c) => ({ ...c, cap: !!keyTokens(c.key), press: !!keyCodeOf(c.key) }));
-  const probe = new Win(r, { panes: [1] });
-  const capPx = (c) => (c.cap ? probe.keysWidth([c.key]) : glyphs(c.key).length * cw);
-  const head = { left: [['HOME', TONE.text]], right: [['J-05', TONE.label], ['YOUR GARAGE', TONE.faint]] };
-  const headPx = (4 + 4 + ORG.meta + 11 + ORG.meta) * cw - 2 * (ORG.C - ORG.S);
-  const inner = Math.max(headPx, ...rows.map((c) => (glyphs(c.label).length + ORG.gutter) * cw + capPx(c)));
-  const make = () => new Win(r, { panes: [Math.ceil(inner / cw)], keyFirst: [rows.some((c) => c.cap)], id: 'room' });
-  const sized = make(), p0 = sized.p;
-  sized.fit(p0.y(rows.length - 1) - sized.keyTop + sized.keyH, { foot: false });
-  return { w: sized.w, h: sized.h, draw(box) {
-    const win = make();
-    win.fit(win.p.y(rows.length - 1) - win.keyTop + win.keyH, { foot: false }).place(() => ({ x: box.x, y: box.y })).sheet();
-    win.head(head.left, { meta: head.right });
-    const p = win.p;
+  // The words' column from the keys' left edge: the widest key's cap, and a cell.
+  const keyPx = (c) => (c.cap ? glyphs(c.key).length * cw + 2 * KEYCAP_PAD : glyphs(c.key).length * cw - 2 * m.capLeft);
+  const wordsDx = Math.max(...rows.map(keyPx)) + ORG.keyWord * cw - KEYCAP_PAD + m.capLeft;
+  const inkW = wordsDx + Math.max(...rows.map((c) => glyphs(c.label).length)) * cw - 2 * m.capLeft;
+  const w = Math.round(2 * A + inkW), h = Math.round(2 * A + (rows.length - 1) * UI.row + capH);
+  return { w, h, draw(box) {
+    r.fill(box.x, box.y, box.w, box.h, ROLES.backing);
     rows.forEach((c, k) => {
-      const Y = p.y(k), row = win.rowBox(p.cx, p.cxr, Y);
+      // A row's text cell: its cap's top line `A` under the plate's top on the first row, then a row apart.
+      const x = box.x + A, ty = box.y + A + KEYCAP_RISE + k * UI.row;
+      const row = { x: x - UI.pad, y: ty - KEYCAP_RISE - 1, w: Math.round(inkW + 2 * UI.pad), h: capH + 2 };
       const paint = (on) => {
-        if (on) win.bar(p.cx, p.cxr, Y);
-        win.text(c.label, p.cx, Y, TONE.text, { plate: on });
-        // (The way out, ESC, in the way back's gray: the organism's tiers.)
-        if (c.cap) unnoted(() => win.keysEndingAt(p.cxr, Y, [c.key], { tier: c.key === 'ESC' ? 'back' : 'key' }));
-        else win.text(c.key, p.cxr, Y, TONE.text, { right: true, plate: on });
+        if (on) r.fill(row.x, row.y, row.w, row.h, TONE.text, ORG.focus);
+        if (c.cap) unnoted(() => keycap(r, c.key, x + KEYCAP_PAD, ty, { ink: TONE.text, cap: c.key === 'ESC' ? TIER.back : TIER.key, reach: 0 }));
+        else r.text(c.key, x - m.capLeft, ty, TONE.text);
+        r.text(c.label, x + wordsDx - m.capLeft, ty, TONE.text);
       };
       if (!c.press) { unnoted(() => paint(false)); return; }
-      // The whole row presses its key (a click on the words as on the cap).
       noteKeycap(c.key, row, 0, r);
       const on = pointerOver(screenBox(r, row));
       hoverItem(r, `room:${c.key}`, row, () => paint(on), { over: on, kind: 'flat' });

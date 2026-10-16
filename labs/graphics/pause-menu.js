@@ -17,7 +17,7 @@
 //   a settings page: one pane, as large; the head its name (SX: «название страницы»; its BACK went with his «escape назад ... без цикла»);
 //        the groups' names at the content's axis on their first row, the labels `labelCols` in, a choice's count faint after its name, the
 //        values flush right on one axis with ‹ › after them (the sketch's A1 PAIR), on and off a choice of two, a level a hairline with ticks and
-//        its mark and, like a choice, its value and ‹ ›; groups an empty row apart.
+//        its mark and its value flush right (SX, 2026-10-16: no ‹ › beside a slider); groups an empty row apart.
 //   the MAIN MENU's step back: the menu's rows across the window.
 //   the foot: ESC first at the left in the gray of the way back, its words what it does on the page (RESUME, BACK), DEFAULTS after it where a
 //        page has it (`foot` item), the other keys at the right in their order (labs/graphics/pause.js hintsOf).
@@ -43,13 +43,13 @@ const DOT = 4;
 // page; the main page two panes, the menu's rows and the pause's space, a square as tall as the body, its stars and ship at 1:1 (SX: «сделай в
 // паузе ... все пространство ... космос один к одному»); a settings page one pane, its groups' names at the content's axis, its labels `labelCols`
 // in (past its widest group's name, «PARALLAX», and the gutter), its values flush right on one axis with ‹ › after them, a level's line from
-// `trackCols` past the labels (its widest label, «INTERFACE», and the gutter) to `valueCols` short of the values' axis. A page too long for it grows
-// down.
+// `trackCols` past the labels (its widest label, «INTERFACE», and the gutter) to `levelCols` short of the right axis, its value flush right there,
+// no ‹ › (the line is its own control). A page too long for it grows down.
 // Where it stands (SX, 2026-10-06, 2026-10-08): in the middle of the screen, `above` px over it, and there it stays, floated only by the toy's
 // blows (`shake`, pause-toy.js). It comes over `appear` s, `drop` px from above and `scale` larger; it goes (SX: «когда ты выключаешь
 // меню, оно как бы вверх взлетает») over `leave` s, `rise` px up. `dim`: the 10 % the rest of a window darkened under a hovered row, until
 // the inverted row (the other windows read it still, labs/graphics/ledger.js).
-export const PAUSE_WINDOW = Object.freeze({ size: 'S', labelCols: 10, trackCols: 11, valueCols: 10, w: SIZES.S[0],
+export const PAUSE_WINDOW = Object.freeze({ size: 'S', labelCols: 10, trackCols: 11, levelCols: 6, w: SIZES.S[0],
   appear: 0.32, drop: 12, scale: 0.06, leave: 0.36, rise: 36, dim: 0.1, above: 36 });
 
 // `rows`: what the window holds, top to bottom, a row of UI.row each (the head and the foot are the window's own),
@@ -61,7 +61,7 @@ export const PAUSE_WINDOW = Object.freeze({ size: 'S', labelCols: 10, trackCols:
 //                                                          `run` what its name and Enter do instead of stepping (a LAYOUT group taken)
 //   { kind: 'toggle', label, on, set(on) }             on and off: ON ‹ › or OFF ‹ ›, a choice of two
 //   { kind: 'volume', label, level (0..1), steps, least, def, value, set(level), dim }   a level: a hairline with ticks and its mark, its value
-//                                                          and ‹ › at the right; `steps` stops (10), the lowest `least` of them (0)
+//                                                          flush right; `steps` stops (10), the lowest `least` of them (0)
 //   { kind: 'note', label, ink } · { kind: 'heading', title } · { kind: 'blank' }    a quiet line (in `ink`), a group's name (at the content's
 //                                                          axis on its first row), a group's air (nothing is drawn in it)
 // `pointer` the page's ({ x, y, inside, down, parked }); `drawView(view, r, landed)` draws the square's inside on `r` (the main page's only);
@@ -226,10 +226,10 @@ function layBody(win, g, plan) {
   const parked = () => !!pointer?.parked;
   const menu = plan.menu;
   // The columns: a menu's words at the content's axis; a settings page's group names there, its labels `labelCols` in, its values ending
-  // `4` cells short of the content's right axis (their ‹ › after them), a level's line from `trackCols` past the labels to `valueCols` short of
+  // `4` cells short of the content's right axis (their ‹ › after them), a level's line from `trackCols` past the labels to `levelCols` short of
   // the right axis.
   const A = p.x(menu ? 0 : P.labelCols), R = p.cxr, valueAt = R - 4 * cw;
-  const trackX0 = A + P.trackCols * cw, trackX1 = R - P.valueCols * cw;
+  const trackX0 = A + P.trackCols * cw, trackX1 = R - P.levelCols * cw;
   const out = [];
   plan.slots.forEach((slot, i) => {
     const { row, k } = slot, Y = p.y(k);
@@ -289,20 +289,16 @@ function layBody(win, g, plan) {
       const stepOf = (lv) => clamp(Math.round(lv * steps), least, steps);
       const setStep = (n) => { const v = clamp(n, least, steps); if (v !== stepOf(level)) row.set?.(v / steps); };
       const atX = (px0) => Math.round(levelAt(trackX0, trackX1, px0) * steps);
-      // A click on the line sets its level there (from the mouse; the keys step it by ← →, and so do its ‹ ›); held down, the mark follows the
-      // pointer.
-      const back = { x: Math.round(R - 3 * cw + win.m.capLeft - cw / 2), y: box.y, w: Math.round(2 * cw), h: box.h };
-      const fwd = { x: back.x + back.w, y: box.y, w: Math.round(R + UI.pad - back.x - back.w), h: box.h };
+      // A click on the line sets its level there (from the mouse; the keys step it by ← →); held down, the mark follows the pointer. No ‹ ›:
+      // the line is its own control (SX, 2026-10-16: «у аудио ... не нужны стрелки слева-справа. Там есть ... слайдер»).
       note(track, () => { if (!parked() && pointer) setStep(atX(pointer.x)); }, restAfter(win, row.label, A, box));
-      note(back, () => setStep(stepOf(level) - 1));
-      note(fwd, () => setStep(stepOf(level) + 1));
       if (!g.going && pointer?.down && !parked() && pointer.inside && inBox(track, pointer.x, pointer.y)) setStep(atX(pointer.x));
       out.push({ row, on, box, step: (d) => setStep(stepOf(level) + d), draw: button(r, id, box, on, (o) => {
         if (o) win.bar(A, R, Y);
         hung();
         label(o, row.dim ? INK.faint : INK.text);
         win.level(trackX0, trackX1, Y, level);
-        win.choice(R, Y, row.value ?? `${Math.round(level * 100)}%`, { ends: [stepOf(level) > least, stepOf(level) < steps], plate: o });
+        win.text(row.value ?? `${Math.round(level * 100)}%`, R, Y, INK.text, { right: true, plate: o });
       }) });
       return;
     }

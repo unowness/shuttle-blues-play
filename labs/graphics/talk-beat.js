@@ -25,7 +25,6 @@ import { WRECK_ID, wreckCraftAt } from '../../src/wrecked.js';
 import { PESTER_ID, pesterHere } from '../../src/pester.js';
 import { clamp, easeOut } from '../../src/util.js';
 import { withAlpha } from '../../src/hover.js';
-import { UI } from '../../src/uiGrid.js';
 import { drawStationShot } from './windows.js';
 import { glyphsNow } from './world-art.js';
 import { noteKey, unnoted } from './clicks.js';
@@ -102,9 +101,8 @@ export function createTalkBeat(game) {
   // The beat drawn now, over the finished frame and under the pop-ups, on the organism's kit (labs/graphics/organism.js; SX's sketch W-ORG R7):
   // a dialog the ladder's S wide (640). Its head says what the talk is at the left, in the story's purple (SX: «надпись Story, она должна быть
   // слева»), and who speaks at the right, what they are in the label's gray before their name (SX: «Скути механик ... должно быть явно справа»).
-  // The words at the left, the speaker's picture at the right in a square, frameless; the answers well apart from the words (SX: «кнопочный выбор
-  // после текста диалога ... в другом месте ... Двойной, тройной, четверной отступ»): their last keycap's line on the picture's foot, at least two
-  // `C` under the words; a quest's answer its keycap in the purple. The foot: ESC LATER. It comes in as the pause's window does, out of a fade and
+  // The words at the left, the speaker's picture at the right in a square, frameless; the answers two `C` under the words (SX: «кнопочный выбор
+  // после текста диалога ... Двойной, тройной, четверной отступ»; «Не вниз, а то не видно»); a quest's answer its keycap in the purple. The foot: ESC LATER. It comes in as the pause's window does, out of a fade and
   // a few px from above, once the veil is down. Returns the window's box, or null.
   function draw(r, now = pageTime()) {
     if (!shown()) return null;
@@ -127,9 +125,10 @@ export function createTalkBeat(game) {
       rows.push({ key: String(i + 1), label: a.label, disabled: a.disabled, tone: tones[i] ?? null });
       if (a.cargo && a.note) rows.push({ key: '', label: a.note });
     });
+    // The answers two `C` under the words (SX, 2026-10-16, on a quest handed in: «хендин куда-то бы в другое место поместить. Не вниз, а то не
+    // видно ... с каким-то отступом под текст»; at the picture's foot until then).
     const shotBottom = (y0) => y0 + side, n = rows.length;
-    let kRows = paint ? p.kAfter(shotBottom(p.y(0)) - win.keyH + win.keyTop - (n - 1) * UI.row, 0) : 0;
-    kRows = Math.max(kRows, p.kAfter(p.yb(Math.max(0, lines.length - 1)), 2 * ORG.C + win.keyTop));
+    const kRows = p.kAfter(p.yb(Math.max(0, lines.length - 1)), 2 * ORG.C + win.keyTop);
     win.fit(Math.max(paint ? shotBottom(p.y(0)) : 0, p.y(kRows + n - 1) - win.keyTop + win.keyH));
     const y = Math.round(Math.min(r.cy + BEAT.under, r.cockpit.y - BEAT.floor - win.h));
     const lift = (1 - come) * BEAT.drop;

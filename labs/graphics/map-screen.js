@@ -654,6 +654,7 @@ function drawShip(ctx, p, angle, t) {
 // What 03 LEGEND shows: the editor's glyphs (labs/map-editor/view.js glyph), and the ship's own mark.
 const LEGEND = Object.freeze([['station', 'STATION'], ['ruin', 'RUIN'], ['planet', 'PLANET'], ['hole', 'HOLE'], ['souvenir', 'CACHE'], ['you', 'YOU'],
   ['cargo', 'CARGO WAITING']]);
+const LEGEND_COLS = 2;
 // An authored cargo waiting at its station (src/contracts.js authoredWaiting): a square in the cargo pointer's amber (src/palette.js; on the
 // map orange is a ruin's), at the station box's top right corner and before each row of 04 CARGO (SX's K2 on
 // labs/graphics/sketches/last-cargo.html, 2026-10-14: his friend finished the game with HONEY JARS never taken).
@@ -782,7 +783,7 @@ export function drawMap(r, map, world, now, { reducedMotion = false, target = nu
   win.head([['MAP', TONE.text]], { meta: [...(place ? [[place, TONE.label]] : []), [`${open}/${shown().length} OPEN`, TONE.faint]] });
   // The column at the left, its parts at fixed rows so it does not jump as the pointer moves: HERE, FLAGS, LEGEND, CARGO, each its name `C` over
   // its rows (the pilot card's way).
-  const col = win.panes[0], colX = col.cx, colR = col.cxr, cw = r.cellW, cap = win.cap, tc = col.cols;
+  const col = win.panes[0], colX = col.cx, colR = col.cxr, cw = r.cellW, cap = win.cap, tc = col.cols, SECTION = UI.row + ORG.C;
   const cx0 = Math.round(colX + cw / 2) + 0.5;                  // a mark's middle in the column's first cell, on the half px its 1 px lines want
   // HERE, or what the pointer is on (its name, in its ink, for a thing; the sector's own figures for a sector).
   const here = G.sectors.find((c) => c.s.id === world?.sector?.id);
@@ -805,7 +806,7 @@ export function drawMap(r, map, world, now, { reducedMotion = false, target = nu
   } else win.text('HERE', colX, col.y(kHere), TONE.label);
   // FLAGS: how many are set, and the five: a key, the flag in its colour, its name and the sector it stands in or NOT SET; the picked one (the
   // keys' choice) and the one under the pointer on the focus bar, a click picks it.
-  const kFlags = col.next(col.yb(kHereRows + MAP.hereRows - 1)), set = flags.filter(Boolean).length;
+  const kFlags = col.kAfter(col.yb(kHereRows + MAP.hereRows - 2), SECTION), set = flags.filter(Boolean).length;
   col.label(kFlags, 'FLAGS', `${set}/${FLAGS.length}`);
   const kFlagRows = col.next(col.yb(kFlags)), rows = [], capW = win.keyWidth('1', null);
   FLAGS.forEach((f, i) => {
@@ -822,23 +823,27 @@ export function drawMap(r, map, world, now, { reducedMotion = false, target = nu
     });
   });
   map.rows = rows;
-  // LEGEND: what the picture's marks are, as many as the pane has room for (its marks on whole px: SX, «контура ... не терялись»).
-  const kLegend = col.next(col.yb(kFlagRows + FLAGS.length - 1)), kLegendRows = col.next(col.yb(kLegend));
+  // LEGEND: what the picture's marks are, in two columns as the locator's legend under its scope (SX, 2026-10-16: «легенду как-то красивее
+  // сверстать. так же, как у нас сделано под картой»), read down, the second ending on the column's right edge; its marks on whole px (SX: «контура
+  // ... не терялись»). A section a row and `C` under the one before, as under HERE (SX: «должно быть везде, как после here. Крупный отступ»).
+  const kLegend = col.kAfter(col.yb(kFlagRows + FLAGS.length - 1), SECTION), kLegendRows = col.next(col.yb(kLegend));
   const bottom = win.y0 + win.footRule - ORG.C, fitsRows = (k0) => Math.max(0, Math.floor((bottom - col.yb(k0)) / UI.row) + 1);
-  const room = Math.min(LEGEND.length, fitsRows(kLegendRows));
-  if (room >= 2) {
+  const legendRows = Math.ceil(LEGEND.length / LEGEND_COLS), legendNames = Math.max(...LEGEND.map(([, n]) => glyphs(n).length));
+  const legendShown = fitsRows(kLegendRows) >= legendRows;
+  if (legendShown) {
     win.text('LEGEND', colX, col.y(kLegend), TONE.label);
-    LEGEND.slice(0, room).forEach(([variant, name], i) => {
-      const Y = col.y(kLegendRows + i), cy = Math.round(Y + cap / 2) + 0.5;
-      if (variant === 'you') drawShip(ctx, { x: cx0, y: cy }, -Math.PI / 2, 0);
-      else if (variant === 'cargo') crate(r, cx0, cy);
-      else glyph(ctx, variant, cx0, cy, MAP.legend);
-      win.text(name, colX + 3 * cw, Y, TONE.label);
+    LEGEND.forEach(([variant, name], i) => {
+      const c = Math.floor(i / legendRows), Y = col.y(kLegendRows + (i % legendRows)), cy = Math.round(Y + cap / 2) + 0.5;
+      const x = c ? colR - (3 + legendNames) * cw + 2 * win.m.capLeft : colX, mx = Math.round(x + cw / 2) + 0.5;
+      if (variant === 'you') drawShip(ctx, { x: mx, y: cy }, -Math.PI / 2, 0);
+      else if (variant === 'cargo') crate(r, mx, cy);
+      else glyph(ctx, variant, mx, cy, MAP.legend);
+      win.text(name, x + 3 * cw, Y, TONE.label);
     });
   }
   // CARGO: how many authored jobs wait, and each one, its cargo and the station it waits at, as many as the pane has room for.
-  const kCargo = col.next(col.yb(kLegendRows + LEGEND.length - 1)), kCargoRows = col.next(col.yb(kCargo)), cargoRoom = Math.min(waiting.length, fitsRows(kCargoRows));
-  if (room === LEGEND.length && cargoRoom >= 1) {
+  const kCargo = col.kAfter(col.yb(kLegendRows + legendRows - 1), SECTION), kCargoRows = col.next(col.yb(kCargo)), cargoRoom = Math.min(waiting.length, fitsRows(kCargoRows));
+  if (legendShown && cargoRoom >= 1) {
     col.label(kCargo, 'CARGO', String(waiting.length));
     waiting.slice(0, cargoRoom).forEach((c, i) => {
       const Y = col.y(kCargoRows + i), from = stationDefById(c.from, ledger)?.label ?? '', n = glyphs(from).length;
