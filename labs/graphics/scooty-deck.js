@@ -7,8 +7,8 @@
 // with where SCOOTY JR. goes back to and a needle along the course there (the loaner's only). Since 2026-10-16 the handlebar is all of
 // the interface on the scooter (SX: «когда на самокате едем можешь показывать только руль самоката и метку на карте, вообще никакого
 // интерфейса не надо больше ну и обучение управлением»; labs/graphics/flight-frame.js draws it alone): no notch, HULL, FUEL or wallet;
-// two keys in the screen's lower corners, ESC PAUSE and ? CONTROLS (SX: «Можешь там расположить по углам контроль подсказки»); its lamp faces the way the pilot looks, its lens forward and its light up the screen, its back to the pilot (SX: «фара должна быть
-// обращена в сторону взгляда сидящего за монитором человека а не ему в лицо»).
+// two keys in the screen's lower corners, ESC PAUSE and ? CONTROLS (SX: «Можешь там расположить по углам контроль подсказки»); no lamp on
+// the bar (SX, 2026-10-16: «убери пожалуйста фонарик с самоката»; it stood on the clamp, facing ahead, since the morning).
 //
 // The drawing is the sketch's, moved here as it stood (its handlebar, its plain levers, its streamers and tag); what the game adds is
 // only what the page has and the sketch did not: the course from the objective's
@@ -43,7 +43,7 @@ import { GRIP_INK, HELM_FX, drawGauge } from './vector-helm.js';
 const [WARM, LAMP] = LOANER.livery;
 export const SCOOTY_INK = Object.freeze({
   line: WARM,                 // the bell, the tag, the keycap
-  lamp: LAMP,                 // the lamp in the middle of the bar (its drawing's `o`), a streamer
+  lamp: LAMP,                 // the livery's lamp tone: a streamer, the bell's ring
   bar: ROLES.material,        // the handlebar's tube: the gray of the ship's `─`
   lever: ROLES.textSecondary, // a brake lever at rest
   brake: ROLES.danger,        // a brake lever squeezed: the red of BRAKES (hud.js drawBrake)
@@ -68,7 +68,7 @@ function cutBox(x, y, w, h, cut) {
   return [[x + cut, y], [x + w - cut, y], [x + w, y + cut], [x + w, y + h - cut], [x + w - cut, y + h], [x + cut, y + h],
     [x, y + h - cut], [x, y + cut]];
 }
-// An octagon round (x, y): a lamp, a hole.
+// An octagon round (x, y): the tag's hole.
 function octagon(x, y, radius) {
   const c = Math.round(radius * 0.41);
   return cutBox(x - radius, y - radius, 2 * radius, 2 * radius, radius - c);
@@ -104,19 +104,17 @@ function cornerKey(r, id, word, x, y, { right = false } = {}) {
 
 // ------------------------------------------------------------------------------------------------ the handlebar
 
-// SCOOTY JR.'s helm: a kick scooter's T-bar, the lamp of the ship's own drawing (ships/scooty-jr.json `─o─`) in its middle, a grip at
-// each end with a brake lever over it, the stem down from the lamp. In px at the game's size. It answers the hands as the pilot's lever
+// SCOOTY JR.'s helm: a kick scooter's T-bar, the clamp in its middle, a grip at each end with a brake lever over it, the stem down from
+// the clamp. In px at the game's size. It answers the hands as the pilot's lever
 // does (vector-helm.js, on src/helm.js helmPose): pushed away on thrust and pulled in on retro (`travel` px), the grips' contour darker
 // forward and white back (GRIP_INK); turned with the ship (the bar yaws round its stem, `yaw` rad at a full turn: the grip on the side
 // turned to comes toward the pilot, lower, the other goes away, higher, `persp` of its run); and the brake squeezes both levers onto
 // the grips, in the brake's red. Being a moving thing it keeps its own lines, as the pilot's helm does (ANGLES.md).
 export const HANDLEBAR = Object.freeze({
-  half: 150,     // the lamp to a grip's outer end
+  half: 150,     // the clamp to a grip's outer end
   grip: 46,      // a grip's length
   gripH: 12,     // and thickness
   cut: 4,        // its outer corners' cut
-  lamp: 10,      // the lamp's half width at its lens
-  beam: 26,      // its light's reach up the screen
   stem: 10,      // the stem's width
   yaw: 0.5,
   persp: 0.36,
@@ -140,7 +138,7 @@ function drawHandlebar(r, at, pose, { stemTo = null, charms = null } = {}) {
   ctx.save();
   ctx.globalAlpha = 1; ctx.lineWidth = 1; ctx.lineJoin = 'miter'; ctx.miterLimit = 2; ctx.lineCap = 'butt'; ctx.setLineDash([]);
 
-  // The stem, plumb under the lamp (the bar turns round it), from the clamp down.
+  // The stem, plumb under the clamp (the bar turns round it), from the clamp down.
   if (stemTo !== null) {
     const x0 = Math.round(at.x - H.stem / 2) + 0.5, top = Math.round(y0 + 6), bottom = Math.round(stemTo);
     r.fill(x0, top, H.stem, bottom - top, ROLES.backing);
@@ -160,7 +158,7 @@ function drawHandlebar(r, at, pose, { stemTo = null, charms = null } = {}) {
   // The bar: the cockpit's own hollow bar (cockpit-frame.js), the tube, in the ship's gray, from grip to grip.
   hollowBar(ctx, [P(-(H.half - H.grip)), P(H.half - H.grip)], INK.bar, { open: true });
 
-  // The bell: a signal lamp, a small diamond standing on the bar left of the lamp (ANGLES.md: 45 degrees). When the brake comes on it
+  // The bell: a signal lamp, a small diamond standing on the bar left of the clamp (ANGLES.md: 45 degrees). When the brake comes on it
   // rings: lit in the lamp's light, a second diamond round it, both fading as the ring does.
   {
     const u = -64, mid = 2.5 + PLAIN.chime, d = (half, h = mid) => [P(u, h + half), P(u + half, h), P(u, h - half), P(u - half, h)];
@@ -174,19 +172,9 @@ function drawHandlebar(r, at, pose, { stemTo = null, charms = null } = {}) {
     }
   }
 
-  // The clamp where the stem meets the bar, and the lamp on it: the drawing's `o`, seen from behind as the pilot sees it, facing the way
-  // the pilot looks: its housing's back toward the pilot, narrower, its lens the wide edge ahead, lit, and three short lines of its light
-  // up the screen (a lamp's light, not a gradient).
+  // The clamp where the stem meets the bar.
   const [cx, cy] = P(0);
   path(ctx, cutBox(cx - 9, cy + 2, 18, 8, 2), INK.line, { closed: true, fill: ROLES.backing });
-  {
-    const x = Math.round(cx) + 0.5, lens = Math.round(cy - 9) + 0.5, back = Math.round(cy + 3) + 0.5, w = H.lamp, b = Math.round(H.lamp * 0.6);
-    path(ctx, [[x - w, lens], [x + w, lens], [x + b, back], [x - b, back]], INK.line, { closed: true, fill: ROLES.backing });
-    path(ctx, [[x - w + 2, lens], [x + w - 2, lens]], INK.lamp, { width: 2 });
-    ctx.globalAlpha = 0.5;
-    for (const k of [-1, 0, 1]) path(ctx, [[x + k * (w - 3), lens - 4], [x + k * (w + 4), lens - 4 - H.beam + Math.abs(k) * 6]], INK.lamp);
-    ctx.globalAlpha = 1;
-  }
 
   // The grips: their inner end square to the bar, the outer cut; the contour by the hands, as the pilot's grip (GRIP_INK); three
   // rings each.
@@ -307,7 +295,7 @@ export function drawScootyDeck(r, world, input, { reducedMotion = false } = {}) 
   } });
   // The scale over the bar (vector-helm.js drawGauge): what the pilot's lever shows over its grip, a heavy hit ahead or the jump's.
   if (HELM_FX.gauge) drawGauge(r, { grip: [[cx, bar.top]], pivot: [cx, bar.top] }, HELM_FX.gauge);
-  const reach = 90, top = Math.round(bar.top - HANDLEBAR.beam - 16);
+  const reach = 90, top = Math.round(bar.top - UI.vector.line);
   const box = { x: Math.round(cx - HANDLEBAR.half - reach), y: top, w: Math.round(2 * (HANDLEBAR.half + reach)), h: H - top };
   // The two keys on the row the pilot's deck has its lower words on: ESC first at the left, as every window's foot has it.
   const row = deckLayout(r).left.rows[1];

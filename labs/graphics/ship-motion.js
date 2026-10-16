@@ -14,6 +14,8 @@ import { ROLES, PALETTE } from '../../src/roles.js';
 //   brake   - short alternating puffs from the two side nozzles, outward
 //   glass   - the left @ goes one ink step darker while turning left, the right @ while
 //             turning right (a glint sliding off the cockpit glass)
+//   wings   - MODERN's wing on the side of a turn darkens as the glass does; in reverse it
+//             also flips to its brake pose (wingFlip)
 //
 // Data flow: input -> stepShipMotion (state) -> drawShipMotion (glyph calls). The state
 // is plain data; the drawing reads it and the model's cells, and nothing else.
@@ -236,6 +238,7 @@ export function createShipMotion(seed = 1) {
     emit: zeros(),     // fractional puffs owed
     puffs: [],         // live puffs { port, age, life, reach, side, k }
     glass: { left: 0, right: 0 },
+    flip: { left: 0, right: 0 },   // a wing turned over in reverse, 0..1 (wingFlip)
     rng: mulberry32(seed),
   };
 }
@@ -293,6 +296,9 @@ export function stepShipMotion(state, input, dt) {
   const g = 1 / M.glassSeconds;
   state.glass.left = clamp(state.glass.left + (turn < -0.1 ? g : -g) * dt, 0, 1);
   state.glass.right = clamp(state.glass.right + (turn > 0.1 ? g : -g) * dt, 0, 1);
+  // A wing turned over: in reverse, on the side of the turn, on the glass's timing.
+  state.flip.left = clamp(state.flip.left + (retro && turn < -0.1 ? g : -g) * dt, 0, 1);
+  state.flip.right = clamp(state.flip.right + (retro && turn > 0.1 ? g : -g) * dt, 0, 1);
 
   stepPuffs(state, dt);
   return state;
@@ -335,7 +341,7 @@ export function firingNozzles(state, min = MOTION.fire) {
 }
 export function isAtRest(state) {
   return state.puffs.length === 0 && firingPorts(state, 0).length === 0
-    && state.glass.left === 0 && state.glass.right === 0;
+    && state.glass.left === 0 && state.glass.right === 0 && state.flip.left === 0 && state.flip.right === 0;
 }
 
 // ---- cockpit glass -----------------------------------------------------------------
@@ -369,6 +375,21 @@ export function wingDraws(state, cell, baseInk) {
   if (!dark) { dark = mixHex(baseInk, '#000000', MOTION.wingDark); wingInks.set(baseInk, dark); }
   if (k > 0.98) return [{ ink: dark, alpha: 1 }];
   return [{ ink: baseInk, alpha: 1 }, { ink: dark, alpha: k }];
+}
+// In reverse the wing on the side of the turn turns over (SX, 2026-10-16: «когда задний ход крылья корабля тоже должны реагировать, когда в
+// лево поворачиваешь левое крыло переворачивается, когда вправо то правое»): the glyph its drawing's brake pose has in that cell (MODERN's
+// ◢ ◤, ◣ ◥), once the flip is past half. The glyph to draw for `cell` of `model`'s idle pose; its own where the drawing has no brake pose.
+const flips = new WeakMap();
+export function wingFlip(state, model, cell) {
+  if (!WING_GLYPHS.has(cell.ch) || model.brakeFrame == null) return cell.ch;
+  const k = cell.x < 0 ? state.flip.left : cell.x > 0 ? state.flip.right : 0;
+  if (k < 0.5) return cell.ch;
+  let turned = flips.get(model);
+  if (!turned) {
+    turned = new Map(model.frames[model.brakeFrame].filter((c) => WING_GLYPHS.has(c.ch)).map((c) => [`${c.x},${c.y}`, c.ch]));
+    flips.set(model, turned);
+  }
+  return turned.get(`${cell.x},${cell.y}`) ?? cell.ch;
 }
 
 // ---- drawing -----------------------------------------------------------------------

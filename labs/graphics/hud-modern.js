@@ -73,12 +73,18 @@ export function setMapShape(ui, shape, store) {
 
 // `margin` the edge line from the screen's top and bottom (SX: «сделай отступ пожалуйста 28»); `s` and `c` the windows' air; a gauge's
 // cube as tall as the notch's line, the windows' squares' gap between two; a wall's S `run` times its drop; the fade at the edges, as high as
-// the margin, black at the edge to none; the mount's box, its reel and holes, the charm's cord twice the game's (SX: «на 50% длиннее
-// цепочку», then lower again on his picture).
+// the margin, black at the edge to none; the mount's box, its reel and holes; `cord` the charm's chain from the reel's edge to the charm's
+// ring at rest, in the game's hangs (charm.js HANG). It was twice the game's (SX: «на 50% длиннее цепочку», then lower again on his
+// picture), drawn as a straight run of beads, an eyelet and the game's chain under it; one chain off the reel, a third shorter, since SX,
+// 2026-10-16: «у сувенира какая-то двойная цепочка, ты ее укороти на 1/3 и сделай просто без дополнительного скрепления в середине».
 export const MODERN = Object.freeze({
   margin: 28, s: ORG.S, c: ORG.C, cube: BAR.outer, gap: ORG.squareGap, run: 1.5, samples: 24,
   fade: Object.freeze([[0, 1], [0.3, 0.6], [0.65, 0.2], [1, 0]]),
-  mount: Object.freeze({ w: 64, round: 8, reel: 7, hub: 1.5, holes: 2, hole: 2, holePitch: 4 }), cord: 2,
+  mount: Object.freeze({ w: 64, round: 8, reel: 7, hub: 1.5, holes: 2, hole: 2, holePitch: 4 }), cord: (2 * 2) / 3,
+});
+// What the charm hangs from in MODERN (charm.js stepCharm, drawCharm): the reel, its chain `cord` hangs long from the reel's edge at rest.
+export const MODERN_HOLD = Object.freeze({
+  cord: MODERN.mount.reel + MODERN.cord * HANG - CHARM.pull / CHARM.stretch, from: MODERN.mount.reel, eyelet: false,
 });
 // The gauges' colour sections from their zero outward, as shares of their run (SX: «покрасить на цветовые секции ... в сторону ред ...
 // желтый и красный ... в самом конце. В сторону тяги ... белый и зеленый, потом ... зеленый»): RET amber, its last cubes red; THR white,
@@ -332,12 +338,9 @@ export function drawModernHud(r, game, args) {
     }
     ctx.restore();
     out.avoid.push(mount);
-    // The cord off the reel: its first part straight (the game's cord's length again), then the game's charm on its own cord, swinging.
-    const eyeY = Math.round(reelY + mn.reel + (MODERN.cord - 1) * HANG) + 0.5, d = r.dpr || 1, snap = (v) => Math.round(v * d) / d;
+    // The charm on its one chain off the reel, swinging from it.
     if (fx.charm.at == null) {
-      const y0 = reelY + mn.reel, k = Math.max(1, Math.round((eyeY - CHARM.ring - y0) / CHARM.pitch));
-      for (let i = 0; i <= k; i++) r.glyphNow(CHARM.bead, snap(hx), snap(y0 + ((i + 0.5) / (k + 1)) * (eyeY - CHARM.ring - y0)), ROLES.textSecondary, 1, CHARM.beadPx / r.fontSize);
-      drawCharm(r, { id: charmId, x: hx, y: eyeY }, charm);
+      drawCharm(r, { id: charmId, x: hx, y: reelY }, charm, MODERN_HOLD);
       if (charm.shown && charm.box) { charmAt = { x: charm.box.x + charm.box.w / 2, y: charm.box.y + charm.box.h / 2 }; out.charm = charm.box; }
     }
   }

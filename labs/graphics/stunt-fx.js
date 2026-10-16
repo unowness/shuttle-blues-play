@@ -119,18 +119,47 @@ export function airLook(world, { reducedMotion = false } = {}) {
     under: across < 0 || along < 0 };
 }
 
+// A figure turning a drawing that carries it over (src/shipLooks.js `figures`: 'coin', MODERN's, SX's pick of Y2 COIN on
+// labs/graphics/sketches/modern-stunts.html, 2026-10-16: «Прыжок и фигуры. Берем y2»): past the fold's edge (a ROLL's `across` or a FLIP's
+// `along` below zero) its cells stand mirrored, and its glyphs are mirrored with them, each to its twin (MIRROR: across ◢ ◣, ◟ ◞, ╭ ╮,
+// ◀ ▶; along ◢ ◥, ◟ ◜, ╭ ╰, ▔ ▁), so the outline stays the ship's all the way round (the cells alone left MODERN's wings pointing in,
+// its canopy in pieces and its nose ▶◀); and while it is over, its belly is seen: `FIGURE_BELLY.dark` of the way toward black, the canopy
+// closed (the painter's, world-art.js drawPilotShip `ship.belly`). A drawing without it (CLIPPER, SCOOTY JR.) folds as before.
+const twins = (list) => { const m = new Map(); for (const p of list.split(' ')) { const [a, b] = [...p]; m.set(a, b); m.set(b, a); } return m; };
+export const MIRROR = Object.freeze({ across: twins('◢◣ ◤◥ ◟◞ ◝◜ ╭╮ ╰╯ /\\ ◀▶ ▞▚'), along: twins('◢◥ ◣◤ ◟◜ ◞◝ ╭╰ ╮╯ /\\ ▔▁ ▞▚') });
+export const FIGURE_BELLY = Object.freeze({ dark: 0.42 });
+// The drawing with its glyphs mirrored across, along or both (every frame, the brake pose's too; the rest of it, its scale breathing
+// included, its own through the prototype), made once a drawing and a way.
+const turnedModels = new WeakMap();
+export function turnedModel(model, across, along) {
+  if (!across && !along) return model;
+  const key = across && along ? 'both' : across ? 'across' : 'along';
+  let made = turnedModels.get(model);
+  if (!made) { made = {}; turnedModels.set(model, made); }
+  if (made[key]) return made[key];
+  const maps = [across && MIRROR.across, along && MIRROR.along].filter(Boolean);
+  const turn = (c) => ({ ...c, ch: maps.reduce((ch, map) => map.get(ch) ?? ch, c.ch) });
+  const out = Object.create(model);
+  out.frames = model.frames ? model.frames.map((cells) => cells.map(turn)) : null;
+  out.cells = out.frames ? out.frames[model.idleFrame] : model.cells.map(turn);
+  return (made[key] = out);
+}
+
 // The hull drawn by the look: `draw(ship, x, y)` is the page's own painter (world-art.js drawPilotShip), handed a stand-in whose
-// drawing metrics are folded by the figure, whose facing is turned, and whose glyphs are grown with the height.
+// drawing metrics are folded by the figure, whose facing is turned, and whose glyphs are grown with the height (and, on a drawing that
+// carries it, mirrored past the fold's edge with its belly seen: the coin above).
 export function drawAirShip(ship, sx, sy, look, draw) {
   const m = ship.metrics, model = ship.model;
   if (!m) { draw(ship, sx, sy); return; }
-  const scaled = Object.create(model);
+  const coin = model.figures === 'coin' && (look.across < 0 || look.along < 0);
+  const scaled = Object.create(coin ? turnedModel(model, look.across < 0, look.along < 0) : model);
   scaled.scale = model.scale * look.grow;
   scaled.baseScale = (model.baseScale ?? model.scale) * look.grow;
   const stand = Object.create(ship, {
     model: { value: scaled },
     metrics: { value: { w: m.w * look.grow * look.across, h: m.h * look.grow * look.along } },
     facing: { value: ship.facing + look.rot },
+    ...(coin ? { belly: { value: FIGURE_BELLY.dark } } : null),
   });
   draw(stand, sx + look.dx, sy + look.dy);
 }

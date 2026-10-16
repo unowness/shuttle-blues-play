@@ -5,15 +5,18 @@
 // flight's labels group casts it). Where the mode has no key for the skill (MOUSE + HOTKEYS), its way is white words, as the controls
 // window writes one (src/controls.js skillWay, labs/graphics/swiss-window.js keyTokens). Presentation only: nothing here is read by the world.
 //
-// Where: the first cap's left stroke the hull's radius right of the ship's middle (the sketch's 830 for a ship at 785, its radius 44), the
-// row's middle on the ship's, which the keycap's rise and its row about it keep to a pixel. The caps of one way a cap's air apart, as the
-// keycap leaves between a cap and its words; a way in words, and the verb after it, a step (UI.line.cols) on. A line of more parts (the
-// steering's reverse: [A] [D] STEER  [S] BACK; the tutorial's two a line) has each a group's step (UI.group.cols) after the verb before it.
-// A way with a join (the trick from the ground) has its mark where a cap's letter would stand between its two caps: [Q] → [E].
+// Where: the first cap's left stroke the hull's reach and a step's air (`AIR` cells, UI.line) right of the ship's middle; the reach is the
+// hull's radius, its drawing's farthest point however it is turned (SX, 2026-10-16: «посмотри чтобы отступ достаточный был от корабля,
+// кажется маловат сейчас»: on the radius alone, MODERN's wing tips came up to the cap whenever the ship stood turned 45 degrees). The parts of
+// a line one under the other, left-aligned, a row (UI.row) apart, as the deck's screens stack their keys, the column's middle on the ship's
+// (SX, the same day: «лучше не две в строку, а столбиком друг под другом выровненная по левому краю»; a line's parts stood side by side, a
+// group's step apart, until then); a row's middle on its text's, which the keycap's rise and its row about it keep to a pixel. The caps of
+// one way a cap's air apart, as the keycap leaves between a cap and its words; a way in words, and the verb after it, a step (UI.line.cols)
+// on. A way with a join (the trick from the ground) has its mark where a cap's letter would stand between its two caps: [Q] → [E].
 //
 // The first flight's cross (SX, 2026-10-16: «w внизу, s наверху a d слева и справа»): the four caps alone round the ship, on the screen's axes
-// (the camera never turns), each its stroke the hull's radius off the ship's middle, as the line's first cap is: W under, S over, A left, D
-// right. A part answered dims to HINT.done over HINT.fade while the rest of its line stands («затухают, когда узер все кнопки нажал»).
+// (the camera never turns), each its stroke as far off the ship's middle as the line's first cap is: W under, S over, A left, D right. A part
+// answered dims to HINT.done over HINT.fade while the rest of its line stands («затухают, когда узер все кнопки нажал»).
 import { ROLES } from '../../src/roles.js';
 import { UI } from '../../src/uiGrid.js';
 import { clamp } from '../../src/util.js';
@@ -28,6 +31,10 @@ const W = ROLES.textPrimary;
 const CAP = { reach: 0, ink: W, cap: ROLES.structure };
 // The cross's four, by the move line's parts (src/skillHints.js HINTS.move): the side of the ship each stands on, x and y on the screen.
 export const CROSS = Object.freeze([[0, 1], [0, -1], [-1, 0], [1, 0]]);
+// The air between the hull's reach and the hint, in cells: a step.
+export const AIR = UI.line.cols;
+// How far off the ship's middle a hint's nearest stroke stands, px: the hull's reach and the air.
+export const hintReach = (r, ship) => ship.radius + AIR * r.cellW;
 
 // How much of itself the hint shows: in over HINT.fade s as it comes, out as it goes (`s.out`), whole when it stands; whole always for
 // reduced motion (the fade is none then, src/skillHints.js stepSkillHints).
@@ -83,19 +90,20 @@ function drawCross(r, s, words, at, R, alpha, reducedMotion) {
 export function drawSkillHint(r, world, s, { scheme, reducedMotion = false } = {}) {
   const alpha = hintAlpha(s, reducedMotion);
   if (alpha <= 0.01) return null;
-  const ship = world.ship, at = world.project(r, ship.x, ship.y), words = hintWords(s, scheme), line = HINTS[s.id];
-  if (line.cross) return drawCross(r, s, words, at, ship.radius, alpha, reducedMotion);
-  P.r = r; P.x = Math.round(at.x + ship.radius); P.y = Math.round(at.y - r.cellH / 2);
-  BOX.x = P.x; BOX.y = P.y - 2; BOX.h = r.cellH + 3;
-  let first = true;
+  const ship = world.ship, at = world.project(r, ship.x, ship.y), words = hintWords(s, scheme), line = HINTS[s.id], R = hintReach(r, ship);
+  if (line.cross) return drawCross(r, s, words, at, R, alpha, reducedMotion);
+  let rows = 0;
+  for (let i = 0; i < line.parts.length; i++) if (partShown(s, i)) rows++;
+  const left = Math.round(at.x + R), top = Math.round(at.y - r.cellH / 2 - ((rows - 1) * UI.row) / 2);
+  BOX.x = left; BOX.y = top - 2; BOX.w = 0; BOX.h = (rows - 1) * UI.row + r.cellH + 3;
+  let row = 0;
   for (let i = 0; i < line.parts.length; i++) {
     if (!partShown(s, i)) continue;
-    if (!first) P.x += UI.group.cols * r.cellW;
-    first = false;
     const p = line.parts[i];
+    P.r = r; P.x = left; P.y = top + row * UI.row; row++;
     P.cell = words.cells[i]; P.tokens = keyTokens(P.cell); P.verb = p.verb; P.join = p.join;
     withAlpha(r.ctx, alpha * partAlpha(s, i, reducedMotion), paintUnnoted);
+    BOX.w = Math.max(BOX.w, P.x - left);
   }
-  BOX.w = P.x - BOX.x;
   return BOX;
 }

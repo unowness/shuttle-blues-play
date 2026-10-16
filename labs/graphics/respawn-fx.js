@@ -13,15 +13,18 @@
 // comes up from `rise.from` px under its place, out of nothing over `rise.fade` s and from
 // `rise.small` of its size, moving as a spring let go (still at first, then quicker: the ease in), past its place by a little
 // and back (`zeta`, `peak`). It is drawn by itself over the world (drawRisingShip) while the world's is hidden; the pilot's
-// hands are off the controls till it has come up (`hands`).
+// hands are off the controls till it has come up (`hands`). It comes up mixed, its parts on each other's cells, and is put back while it
+// cannot be hurt (labs/graphics/ship-scramble.js; SX, 2026-10-16: no blink after a wreck).
 import { drawPilotShip, flownShipInks } from './world-art.js';
+import { scramblePlan, assembled } from './ship-scramble.js';
 import { createShipMotion, stepShipMotion } from './ship-motion.js';
 import { noise3 as hash } from '../../src/util.js';
 import { REBOOT } from './reboot.js';
 
 export { REBOOT };
 export function createRespawnFx() {
-  return { at: null, shot: null, kept: false, corner: { sx: 1, sy: 1 }, seed: 0, motion: createShipMotion(7), motionAt: null };
+  return { at: null, shot: null, kept: false, corner: { sx: 1, sy: 1 }, seed: 0, motion: createShipMotion(7), motionAt: null,
+    mixed: false, plan: null, scramble: { plan: null, u: 0 } };
 }
 
 // The canvas the frame is kept on, made at `canvas`'s size (its device px) if it is not yet, and its drawing buffer with it: the page
@@ -54,6 +57,17 @@ export function startRespawn(fx, now, rng = Math.random) {
   fx.seed = Math.floor(rng() * 1e6);
   fx.motion = createShipMotion(fx.seed & 0xffff);
   fx.motionAt = null;
+  fx.mixed = true;
+}
+
+// The ship's mix after a return played (`fx.scramble`: its plan, from the drawing's idle pose and the return's seed, and `u`, how far it is put
+// back), or null: no return played, or the ship whole again (its grace over), which ends it.
+export function scrambleOf(fx, ship) {
+  if (!fx.mixed || !ship?.alive || !(ship.invuln > 0) || !Number.isFinite(ship.invuln)) { fx.mixed = false; return null; }
+  const model = ship.model, cells = (model.frames && model.frames[model.idleFrame]) || model.cells;
+  if (!fx.plan || fx.plan.cells !== cells || fx.plan.seed !== fx.seed) fx.plan = scramblePlan(cells, fx.seed);
+  fx.scramble.plan = fx.plan; fx.scramble.u = assembled(ship.invuln);
+  return fx.scramble;
 }
 
 export const respawnLength = () => REBOOT.sweep * REBOOT.rise.start + REBOOT.rise.time;
@@ -141,6 +155,6 @@ export function drawRisingShip(r, fx, now, world, x, y, { reducedMotion = false 
   ctx.translate(at.x, at.y); ctx.scale(rise.scale, rise.scale); ctx.translate(-at.x, -at.y);
   const proxy = Object.create(ship, { invuln: { value: 0 }, thrusting: { value: false }, retroing: { value: false } });
   const inks = flownShipInks(world);
-  drawPilotShip(immediate(r, rise.alpha), proxy, at.x, at.y, fx.motion, inks.ink, inks.paint, { reducedMotion });
+  drawPilotShip(immediate(r, rise.alpha), proxy, at.x, at.y, fx.motion, inks.ink, inks.paint, { reducedMotion, scramble: scrambleOf(fx, ship) });
   ctx.restore();
 }

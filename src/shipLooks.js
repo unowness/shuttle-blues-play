@@ -25,8 +25,19 @@ import { openingStage, REST } from './opening.js';
 // MODERN ships/modern.json, the default; CLIPPER ships/spaceship.json, SX's first; SCOOTY JR. ships/scooty-jr.json, after the opening. The ids
 // are the looks' own; the body table's key is the file's `id` (modern, spaceship, scooty-jr). `after`: the look is had once the opening is
 // over, everywhere; `garage`: in the hangar only (CLIPPER stands in the SHIP row from the start, SX: «оставь в настройках»).
+// A look may carry its own style of the flight's effects (SX, 2026-10-16: «видимо стиль трюков будем к кораблю привязывать»; his picks on
+// labs/graphics/sketches/modern-stunts.html), put on its drawing when the drawing is registered (dress), presentation only:
+//   nozzles  where the six nozzles of labs/graphics/ship-motion.js are, in the cells of the file's rows as written (as a file's own
+//            `nozzles`, src/asciiModel.js readNozzles). Without it ship-motion.js nozzlesOf reads them from SX's first ship's arcs and
+//            struts, which on MODERN are its shoulders: its nose's jets left from mid-body over the sides and wings. MODERN's (X1
+//            PLACED): the nose's front corners (the outer ends of ◟ ◞), the wing tips (the outer ends of the flats ▔), the point of the
+//            inner struts \/.
+//   figures  how a jump's FLIP and ROLL turn it over (labs/graphics/stunt-fx.js drawAirShip): 'coin' (Y2 COIN), the glyphs mirrored with
+//            the cells past the fold's edge and the belly shown; none (CLIPPER, SCOOTY JR.), the cells fold and the glyphs stay.
+// The drift's smoke is every look's (Z0, SX: «такой же, как сейчас оставляем»).
 export const SHIP_LOOKS = Object.freeze([
-  Object.freeze({ id: 'modern', label: 'MODERN', model: 'ships/modern.json' }),
+  Object.freeze({ id: 'modern', label: 'MODERN', model: 'ships/modern.json', figures: 'coin',
+    nozzles: Object.freeze({ frontL: [1.72, 1.08], frontR: [5.28, 1.08], sideL: [0.44, 3.58], sideR: [6.56, 3.58], rearL: [3.34, 4.36], rearR: [3.66, 4.36] }) }),
   Object.freeze({ id: 'clipper', label: 'CLIPPER', model: 'ships/spaceship.json', garage: 'opening' }),
   Object.freeze({ id: 'scooty', label: 'SCOOTY JR.', model: 'ships/scooty-jr.json', after: 'opening' }),
 ]);
@@ -39,7 +50,16 @@ export const shipLookById = (id) => SHIP_LOOKS.find((l) => l.id === id) ?? null;
 // The looks' drawings, once the page has loaded them (presentation only, as src/hangar.js keeps the ships').
 const models = new Map();
 export function registerShipLook(id, model) {
-  if (model && shipLookById(id)) models.set(id, model); else models.delete(id);
+  const look = shipLookById(id);
+  if (model && look) { dress(model, look); models.set(id, model); } else models.delete(id);
+}
+// The look's style on its drawing (above): its nozzles from the file's cells to the pivot's (unless the file names its own), its figures.
+function dress(model, look) {
+  if (look.nozzles && !model.nozzles && model.anchor) {
+    const a = model.anchor;
+    model.nozzles = Object.freeze(Object.fromEntries(Object.entries(look.nozzles).map(([k, p]) => [k, Object.freeze({ x: p[0] - a.x, y: p[1] - a.y })])));
+  }
+  if (look.figures) model.figures = look.figures;
 }
 export const shipLookModel = (id) => models.get(id) ?? null;
 // Whether the opening is over in `world` (src/opening.js): no chapter running (a veteran, a skipped start), or the chapter at rest.

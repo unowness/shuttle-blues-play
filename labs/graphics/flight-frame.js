@@ -18,7 +18,7 @@ import { flyingLoaner } from '../../src/loaner.js';
 import { stepCharm } from './charm.js';
 import { stepTracker } from './tracker.js';
 import { COCKPIT_FX, damageLevel, wearCockpit, shakeOffset, drawPieces, steerLight, mendCockpit, crackShape, drawCracked } from './cockpit-fx.js';
-import { keepFrame, startRespawn, respawning, handsOff, drawReboot, drawRisingShip } from './respawn-fx.js';
+import { keepFrame, startRespawn, respawning, handsOff, drawReboot, drawRisingShip, scrambleOf } from './respawn-fx.js';
 import { drawContextPlates, shipOverPlate, PLATE } from './context.js';
 import { selectedTask, markedQuests } from '../../src/tasks.js';
 import { menuOpen, standShare } from '../../src/interaction.js';
@@ -53,7 +53,7 @@ import { interfaceGiven } from '../../src/opening.js';
 import { stepCursor, drawCursor, cursorSleep } from './cursor.js';
 import { cornerTile } from './ui-parts.js';
 import { drawHelmet } from './helmet.js';
-import { drawModernHud, wearNotch, stepModernFx } from './hud-modern.js';
+import { drawModernHud, wearNotch, stepModernFx, MODERN_HOLD } from './hud-modern.js';
 import { hungCharm } from './charm.js';
 
 export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, followPixelRatio, followCursor }) {
@@ -358,6 +358,8 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     // A wreck's wait keeps a frame of its own (the copy below, at the frame's end).
     if (!world.ship.alive && page.shipWasAlive) respawnFx.kept = false;
     page.shipWasAlive = world.ship.alive;
+    // Back from a wreck it stands mixed and is put back while it cannot be hurt, in place of the blink (labs/graphics/ship-scramble.js).
+    presentation.shipScramble = scrambleOf(respawnFx, world.ship);
 
     // Checkpoint on a timer as well as on outcomes, so a long flight is not lost.
     saves.tick(rawDt);
@@ -518,7 +520,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     let modernOut = null;
     if (modern) {
       const hungId = given.shelf ? hungCharm(world) : null;
-      stepCharm(charm, world.ship, world.time, hungId, pageTime(), rawDt, feedback.reducedMotion);
+      stepCharm(charm, world.ship, world.time, hungId, pageTime(), rawDt, feedback.reducedMotion, MODERN_HOLD);
       charm.shown = false;
       stepModernFx(game.modernFx, { share: world.ship.alive && world.hullMax > 0 ? world.hull / world.hullMax : 0, angle: world.ship.angle, dt: rawDt,
         charmAt: game.lastHudLayout?.modern ? game.lastHudLayout.charmAt : null, charmId: hungId, reducedMotion: feedback.reducedMotion });

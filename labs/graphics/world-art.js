@@ -12,7 +12,8 @@ import { paintInk, paintedHull, paintedMotion, LAMP } from '../../src/paint.js';
 import { SPECIAL_INKS } from '../../src/specialShips.js';
 import { keptDraw } from '../../src/grade.js';
 import { ROLES } from '../../src/roles.js';
-import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, wingDraws, WING_GLYPHS, MOTION_INKS } from './ship-motion.js';
+import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, wingDraws, wingFlip, WING_GLYPHS, MOTION_INKS } from './ship-motion.js';
+import { scrambledPlaces, slotOfCell } from './ship-scramble.js';
 import { BLOCK_TONES, planetTones, ROCK_EDGE, ROCK_INKS, ROCK_LIT, ROCK_SHADE, SHADE_GAP, ROCK_RELIEF } from './art-tones.js';
 import { stationLook, stationCells, lookOrigin, LOOK_SCALE, MAX_CELLS } from './station-art.js';
 import { cargoArt } from './cargo-art.js';
@@ -381,11 +382,12 @@ export function stationShotAt(r, station, side, u = 0.5, v = 0.5) {
   return at;
 }
 
-// How much of its ink the pilot's ship is drawn in. A ship that has just respawned
+// How much of its ink the pilot's ship is drawn in. A ship given a grace (a new flight, the way out of a dock)
 // blinks while it is invulnerable: it changes phase INVULN_TOGGLES times a second
 // (it was 12, which at that rate is a flicker; three or fewer is the most a page may flash),
 // and steady with reduced motion. One docked, or invulnerable with no timer (Infinity,
-// as docking sets it), is drawn whole: it was drawn at the dim phase, for as long as it sat there.
+// as docking sets it), is drawn whole: it was drawn at the dim phase, for as long as it sat there. One back from a wreck does not
+// blink: it stands mixed and is put back (labs/graphics/ship-scramble.js; SX, 2026-10-16).
 export const INVULN_TOGGLES = 3;
 export const INVULN_DIM = 0.32;
 export function shipAlpha(invuln, { docked = false, reducedMotion = false } = {}) {
@@ -403,12 +405,25 @@ export function shipAlpha(invuln, { docked = false, reducedMotion = false } = {}
 // `options.shade`: the hull's cells this much as opaque (the brake's, src/visualScale.js brakeShade; the puffs keep theirs); `options.brake`
 // the brake's own share of it, which the glass does not take (SX, 2026-10-16: «при тормозе стекло кабины не делай прозрачнее»).
 // `options.braking`: the brake held, as the scale reads it (labs/graphics/flight-frame.js): a drawing with a brake pose (ships/modern.json
-// `brake`, src/asciiModel.js brakeFrame) is drawn in it. Its wings darken on the side of a turn as the glass does (ship-motion.js wingDraws).
+// `brake`, src/asciiModel.js brakeFrame) is drawn in it. Its wings darken on the side of a turn as the glass does (ship-motion.js wingDraws),
+// and in reverse the one on the turn's side takes its brake pose (wingFlip).
+// `options.scramble`: the ship back from a wreck, mixed ({ plan, u }, labs/graphics/ship-scramble.js): each cell drawn at its piece's place,
+// whole and steady (no blink) while it is.
+// An ink `k` of the way toward black (the belly's), made once an ink and a share.
+const bellies = new Map();
+function bellyInk(ink, k) {
+  if (!k || typeof ink !== 'string' || ink.length !== 7) return ink;
+  const key = `${ink}|${k}`;
+  let dark = bellies.get(key);
+  if (!dark) { dark = mixHex(ink, '#000000', k); bellies.set(key, dark); }
+  return dark;
+}
 export const drawPilotShip = keptDraw(function drawPilotShip(r, ship, sx, sy, motion, ink, paint = null, options = {}) {
   const model = ship.model;
   const m = ship.metrics || ship.measureDrawing(r.cellW, r.cellH);
   const a = ship.facing, ca = Math.cos(a), sa = Math.sin(a);
-  const alpha = shipAlpha(ship.invuln, options) * (options.shade ?? 1);
+  const mix = options.scramble ?? null, places = mix ? scrambledPlaces(mix.plan, mix.u) : null;
+  const alpha = (mix ? 1 : shipAlpha(ship.invuln, options)) * (options.shade ?? 1);
   const glassAlpha = alpha / Math.max(0.01, options.brake ?? 1);
   // A paint (src/paint.js) gives each part its ink, the front arcs theirs, the
   // engine its rest and burn; the puffs its smoke and jets; the glass its darker step.
@@ -416,13 +431,19 @@ export const drawPilotShip = keptDraw(function drawPilotShip(r, ship, sx, sy, mo
   const inks = paintedMotion(paint, MOTION_INKS);
   const pose = options.braking && model.brakeFrame != null ? model.brakeFrame : model.idleFrame;
   const cells = (model.frames && model.frames[pose]) || model.cells;
+  // `ship.belly`: the hull seen from below, a jump's figure turning it over (labs/graphics/stunt-fx.js drawAirShip, a drawing whose look
+  // carries it, SX's Y2 COIN): every ink that much of the way toward black, the canopy closed by the rocks' half-light.
+  const belly = ship.belly ?? 0;
   for (const c of cells) {
-    const lx = c.x * m.w, ly = c.y * m.h;
+    const slot = places ? slotOfCell(mix.plan, c) : -1;
+    const lx = (slot >= 0 ? places[slot].x : c.x) * m.w, ly = (slot >= 0 ? places[slot].y : c.y) * m.h;
     const x = sx + lx * ca - ly * sa, y = sy + lx * sa + ly * ca;
-    const base = paintedHull(paint, c, burning) ?? ink(c.color);
+    const base = bellyInk(paintedHull(paint, c, burning) ?? ink(c.color), belly);
     const cellAlpha = isGlass(c) ? glassAlpha : alpha;
-    const draws = WING_GLYPHS.has(c.ch) ? wingDraws(motion, c, base) : glassDraws(motion, c, base, inks);
-    for (const d of draws) r.glyphRot(c.ch, x, y, a, d.ink, cellAlpha * d.alpha, model.scale);
+    const wing = WING_GLYPHS.has(c.ch);
+    const ch = belly && isGlass(c) ? ROCK_SHADE.half.ch : wing && pose !== model.brakeFrame ? wingFlip(motion, model, c) : c.ch;
+    const draws = wing ? wingDraws(motion, c, base) : glassDraws(motion, c, base, inks);
+    for (const d of draws) r.glyphRot(ch, x, y, a, d.ink, cellAlpha * d.alpha, model.scale);
   }
   drawShipMotion(r, motion, model, sx, sy, a, model.scale, inks, model.baseScale ?? model.scale);
 });
@@ -1025,7 +1046,7 @@ export function createWorldPresentation(world, settings) {
     const paint = (ship, x, y) => {
       const inks = flownShipInks(world, ship.thrusting || ship.retroing);
       drawPilotShip(r, ship, x, y, motion, inks.ink, inks.paint, { docked: !!world.docked, reducedMotion: api.reducedMotion, shade: api.shipShade,
-        brake: api.shipShade, braking: api.shipBraking });
+        brake: api.shipShade, braking: api.shipBraking, scramble: api.shipScramble });
     };
     // Diving into a station's dock or out of it, and rising (src/docking.js, labs/graphics/dock-fx.js): grown or shrunk, sunk, faded;
     // not drawn at all while it is under the station.
@@ -1114,6 +1135,8 @@ export function createWorldPresentation(world, settings) {
     shipShade: 1,
     // Set by the page each frame: the brake held, as the scale reads it (a drawing's brake pose, drawPilotShip).
     shipBraking: false,
+    // Set by the page each frame: the ship back from a wreck, mixed (labs/graphics/respawn-fx.js scrambleOf), or null.
+    shipScramble: null,
     prepare() { world.asteroids.forEach(asteroid); world.pirates.forEach(pirate); },
     captureSprite(id, raw) { if (SPRITE_ART[id]) originals.set(id, structuredClone(raw)); },
     refresh() {

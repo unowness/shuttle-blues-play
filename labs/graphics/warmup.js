@@ -28,7 +28,7 @@ export const WARM_EXTRA = [
   '←↑→↓↖↗↘↙',                            // bearings
   '─│┊┈┌┐└┘├┤┬┴┼╌═║╧╨╭╮╯╰╱╲╴╵╶╷',        // lines and joins, the seams, the COURIER's tail
   '┄┆━┃┏┓┗┛',                            // the pilot card's dashed tiles and heavy selection (2026-09-30)
-  '▀▄█▌▐░▒▓▖▗▘▙▚▛▜▝▞▟▪▮▰▱',              // blocks
+  '▀▄█▌▐░▒▓▖▗▘▙▚▛▜▝▞▟▪▮▰▱▁',             // blocks; ▁ MODERN's wing flats seen from below (stunt-fx.js MIRROR)
   '▲▶▸◀◂◇○●◉◦▣▴▾◜◝◞◟◢◣◤◥✦',              // shapes, the edge arrows, the signal, the COURIER's nose, the pod's porthole
   '∙˙╎◠◡',                               // the ship's motion options (ship-motion.js, 2026-09-30)
   '•╳◆',                                 // the station looks' lights, braces and hubs (station-art.js, 2026-09-30)

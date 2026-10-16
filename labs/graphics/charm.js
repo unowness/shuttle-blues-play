@@ -51,13 +51,17 @@ import { columnLayout, COLUMN_GAPS, SCOPE_RADIUS } from './locator.js';
 // nothing between.
 export const CHARM = Object.freeze({ size: 96, ring: 3, row: 16, cord: 2.25, pull: 80, gain: 0.22, drift: 6, damp: 0.8, swap: 0.35, come: 0.2,
   step: 0.008, accel: 200, smooth: 0.06, bead: '•', beadPx: 9, pitch: 5, stretch: 80 / 3, rubber: 2, give: 8 });
-// The cord from the eyelet's centre to the charm's ring's centre unstretched, and the nearest the two rings come (where a new one
-// starts). The push the ship's acceleration gives at most (gain x accel, 44) and the drift (6) are under the pull (80): the weight never
+// The cord from the eyelet's centre to the charm's ring's centre unstretched. The push the ship's acceleration gives at most (gain x accel, 44) and the drift (6) are under the pull (80): the weight never
 // rises past its eyelet, and no clamp stands there (checks/charm.mjs holds the three numbers apart).
 export const CORD = 2 * CHARM.ring + CHARM.cord * UI.pad * 3;
 // Where the charm hangs at rest: the cord drawn out by the weight's pull (36 px, the ring on a half pixel as the eyelet is).
 export const HANG = CORD + CHARM.pull / CHARM.stretch;
-const NEAR = 2 * CHARM.ring;
+// What the chain hangs from: `cord` its length from the anchor's centre to the charm's ring's centre, unstretched; `from` the radius of what
+// it comes off, where the chain begins and the nearest the charm's ring comes (where a new one starts); `eyelet` whether that is the eyelet's ring, drawn here (the
+// locator's), or a part the caller draws (the MODERN mount's reel, hud-modern.js).
+export const EYELET = Object.freeze({ cord: CORD, from: CHARM.ring, eyelet: true });
+// Where a charm hangs at rest from `hold`: its cord drawn out by the weight's pull.
+export const hangOf = (hold) => hold.cord + CHARM.pull / CHARM.stretch;
 // The most of a frame the physics integrates (a stalled frame is not a flight).
 const MAX_DT = 0.05;
 const NOBODY = null;
@@ -86,9 +90,11 @@ export function hungCharm(world) {
 }
 
 // Once a frame, before it is drawn: `hung` what hangs now (hungCharm, once the opening has fitted the shelf), `ship` the world's ship
-// (its velocity gives the push), `worldTime` the world's clock, `t` and `dt` the page's. Reduced motion: it hangs still.
-export function stepCharm(c, ship, worldTime, hung, t, dt, reducedMotion = false) {
+// (its velocity gives the push), `worldTime` the world's clock, `t` and `dt` the page's, `hold` what its chain hangs from. Reduced motion: it
+// hangs still.
+export function stepCharm(c, ship, worldTime, hung, t, dt, reducedMotion = false, hold = EYELET) {
   c.now = t;
+  const cord = hold.cord, hang = hangOf(hold);
   // The ship's acceleration, averaged over `smooth` s of the world's time; a world that has not moved (the pause) lets it go.
   if (!c.started) { c.started = true; c.id = hung; c.pvx = ship.vx; c.pvy = ship.vy; c.ptime = worldTime; }
   const dw = worldTime - c.ptime;
@@ -105,14 +111,14 @@ export function stepCharm(c, ship, worldTime, hung, t, dt, reducedMotion = false
   // What hangs changed: the one before is let go (it drifts off along its cord's way and fades), the new one drops onto the cord.
   if (hung !== c.id) {
     const g = c.gone;
-    if (reducedMotion) { g.id = NOBODY; c.x = 0; c.y = HANG; c.vx = 0; c.vy = 0; c.since = -Infinity; }
+    if (reducedMotion) { g.id = NOBODY; c.x = 0; c.y = hang; c.vx = 0; c.vy = 0; c.since = -Infinity; }
     else {
       g.id = c.id; g.x = c.x; g.y = c.y; g.vx = c.vx; g.vy = 60; g.at = t;
-      c.x = 0; c.y = NEAR; c.vx = 0; c.vy = 0; c.since = t;
+      c.x = 0; c.y = hold.from + CHARM.ring; c.vx = 0; c.vy = 0; c.since = t;
     }
     c.id = hung;
   }
-  if (reducedMotion) { c.x = 0; c.y = HANG; c.vx = 0; c.vy = 0; c.gone.id = NOBODY; return; }
+  if (reducedMotion) { c.x = 0; c.y = hang; c.vx = 0; c.vy = 0; c.gone.id = NOBODY; return; }
   const span = Math.min(Math.max(dt, 0), MAX_DT);
   if (!(span > 0)) return;
   const n = Math.max(1, Math.ceil(span / CHARM.step)), h = span / n, g = c.gone;
@@ -127,13 +133,13 @@ export function stepCharm(c, ship, worldTime, hung, t, dt, reducedMotion = false
     c.vx += (fx - CHARM.damp * c.vx) * h; c.vy += (fy - CHARM.damp * c.vy) * h;
     c.x += c.vx * h; c.y += c.vy * h;
     const d = Math.sqrt(c.x * c.x + c.y * c.y);
-    if (d > CORD) {
+    if (d > cord) {
       // Past its length the chain gives like rubber: it pulls back by how far it is drawn out and loses some of its bounce. Drawn out
       // to its `give` it stops hard: the weight stops at its end and loses what pulled it out (the cargo's tether does the same).
-      const nx = c.x / d, ny = c.y / d, vr = c.vx * nx + c.vy * ny, back = (CHARM.stretch * (d - CORD) + CHARM.rubber * vr) * h;
+      const nx = c.x / d, ny = c.y / d, vr = c.vx * nx + c.vy * ny, back = (CHARM.stretch * (d - cord) + CHARM.rubber * vr) * h;
       c.vx -= back * nx; c.vy -= back * ny;
-      if (d > CORD + CHARM.give) {
-        const far = CORD + CHARM.give, out = c.vx * nx + c.vy * ny;
+      if (d > cord + CHARM.give) {
+        const far = cord + CHARM.give, out = c.vx * nx + c.vy * ny;
         c.x = nx * far; c.y = ny * far;
         if (out > 0) { c.vx -= 1.35 * out * nx; c.vy -= 1.35 * out * ny; }
       }
@@ -202,36 +208,39 @@ function picture(r, id, cx, cy, alpha) {
 
 // The charm of `spot` ({ id, x, y }: the layout's, hud.js; `id` null with nothing hung, `x`, `y` the eyelet's centre) on its cord: the
 // eyelet, the one let go while it fades, the one that hangs. `c` the page's state (createCharm); without one it hangs still, at rest
-// (the sketch pages and the checks). Draws nothing for nothing hung once the one let go has faded.
-export function drawCharm(r, spot, c = null) {
+// (the sketch pages and the checks). `hold` what the chain hangs from (EYELET, or the MODERN mount's reel, whose ring is not drawn here).
+// Draws nothing for nothing hung once the one let go has faded.
+export function drawCharm(r, spot, c = null, hold = EYELET) {
   if (c !== null) c.shown = false;
   const g = c !== null ? c.gone : null, now = c !== null ? c.now : 0;
   const fading = g !== null && g.id !== NOBODY && now - g.at < CHARM.swap, fade = fading ? 1 - (now - g.at) / CHARM.swap : 0;
   if (spot.id === NOBODY && !fading) return;
   const hx = Math.round(spot.x - 0.5) + 0.5, hy = Math.round(spot.y - 0.5) + 0.5;
-  ring(r.ctx, hx, hy, ROLES.structure, spot.id === NOBODY ? fade : 1);
-  if (fading) charm(r, g, g.id, hx, hy, fade, null);
-  if (spot.id !== NOBODY) charm(r, c !== null ? c : REST, spot.id, hx, hy, c !== null ? clamp((now - c.since) / CHARM.come, 0, 1) : 1, c);
+  if (hold.eyelet) ring(r.ctx, hx, hy, ROLES.structure, spot.id === NOBODY ? fade : 1);
+  if (fading) charm(r, g, g.id, hx, hy, fade, null, hold);
+  if (spot.id !== NOBODY) charm(r, c !== null ? c : null, spot.id, hx, hy, c !== null ? clamp((now - c.since) / CHARM.come, 0, 1) : 1, c, hold);
 }
-// The position a charm drawn without a state hangs at: at rest, straight down the cord.
-const REST = Object.freeze({ x: 0, y: HANG });
-// How many links the chain has past its first: its length at rest between the two rings' edges over the pitch.
-const LINKS = Math.max(1, Math.round((HANG - 2 * CHARM.ring) / CHARM.pitch));
+// The position a charm drawn without a state hangs at: at rest, straight down the cord (`y` its hold's hang).
+const REST = { x: 0, y: HANG };
 // One charm at `p` ({ x, y } from the eyelet (hx, hy)): the cord to its ring (the live one's; the one let go has none), its ring, its
 // picture under the ring with the art's top edge on it. The live one (`c` the state) records its picture's box and is a button, the
 // pointer coming up under it (src/hover.js); the one let go is only drawn.
-function charm(r, p, id, hx, hy, alpha, c) {
+function charm(r, p, id, hx, hy, alpha, c, hold) {
   const ink = charmPlace(r).inks.get(id);
   if (!ink || alpha <= 0.01) return;
+  const atRest = p === null;
+  if (atRest) { REST.y = hangOf(hold); p = REST; }
   const ctx = r.ctx, R = CHARM.ring, ringX = hx + p.x, ringY = hy + p.y;
-  if (c !== null || p === REST) {
-    const d = Math.sqrt(p.x * p.x + p.y * p.y), slack = Math.max(0, CORD - d);
+  if (c !== null || atRest) {
+    const d = Math.sqrt(p.x * p.x + p.y * p.y), slack = Math.max(0, hold.cord - d);
     const ux = d > 0 ? p.x / d : 0, uy = d > 0 ? p.y / d : 1;
-    // The chain: beads along the cord from the eyelet's edge to the charm's ring's (its sag a curve while it is slack), as many as fit
-    // `pitch` apart at rest and always that many (drawn out, they part: the rubber), each a `bead` glyph centred on a whole device pixel.
-    const x0 = hx + ux * R, y0 = hy + uy * R, x1 = ringX - ux * R, y1 = ringY - uy * R;
+    // The chain: beads along the cord from the edge of what it hangs from to the charm's ring's (its sag a curve while it is slack), as many
+    // as fit `pitch` apart at rest and always that many (drawn out, they part: the rubber), each a `bead` glyph centred on a whole device
+    // pixel.
+    const x0 = hx + ux * hold.from, y0 = hy + uy * hold.from, x1 = ringX - ux * R, y1 = ringY - uy * R;
     const bx = slack > 1 ? (x0 + x1) / 2 + slack * 0.35 : (x0 + x1) / 2, by = slack > 1 ? (y0 + y1) / 2 + slack * 0.2 : (y0 + y1) / 2;
-    const n = LINKS;
+    // How many links past the first: its length at rest between the two edges over the pitch.
+    const n = Math.max(1, Math.round((hangOf(hold) - hold.from - R) / CHARM.pitch));
     const size = CHARM.beadPx / r.fontSize, dpr = r.dpr || 1, snap = (v) => Math.round(v * dpr) / dpr;
     for (let i = 0; i <= n; i++) {
       const t = (i + 0.5) / (n + 1), u = 1 - t;
