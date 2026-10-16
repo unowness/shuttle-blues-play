@@ -11,7 +11,8 @@
 // - Not 1:1 with the hand: the lean follows its aim on a damped spring (weight, a little swing, no jitter), the pointer
 //   near the ship leans little and the window's edge eases off instead of stopping.
 // - Small: the far stars move at most `reach` of the window's shorter side, and the interface never moves.
-// - Gone under a pop-up, when the pointer leaves the window, and for reduced motion.
+// - Gone when the pointer leaves the window and for reduced motion. Kept under a pop-up since SX's word of 2026-10-16 («параллакс окна
+//   относительно фона»): the window still, the world leaning behind it (labs/graphics/flight-frame.js); gone there until then.
 //
 // The player sets three (SX, 2026-10-02: «в меню геймплея должна быть настройка паралакса сила реакции дальность слоев и
 // количество движения в целом»), under the pause's GAMEPLAY SETTINGS, ten steps each, the fifth as CONFIG.depth has it:

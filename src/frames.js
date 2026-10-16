@@ -23,7 +23,9 @@ import { readFrames, writeFrames } from './prefs.js';
 export const FRAME_STYLES = Object.freeze(['gray', 'tinted']);
 export const FRAME_STYLE_NAMES = Object.freeze({ gray: 'GRAY', tinted: 'TINTED' });
 export const DEFAULT_FRAME_STYLE = 'gray';
-export const FRAME_GRAYS = Object.freeze({ frame: '#585C62', rule: '#2E3135' });
+// Two more since the organism (SX, 2026-10-16, labs/graphics/organism.js): `hollow`, an empty square's line, and `dash`, the dashes round an empty
+// place of a collection («пунктир можно оставить, но его тогда приглушить надо сильно»), both between the rule's gray and the frame's.
+export const FRAME_GRAYS = Object.freeze({ frame: '#585C62', rule: '#2E3135', hollow: '#404348', dash: '#323438' });
 export const FRAME_TINT = 0.4;
 
 // The page's: { style }, read once at the start (this browser's own, GRAY unless TINTED is kept), changed by the pause's row.

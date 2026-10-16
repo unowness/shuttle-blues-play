@@ -34,8 +34,8 @@ import { SOUVENIR_LORE } from './souvenir-lore.js';
 import { SPECIALS } from '../../src/specialShips.js';
 import { keyCodeOf, unnoted, noteKeycap } from './clicks.js';
 import { keycap, KEYCAP_PAD } from './ui-parts.js';
-import { swiss, SWISS, W as SW, G as SG, Q as SQ, bar, onBar, keycapAt, keycapWidth } from './swiss.js';
-import { sheet, headRow, partCols, keyTokens } from './swiss-window.js';
+import { keyTokens } from './swiss-window.js';
+import { Win, ORG, INK as TONE } from './organism.js';
 import { drawRail, railSize } from './rail.js';
 import { roomControls, keyName, DEFAULT_SCHEME } from '../../src/controls.js';
 import { HOVER, hoverItem, hoverScale, pointerOver, screenBox } from '../../src/hover.js';
@@ -486,34 +486,38 @@ export function blackGlyphs(ctx, font, each, tick, clip = null) {
 
 // ---- drawing -------------------------------------------------------------------------------------------------------------
 
-// The place's window in the Swiss manner (SX's S9 on labs/graphics/sketches/windows-swiss-2.html, 2026-10-09: «берем»; the kit, labs/graphics/swiss.js, the
-// chrome, labs/graphics/swiss-window.js): HOME at the left of its head and J-05 YOUR GARAGE at the right, a rule under it across to the frame, and under
-// it the room's keys, a row each, its words at the left and its key flush right as the cockpit's keycap (a way that is no key, POINT or CLICK in the
-// mouse's mode, the words themselves). A row with a key of its own is a button: under the pointer it is the inverted row, and a click presses its key.
-// The room's black windows had no frame and no rule until then (the quests' plates and a thing's window are still those). Returns its size and how to
-// draw it in a box of that size.
+// The place's window on the organism (labs/graphics/organism.js; SX's sketch W-ORG of 2026-10-16, his S9 of 2026-10-09 before it): HOME at the left
+// of its head, J-05 and YOUR GARAGE at the right, the head's rule frame to frame, and `C` inside it the room's keys, a row each, its words at the
+// left and its key flush right as the cockpit's keycap (a way that is no key, POINT or CLICK in the mouse's mode, the words themselves). A row with
+// a key of its own is a button: under the pointer it stands on the focus bar, and a click presses its key. Returns its size and how to draw it in
+// a box of that size.
 export function homeWindow(r, controls) {
-  const sw = swiss(r), { cw, I } = sw, pad = SWISS.barPad;
-  const head = { left: [['HOME', SW]], right: [['J-05', SG], ['YOUR GARAGE', SQ]] };
+  const cw = r.cellW;
   const rows = controls.map((c) => ({ ...c, cap: !!keyTokens(c.key), press: !!keyCodeOf(c.key) }));
-  const capPx = (c) => (c.cap ? keycapWidth(sw, c.key) : glyphs(c.key).length * cw);
-  const headPx = [...head.left, ...head.right].reduce((n, p) => n + partCols(p), 0) * cw + 2 * SWISS.gap * cw;
-  const inner = Math.max(headPx, ...rows.map((c) => (glyphs(c.label).length + SWISS.gap) * cw + capPx(c)));
-  const w = Math.round(2 * I + inner), h = sw.boxHeight(SWISS.headGap + rows.length - 1);
-  return { w, h, draw(box) {
-    sheet(sw, box);
-    headRow(sw, box, head.left, head.right);
-    const L = box.x + I, R = box.x + box.w - I;
+  const probe = new Win(r, { panes: [1] });
+  const capPx = (c) => (c.cap ? probe.keysWidth([c.key]) : glyphs(c.key).length * cw);
+  const head = { left: [['HOME', TONE.text]], right: [['J-05', TONE.label], ['YOUR GARAGE', TONE.faint]] };
+  const headPx = (4 + 4 + ORG.meta + 11 + ORG.meta) * cw - 2 * (ORG.C - ORG.S);
+  const inner = Math.max(headPx, ...rows.map((c) => (glyphs(c.label).length + ORG.gutter) * cw + capPx(c)));
+  const make = () => new Win(r, { panes: [Math.ceil(inner / cw)], keyFirst: [rows.some((c) => c.cap)], id: 'room' });
+  const sized = make(), p0 = sized.p;
+  sized.fit(p0.y(rows.length - 1) - sized.keyTop + sized.keyH, { foot: false });
+  return { w: sized.w, h: sized.h, draw(box) {
+    const win = make();
+    win.fit(win.p.y(rows.length - 1) - win.keyTop + win.keyH, { foot: false }).place(() => ({ x: box.x, y: box.y })).sheet();
+    win.head(head.left, { meta: head.right });
+    const p = win.p;
     rows.forEach((c, k) => {
-      const top = sw.rowAt(box.y, SWISS.headGap + k), row = { x: L - pad, y: top, w: R - L + 2 * pad, h: UI.row };
+      const Y = p.y(k), row = win.rowBox(p.cx, p.cxr, Y);
       const paint = (on) => {
-        if (on) bar(sw, row);
-        sw.text(c.label, L, top, onBar(on, SW), on);
-        if (c.cap) keycapAt(sw, c.key, R - keycapWidth(sw, c.key), top, SW, on);
-        else sw.textEnd(c.key, R, top, onBar(on, SW), on);
+        if (on) win.bar(p.cx, p.cxr, Y);
+        win.text(c.label, p.cx, Y, TONE.text, { plate: on });
+        // (The way out, ESC, in the way back's gray: the organism's tiers.)
+        if (c.cap) unnoted(() => win.keysEndingAt(p.cxr, Y, [c.key], { tier: c.key === 'ESC' ? 'back' : 'key' }));
+        else win.text(c.key, p.cxr, Y, TONE.text, { right: true, plate: on });
       };
       if (!c.press) { unnoted(() => paint(false)); return; }
-      // The whole row presses its key (a click on the words as on the cap), the cap's own box noted by the cap itself.
+      // The whole row presses its key (a click on the words as on the cap).
       noteKeycap(c.key, row, 0, r);
       const on = pointerOver(screenBox(r, row));
       hoverItem(r, `room:${c.key}`, row, () => paint(on), { over: on, kind: 'flat' });

@@ -291,6 +291,54 @@ export function drawStationNow(r, cx, cy, station, rebuilt = 1, t = 0, fit = nul
   drawStation(now, cx, cy, station, false, rebuilt, t, scale);
 }
 
+// A station as the world draws it, at its own size (LOOK_SCALE), on `r` now, its middle at (cx, cy): the windows' shots of it (SX, 2026-10-16,
+// the organism: «брал в реальном размере шот ... рандомный фрагмент станции один к одному, но в этом квадрате заключен»; labs/graphics/windows.js
+// drawStationInfo, labs/graphics/talk-beat.js), each a fragment masked by its square.
+export function drawStationTrue(r, cx, cy, station, rebuilt = 1, t = 0) {
+  drawStation(glyphsNow(r), cx, cy, station, false, rebuilt, t, LOOK_SCALE);
+}
+// `r` with its glyphs drawn at once rather than queued for the world's flush (what a window draws over the world must be drawn in its turn:
+// a ship's drawing in a talk's picture was queued and came out under the window's black, an empty box).
+export function glyphsNow(r) {
+  const now = Object.create(r);
+  now.onScreen = () => true;
+  now.glyph = (ch, x, y, ink, a = 1, s = 1) => r.glyphNow(ch, x, y, ink, a, s);
+  now.glyphRot = (ch, x, y, angle, ink, a = 1, s = 1) => {
+    const ctx = r.ctx;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+    r.glyphNow(ch, 0, 0, ink, a, s);
+    ctx.restore();
+  };
+  return now;
+}
+
+// Where a shot `side` px square of a station is taken (labs/graphics/windows.js drawStationShot): the px from its look's middle (its origin,
+// lookOrigin) to the shot's, the fullest of `SHOT_TRIES` squares round cells of its look picked by the shares `u`, `v` (a station's edges and its
+// open spans are sparse: a shot of them showed a line or two). { dx: 0, dy: 0 } where it has no look (the home garage's board). Kept per look,
+// side and pick.
+const SHOT_TRIES = 12, shotPicks = new Map();
+export function stationShotAt(r, station, side, u = 0.5, v = 0.5) {
+  const look = station?.look ? stationLook(station.look) : null;
+  if (!look) return { dx: 0, dy: 0 };
+  const key = `${station.look}|${side}|${r.cellW}|${u}|${v}`;
+  if (shotPicks.has(key)) return shotPicks.get(key);
+  const cells = [];
+  stationCells(look, 0, (x, y) => cells.push(x, y));
+  const w = r.cellW * LOOK_SCALE, h = r.cellH * LOOK_SCALE, hx = side / 2 / w, hy = side / 2 / h, o = lookOrigin(look), n = cells.length / 2;
+  const rng = mulberry32(((u * 1e9) ^ (v * 7e8)) >>> 0);
+  let best = { x: o.x, y: o.y, score: -1 };
+  for (let t = 0; t < SHOT_TRIES && n; t++) {
+    const i = Math.floor(rng() * n), cx = cells[2 * i], cy = cells[2 * i + 1];
+    let score = 0;
+    for (let j = 0; j < n; j++) if (Math.abs(cells[2 * j] - cx) <= hx && Math.abs(cells[2 * j + 1] - cy) <= hy) score += 1;
+    if (score > best.score) best = { x: cx, y: cy, score };
+  }
+  const at = { dx: (best.x - o.x) * w, dy: (best.y - o.y) * h };
+  if (shotPicks.size > 64) shotPicks.clear();
+  shotPicks.set(key, at);
+  return at;
+}
+
 // How much of its ink the pilot's ship is drawn in. A ship that has just respawned
 // blinks while it is invulnerable: it changes phase INVULN_TOGGLES times a second
 // (it was 12, which at that rate is a flicker; three or fewer is the most a page may flash),

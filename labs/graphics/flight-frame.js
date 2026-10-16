@@ -354,8 +354,10 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
 
     const tWorld0 = performance.now();
     page.frameDtNow = rawDt;
-    // The mouse's lean, back to the middle under a pop-up (the pointer is working there) and none for reduced motion.
-    world.lean = stepLean(lean, rawDt, renderer, { calm: screens.anyScreen() || game.labOpen, still: feedback.reducedMotion });
+    // The mouse's lean, none for reduced motion. Under a pop-up it goes on (SX, 2026-10-16: «я бы не делал параллакс внутри окон ... Скорее просто
+    // параллакс окна относительно фона должен быть»): the window stands still over the world leaning behind it; until then the lean went back to
+    // the middle there. The lab's drawer still calms it.
+    world.lean = stepLean(lean, rawDt, renderer, { calm: game.labOpen, still: feedback.reducedMotion });
     // The text's shadow slides with it, as the world behind the interface does (src/textShadow.js).
     setTextShadowLean(world.lean);
     // What the pointer is over in the world: its window shows (world-pointer.js, drawInteraction).

@@ -451,6 +451,8 @@ export function createGame(env) {
   window.SPASER.tracker = game.tracker;
   // The skills' one-time hints (src/skillHints.js): the one that stands, how long a turn and an open sky have been held (the golden master's traces read it).
   window.SPASER.skillHints = game.skillHints;
+  // The screens, the pause, a talk's beat and the menu's state: what tools/click-audit.mjs reads before and after a click.
+  Object.assign(window.SPASER, { screens: game.screens, pause: game.pause, beat: game.beat, menu: game.menu, lean: game.lean });
 
   // Nothing is saved while only the title has been up: the world has not run (labs/graphics/page-boot.js).
   window.addEventListener('pagehide', leave);

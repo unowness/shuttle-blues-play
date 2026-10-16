@@ -2,7 +2,7 @@ import { CONFIG } from '../../src/config.js';
 import { STAND, shipStands } from '../../src/interaction.js';
 import { fitText, overlaps, focusBox } from '../../src/interface.js';
 import { UI, FLOAT, floatOffset } from '../../src/uiGrid.js';
-import { keycap, KEYCAP_PAD, KEYCAP_RISE } from './ui-parts.js';
+import { KEYCAP_PAD } from './ui-parts.js';
 import { noteKeycap, unnoted } from './clicks.js';
 import { pointerOver, inflate, STICK, withAlpha } from '../../src/hover.js';
 import { clamp, easeOut, wrapPi, shownShare } from '../../src/util.js';
@@ -12,8 +12,8 @@ import { keyName } from '../../src/controls.js';
 import { QUEST_INKS } from '../../src/roles.js';
 import { rowTones } from '../../src/menus.js';
 import { FIND_COLS } from './find-notice.js';
-import { moneyRuns, drawRuns } from '../../src/money.js';
-import { W, G, QT, ledger, finish, layoutWindow, paintWindow, lines, leaf, col, sec, len } from './ledger.js';
+import { moneyRuns } from '../../src/money.js';
+import { Win, ORG, INK, len } from './organism.js';
 import { drawGreetOffer, DEFAULT_GREETING } from './greeting.js';
 import { PAD, LOOK_SCALE } from './station-art.js';
 
@@ -228,82 +228,90 @@ function stepPlace(r, world, target, w, h, avoid, { live = true, still = false, 
   return { x: it.pos.x + f.x, y: it.pos.y + f.y, w, h, held: false, a: it.a };
 }
 
-// The selected object's actions as a window, in the menus' look (labs/graphics/ledger.js; SX's V2 on labs/graphics/sketches/
-// menus-ledger.html, 2026-10-05, the station and NPC menus included: «ты не добавил вариант как выглядят менюшки станций и нпс»): the
-// sheet, its head the title over what the object is (the subtitle's parts a middle dot apart), or a talk's name over its words, a
-// hairline, then the actions, each a keycap with its number and its words, CLOSE last. A row of a quest has its keycap's frame, and only
-// its frame, in the quest's ink (src/menus.js rowTones, src/roles.js QUEST_INKS; SX, 2026-10-06: «рамочку кнопки подписывать в цвет типа
-// квеста», then «покрасить в цвет квестов только рамки цифр остальное белым оставить, суммы можно желтым»): its number and its words
-// stay white, gray when the row is greyed; a row of none keeps the cap's structure blue (so a blue quest's errand reads as today's).
+// The selected object's actions as a window, on the organism since SX's sketch W-ORG R0 (2026-10-16, labs/graphics/organism.js: «шапка ... узкая»;
+// before it his V2 LEDGER on labs/graphics/sketches/menus-ledger.html, 2026-10-05): a small window over open space, its frame white, as large as its
+// words. Its head as every window's, narrow: the object's name at the left, the sector it is in at the right, what it is under its name (its
+// visit, its price) in the label's gray, the head's rule frame to frame; or a talk's speaker. Then, `C` inside, what a talk says, and the actions,
+// each a keycap with its number and its words, CLOSE last. A quest's row has its keycap in the quest's purple (SX, 2026-10-16: «важные кнопки
+// квестовые ... фиолетовым»; a repair the story asks for, src/menus.js litRepair, too); the others the interface's blue, CLOSE the way back's gray.
 //
-// One row an action (SX, 2026-10-01: «в такой менюшке ... все действия должны быть в одну строку,
-// принимаю только исключения для грузов»): what an action's note says stands on its own row, after its
-// words in the quieter ink (REFUEL  59 FUEL / 59 CR), cut to the window's width. A note that only says the
-// wallet is short (NEED 500 CR, HAVE 430; SX struck them) is not shown: the action is greyed, its price is
-// in its words, and pressing it says what is missing. A cargo's action (`cargo`) keeps its note on the row
-// under its words: a cargo's size, pay and time, or where it is bound. Every amount of money, in a row's words or its note, in the coin's
-// rim gold (S4, src/money.js); a greyed action's price stays grey (the wallet cannot cover it).
+// One row an action (SX, 2026-10-01: «в такой менюшке ... все действия должны быть в одну строку, принимаю только исключения для грузов»): what an
+// action's note says stands on its own row at the window's right axis: a price in the label's gray with its money gold (BUY CHALK  5 CHALK / 25 CR),
+// or, on a row that cannot be taken, why, in the interface's blue (REFUEL  TANK FULL: nothing is needed). A note that only says the wallet is
+// short (NEED 500 CR, HAVE 430; SX struck them) is not shown: the action is faint, its price is in its words, and pressing it says what is
+// missing. A cargo's action (`cargo`) keeps its note on the row under its words: a cargo's size, pay and time, or where it is bound. Every amount
+// of money, in a row's words or its note, in the coin's rim gold (src/money.js); a faint action's price stays faint (the wallet cannot cover it).
 //
-// `live`: its keys answer clicks and its rows come up under the pointer; a window going away does neither. `far`: its object is out
-// of the ship's reach, and its rows, which act only beside it, stand in the quiet ink (SX on a hovered station far off, 2026-10-04:
-// its «1 DOCK» grey until the ship is near enough). Returns the window's context and its layout, measured before it is placed.
+// `live`: its keys answer clicks and its rows come up under the pointer; a window going away does neither. `far`: its object is out of the
+// ship's reach, and its rows, which act only beside it, stand in the faint ink (SX on a hovered station far off, 2026-10-04: its «1 DOCK» grey
+// until the ship is near enough). Returns the window, measured before it is placed.
 const shortOfCredits = (note) => /^NEED [\d,]+ CR, HAVE /.test(note || '');
+const SECTOR_WORD = /^[A-Z]-\d{2}\b/;
 function plateLayout(r, world, target, { live = true, far = false } = {}) {
-  const w = ledger(r, { id: `menu:${target.id ?? target.title}`, live }), { cw } = w, v = r.view, m = PLATE.margin;
-  const columns = Math.min(MAX_COLUMNS, Math.floor((v.w - 2 * m) / cw) - 4);
+  const v = r.view, m = PLATE.margin, cw = r.cellW;
+  const room = Math.min(MAX_COLUMNS, Math.floor((v.w - 2 * m) / cw) - 6);
   const rows = [], tones = rowTones(world, target);
   target.actions.slice(0, CONFIG.interaction.maxActions).forEach((action, i) => {
     const note = action.note && !shortOfCredits(action.note) ? action.note : null;
-    rows.push({ key: String(i + 1), label: action.label, disabled: action.disabled, inline: action.cargo ? null : note, cap: QUEST_INKS[tones[i]] });
+    rows.push({ key: String(i + 1), label: action.label, disabled: action.disabled, inline: action.cargo ? null : note, quest: !!QUEST_INKS[tones[i]] });
     if (note && action.cargo) rows.push({ key: '', label: note });
   });
   // A docked ship's menu is its way out and cannot be dismissed (labs/graphics/input-router.js), so it offers no CLOSE.
-  if (!world.docked) rows.push({ key: keyName('close') || '0', label: 'CLOSE', quiet: true });
+  if (!world.docked) rows.push({ key: keyName('close') || '0', label: 'CLOSE', back: true });
   // Each row's words cut to the window's measure: the keycap and a cell after it, then the words, the note two cells on.
-  const room = columns - 2;
   for (const rw of rows) {
-    rw.label = fitText(rw.label, room);
-    const left = room - len(rw.label) - 2;
+    rw.label = fitText(rw.label, room - 3);
+    const left = room - 3 - len(rw.label) - ORG.gutter;
     rw.inline = rw.inline && left >= 4 ? fitText(rw.inline, left) : null;
   }
-  const colsOf = (rw) => 2 + len(rw.label) + (rw.inline ? 2 + len(rw.inline) : 0);
-  const actions = leaf('keys', KEYCAP_PAD + Math.max(...rows.map(colsOf)) * cw, (rows.length - 1) * UI.row + r.cellH + KEYCAP_RISE + 1, (x, y, ww) => {
-    rows.forEach((rw, k) => {
-      const textTop = y + KEYCAP_RISE + k * UI.row;
-      const muted = rw.disabled || rw.quiet, plain = !muted && !far, noteInk = far ? QT : G;
-      const runs = (text) => (plain ? moneyRuns(text, noteInk) : [[text, noteInk]]);
-      if (!rw.key) { drawRuns(w.r, runs(rw.label), x + KEYCAP_PAD + 2 * cw, textTop); return; }
-      const under = rows[k + 1] && !rows[k + 1].key ? 1 : 0;
-      // Each action is a button from its keycap to the window's text edge, a cargo's note under it with it (SX, 2026-10-03: the
-      // mouse reaches every element): it answers a click as its key, and comes up under the pointer (src/hover.js).
-      const box = { x, y: textTop - KEYCAP_RISE, w: ww, h: (1 + under) * UI.row };
-      if (live) noteKeycap(rw.key, box);
-      w.item(`act:${rw.key}`, box, (on) => {
-        // The quest's ink on the cap's frame only (a repair the story asks for, src/menus.js litRepair, is the story's purple there too).
-        const ink = far ? QT : muted && !on ? G : W;
-        const next = keycap(w.r, rw.key, x + KEYCAP_PAD, textTop, { reach: 0, ink, ...(rw.cap ? { cap: rw.cap } : {}) });
-        drawRuns(w.r, plain ? moneyRuns(rw.label, ink) : [[rw.label, ink]], next, textTop);
-        if (rw.inline) drawRuns(w.r, runs(rw.inline), next + (len(rw.label) + 2) * cw, textTop);
-        if (under) drawRuns(w.r, runs(rows[k + 1].label), next, textTop + UI.row);
-      });
-    });
-  });
-  const head = target.talk
-    ? { title: fitText(target.talk.name, columns) }
-    : { title: fitText(target.title, columns), sub: moneyRuns(fitText(String(target.subtitle ?? '').replace(/\s{2,}/g, ' · '), columns), G) };
-  if (head.sub && !head.sub.some(([s]) => s.trim())) delete head.sub;
-  const said = target.talk ? lines(w, talkLines(target.talk, columns).map((s) => ({ l: [[s, G]] }))) : null;
-  const laid = layoutWindow(w, { ...head, tree: col(sec(said), sec(actions)) });
-  return { w, laid, rows, blockW: laid.w, blockH: laid.h };
+  // The head: the name, the sector at the right, the rest under the name; or a talk's speaker. Its words cut to the measure too.
+  const parts = String(target.subtitle ?? '').split(/\s{2,}|\s·\s/).map((q) => q.trim()).filter(Boolean);
+  const sector = !target.talk ? parts.find((q) => SECTOR_WORD.test(q)) ?? null : null;
+  const under = !target.talk ? parts.filter((q) => q !== sector).join(' · ') : '';
+  const title = fitText(target.talk ? target.talk.name : target.title, room - (sector ? len(sector) + ORG.meta : 0));
+  const said = target.talk ? talkLines(target.talk, room) : [];
+  // The content's columns: the widest row (its keycap, its words, its note the gutter after them) or the head's (its band is `C - S` wider each side).
+  const capCols = (key) => (len(key) * cw + 2 * KEYCAP_PAD) / cw + ORG.keyWord;
+  const rowCols = (rw) => (rw.key ? capCols(rw.key) : capCols('1')) + len(rw.label) + (rw.inline ? ORG.gutter + len(rw.inline) : 0);
+  const band = (2 * (ORG.C - ORG.S)) / cw;
+  const cols = Math.min(room, Math.ceil(Math.max(...rows.map(rowCols), ...said.map(len),
+    len(title) + (sector ? ORG.meta + len(sector) : 0) - band, len(fitText(under, room)) - band)));
+  const win = new Win(r, { width: null, panes: [cols], headLines: under ? 2 : 1, keyFirst: [!said.length], sky: true, id: `menu:${target.id ?? target.title}`, live });
+  const p = win.p, kRows = said.length ? p.next(p.yb(said.length - 1)) : 0;
+  win.fit(p.y(kRows + rows.length - 1) - win.keyTop + win.keyH, { foot: false });
+  return { win, rows, said, kRows, head: { title, sector, under: fitText(under, room) }, far, blockW: win.w, blockH: win.h };
 }
 
 // The window drawn at (x, y), on whole px: a talk answers a click anywhere on it as its first action (its rows, noted after, answer
 // as themselves). Returns its rect at its place as eased, not rounded (what the window's path and the pointer's hold read).
 function paintPlate(r, target, L, x, y, live) {
-  if (live && target.talk && L.rows[0]?.key) noteKeycap(L.rows[0].key, { x: Math.round(x), y: Math.round(y), w: L.laid.w, h: L.laid.h });
-  const box = paintWindow(L.w, L.laid, x, y);
-  finish(L.w);
-  return { ...box, x, y };
+  const { win, rows, said, kRows, head, far } = L;
+  win.place(() => ({ x, y }));
+  if (live && target.talk && rows[0]?.key) noteKeycap(rows[0].key, win.box);
+  win.sheet();
+  win.head([[head.title, INK.text]], { under: head.under ? { runs: moneyRuns(head.under, INK.label) } : null, meta: head.sector ? [[head.sector, INK.label]] : [] });
+  const p = win.p, { cw, m } = win;
+  said.forEach((l, i) => win.text(l, p.cx, p.y(i), INK.text));
+  rows.forEach((rw, k) => {
+    const Y = p.y(kRows + k), muted = rw.disabled || far;
+    const ink = far ? INK.faint : rw.disabled ? INK.faint : rw.back ? INK.label : INK.text;
+    const runs = (text, base) => (muted ? [[text, INK.faint]] : moneyRuns(text, base));
+    const wx = p.cx + win.keyWidth(rw.key || '1', null) + ORG.keyWord * cw - KEYCAP_PAD + m.capLeft;
+    if (!rw.key) { win.part({ runs: runs(rw.label, INK.label) }, wx, Y); return; }
+    const under = rows[k + 1] && !rows[k + 1].key ? 1 : 0;
+    // Each action is a button from its keycap to the window's content edge, a cargo's note under it with it (SX, 2026-10-03: the mouse reaches
+    // every element): it answers a click as its key, and stands on the focus bar under the pointer.
+    const box = win.rowBox(p.cx, p.cxr, Y);
+    if (under) box.h += UI.row;
+    if (live) noteKeycap(rw.key, box);
+    win.item(`act:${rw.key}`, box, (on) => {
+      if (on) win.bar(p.cx, p.cxr, Y);
+      win.key(p.cx, Y, rw.key, { words: { runs: rw.back ? [[rw.label, INK.label]] : runs(rw.label, ink) }, tier: rw.back ? 'back' : rw.quest ? 'quest' : 'key', plate: on });
+      // What the action says of itself at the right: why it cannot be taken, in the blue; a price in the gray, its money gold.
+      if (rw.inline) win.part({ runs: rw.disabled && !far ? [[rw.inline, INK.blue]] : runs(rw.inline, INK.label) }, p.cxr, Y, { right: true, plate: on });
+    }, 'button');
+  });
+  return { ...win.box, x, y };
 }
 
 // The window about `target` drawn now, whole, at its place on the bearing (its memory stepped by the world's time). Returns the

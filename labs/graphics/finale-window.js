@@ -1,51 +1,47 @@
 // The window when the boss TOLLKEEPER is beaten (src/bossQuest.js, the event bossQuestDone): the main game is done, how far the collection is
 // gathered, and the way back (SX, 2026-10-14: «после победы тебе должен встретить поп-ап о том что основная игра пройдена, показать на сколько
-// собраны твои коллектаблс и должна быть кнопка "вернуться в открытый космос"»). In the Swiss manner of every pop-up but the pause and the card
-// (labs/graphics/swiss.js, swiss-window.js), as the window about two tabs is (tabs-window.js): the head its kind's mark in the gain's green and its
-// title in white, TOLLKEEPER DOWN quiet at the right; a line on what it means; the collection's rows from the pilot card's journey (src/pilot.js
-// journey), each its count at the right, the whole as a share; then a rule and RETURN TO OPEN SPACE as the cockpit's keycap, which a click (on it or
-// anywhere on the window) presses. Like every pop-up it does not pause the flight. Returns the window's box.
+// собраны твои коллектаблс и должна быть кнопка "вернуться в открытый космос"»). On the organism since SX's sketch W-ORG R9 (2026-10-16,
+// labs/graphics/organism.js): a dialog the ladder's XS wide (480), as tall as its words. The head says what happened at the left, its mark in the red,
+// and what it means at the right, its mark in the interface's blue; a line on what it means; the collection as the pilot card has it (src/pilot.js
+// journey), each part its name and its count over its row of squares; the LEGACY, the share of it all; the foot RETURN TO OPEN SPACE, which a click
+// (on it or anywhere on the window) presses. Like every pop-up it does not pause the flight. Returns the window's box.
 import { journey } from '../../src/pilot.js';
-import { NOTICE_KINDS } from './notice.js';
+import { UI } from '../../src/uiGrid.js';
 import { noteAction } from './clicks.js';
-import { swiss, SWISS, W, Q } from './swiss.js';
-import { placeWindow, sheet, headRow, footKeys } from './swiss-window.js';
-import { ledger, finish, len } from './ledger.js';
+import { Win, ORG, INK, SIZES } from './organism.js';
 
 export const FINALE = Object.freeze({
-  cols: 44, title: 'MAIN GAME COMPLETE', right: 'TOLLKEEPER DOWN',
-  line: 'THE ROUTES ARE FREE. SPACE STAYS OPEN.', share: 'COLLECTED', key: 'ENTER', words: 'RETURN TO OPEN SPACE',
+  size: 'XS', title: 'TOLLKEEPER DOWN', right: 'MAIN GAME COMPLETE',
+  line: 'THE ROUTES ARE FREE. SPACE STAYS OPEN.', share: 'LEGACY', key: 'ENTER', words: 'RETURN TO OPEN SPACE',
 });
 
+// A share as its name, its count at the column's right and its row of squares under them. Returns the squares' bottom.
+function shareRow(win, p, Y, name, count, share, countInk = INK.label) {
+  win.text(name, p.cx, Y, INK.label);
+  win.text(count, p.cxr, Y, countInk, { right: true });
+  return win.squares(Y + win.cap + ORG.under, share, { x0: p.cx, x1: p.cxr });
+}
+// The content's height, px from its first capitals: the line, then each part (its name and its squares, a row's step between), then the legacy.
+const partH = (win) => win.cap + ORG.under + ORG.square;
+
 function layoutOf(r, world) {
-  const sw = swiss(r), { I } = sw, j = journey(world);
-  // The line, a blank row, the collection's rows, a blank row, the share.
-  const rows = j.rows, shareRow = 2 + rows.length + 1, bodyRows = shareRow + 1;
-  const footRow = SWISS.headGap + bodyRows + SWISS.footRows;
-  const bw = Math.round(2 * I + FINALE.cols * sw.cw), bh = sw.heightWithKeys(footRow);
-  const at = placeWindow(r, bw, bh);
-  return { sw, j, rows, shareRow, footRow, box: { x: at.x, y: at.y, w: bw, h: bh } };
+  const j = journey(world), win = new Win(r, { size: [SIZES[FINALE.size][0], null], id: 'finale' }), p = win.p;
+  const first = p.y(p.next(p.yb(0))), legacy = first + j.rows.length * (partH(win) + UI.row - win.cap) - (UI.row - win.cap) + ORG.C;
+  win.fit(legacy + partH(win)).place();
+  return { j, win };
 }
 
-export function finaleRect(r, world) { return layoutOf(r, world).box; }
+export function finaleRect(r, world) { return layoutOf(r, world).win.box; }
 
 export function drawFinaleWindow(r, world, { onClose = null } = {}) {
-  const { sw, j, rows, shareRow, footRow, box } = layoutOf(r, world), w = ledger(r, { id: 'finale' });
-  const kind = NOTICE_KINDS.gain, L = box.x + sw.I, R = box.x + box.w - sw.I, bodyAt = (k) => sw.rowAt(box.y, SWISS.headGap + k);
-  sheet(sw, box, footRow);
-  headRow(sw, box, [{ runs: [[kind.mark, kind.ink], [' ', W], [FINALE.title, W]] }], [[FINALE.right, Q]]);
-  sw.text(FINALE.line, L, bodyAt(0), W);
-  // The collection: its label quiet at the left, its count white at the right; a whole row in the gain's green.
-  rows.forEach((row, k) => {
-    const count = `${row.have} / ${row.of}`, whole = row.have >= row.of;
-    sw.text(row.label, L, bodyAt(2 + k), Q);
-    sw.text(count, R - len(count) * sw.cw, bodyAt(2 + k), whole ? kind.ink : W);
-  });
-  const share = `${Math.round(j.progress * 100)} %`;
-  sw.text(FINALE.share, L, bodyAt(shareRow), Q);
-  sw.text(share, R - len(share) * sw.cw, bodyAt(shareRow), W);
-  footKeys(w, sw, box, [{ key: FINALE.key, words: FINALE.words, id: 'key:return', right: true }], { top: sw.rowAt(box.y, footRow) });
-  finish(w);
-  if (onClose) noteAction(box, onClose);
-  return box;
+  const { j, win } = layoutOf(r, world), p = win.p;
+  win.sheet();
+  win.head([['! ', INK.red], [FINALE.title, INK.text]], { meta: [{ runs: [['+ ', INK.blue], [FINALE.right, INK.label]] }] });
+  win.text(FINALE.line, p.cx, p.y(0), INK.text);
+  let y = p.y(p.next(p.yb(0)));
+  for (const row of j.rows) y = shareRow(win, p, y, row.label, `${row.have}/${row.of}`, row.have / Math.max(1, row.of)) + (UI.row - win.cap);
+  shareRow(win, p, y - (UI.row - win.cap) + ORG.C, FINALE.share, `${Math.round(j.progress * 100)}%`, j.progress, INK.text);
+  win.foot([], [{ key: FINALE.key, words: FINALE.words, id: 'key:return' }]);
+  if (onClose) noteAction(win.box, onClose);
+  return win.box;
 }

@@ -180,6 +180,8 @@ export function keyAt(x, y) { return regionAt(x, y, (b) => !!b.code)?.code ?? nu
 export const actionBoxes = () => regions.filter((b) => !!b.run).map(({ x, y, w, h, rest }) => ({ x, y, w, h, rest: rest ?? null }));
 // The button under (x, y), or null, as forgiving.
 export function actionAt(x, y) { return regionAt(x, y, (b) => !!b.run)?.run ?? null; }
+// Everything the last frame noted, a key's code or a button's (`run` whether it is one), as drawn: what tools/click-audit.mjs clicks one by one.
+export const notedRegions = () => regions.map(({ x, y, w, h, code = null, run = null }) => ({ x, y, w, h, code, run: !!run }));
 
 // The box round everything `draw()` puts on the canvas of `r`, or null when it drew nothing. A fill of the whole window
 // (a dimming) is not the pop-up's.

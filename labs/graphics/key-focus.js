@@ -148,8 +148,10 @@ export function createKeyFocus(game) {
     const boxes = walkBoxes(by);
     if (!boxes.length) return true;
     const on = game.pointer.parked === by && walk.by === by;
+    // Enter clicks the box the walk stands on; with none, it starts the walk on the first, as an arrow does (a click on the foot's ENTER does
+    // something the pilot sees: SX, 2026-10-16, «все элементы ... кликабельны курсором тоже и выполняли свои действия»).
     if (go) {
-      if (on) { const p = middle(boxes[Math.min(walk.index, boxes.length - 1)]); game.router.clickAt(p.x, p.y); }
+      if (on) { const p = middle(boxes[Math.min(walk.index, boxes.length - 1)]); game.router.clickAt(p.x, p.y); } else parkWalk(by, boxes, 0);
       return true;
     }
     if (!on) { parkWalk(by, boxes, 0); return true; }

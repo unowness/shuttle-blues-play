@@ -70,7 +70,11 @@ export function createInputRouter(game) {
     // plays on; in flight it pauses once nothing else it closes is open (the controls list, an object's menu; a berth's menu is
     // never closed, so docked it pauses).
     const pausedNow = pause.state.keyPause && world.paused;
-    const escape = key('back') && !listTook && !open.help && (pausedNow || world.docked || !menuOpen(world.selected, game.menu.closed, world.docked));
+    // A talk's beat standing (labs/graphics/talk-beat.js) takes Escape and 0 as its LATER, docked too, where its menu stays (a berth's must): its
+    // foot says ESC LATER (SX's organism, 2026-10-16: the way back the foot's first key). It pauses no more than a menu's close does.
+    const later = !open.help && !pausedNow && !listTook && !!game.beat?.standing() && (key('back') || key('close'));
+    if (later) game.beat.later();
+    const escape = !later && key('back') && !listTook && !open.help && (pausedNow || world.docked || !menuOpen(world.selected, game.menu.closed, world.docked));
     if (escape && pausedNow && pause.menu.page !== 'main') pause.leavePausePage();
     else if ((key('pause') || escape) && !open.help) pause.press(pausedNow);
     // The workshop's keys (H, R), the lab's only (labs/graphics/lab-keys.js); the game has none.

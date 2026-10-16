@@ -60,9 +60,8 @@ import { markBlinkAlpha } from './locator.js';
 import { PALETTE, ROLES } from '../../src/roles.js';
 import { glyphs, fitText } from '../../src/util.js';
 import { keyName, keyText } from '../../src/controls.js';
-import { swiss, SWISS, sectorLine, bar, onBar, keycapAt, keycapWidth } from './swiss.js';
-import { sheet, headRow, hangHead, footKeys } from './swiss-window.js';
-import { ledger as ledgerOf, finish } from './ledger.js';
+import { sectorLine } from './swiss.js';
+import { Win, ORG, INK as TONE } from './organism.js';
 import { unnoted } from './clicks.js';
 
 export const MAP = Object.freeze({
@@ -79,6 +78,7 @@ export const MAP = Object.freeze({
   scatter: [200, 500],  // u: how far from where it was put a flag lands (SX's pick)
   corner: 6,            // px, the arms of the corners round the thing under the pointer
   cache: 5,             // px, half a cache's diamond
+  legend: 4,            // px, half a legend's mark: a station's box 8 x 6, its lines on whole px
   goal: 9,              // px, the ring round where the task the top banner shows leads (two cache diamonds and its air)
   crate: 3,             // px, half the square of an authored cargo waiting, on its station's box (SX's K2, 2026-10-14)
   zoomMax: 10 * WORLD_SCALE,   // times the whole-map scale (a planet of 300 u is then a disc about 80 px across, in a world of any scale)
@@ -100,6 +100,7 @@ const shown = () => SECTORS.filter((s) => !s.hidden);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const EMPTY_LEDGER = { restored: new Set(), invested: new Map(), found: new Map(), reached: new Set(), visited: new Set(), placed: new Map(), told: new Set(), marked: null };
 const FIT = Object.freeze({ z: 1, cx: 0.5, cy: 0.5 });
+const WHEEL_NOTCH = 120;                      // px of wheel a notch is (MAP.wheel is a zoom a px)
 
 // The flags themselves are the world's (world.flags, src/flags.js: they stand in space, are taken down there and are saved); the
 // map puts them down and draws them, and keeps only how a flag just put drifts to where it lands (`landing`, by the flag).
@@ -221,37 +222,36 @@ export function clampView(v) {
   return { z, cx: clamp(v.cx, m, 1 - m), cy: clamp(v.cy, m, 1 - m) };
 }
 
-// The window, on the Swiss grid (labs/graphics/swiss.js): the head and its rule, a body of `inRows` rows and one more, the foot a blank row on.
-// The sectors' box is `inRows` rows tall from the first body row's capitals, three across and two down, as square as whole rows and columns
-// allow, the window as tall as the flight area holds and as wide as the screen leaves it (the column and its step off the box); the column
-// at the right of it. `view` (zoom z, and the middle cx, cy of what shows, as shares of the whole map) moves and scales the sectors inside
-// the box; the whole map is the default. Returns the window's `box` (x, y, w, h), the foot's row, the box's `area`, the `sectors` and the
-// `column`'s place.
+// The window, on the organism (labs/graphics/organism.js; SX, 2026-10-16: «легенду слева. А справа карту ... там можно ж крупнее окно взять, но
+// выбрать так, чтобы карта хорошо помещалась и стояла также за одной вертикальной полоской только. Но там уже внутри нее сектора разделены»): two
+// panes, the column of what the map says at the left (`MAP.side` columns of content), the sectors at the right filling their pane edge to edge
+// behind the one upright, as the pause's space fills its own. Each sector a square of whole px (SX: «у карты постоянно теряются контура внутренние.
+// Строй ее в таком размере, чтобы они не терялись»): the dashed lines between them stand on whole px, and the sectors' outer lines are the
+// window's own (the head's rule, the foot's, the frame's, the upright). As large as the screen allows, an even number of px: the screen's width
+// less the column and the windows' inset at its sides, its height less the pad; the window may stand over the cockpit's band as the pilot card
+// does. `view` (zoom z, and the middle cx, cy of what shows, as shares of the whole map) moves and scales the sectors inside their pane; the whole
+// map is the default. Returns the window (`win`), its `box`, the sectors' `area`, the `sectors` and the `column`'s place.
 export function mapLayout(r, view = FIT) {
-  const sw = swiss(r), { cw, I } = sw, E = I;                  // (the screen's edge to the window: the windows' inset)
-  const rv = r.view || { x: 0, y: 0, w: r.width, h: r.height };
+  const E = ORG.S + 1;                                          // (the screen's edge to the window: the windows' inset)
   const list = shown();
   const across = Math.max(...list.map((s) => s.col)) + 1, down = Math.max(...list.map((s) => s.row)) + 1;
-  // The sectors' box on the body's first row's capitals, the foot's row the row after its last, its rule `air` under the box's foot.
-  const footOf = (inRows) => SWISS.headGap + inRows + 1;
-  // The columns the sectors' box may take across (the screen's inset, the window's, the column and its step), the rows it may take down.
-  const wideCols = Math.floor((r.width - 2 * E - 2 * I) / cw) - MAP.side - MAP.gap;
-  let tall = Math.floor((rv.h - 2 * UI.pad) / UI.row);
-  while (tall > down && sw.heightWithKeys(footOf(tall)) > rv.h - 2 * UI.pad) tall -= 1;
-  const side = Math.min((wideCols * cw) / across, (tall * UI.row) / down);
-  const inRows = Math.max(down, Math.floor((down * side) / UI.row));
-  const inCols = Math.min(wideCols, Math.round(((inRows * UI.row) / down) * across / cw));
-  const footRow = footOf(inRows), w = Math.round(2 * I + (inCols + MAP.gap + MAP.side) * cw), h = sw.heightWithKeys(footRow);
-  const at = centredWindow(r, w, h, { clear: false }), box = { x: at.x, y: at.y, w, h };
-  const ax0 = box.x + I, ax1 = ax0 + inCols * cw, ay0 = Math.round(sw.capTopOf(sw.rowAt(box.y, SWISS.headGap)));
-  const ay1 = sw.footRule(box.y, footRow) - SWISS.air;
+  const probe = new Win(r, { panes: [MAP.side, { px: 1 }] }), colSpan = probe.panes[0].right;
+  const fits = Math.min((r.width - 2 * E - colSpan - 2) / across, (r.height - 2 * UI.pad - probe.headRule - 1 - probe.footBand) / down);
+  const side = Math.max(2, 2 * Math.floor(fits / 2));
+  const win = new Win(r, { panes: [MAP.side, { px: across * side + 1 }], id: 'map' }).body(down * side);
+  win.place((w, h) => {
+    const at = centredWindow(r, w, h, { clear: false });
+    return { x: Math.max(E, Math.min(r.width - w - E, at.x)), y: Math.max(UI.pad, Math.min(r.height - h - UI.pad, at.y)) };
+  });
+  const inside = win.panes[1].inside, ax0 = inside.x, ay0 = inside.y, ax1 = ax0 + across * side, ay1 = ay0 + down * side;
   const gw = ax1 - ax0, gh = ay1 - ay0, sw_ = gw / across, sh = gh / down, v = clampView(view);
   const sectors = list.map((s) => ({
     s, x: ax0 + gw / 2 + (s.col * sw_ - v.cx * gw) * v.z, y: ay0 + gh / 2 + (s.row * sh - v.cy * gh) * v.z,
     w: sw_ * v.z, h: sh * v.z, kx: sw_ * v.z / W, ky: sh * v.z / H,
   }));
-  return { x: box.x, y: box.y, box, footRow, inRows, inCols, across, down, view: v, area: { x0: ax0, y0: ay0, x1: ax1, y1: ay1 }, sectors,
-    column: { x: ax1 + MAP.gap * cw, w: MAP.side * cw } };
+  const col = win.panes[0];
+  return { win, x: win.box.x, y: win.box.y, box: win.box, side, across, down, view: v, area: { x0: ax0, y0: ay0, x1: ax1, y1: ay1 }, sectors,
+    column: { x: col.cx, w: col.cxr - col.cx } };
 }
 
 const at = (cell, ux, uy) => ({ x: cell.x + ux * cell.kx, y: cell.y + uy * cell.ky });
@@ -287,6 +287,13 @@ export function mapMove(map, { x = 0, y = 0, zoom = 0 } = {}, now) {
   map.view = clampView({ z, cx: v.cx + x * MAP.keyPan * dt / z, cy: v.cy + y * MAP.keyPan * dt / z });
 }
 export function mapFit(map) { map.view = { ...FIT }; }
+// A step of the picture for a tap of a move or zoom key, a click on the foot's keys among them (a click presses its key for one frame, which a
+// glide turns into next to nothing: SX, 2026-10-16, «все ... кнопки ... кликабельны курсором тоже и выполняли свои действия»): a sixth of what
+// shows across or down, or a wheel's notch about the middle; held, the keys glide on (mapMove).
+export function mapStep(map, { x = 0, y = 0, zoom = 0 } = {}) {
+  const v = map.view, z = zoom ? clamp(v.z * Math.exp(zoom * WHEEL_NOTCH * MAP.wheel), 1, MAP.zoomMax) : v.z;
+  map.view = clampView({ z, cx: v.cx + x / (6 * z), cy: v.cy + y / (6 * z) });
+}
 // The button down on the sectors' box may start a drag; up again ends it. A press that travelled `dragFrom` px is a drag and
 // its click puts no flag.
 export function mapPress(map, x, y) {
@@ -502,13 +509,14 @@ function paintStatic(T, r, map, world, G, S) {
   ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.setLineDash(MAP.dash);
   ctx.beginPath();
   const gw = x1 - x0, gh = y1 - y0, v = G.view;
+  // (Only those inside the pane: its edges are the window's own lines, the head's rule, the foot's, the upright and the frame.)
   for (let i = 0; i <= G.across; i++) {
     const x = Math.round(x0 + gw / 2 + (i * gw / G.across - v.cx * gw) * v.z) + 0.5;
-    ctx.moveTo(x, y0); ctx.lineTo(x, y1);
+    if (x > x0 + 1 && x < x1 - 1) { ctx.moveTo(x, y0); ctx.lineTo(x, y1); }
   }
   for (let j = 0; j <= G.down; j++) {
     const y = Math.round(y0 + gh / 2 + (j * gh / G.down - v.cy * gh) * v.z) + 0.5;
-    ctx.moveTo(x0, y); ctx.lineTo(x1, y);
+    if (y > y0 + 1 && y < y1 - 1) { ctx.moveTo(x0, y); ctx.lineTo(x1, y); }
   }
   ctx.stroke();
   ctx.restore();
@@ -663,8 +671,7 @@ export function drawMap(r, map, world, now, { reducedMotion = false, target = nu
   map.layout = G;
   map.view = G.view;
   const t = now - map.openedAt;
-  const w = ledgerOf(r, { id: 'map' }), sw = swiss(r);
-  sheet(sw, G.box, G.footRow);
+  const win = G.win.sheet();
   const pic = staticPicture(r, map, world, G);
   const p = map.pointer;
   const under = p ? cellAt(G, p.x, p.y) : null;
@@ -770,86 +777,88 @@ export function drawMap(r, map, world, now, { reducedMotion = false, target = nu
   }
   ctx.restore();
 
-  // The window round the picture. The head: MAP and THE GRID, the sector the ship is in and how many are open.
+  // The window round the picture. The head: MAP, and at the right the sector the ship is in and how many are open.
   const open = world?.ledger ? shown().filter((q) => sectorOpen(world.ledger, q)).length : shown().length, place = sectorLine(world);
-  headRow(sw, G.box, [['MAP', ROLES.textPrimary], ['THE GRID', ROLES.textSecondary]], [...(place ? [[place, ROLES.textSecondary]] : []), [`${open} OF ${shown().length} OPEN`, ROLES.textHint]]);
-  // The column, in hanging heads, at fixed rows so it does not jump as the pointer moves: 01 HERE, 02 FLAGS, 03 LEGEND.
-  const colX = G.column.x, colR = colX + G.column.w, bodyAt = (k) => sw.rowAt(G.box.y, SWISS.headGap + k), padB = SWISS.barPad;
-  // 01 HERE, or what the pointer is on (its name, in its ink, for a thing; the sector's own figures for a sector).
+  win.head([['MAP', TONE.text]], { meta: [...(place ? [[place, TONE.label]] : []), [`${open}/${shown().length} OPEN`, TONE.faint]] });
+  // The column at the left, its parts at fixed rows so it does not jump as the pointer moves: HERE, FLAGS, LEGEND, CARGO, each its name `C` over
+  // its rows (the pilot card's way).
+  const col = win.panes[0], colX = col.cx, colR = col.cxr, cw = r.cellW, cap = win.cap, tc = col.cols;
+  const cx0 = Math.round(colX + cw / 2) + 0.5;                  // a mark's middle in the column's first cell, on the half px its 1 px lines want
+  // HERE, or what the pointer is on (its name, in its ink, for a thing; the sector's own figures for a sector).
   const here = G.sectors.find((c) => c.s.id === world?.sector?.id);
   const hereShown = here && sectorShown(map, here.s, world);
   const hit = hover ?? (here ? { kind: 'sector', s: here.s, seen: hereShown === 'seen', shown: hereShown, cell: here } : null);
   const words = mapWords(hit, world, map);
   const mine = !hover || (hover.kind === 'sector' && hover.s.id === world?.sector?.id);
-  const tc = MAP.side;
+  const kHere = 0, kHereRows = col.next(col.yb(kHere));
   if (words) {
     const facts = words.facts ? (mine ? [['SECTOR', words.title], ...words.facts] : words.facts) : null;
-    hangHead(sw, colX, bodyAt(0), 1, mine ? 'HERE' : fitText(words.title, tc - 4), { ink: mine ? undefined : words.ink ?? ROLES.textPrimary });
+    win.text(mine ? 'HERE' : fitText(words.title, tc), colX, col.y(kHere), mine ? TONE.label : words.ink ?? TONE.text);
     const rows = (facts ?? words.lines.flatMap((l) => wrapText(l, tc))).slice(0, MAP.hereRows);
     rows.forEach((row, i) => {
-      const top = bodyAt(MAP.under + i);
+      const Y = col.y(kHereRows + i);
       if (facts) {
-        sw.text(row[0], colX, top, ROLES.textSecondary);
-        sw.textEnd(fitText(String(row[1]), tc - glyphs(row[0]).length - 1), colR, top, ROLES.textPrimary);
-      } else sw.text(row, colX, top, ROLES.textPrimary);
+        win.text(row[0], colX, Y, TONE.label);
+        win.text(fitText(String(row[1]), tc - glyphs(row[0]).length - 1), colR, Y, TONE.text, { right: true });
+      } else win.text(row, colX, Y, TONE.text);
     });
-  } else hangHead(sw, colX, bodyAt(0), 1, 'HERE');
-  // 02 FLAGS: how many are set, and the five: a key, the flag in its colour, its name and the sector it stands in or NOT SET; the picked one (the
-  // keys' choice) and the one under the pointer are the inverted row, a click picks it.
-  const flagsAt = MAP.under + MAP.hereRows + 1, set = flags.filter(Boolean).length;
-  hangHead(sw, colX, bodyAt(flagsAt), 2, 'FLAGS');
-  sw.textEnd(`${set} / ${FLAGS.length}`, colR, bodyAt(flagsAt), ROLES.textPrimary);
-  const rows = [], capW = keycapWidth(sw, '1');
+  } else win.text('HERE', colX, col.y(kHere), TONE.label);
+  // FLAGS: how many are set, and the five: a key, the flag in its colour, its name and the sector it stands in or NOT SET; the picked one (the
+  // keys' choice) and the one under the pointer on the focus bar, a click picks it.
+  const kFlags = col.next(col.yb(kHereRows + MAP.hereRows - 1)), set = flags.filter(Boolean).length;
+  col.label(kFlags, 'FLAGS', `${set}/${FLAGS.length}`);
+  const kFlagRows = col.next(col.yb(kFlags)), rows = [], capW = win.keyWidth('1', null);
   FLAGS.forEach((f, i) => {
-    const top = bodyAt(flagsAt + MAP.under + i), box = { x: colX - padB, y: top, w: colR - colX + 2 * padB, h: UI.row };
+    const Y = col.y(kFlagRows + i), box = win.rowBox(colX, colR, Y);
     const where = flags[i] ? SECTORS.find((q) => q.id === flags[i].sector)?.label ?? '' : 'NOT SET';
     rows.push({ kind: 'flag-row', i, box });
-    w.item(`flag:${i}`, box, (over) => {
+    win.item(`flag:${i}`, box, (over) => {
       const lit = over || i === map.pick;
-      if (lit) bar(sw, box);
-      unnoted(() => keycapAt(sw, String(i + 1), colX, top, ROLES.textPrimary, lit));
-      drawFlag(ctx, Math.round(colX + capW + 8), top + UI.row - 5, lit ? ROLES.backing : f.ink, now + i, 1);
-      sw.text(f.name, colX + capW + 2 * r.cellW + 6, top, onBar(lit, ROLES.textPrimary), lit);
-      sw.textEnd(where, colR, top, onBar(lit, flags[i] ? ROLES.textPrimary : ROLES.textHint), lit);
-    }, 'flat');
+      if (lit) win.bar(colX, colR, Y);
+      unnoted(() => win.key(colX, Y, String(i + 1), { plate: lit }));
+      drawFlag(ctx, Math.round(colX + capW + cw), Math.round(Y + cap + 1), f.ink, now + i, 1);
+      win.text(f.name, colX + capW + 3 * cw, Y, TONE.text, { plate: lit });
+      win.text(where, colR, Y, flags[i] ? TONE.text : TONE.faint, { right: true, plate: lit });
+    });
   });
   map.rows = rows;
-  // 03 LEGEND: what the picture's marks are, as many as the body has room for.
-  const legendAt = flagsAt + MAP.under + FLAGS.length + 1, room = Math.min(LEGEND.length, Math.floor(G.inRows + 1 - legendAt - MAP.under));
+  // LEGEND: what the picture's marks are, as many as the pane has room for (its marks on whole px: SX, «контура ... не терялись»).
+  const kLegend = col.next(col.yb(kFlagRows + FLAGS.length - 1)), kLegendRows = col.next(col.yb(kLegend));
+  const bottom = win.y0 + win.footRule - ORG.C, fitsRows = (k0) => Math.max(0, Math.floor((bottom - col.yb(k0)) / UI.row) + 1);
+  const room = Math.min(LEGEND.length, fitsRows(kLegendRows));
   if (room >= 2) {
-    hangHead(sw, colX, bodyAt(legendAt), 3, 'LEGEND');
+    win.text('LEGEND', colX, col.y(kLegend), TONE.label);
     LEGEND.slice(0, room).forEach(([variant, name], i) => {
-      const top = bodyAt(legendAt + MAP.under + i), cy = sw.capMid(top), cx = colX + r.cellW;
-      if (variant === 'you') drawShip(ctx, { x: cx, y: cy }, -Math.PI / 2, 0);
-      else if (variant === 'cargo') crate(r, cx, cy);
-      else glyph(ctx, variant, cx, cy, MAP.cache);
-      sw.text(name, colX + 3 * r.cellW, top, ROLES.textSecondary);
+      const Y = col.y(kLegendRows + i), cy = Math.round(Y + cap / 2) + 0.5;
+      if (variant === 'you') drawShip(ctx, { x: cx0, y: cy }, -Math.PI / 2, 0);
+      else if (variant === 'cargo') crate(r, cx0, cy);
+      else glyph(ctx, variant, cx0, cy, MAP.legend);
+      win.text(name, colX + 3 * cw, Y, TONE.label);
     });
   }
-  // 04 CARGO: how many authored jobs wait, and each one, its cargo and the station it waits at, as many as the body has room for.
-  const cargoAt = legendAt + MAP.under + LEGEND.length + 1, cargoRoom = Math.min(waiting.length, Math.floor(G.inRows + 1 - cargoAt - MAP.under));
+  // CARGO: how many authored jobs wait, and each one, its cargo and the station it waits at, as many as the pane has room for.
+  const kCargo = col.next(col.yb(kLegendRows + LEGEND.length - 1)), kCargoRows = col.next(col.yb(kCargo)), cargoRoom = Math.min(waiting.length, fitsRows(kCargoRows));
   if (room === LEGEND.length && cargoRoom >= 1) {
-    hangHead(sw, colX, bodyAt(cargoAt), 4, 'CARGO');
-    sw.textEnd(String(waiting.length), colR, bodyAt(cargoAt), ROLES.textPrimary);
+    col.label(kCargo, 'CARGO', String(waiting.length));
     waiting.slice(0, cargoRoom).forEach((c, i) => {
-      const top = bodyAt(cargoAt + MAP.under + i), from = stationDefById(c.from, ledger)?.label ?? '', n = glyphs(from).length;
-      crate(r, colX + r.cellW, sw.capMid(top));
-      sw.text(fitText(c.label, tc - 3 - n - 1), colX + 3 * r.cellW, top, ROLES.textPrimary);
-      sw.textEnd(from, colR, top, ROLES.textSecondary);
+      const Y = col.y(kCargoRows + i), from = stationDefById(c.from, ledger)?.label ?? '', n = glyphs(from).length;
+      crate(r, cx0, Math.round(Y + cap / 2) + 0.5);
+      win.text(fitText(c.label, tc - 3 - n - 1), colX + 3 * cw, Y, TONE.text);
+      win.text(from, colR, Y, TONE.label, { right: true });
     });
   }
-  // The foot: the keys the picture answers to, as the cockpit's caps, each with its words. The keyboard alone (`scheme` K, the hints' scheme,
-  // labs/graphics/schemes.js) reads the keys that work for it from the table (Codex's text pass UI-04, SX 2026-10-07: it was taught CLICK, WHEEL and
-  // DRAG); the mouse's and MK's, as they were, say what a click, the wheel and a drag do (words, not keys).
-  const cap = (action) => keyName(action) || action;
+  // The foot: ESC CLOSE first (TAB, which opens the map, closes it too), then the keys the picture answers to, as the cockpit's caps, each with
+  // its words. The keyboard alone (`scheme` K, the hints' scheme, labs/graphics/schemes.js) reads the keys that work for it from the table
+  // (Codex's text pass UI-04, SX 2026-10-07: it was taught CLICK, WHEEL and DRAG); the mouse's and MK's say what a click, the wheel and a drag do
+  // (words, not keys).
+  const capOf = (action) => keyName(action) || action;
   const items = scheme === 'K'
-    ? [{ key: cap('map'), words: 'CLOSE', id: 'key:map' }, { key: keyText(['choices'], { range: FLAGS.length }), words: 'FLAG', id: 'key:flag' },
-      { key: cap('confirm'), words: 'PLACE', id: 'key:place' }, { key: `${keyName('zoomOut')} ${keyName('zoomIn')}`, words: 'ZOOM', id: 'key:zoom' },
-      { key: ['←', '→', '↑', '↓'].join(' '), words: 'MOVE', id: 'key:move' }, { key: cap('fit'), words: 'FIT', id: 'key:fit' }]
-    : [{ key: 'TAB', words: 'CLOSE', id: 'key:map' }, { key: '1-5', words: 'FLAG', id: 'key:flag' },
-      { key: 'CLICK', words: 'PLACE FLAG NEARBY', plain: true }, { key: 'WHEEL', words: 'ZOOM', plain: true }, { key: 'DRAG', words: 'MOVE', plain: true }];
-  footKeys(w, sw, G.box, items, { top: sw.rowAt(G.box.y, G.footRow) });
-  finish(w);
+    ? [{ key: keyText(['choices'], { range: FLAGS.length }), words: 'FLAG', id: 'key:flag' }, { key: capOf('confirm'), words: 'PLACE', id: 'key:place' },
+      { key: `${keyName('zoomOut')} ${keyName('zoomIn')}`, words: 'ZOOM', id: 'key:zoom' }, { key: ['←', '→', '↑', '↓'].join(' '), words: 'MOVE', id: 'key:move' },
+      { key: capOf('fit'), words: 'FIT', id: 'key:fit' }]
+    : [{ key: '1-5', words: 'FLAG', id: 'key:flag' }, { key: 'CLICK', words: 'PLACE FLAG NEARBY', plain: true }, { key: 'WHEEL', words: 'ZOOM', plain: true },
+      { key: 'DRAG', words: 'MOVE', plain: true }];
+  win.foot([{ key: keyName('back') || 'ESC', words: 'CLOSE', id: 'key:back' }], items);
 }
 
 // Where the pointer is; what a click there would do: 'pick' on a flag's row, 'flag' on a sector, 'drag' while the picture

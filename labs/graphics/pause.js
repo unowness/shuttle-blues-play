@@ -5,14 +5,14 @@
 // (docs/plans/2026-10-04-roadmap.md). `game` is the page's (main.js), read when a function runs.
 //
 // The pages, in the order SX's pick argued (labs/graphics/sketches/pause-v2.html, P2 LEDGER with S2 STEPPER, its «Порядок строк»), laid out in
-// the Swiss manner since 2026-10-09 (labs/graphics/pause-menu.js: the menu's rows and the toy's square, two equal cells, on the main page, a settings page's groups hung
-// by their name under a BACK, the foot's key hints, the frame and rules in the grays of src/frames.js):
-//   main       RESUME first (the commonest and safest; Enter right after P plays on), the settings (GRAPHICS with the finds' news,
-//              AUDIO, GAMEPLAY, LAYOUT, the rarest and a mode of its own), then SAVE GAME (a click saves at once, as before chat P) and
-//              MAIN MENU last, a blank row apart, so the end of a session is never under the hand. The head says what the game knows: when
-//              the game last saved itself (honest, never «saved» before the write has gone), then the flight's time. SAVE
-//              GAME's page of facts went (SX on the picks hub, 2026-10-04: «SAVE GAME saves at once»): the pilot card and the HUD already
-//              say the money, the stations and the finds.
+// the organism since 2026-10-16 (labs/graphics/pause-menu.js on labs/graphics/organism.js: the menu's rows and the pause's space on the main page, a settings
+// page's groups by their name under its name in the head, the foot's keys with ESC first, the frame and rules in the grays of src/frames.js):
+//   main       the settings (GRAPHICS with the finds' news, AUDIO, GAMEPLAY, LAYOUT, the rarest and a mode of its own), then SAVE GAME (a
+//              click saves at once, as before chat P) and MAIN MENU last, a blank row apart, so the end of a session is never under the hand.
+//              RESUME's row went on SX's word of 2026-10-16 («повторение не нужно»): the foot's ESC RESUME plays on. The head says what the
+//              game knows: when the game last saved itself (honest, never «saved» before the write has gone); the flight's time went the same
+//              day. SAVE GAME's page of facts went (SX on the picks hub, 2026-10-04: «SAVE GAME saves at once»): the pilot card and the HUD
+//              already say the money, the stations and the finds.
 //   graphics   SCREEN: DISPLAY (the whole screen, as V), LOOK, FRAMES (the grays or the look's tint, src/frames.js), from the wider to the
 //              narrower; PILOT: SHIP, the drawing the pilot's ship wears (src/shipLooks.js, SX 2026-10-07), over PAINT, what it is painted in,
 //              and CURSOR, the collections (UI SHADOW went with the interface's shadow, 2026-10-06: only its text casts one now,
@@ -49,7 +49,6 @@ import { codesOf, SCHEMES, SCHEME_NAMES, DEFAULT_SCHEME } from '../../src/contro
 import { radioFitted, interfaceGiven } from '../../src/opening.js';
 import { STEERINGS, STEERING_NAMES, DEFAULT_STEERING, setSteering } from '../../src/steering.js';
 import { GREETINGS, GREETING_NAMES, DEFAULT_GREETING, setGreeting } from './greeting.js';
-import { pad2 } from './swiss.js';
 
 // How long ago, in the save row's words.
 function agoText(s) {
@@ -303,10 +302,9 @@ export function createPause(game) {
   }
   function mainRows() {
     const o = ownedNow(), fresh = o.looks.some((id) => isNew('looks', id)) || o.paints.some((id) => isNew('paints', id)) || o.cursors.some((id) => isNew('cursors', id));
+    // RESUME's row went (SX, 2026-10-16: «убери, пожалуйста, в паузе резюм сверху ... повторение не нужно. Начинай сразу с графикс»): the foot's
+    // ESC RESUME plays on, and so do a click outside the window and one on the PAUSED plate.
     return [
-      // (Its own function, not the plate's: the golden master tells the buttons apart by what they run.)
-      { kind: 'item', label: 'RESUME', run: () => resumeFromMenu() },
-      blank,
       { kind: 'item', label: 'GRAPHICS', dot: fresh, page: 'graphics', run: () => openPage('graphics') },
       { kind: 'item', label: 'AUDIO', page: 'audio', run: () => openPage('audio') },
       { kind: 'item', label: 'GAMEPLAY', page: 'gameplay', run: () => openPage('gameplay') },
@@ -322,27 +320,25 @@ export function createPause(game) {
   const PAGES = { graphics: graphicsRows, audio: audioRows, gameplay: gameplayRows, leave: leaveRows, layout: layoutRows };
   function pauseRows() { return (PAGES[menu.page] ?? mainRows)(); }
 
-  // The head's words (the Swiss pause, labs/graphics/pause-menu.js): on the main page PAUSE and, at the right, only what the game knows: the
-  // last save, honest as saveWords says it, then the flight's time (the pilot's own seconds of flight, src/contracts.js clock) once there is
-  // some, at the window's edge (SX's marks of 2026-10-14: the two swapped, the sector struck out); on a page, nothing but its BACK.
-  const clockText = (sec) => { const t = Math.floor(sec); return [Math.floor(t / 3600), Math.floor(t / 60) % 60, t % 60].map(pad2).join(':'); };
+  // The head's words (labs/graphics/pause-menu.js): on the main page PAUSE and, at the right, the last save, honest as saveWords says it (the
+  // flight's time went: SX, 2026-10-16, «убери таймер и оставь Save Two Minutes Ago просто ... справа»); on a page its name, from its `back` row.
   function headOf() {
     if (menu.page !== 'main') return { title: 'PAUSE', meta: [] };
-    const { world } = game, words = saveWords(), clock = world.ledger?.clock;
-    const meta = [{ text: words.value, ink: words.ink ?? undefined }, { text: Number.isFinite(clock) && clock > 0 ? clockText(clock) : null }];
-    return { title: 'PAUSE', meta: meta.filter((m) => m.text) };
+    const words = saveWords();
+    return { title: 'PAUSE', meta: words.value ? [{ text: words.value, ink: words.ink ?? undefined }] : [] };
   }
-  // The foot's keys, as Escape does them (labs/graphics/input-router.js): on the main page it lets the pause go; on another it goes back to the
-  // main page, as BACK does (SX, 2026-10-14: «во внутренних окнах esc это назад»; it did, and the foot said RESUME). A group taken on LAYOUT
-  // is moved by the arrows, put down by Enter or the same click, Escape takes the move back.
-  const ESC_RESUME = { side: 'right', key: 'ESC', words: 'RESUME' }, ESC_BACK = { side: 'right', key: 'ESC', words: 'BACK' };
+  // The foot's keys, as Escape does them (labs/graphics/input-router.js): ESC first at the left, on the main page letting the pause go, on another
+  // going back to the main page (SX, 2026-10-14: «во внутренних окнах esc это назад»; 2026-10-16: «escape назад ... без цикла»); the others at
+  // the right in their order of importance (SX: «идем по важности слева направо»). A group taken on LAYOUT is moved by the arrows, put down by
+  // Enter or the same click, Escape takes the move back.
+  const ESC_RESUME = { side: 'left', key: 'ESC', words: 'RESUME' }, ESC_BACK = { side: 'left', key: 'ESC', words: 'BACK' };
   function hintsOf() {
-    if (menu.page === 'main') return [{ key: '↑ ↓', words: 'MOVE' }, { key: 'ENTER', words: 'OPEN' }, ESC_RESUME];
-    if (menu.page === 'leave') return [{ key: '↑ ↓', words: 'MOVE' }, { key: 'ENTER', words: 'CHOOSE' }, ESC_BACK];
+    if (menu.page === 'main') return [ESC_RESUME, { key: 'ENTER', words: 'OPEN' }, { key: '↑ ↓', words: 'MOVE' }];
+    if (menu.page === 'leave') return [ESC_BACK, { key: 'ENTER', words: 'CHOOSE' }, { key: '↑ ↓', words: 'MOVE' }];
     if (menu.page === 'layout' && game.hud.place.editor.moving) {
-      return [{ key: '← → ↑ ↓', words: 'MOVE' }, { key: 'ENTER', words: 'PUT DOWN' }, { side: 'right', key: 'ESC', words: 'CANCEL MOVE' }];
+      return [{ side: 'left', key: 'ESC', words: 'CANCEL MOVE' }, { key: 'ENTER', words: 'PUT DOWN' }, { key: '← → ↑ ↓', words: 'MOVE' }];
     }
-    return [{ side: 'right', key: '← →', words: 'CHANGE' }, ESC_BACK];
+    return [ESC_BACK, { key: '← →', words: 'CHANGE' }];
   }
 
   function setVolumeFromPanel(id, v, def) {

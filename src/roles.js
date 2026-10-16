@@ -27,6 +27,12 @@ export const ROLES = Object.freeze({
   // Quieter again, for a panel's heading and key line (the pilot card; SX, 2026-09-30:
   // «приглуши по цвету сильнее»): 4.6:1, still AA.
   textQuiet: dimToContrast(PALETTE.gray, 4.6),
+  // The windows' labels in the organism (SX, 2026-10-16, labs/graphics/organism.js: «серый ... слабо отличается от наборного цвета. Он
+  // должен быть гораздо прозрачнее»): the gray at AA's least as the look NOW paints it, 4.6:1 (5:1 as written).
+  textLabel: dimToContrast(PALETTE.gray, 5),
+  // Quieter than any label, for what is not there yet in a window and a count after its name (the sketch's, by SX's eye: 3:1 as painted,
+  // under AA, as a disabled control may be).
+  textFaint: dimToContrast(PALETTE.gray, 3.41),
   // The line round a menu or a notice (SX, 2026-10-02: «контура меню и нотификаций которые раньше были белые делаем серыми,
   // выбери сам оттенок серого, слишком они контрастные»): the palette's gray at the hint's 5.5:1, quieter than any text in
   // it (secondary 7.5, primary 14.6) and well over the 3:1 a line needs, through the glass too. It was the white.

@@ -20,17 +20,14 @@ import { questTone } from '../../src/quests.js';
 import { currentTasks, focusedTask, taskTarget, taskNavigation } from '../../src/tasks.js';
 import { routeInk } from '../../src/interface.js';
 import { navFitted, noteCardOpened } from '../../src/opening.js';
-import { rebuiltShare } from '../../src/ruins.js';
-import { drawStationNow } from './world-art.js';
 import { drawPilotCard, drawStationInfo, drawHangar, drawSignComposer, drawControlsWindow, CARD } from './windows.js';
 import { QUEST_TONES } from './quest-list.js';
 import { SOUVENIR_LORE } from './souvenir-lore.js';
 import { inBox } from '../../src/util.js';
-import { UI } from '../../src/uiGrid.js';
 import { drawTabsWindow } from './tabs-window.js';
 import { drawFinaleWindow } from './finale-window.js';
 import { createRoomScreen } from './garage-room.js';
-import { createMap, openMap, closeMap, drawMap, mapPoint, mapClick, mapMove, mapFit, FLAGS } from './map-screen.js';
+import { createMap, openMap, closeMap, drawMap, mapPoint, mapClick, mapMove, mapStep, mapFit, FLAGS } from './map-screen.js';
 import { measure, noteDuring, noteAction } from './clicks.js';
 import { codesOf, SCHEMES, DEFAULT_SCHEME, roomControls } from '../../src/controls.js';
 import { KEYS, tapped, held, tappedChoice } from './input-router.js';
@@ -384,17 +381,23 @@ export function createScreens(game) {
     FLAGS.forEach((_, i) => { if (tappedChoice(input, i) && map.pick !== i) { map.pick = i; sound.play('blip'); } });
     // Move and zoom the picture as the map editor does (W A S D or the arrows, Q E, F for the whole map): the ship's controls
     // are let go under a pop-up, so these keys fly nothing.
-    const on = (action) => (held(input, action) ? 1 : 0);
+    const on = (action) => (held(input, action) ? 1 : 0), tap = (action) => (key(action) ? 1 : 0);
     mapMove(map, { x: on('right') - on('left'), y: on('down') - on('up'), zoom: on('zoomIn') - on('zoomOut') }, pageTime());
+    // A tap (a click on the foot's keys too) steps the picture as a wheel's notch does.
+    const step = { x: tap('right') - tap('left'), y: tap('down') - tap('up'), zoom: tap('zoomIn') - tap('zoomOut') };
+    if (step.x || step.y || step.zoom) mapStep(map, step);
     if (key('fit')) mapFit(map);
   }
   // What the room's list holds: the quests (src/quests.js; each in its colour, a raid with its clock), and the cargo run on, green.
-  const stationUI = { stationId: null };
+  // `shot`: where INFO's picture takes its fragment of the station, new each time it opens (SX, 2026-10-16: «рандомный фрагмент станции один к
+  // одному»; a look-only choice: Math.random).
+  const stationUI = { stationId: null, shot: null };
 
   function openStationInfo(id) {
     closeHelp(false);
     open.station = true;
     stationUI.stationId = id;
+    stationUI.shot = { u: Math.random(), v: Math.random() };
   }
 
   function closeStationInfo() {
@@ -569,10 +572,9 @@ export function createScreens(game) {
     { id: 'finale', shown: () => open.finale, draw: (popup) => popup(() => closeFinale(), () => drawFinaleWindow(renderer, world, { onClose: () => closeFinale() }),
       [...KEYS.close, ...KEYS.back, ...KEYS.confirm]) },
     { id: 'station', shown: () => open.station, draw: (popup, now) => popup(() => closeStationInfo(), () => {
-      // The station's own look on the window's sheet, animated on the page's clock, `now` (the world goes on under the window, and
+      // The station's own look in the window's shot, animated on the page's clock, `now` (the world goes on under the window, and
       // the picture is not the world's).
-      drawStationInfo(renderer, world, { ...stationUI, drawLook: (r, cx, cy, w, h, st) =>
-        drawStationNow(r, cx, cy, st, st.kind === 'ruin' ? rebuiltShare(world.ledger, st) : 1, now / 1000, { w: w - 2 * UI.air.inset, h: h - 2 * UI.air.inset }) });
+      drawStationInfo(renderer, world, { ...stationUI, time: now / 1000 });
     }) },
   ];
 
