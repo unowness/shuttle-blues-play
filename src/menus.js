@@ -8,7 +8,7 @@
 import { CONFIG } from './config.js';
 import { buoyMenu, buoyHere, BUOY_ID, chorusStationAction } from './chorus.js';
 import { addressOf } from './sectors.js';
-import { contractById, offersAt, parTime, clockText, cargoOf, quoteJob, jobQuote } from './contracts.js';
+import { contractById, offersAt, parTime, clockText, cargoOf, cargoSize, quoteJob, jobQuote } from './contracts.js';
 import { captionOf, signBox } from './signs.js';
 import { sprite } from './sprites.js';
 import { workingKind, invested, formatCR } from './ruins.js';
@@ -187,6 +187,7 @@ const pesteredMenu = (world, held) => talk({ id: PESTER_ID, x: held.x, y: held.y
 // A cargo lying in space: the pilot's own, or another pilot's (src/strangers.js).
 function lostMenu(world, c) {
   const contract = c.stranger ? contractById(c.contractId) : world.ledger.job(c.contractId);
+  const own = contract?.from ? world.cargoArt?.(contract.from, cargoSize(contract)) : null;
   return {
     id: c.id,
     // Another pilot's is named after them, so it is never taken for the pilot's own.
@@ -194,7 +195,8 @@ function lostMenu(world, c) {
     subtitle: `${contract ? contract.label : c.contractId} → ${world.stationLabelOf(contract?.to)}`,
     x: c.x, y: c.y,
     interactRadius: c.interactRadius,
-    art: { model: sprite('cargo-container'), scale: CONFIG.cargo.spriteScale * cargoOf(contract).scale, turns: true },
+    // Its sending station's own cargo when the page lends it (labs/graphics/cargo-art.js), else the plain container.
+    art: own ? { model: own, scale: CONFIG.cargo.spriteScale, turns: true } : { model: sprite('cargo-container'), scale: CONFIG.cargo.spriteScale * cargoOf(contract).scale, turns: true },
     actions: world.lostCargoActions(c),
   };
 }

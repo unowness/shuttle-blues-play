@@ -396,6 +396,25 @@ export const CONFIG = {
       medium: { name: 'MEDIUM', mass: 0.4, top: 0.88, reward: 1, par: 1.1, scale: 1 },
       large: { name: 'LARGE', mass: 0.75, top: 0.76, reward: 1.4, par: 1.25, scale: 1.3 },
     },
+    // A station's own cargo (labs/graphics/cargo-art.js, SX's twelve of 2026-10-16) is built, not scaled, so its body is its drawing's:
+    // [radius, half] in u for SMALL, MEDIUM and LARGE, a capsule along the tether as the plain container's is (`tow.radius` and
+    // `tow.half` times the size's `scale`), each its drawing's half width and half height (cells of 9.3 by 15 u) times 0.95, as the
+    // container's is its own. By the sending station's look; a station without one (HOME) sends the container. checks/cargo-art.mjs holds
+    // the table to the drawings.
+    bodies: {
+      wheel: [[40, 43], [57, 57], [75, 71]],
+      spire: [[31, 50], [31, 64], [31, 78]],
+      array: [[40, 36], [40, 57], [40, 78]],
+      greenhouse: [[40, 36], [40, 50], [40, 64]],
+      depot: [[40, 36], [40, 50], [40, 64]],
+      foundry: [[40, 36], [40, 50], [40, 64]],
+      lattice: [[22, 43], [22, 71], [40, 71]],
+      ring: [[40, 36], [40, 57], [40, 78]],
+      spindle: [[31, 50], [31, 71], [31, 93]],
+      beacon: [[40, 29], [40, 43], [40, 57]],
+      hive: [[40, 29], [40, 43], [40, 57]],
+      anchor: [[31, 29], [31, 57], [35, 86]],
+    },
     // The tether and the container's body (src/tow.js). The tether is made fast `anchor` u
     // behind the pivot and only pulls: slack, the container coasts on its own `drag` (more
     // than the hull's 0.16, so a coasting pair stays strung out); taut, it takes the stretch

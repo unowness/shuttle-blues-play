@@ -9,7 +9,7 @@ import { TAU, clamp, wrapTo, dimToContrast, hashId, glyphCount, hypot2 } from '.
 import { leanLook } from './starfield.js';
 import { PLANE, WRAP } from './topology.js';
 import { neighbourOf, sectorTitle } from './sectors.js';
-import { contractById, cargoOf } from './contracts.js';
+import { contractById, cargoOf, cargoSize } from './contracts.js';
 import { signalsIn } from './progression.js';
 import { signText, drawSign, signCoverBox } from './signs.js';
 import { sprite, drawSprite, halfHeight } from './sprites.js';
@@ -649,24 +649,18 @@ class WorldDrawing {
       this.drawSignal(r, s.x, s.y, t, (seedOf(def.id) % 97) / 97);
     }
     this.drawSigns(r, n.sector.id, n.ox, n.oy);
-    const crate = sprite('cargo-container');
     for (const [contractId, rec] of this.ledger.stranded) {
-      if (rec.sectorId !== n.sector.id || !crate) continue;
+      const art = rec.sectorId === n.sector.id ? containerArt(this, rec.job) : null;
+      if (!art) continue;
       const s = at(rec.x, rec.y);
-      drawSprite(r, crate, t, s.x, s.y, {
-        scale: CONFIG.cargo.spriteScale * cargoOf(rec.job).scale,
-        angle: (seedOf(contractId) % 628) / 100 + t * CONFIG.stranded.spin,
-        inks: cargoInks(this, crate, rec.job?.from),
-      });
+      drawSprite(r, art.model, t, s.x, s.y, { scale: art.scale, angle: (seedOf(contractId) % 628) / 100 + t * CONFIG.stranded.spin, inks: art.inks });
     }
-    // Other pilots' cargo over there, too, while it lies untaken.
+    // Other pilots' cargo over there, too, while it lies untaken: its sending station's, as it is once in tow.
     for (const s of openStrangersIn(n.sector.id, this.ledger)) {
-      if (!crate) break;
+      const art = containerArt(this, s.contract);
+      if (!art) break;
       const p = at(s.x * W, s.y * H);
-      drawSprite(r, crate, t, p.x, p.y, {
-        scale: CONFIG.cargo.spriteScale,
-        angle: (seedOf(s.contract.id) % 628) / 100 + t * CONFIG.stranded.spin,
-      });
+      drawSprite(r, art.model, t, p.x, p.y, { scale: art.scale, angle: (seedOf(s.contract.id) % 628) / 100 + t * CONFIG.stranded.spin, inks: art.inks });
     }
   }
 
@@ -849,12 +843,11 @@ class WorldDrawing {
     // A lost container turns slowly where it came to rest. No tether: nothing
     // is towing it.
     lap('cargo');
-    const crate = sprite('cargo-container');
     for (const c of this.lostCargo) {
       const s = this.project(r, c.x, c.y);
       const angle = c.spin + t * CONFIG.stranded.spin;
-      const job = c.stranger ? contractById(c.contractId) : this.ledger.job(c.contractId);
-      if (crate) drawSprite(r, crate, t, s.x, s.y, { scale: CONFIG.cargo.spriteScale * cargoOf(job).scale, angle, inks: cargoInks(this, crate, job?.from) });
+      const art = containerArt(this, c.stranger ? contractById(c.contractId) : this.ledger.job(c.contractId));
+      if (art) drawSprite(r, art.model, t, s.x, s.y, { scale: art.scale, angle, inks: art.inks });
       else r.glyph(CONFIG.cargo.glyph, s.x, s.y, CONFIG.cargo.color, 1, 1.6);
     }
 
@@ -929,8 +922,8 @@ class WorldDrawing {
       // Lifted after the hull in a jump (src/trick.js cargoHeight), toward the light and grown as the hull is (LIFT).
       const up = this.stunts?.trick ? liftOffset(cargoHeight(this), this.ship.radius) : null;
       if (up) { a.x += up.dx; a.y += up.dy; }
-      const scale = c.spriteScale * size.scale * (up ? up.grow : 1);
-      const art = sprite('cargo-container');
+      const job = this.ledger.activeJob(), drawn = containerArt(this, job);
+      const art = drawn?.model, scale = (drawn?.scale ?? c.spriteScale * size.scale) * (up ? up.grow : 1);
       // The container is drawn pointing up, like a hull, with its pull end on top; turned by
       // its heading (src/tow.js: toward the anchor while it pulls) plus a quarter turn.
       const ux = Math.cos(tow.angle), uy = Math.sin(tow.angle);
@@ -955,7 +948,7 @@ class WorldDrawing {
         const k = i / (marks + 1), q = 1 - k;
         r.glyph(c.tetherGlyph, q * q * from.x + 2 * q * k * mx + k * k * to.x, q * q * from.y + 2 * q * k * my + k * k * to.y, c.color, 0.9 * cargoShade);
       }
-      if (art) drawSprite(r, art, t, a.x, a.y, { scale, angle: tow.angle + Math.PI / 2, alpha: cargoShade, inks: cargoInks(this, art, this.ledger.activeJob()?.from) });
+      if (art) drawSprite(r, art, t, a.x, a.y, { scale, angle: tow.angle + Math.PI / 2, alpha: cargoShade, inks: drawn.inks });
       else r.glyph(c.glyph, a.x, a.y, c.color, cargoShade, 1.6);
     }
 
@@ -980,6 +973,15 @@ class WorldDrawing {
 // lost one and a stranded one alike; a station without a look (HOME) or a world without the page's hue keeps the file's. One Map a hue.
 const crateInks = new Map();
 let crateBody = null;
+// A job's container as drawn: its sending station's own cargo (SX's twelve of 2026-10-16, lent by the page as `world.cargoArt`,
+// labs/graphics/cargo-art.js), built at its size and drawn at the sprites' scale; else the plain container, scaled by its size, its body
+// in the sending station's light tone; null with neither (a world without its sprites).
+function containerArt(world, job) {
+  const own = job?.from ? world.cargoArt?.(job.from, cargoSize(job)) : null;
+  if (own) return { model: own, scale: CONFIG.cargo.spriteScale, inks: null };
+  const crate = sprite('cargo-container');
+  return crate ? { model: crate, scale: CONFIG.cargo.spriteScale * cargoOf(job).scale, inks: cargoInks(world, crate, job?.from) } : null;
+}
 function cargoInks(world, crate, stationId) {
   const hue = stationId ? world.stationHue?.(stationId) : null;
   if (!hue || !crate) return null;

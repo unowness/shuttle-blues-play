@@ -14,6 +14,7 @@ import { ROLES } from '../../src/roles.js';
 import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, MOTION_INKS } from './ship-motion.js';
 import { BLOCK_TONES, planetTones, ROCK_EDGE, ROCK_INKS, ROCK_LIT, ROCK_SHADE, SHADE_GAP, ROCK_RELIEF } from './art-tones.js';
 import { stationLook, stationCells, lookOrigin, LOOK_SCALE, MAX_CELLS } from './station-art.js';
+import { cargoArt } from './cargo-art.js';
 import { paintPlanetType } from './planet-types.js';
 import { prepareHome, drawHome, homeLive } from './garage-art.js';
 import { BOARD, BOARD_INK, dockState, homeDockState } from '../../src/home.js';
@@ -948,6 +949,8 @@ export function createWorldPresentation(world, settings) {
   });
   // A station's own light tone, for what goes to it (the containers' bodies, src/worldDraw.js cargoInks): its look's `lit`, or null.
   world.stationHue = (id) => { const def = stationDefById(id); const look = def?.look ? stationLook(def.look) : null; return look?.tone?.lit ?? null; };
+  // A station's own cargo, SX's twelve (labs/graphics/cargo-art.js), at a job's size; null for a station without one (HOME).
+  world.cargoArt = (id, size) => { const look = stationDefById(id)?.look; return look ? cargoArt(look, size) : null; };
   const sectorBodies = world.sectorBodies;
   world.sectorBodies = function (...args) { return bodies(sectorBodies.apply(this, args)); };
   for (const group of world.bodyCache.values()) bodies(group);

@@ -27,12 +27,23 @@
 import { CONFIG } from './config.js';
 import { cargoLifted } from './trick.js';
 import { TAU, clamp } from './util.js';
-import { cargoOf } from './contracts.js';
+import { cargoOf, cargoSize } from './contracts.js';
+import { stationDefById } from './sectors.js';
 
 const SHIP_MASS = 1;
 
 // The size record of the job in tow (CONFIG.cargo.sizes).
 export const towSize = (world) => cargoOf(world.ledger.activeJob());
+
+// A job's container body, { r, half } in u: its sending station's own cargo's (CONFIG.cargo.bodies, by the station's look), or the plain
+// container's by its size. `reach` is the circle round it (what the one plane meets, src/groundPlane.js).
+export function cargoBody(job) {
+  const own = CONFIG.cargo.bodies[stationDefById(job?.from)?.look]?.[['small', 'medium', 'large'].indexOf(cargoSize(job))];
+  if (own) return { r: own[0], half: own[1], reach: Math.max(own[0], own[1]) };
+  const T = CONFIG.cargo.tow, k = cargoOf(job).scale;
+  return { r: T.radius * k, half: T.half * k, reach: Math.max(T.radius, T.half) * k };
+}
+export const towBody = (world) => cargoBody(world.ledger.activeJob());
 
 // The tether's length at rest, from the anchor to the container's middle: a bigger container
 // hangs further back, as it always has (CONFIG.cargo.trailDistance).
@@ -69,11 +80,10 @@ export function towBehind(world, size = towSize(world)) {
   };
 }
 
-// The container's capsule: the segment between the centres of its two end caps, and their radius.
-export function capsuleOf(tow, size) {
-  const T = CONFIG.cargo.tow;
-  const r = T.radius * size.scale;
-  const h = Math.max(0, T.half * size.scale - r);
+// The container's capsule (its body, `cargoBody`): the segment between the centres of its two end caps, and their radius.
+export function capsuleOf(tow, body) {
+  const r = body.r;
+  const h = Math.max(0, body.half - r);
   const ux = Math.cos(tow.angle), uy = Math.sin(tow.angle);
   return { ax: tow.x - ux * h, ay: tow.y - uy * h, bx: tow.x + ux * h, by: tow.y + uy * h, r, h };
 }
@@ -212,15 +222,15 @@ export function stepTow(world, dt) {
   if (tow.angle > Math.PI) tow.angle -= TAU;
   if (tow.angle < -Math.PI) tow.angle += TAU;
 
-  collide(world, tow, size);
+  collide(world, tow, size, towBody(world));
 }
 
 // What the container meets, in order: the hull, rocks, planets, pirates, droids, then a hole.
-function collide(world, tow, size) {
+function collide(world, tow, size, body) {
   const T = CONFIG.cargo.tow, H = CONFIG.cargo.hit;
   const ship = world.ship;
   const m = size.mass;
-  let cap = capsuleOf(tow, size);
+  let cap = capsuleOf(tow, body);
   // In a jump (src/trick.js) the hull is over its load and meets it not, and the load, lifted after the hull with the tether's delay,
   // passes over rocks, stations, pirates and droids; a planet still sends it off. On the ground both are false: nothing changes.
   const lifted = world.stunts ? cargoLifted(world) : false;
@@ -238,7 +248,7 @@ function collide(world, tow, size) {
     tow.vx += dvx; tow.vy += dvy;
     kick(tow, cap, P, dvx, dvy);
     if (apply && Number.isFinite(other)) apply((nx * j) / other, (ny * j) / other);
-    cap = capsuleOf(tow, size);
+    cap = capsuleOf(tow, body);
     return closing;
   };
 

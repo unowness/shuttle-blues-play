@@ -398,6 +398,9 @@ export class World {
     // A station's own light tone for what goes to it (the containers' bodies, src/worldDraw.js cargoInks), lent by the page
     // (labs/graphics/world-art.js): (stationId) -> ink or null; null in a check's world (the file's inks).
     this.stationHue = null;
+    // A station's own cargo, lent by the page (labs/graphics/cargo-art.js): (stationId, size) -> its sprite or null; null in a check's
+    // world (the plain container). Drawing only: the body the world gives it is CONFIG.cargo.bodies (src/tow.js cargoBody).
+    this.cargoArt = null;
     this.egg = { held: 0, done: false }; // src/eggs.js's own
 
     if (quiet) this.quieten();

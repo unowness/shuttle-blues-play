@@ -15,8 +15,8 @@ import { CONFIG } from './config.js';
 import { GROUND as G } from './groundConfig.js';
 import { oilRadius } from './oil.js';
 import { clearGroundPath, boundDelta } from './groundMath.js';
-import { towSize } from './tow.js';
-import { cargoOf, contractById } from './contracts.js';
+import { towBody, cargoBody } from './tow.js';
+import { contractById } from './contracts.js';
 import { cargoLifted } from './trick.js';
 import { sceneBodies } from './sceneSolids.js';
 
@@ -196,12 +196,11 @@ export function settleGround(world, dt) {
   const ship = world.ship;
   if (ship.alive && !ship.airborne && !world.docked) add(ship, 'ship', ship.radius, G.mass.ship);
   // The load lifts after the hull, on the jump's own timing (src/trick.js cargoLifted), as it is drawn.
-  if (world.cargo && !world.docked && !cargoLifted(world)) add(world.cargo, 'tow', CONFIG.cargo.tow.half * towSize(world).scale, G.mass.cargo);
+  if (world.cargo && !world.docked && !cargoLifted(world)) add(world.cargo, 'tow', towBody(world).reach, G.mass.cargo);
   for (const p of world.lostCargo) {
     // A lost cargo nudged off its rest slows to a stop; nothing pushes it on.
     if (p.vx || p.vy) { const k = Math.exp(-G.actorDrag * dt); p.vx *= k; p.vy *= k; p.x += p.vx * dt; p.y += p.vy * dt; }
-    const size = cargoOf(p.stranger ? contractById(p.contractId) : world.ledger.job(p.contractId));
-    add(p, 'cargo', CONFIG.cargo.tow.half * size.scale, G.mass.cargo);
+    add(p, 'cargo', cargoBody(p.stranger ? contractById(p.contractId) : world.ledger.job(p.contractId)).reach, G.mass.cargo);
   }
   if (count < 2) return;
   broad(world);

@@ -12,7 +12,7 @@
 import { CONFIG } from './config.js';
 import { isHome, startHomeDocking, berthPoint, dockRefusal, cellSize as homeCell, BOARD, BOARD_INK } from './home.js';
 import { turnPoint, spinVelocity } from './float.js';
-import { towSize, restLength } from './tow.js';
+import { towSize, towBody, restLength } from './tow.js';
 
 const D = () => CONFIG.station.docking;
 const ARRIVE = () => D().arrive, LEAVE = () => D().leave;
@@ -75,7 +75,7 @@ function drawnEdge(station, ux, uy) {
 function exitPose(world, station, from) {
   const a = station.angle || 0, l = Math.hypot(from.x, from.y) || 1, d = turnPoint(from.x / l, from.y / l, a);
   const T = CONFIG.cargo.tow, size = world.cargo ? towSize(world) : null;
-  const behind = size ? T.anchor + restLength(size) + T.half * size.scale : 0;
+  const behind = size ? T.anchor + restLength(size) + towBody(world).half : 0;
   const out = drawnEdge(station, d.x, d.y) + Math.max(world.ship.radius, behind) + D().exitAir;
   return { x: station.x + d.x * out, y: station.y + d.y * out, angle: Math.atan2(d.y, d.x) };
 }
