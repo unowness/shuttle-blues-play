@@ -94,7 +94,7 @@ export class Ship {
   }
 
   // The hull's body: the chassis's, or the one its table gives the drawing worn (src/chassis.js LOOK_BODIES: the STANDARD in a look of
-  // its own, THUNDER, EDGES, BLACKBIRD). Every reader of the ship's size asks here, so the worn look's body is the one that meets.
+  // its own, MODERN or SCOOTY JR.). Every reader of the ship's size asks here, so the worn look's body is the one that meets.
   get radius() { return bodyRadius(this.chassis, this.model?.id); }
   // What the drawing worn adds to the chassis's body, u (0 for SX's ship and every hull without a row): the cargo's reach follows it.
   get bodyExtra() { return this.radius - this.chassis.colliderRadius; }

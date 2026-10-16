@@ -160,8 +160,11 @@ function parseFrameStack(src, sourceName) {
   const shift = (cells) => cells.map((c) => ({ x: c.x - ax, y: c.y - ay, ch: c.ch, color: c.color }));
   const shifted = frames.map(shift);
 
+  // `brake`: the frame of the pose drawn while the brake is held (MODERN's, SX 2026-10-16: «первый это когда он летит вперед, второй когда
+  // тормозит»), named by the file; it is no part of the exhaust loop. Its cells keep the idle pose's pivot.
+  const brake = Number.isInteger(src.brake) && src.brake !== idle && src.brake >= 0 && src.brake < shifted.length ? src.brake : null;
   const order = [];
-  for (let i = 0; i < shifted.length; i++) if (i !== idle) order.push(i);
+  for (let i = 0; i < shifted.length; i++) if (i !== idle && i !== brake) order.push(i);
 
   return {
     name: src.name || src.id || sourceName,
@@ -172,6 +175,7 @@ function parseFrameStack(src, sourceName) {
     cells: shifted[idle],
     frames: shifted,
     idleFrame: idle,
+    brakeFrame: brake,
     loop: order.length ? order : [idle],
     fps: Number(src.fps) > 0 ? Number(src.fps) : 12,
     flame: null,

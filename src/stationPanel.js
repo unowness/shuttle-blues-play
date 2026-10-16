@@ -80,7 +80,7 @@ export function stationStatus(world, station) {
   const status = station.kind === 'ruin' ? `RESTORED / ${what}` : what;
   // A station worn by hard blows (src/stationService.js wearStation) says how much of its hull is gone; it breaks at a fifth.
   const worn = world.ledger.wear?.get(station.id);
-  return worn ? `${status} / ${Math.round(100 * worn)} % WORN` : status;
+  return worn ? `${status} / ${Math.round(100 * worn)}% WORN` : status;
 }
 
 // What it offers a pilot who docks: what the station's menu holds now, in the menu's

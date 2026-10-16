@@ -477,7 +477,7 @@ export const COLUMN_AIR = Object.freeze({ part: 15, arc: 2, top: 22, list: 28 })
 // stands under its button since the evening of 2026-10-05, the quests and the radio hidden while it shows (SX: «наверное надо ее
 // сделать по старому, но скрывать квесты и радио когда она открыта, а когда закрыта раскрывать если они были открыты до этого и не
 // раскрывать то что было скрыто до этого»). So, top to bottom, until 2026-10-08: the header's one line (the distance, then the sector's
-// name), the scope, «M LEGEND» (HIDE LEGEND while it shows), then either the legend, or «R QUESTS» (labs/graphics/quest-list.js), the
+// name), the scope, «N LEGEND» (M until 2026-10-16; HIDE LEGEND while it shows), then either the legend, or «R QUESTS» (labs/graphics/quest-list.js), the
 // quests, «T RADIO» and the radio (labs/graphics/radio.js). On SX's word of 2026-10-08 («HUD PLACE: S3 + MIRROR SWITCH») the quests and
 // the radio stand on the screen's other side (labs/graphics/hud-sides.js), and under the button the souvenir shelf (the charm; the wallet
 // went to the deck's shoulder that evening) takes their place: the legend's first row stands a button's air under its button, where the
@@ -792,6 +792,118 @@ function drawScope(r, world, { cx, cy, radius, reducedMotion, flags, quests, tas
   ctx.stroke();
   ctx.restore();
 }
+
+// ------------------------------------------------------------------------------------------------ the modern interface's scope
+
+// The modern interface's locator (labs/graphics/hud-modern.js; SX, 2026-10-16): the scope's own picture in a body of its own, round or
+// square (SX: «квадратным по ширине как радио, закругленные углы как радио ... пунктир, квадрат, четкий контур, линеечки на пунктирном
+// квадрате ... по радиусу квадрата, и тоже такой фейд»). What it holds is clipped to its dotted rim, so a mark at the rim goes under it, and a
+// shade lies round the rim inside, black at the rim to none, under the rim and over the marks (SX: «иконки ... заходили под него ... чтобы
+// они закатывались под него ... ощущение круга, шара»); outside the rim, as far as the notch's two lines stand apart, the contour in the
+// frames' line (SX: «кольцо ... снаружи, с отступом, как внутри челки»). Square, a mark keeps its place on the disc carried to the square
+// (each point (u, v) of the disc to the square's point whose disc is it, the inverse of x·√(1 − y²/2), y·√(1 − x²/2)): the crosshair stays
+// straight, the edge of the disc is the square's edge. Its wear (`level`, cockpit-fx.js damageLevel): breaks in the rim and the contour,
+// more at each step, a broken piece knocked out of line at the worst (SX: «локатор тоже внешний край ломается с внутренним»).
+export const MODERN_SCOPE = Object.freeze({ apart: 5, round: 8, shade: 22, dark: 0.8, long: 9, short: 4, breaks: 2 });
+function discToSquare(u, v) {
+  const u2 = u * u, v2 = v * v, t = 2 * Math.SQRT2;
+  const x = 0.5 * Math.sqrt(Math.max(0, 2 + u2 - v2 + t * u)) - 0.5 * Math.sqrt(Math.max(0, 2 + u2 - v2 - t * u));
+  const y = 0.5 * Math.sqrt(Math.max(0, 2 - u2 + v2 + t * v)) - 0.5 * Math.sqrt(Math.max(0, 2 - u2 + v2 - t * v));
+  return [clamp(x, -1, 1), clamp(y, -1, 1)];
+}
+function roundedRect(ctx, x, y, w, h, rr) {
+  ctx.beginPath(); ctx.moveTo(x + rr, y); ctx.arcTo(x + w, y, x + w, y + h, rr); ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr); ctx.arcTo(x, y, x + w, y, rr); ctx.closePath();
+}
+// `box` its contour's box (whole pixels, square), `shape` 'round' or 'square', `level` its wear (0-4), `seed` where its breaks fall.
+export function drawModernScope(r, world, { box, shape = 'square', reducedMotion = false, flags = [], quests = [], task = null, level = 0, seed = 1 }) {
+  const ctx = r.ctx, S = MODERN_SCOPE, cx = box.x + box.w / 2, cy = box.y + box.h / 2, square = shape === 'square';
+  const inner = box.w / 2 - 0.5 - S.apart, dotRound = Math.max(0, S.round - S.apart);
+  noteKey(keyName('map'), box, r);
+  // The rim's path: the dotted circle, or the dotted rounded square.
+  const rim = (half) => { if (square) roundedRect(ctx, cx - half, cy - half, 2 * half, 2 * half, Math.max(0, dotRound - (inner - half))); else { ctx.beginPath(); ctx.arc(cx, cy, half, 0, Math.PI * 2); } };
+  // Where a point of the disc (its own px from the middle, out of `inner`) stands.
+  const at = (x, y) => { if (!square) return [cx + x, cy + y]; const [sx, sy] = discToSquare(x / inner, y / inner); return [cx + sx * inner, cy + sy * inner]; };
+  hoverItem(r, 'locator:scope', box, () => {
+    ctx.save(); ctx.globalAlpha = 1; ctx.lineWidth = 1; ctx.fillStyle = ROLES.backing;
+    if (square) roundedRect(ctx, box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1, S.round); else { ctx.beginPath(); ctx.arc(cx, cy, box.w / 2, 0, Math.PI * 2); }
+    ctx.fill();
+    // What it holds, inside the rim.
+    ctx.save(); rim(inner); ctx.clip();
+    ctx.strokeStyle = ROLES.shadow; ctx.beginPath();
+    for (const f of [0.33, 0.66]) {
+      if (square) { const h = inner * f; roundedRect(ctx, cx - h, cy - h, 2 * h, 2 * h, h * 0.45); ctx.stroke(); ctx.beginPath(); }
+      else ctx.arc(cx, cy, inner * f, 0, Math.PI * 2);
+    }
+    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) { ctx.moveTo(cx + dx * 12, cy + dy * 12); ctx.lineTo(cx + dx * (inner - 8), cy + dy * (inner - 8)); }
+    ctx.stroke();
+    for (const body of projectLocatorContacts(locatorBodies(world), inner)) {
+      const [x, y] = at(body.x, body.y);
+      drawMark(ctx, x, y, body.kind, ROLES.textSecondary, Math.max(2, body.radius / LOCATOR_RANGE * inner));
+    }
+    for (const rock of projectLocatorContacts(locatorRocks(world), inner)) { const [x, y] = at(rock.x, rock.y); drawMark(ctx, x, y, 'rock', ROLES.textSecondary); }
+    const contacts = projectLocatorContacts(radarContacts(world, { flags, quests, task }), inner);
+    for (const contact of [...contacts].sort((a, b) => Number(a.priority) - Number(b.priority))) {
+      const [x, y] = at(contact.x, contact.y);
+      const color = contact.blink ? CONFIG.cache.sparkColor : contact.color ?? MARK_COLOR[contact.kind] ?? ROLES.textSecondary;
+      if (contact.blink) ctx.globalAlpha = markBlinkAlpha(world.time, reducedMotion);
+      drawMark(ctx, x, y, contact.kind, color, 4, contact.heading);
+      ctx.globalAlpha = 1;
+    }
+    const triangle = locatorShipTriangle(world.ship.angle);
+    ctx.fillStyle = ROLES.backing; ctx.strokeStyle = ROLES.textPrimary; ctx.beginPath();
+    triangle.forEach((point, index) => ctx[index ? 'lineTo' : 'moveTo'](cx + point.x, cy + point.y));
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    // The shade round the rim, inside it.
+    if (square) {
+      for (let t = 0; t < S.shade; t++) {
+        ctx.strokeStyle = `rgba(0, 0, 0, ${S.dark * (1 - t / S.shade) ** 1.6})`; rim(inner - t - 0.5); ctx.stroke();
+      }
+    } else {
+      const g = ctx.createRadialGradient(cx, cy, inner - S.shade, cx, cy, inner);
+      for (const [stop, a] of [[0, 0], [0.45, 0.25], [0.8, 0.6], [1, 1]]) g.addColorStop(stop, `rgba(0, 0, 0, ${a * S.dark})`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, inner, 0, Math.PI * 2); ctx.fill();
+    }
+    // The rim over the shade: dotted, its ticks every 10 degrees where each ray from the middle meets it, pointing in.
+    ctx.strokeStyle = ROLES.structure; ctx.setLineDash([1, 3]); rim(inner); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath();
+    for (let deg = 0; deg < 360; deg += 10) {
+      const a = (deg * Math.PI) / 180, c = Math.cos(a), sn = Math.sin(a), reach = square ? inner / Math.max(Math.abs(c), Math.abs(sn)) : inner;
+      const len = deg % 30 === 0 ? S.long : S.short;
+      ctx.moveTo(cx + c * reach, cy + sn * reach); ctx.lineTo(cx + c * (reach - len), cy + sn * (reach - len));
+    }
+    ctx.stroke();
+    // The contour.
+    if (square) roundedRect(ctx, box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1, S.round); else { ctx.beginPath(); ctx.arc(cx, cy, inner + S.apart, 0, Math.PI * 2); }
+    ctx.stroke();
+    // The wear: black over the rim and the contour where they broke, a piece of the contour knocked out of line at the worst.
+    if (level > 0) {
+      const outerHalf = inner + S.apart, n = level * S.breaks;
+      const pointAt = (half, a) => { const c = Math.cos(a), sn = Math.sin(a), reach = square ? half / Math.max(Math.abs(c), Math.abs(sn)) : half; return [cx + c * reach, cy + sn * reach]; };
+      ctx.lineCap = 'butt';
+      for (let i = 0; i < n; i++) {
+        const a = noise3(seed, i, 3) * Math.PI * 2, span = (0.05 + 0.08 * noise3(seed, i, 5)) * (square ? 0.8 : 1);
+        for (const [half, w] of [[outerHalf, 3], ...(i % 2 ? [[inner, 3]] : [])]) {
+          ctx.strokeStyle = ROLES.backing; ctx.lineWidth = w; ctx.beginPath();
+          for (let k = 0; k <= 6; k++) { const [x, y] = pointAt(half, a - span / 2 + (span * k) / 6); ctx[k ? 'lineTo' : 'moveTo'](x, y); }
+          ctx.stroke();
+          if (level >= 3 && half === outerHalf) {
+            const off = 1.5 + noise3(seed, i, 7) * 1.5;
+            ctx.strokeStyle = ROLES.structure; ctx.lineWidth = 1; ctx.beginPath();
+            for (let k = 1; k <= 5; k++) { const [x, y] = pointAt(half + off, a - span / 3 + (span * k) / 9); ctx[k > 1 ? 'lineTo' : 'moveTo'](x, y); }
+            ctx.stroke();
+          }
+        }
+      }
+    }
+    ctx.restore();
+  }, { kind: 'panel' });
+  return box;
+}
+// The legend's rows where the modern interface lays them (`L` columnLayout's, its `legendX` and `listTop` the modern's).
+export const drawLegendRowsAt = (r, L, lore = null) => drawLegendRows(r, L, lore);
+export const LEGEND_ROW_COUNT = LEGEND_ROWS;
 
 function drawColumnText(r, world, L, task) {
   // Header: where the route leads, one line (SX, 2026-10-01: «Вот эту инфу из центра перенеси вместо надписей над локатором и

@@ -69,7 +69,7 @@ export function buildBootPlan(deps, planOptions) {
   const plan = createPlan(planOptions);
 
   plan.add({
-    id: 'assets', label: 'SHIP, WORLD ART', weight: 4,
+    id: 'assets', label: "SHIPS AND WORLD", weight: 4,
     run(step) {
       let started = 0, done = 0, total = 1;                       // the ship's model is one
       const settle = () => { done++; step.fraction = done / total; };

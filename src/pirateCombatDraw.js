@@ -56,7 +56,7 @@ export function drawPirateFields(world, r) {
       const exit = world.project(r, c.exit.x, c.exit.y);
       if (r.onScreen(exit.x, exit.y, C.labelGap)) {
         r.glyph('×', exit.x, exit.y, C.commit);
-        caption(r, 'ESCAPE', exit.x, exit.y + C.labelGap, C.commit);
+        caption(r, "PIRATE EXIT", exit.x, exit.y + C.labelGap, C.commit);
       }
     }
   }

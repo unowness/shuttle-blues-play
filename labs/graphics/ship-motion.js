@@ -1,4 +1,4 @@
-import { clamp, mulberry32 } from '../../src/util.js';
+import { clamp, mixHex, mulberry32 } from '../../src/util.js';
 import { ROLES, PALETTE } from '../../src/roles.js';
 
 // Motion for the player's ship, drawn around SX's frame 0 instead of his exhaust loop
@@ -39,6 +39,8 @@ export const MOTION = Object.freeze({
   brakeShare: 0.9,
   // Glass: seconds to swing between the two inks (a crossfade by alpha).
   glassSeconds: 0.12,
+  // MODERN's wings: how far toward black the wing on the side of a turn goes, on the glass's timing (wingDraws).
+  wingDark: 0.45,
   // A port at or below this level is not firing (and is not drawn).
   fire: 0.05,
   maxPuffs: 160,
@@ -352,6 +354,21 @@ export function glassDraws(state, cell, baseInk, inks = MOTION_INKS) {
   if (k < 0.02) return [{ ink: baseInk, alpha: 1 }];
   if (k > 0.98) return [{ ink: inks.glassDark, alpha: 1 }];
   return [{ ink: baseInk, alpha: 1 }, { ink: inks.glassDark, alpha: k }];
+}
+
+// ---- the wings ---------------------------------------------------------------------
+// MODERN's wings (ships/modern.json: the triangles and the flats under them) darken on the side of a turn, as the glass does and on its
+// timing (SX, 2026-10-16: «при поворотах делай крылошки затемняющимися во в сторону поворотов»): the cell's own ink `wingDark` toward
+// black, a crossfade by alpha as the glass's. A drawing without these glyphs (SX's CLIPPER) has none.
+export const WING_GLYPHS = new Set(['◢', '◣', '◤', '◥', '▔']);
+const wingInks = new Map();
+export function wingDraws(state, cell, baseInk) {
+  const k = !cell || !WING_GLYPHS.has(cell.ch) ? 0 : cell.x < 0 ? state.glass.left : cell.x > 0 ? state.glass.right : 0;
+  if (k < 0.02 || typeof baseInk !== 'string' || baseInk.length !== 7) return [{ ink: baseInk, alpha: 1 }];
+  let dark = wingInks.get(baseInk);
+  if (!dark) { dark = mixHex(baseInk, '#000000', MOTION.wingDark); wingInks.set(baseInk, dark); }
+  if (k > 0.98) return [{ ink: dark, alpha: 1 }];
+  return [{ ink: baseInk, alpha: 1 }, { ink: dark, alpha: k }];
 }
 
 // ---- drawing -----------------------------------------------------------------------

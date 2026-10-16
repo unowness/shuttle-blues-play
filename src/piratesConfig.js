@@ -444,7 +444,7 @@ export const PIRATES = {
       // Short shouts, said at the pirate when it acts on a trait of `voice` points or more (SX: «да отличная идея сделай
       // выкрики короткие»), as the hails stand at a craft: once in `gap` s a pirate, once in `apart` s of all of them.
       shouts: {
-        greed: ['MINE.', 'CREDITS.', 'CLAIMED.'], daring: ['KEEP UP.', 'MISSED.'], aggression: ['CLOSE IN.', 'TAKE IT.'],
+        greed: ['MINE.', "PAY UP.", 'CLAIMED.'], daring: ['KEEP UP.', "TOO SLOW."], aggression: ['CLOSE IN.', "HOLD STILL."],
         cowardice: ['BREAK OFF.', "I'M OUT."],
       },
       voice: 5, gap: 7, apart: 1.5, life: 2.2,

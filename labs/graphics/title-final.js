@@ -9,7 +9,7 @@
 // game's stars as the title has them (title.js drawTitleSky), without its planets and rocks (SX: «давай звезды оставим
 // наши, но объекты уберем»); the menu NEW GAME, CONTINUE, MANUAL,
 // CREDITS (SAVES dropped: «раздела saves точно не будет»), centred, 32 px apart, the chosen item on the cargo plate F
-// with a narrow coloured block on either side and no mark; the lore centred at 13 px on 80 columns, its first line
+// with a narrow coloured block on either side and no mark; the lore centred at 14 px on 80 columns (13 until SX's «кегль лора сделать +1», 2026-10-16), its first line
 // «The year is 3000...»; the loading strip, its labels and the keycaps under it, the strip and the keycaps' frames in
 // the lettering's accent.
 //
@@ -39,7 +39,7 @@ import { noise3 as noise } from '../../src/util.js';
 export const TITLE_FINAL = Object.freeze({
   seed: 853762588,                                  // DUSK, hue 277: the lettering's colours, rolled on the study
   lettering: Object.freeze({ width: 0.607, align: 'centre' }),
-  lore: Object.freeze({ size: 13, cols: 80, first: 'The year is 3000...' }),
+  lore: Object.freeze({ size: 14, cols: 80, first: 'The year is 3000...' }),
   menu: Object.freeze({
     step: 32,
     items: Object.freeze([

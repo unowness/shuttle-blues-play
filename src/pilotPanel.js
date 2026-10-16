@@ -176,7 +176,7 @@ export function wrap(text, cols, lines) {
 }
 
 // The key that puts on the next paint owned, shown in the PAINT line (not in the foot).
-export const PAINT_KEY = 'P';
+export const PAINT_KEY = 'C';
 // The key that puts on the next cockpit scheme owned (SX, 2026-10-02: the ships' rare quests leave a scheme in their style, «chosen
 // afterwards like the paint is»), shown in the COCKPIT line under PAINT once the pilot owns one.
 export const COCKPIT_KEY = 'K';

@@ -235,22 +235,22 @@ export function resolveChassis(id) {
   return CHASSIS[id] || CHASSIS[DEFAULT_CHASSIS];
 }
 
-// The body a hull has in the drawing it wears (SX, 2026-10-08, of the pilot's ship looks THUNDER, EDGES and BLACKBIRD: «боксы рисуй
-// по их размеру», each look's hit box at its own drawing's size). A look is a drawing (src/shipLooks.js) and the body is still the
-// chassis's: this table, by chassis and then by the drawing's file id (`id` in ships/<id>.json, src/asciiModel.js), is the only way a
-// drawing reaches `colliderRadius`, and only by naming a row the chassis wrote. A file cannot put a number here; a hull or a drawing
-// with no row has the chassis's own body (CLASSIC, SX's ships/spaceship.json, 44 u; the COURIER, the HAULER, SCOOTY JR. and the six
-// reference ships, whatever they wear).
+// The body a hull has in the drawing it wears (SX, 2026-10-08, of the pilot's ship looks then: «боксы рисуй по их размеру», each look's
+// hit box at its own drawing's size). A look is a drawing (src/shipLooks.js) and the body is still the chassis's: this table, by chassis and
+// then by the drawing's file id (`id` in ships/<id>.json, src/asciiModel.js), is the only way a drawing reaches `colliderRadius`, and only by
+// naming a row the chassis wrote. A file cannot put a number here; a hull or a drawing with no row has the chassis's own body (CLIPPER, SX's
+// ships/spaceship.json, 44 u; the COURIER, the HAULER, SCOOTY JR. as the loaner and the six reference ships, whatever they wear).
 //
 // Each number is the drawing's farthest painted point from its pivot at the game's scale, in u (1 px a unit at scale 1): the farthest
-// corner of the farthest cell, `hypot((|x| + 0.5) cellW s, (|y| + 0.5) cellH s)` over the drawing's cells, with the cell the page's font
-// gives (9.2724609375 x 15 px, CONFIG.render.fontSize) and s the file's scale (1.5), rounded. Not typed by eye: checks/ship-looks.mjs
-// recomputes it from each file and fails when a row is not the drawing's reach, so a redrawn look gets its number from the check.
-//   thunder 83 (7 x 6 cells: the wing tips and the tail)   edges 74 (7 x 5)   blackbird 77 (9 x 6)
-// against the STANDARD's 44 u in SX's drawing: the hit circle is 1.9, 1.7 and 1.75 times as wide, and about 3.6, 2.8 and 3.1 times the
-// area. Everything that asks the ship's size reads `Ship.radius`, so the contact, the way in and the pirates' shots follow.
+// corner of the farthest cell, `hypot((|x| + 0.5) cellW s, (|y| + 0.5) cellH s)` over the drawing's idle cells, with the cell the page's font
+// gives (9.2724609375 x 15 px, CONFIG.render.fontSize) and s the file's scale, rounded. Not typed by eye: checks/art.mjs recomputes it
+// from each file and fails when a row is not the drawing's reach, so a redrawn look gets its number from the check.
+//   modern 61 (SX's MODERN of 2026-10-16, 6 x 4 cells at 1.5: the wing tips; its brake pose the same span)   scooty-jr 33 (3 x 3 at 1.25)
+// against the STANDARD's 44 u in SX's CLIPPER: MODERN's hit circle 1.4 times as wide, SCOOTY JR.'s three quarters. Everything that asks the
+// ship's size reads `Ship.radius`, so the contact, the way in and the pirates' shots follow. (THUNDER 83, EDGES 74 and BLACKBIRD 77 went
+// with their looks, 2026-10-16.)
 export const LOOK_BODIES = Object.freeze({
-  standard: Object.freeze({ thunder: 83, edges: 74, blackbird: 77 }),
+  standard: Object.freeze({ modern: 61, 'scooty-jr': 33 }),
 });
 
 // The body of `chassis` in the drawing whose file id is `drawingId` (null for a drawing without one).

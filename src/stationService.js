@@ -216,7 +216,7 @@ const wornCost = (world, station) => Math.ceil(stationBill(stationDefById(statio
 function wornAction(world, station) {
   const cost = wornCost(world, station), short = world.ledger.credits < cost;
   return { label: `REPAIR STATION ${formatCR(cost)} CR`, disabled: short,
-    note: short ? `NEED ${formatCR(cost)} CR, HAVE ${formatCR(world.ledger.credits)}` : `${Math.round(100 * world.ledger.wear.get(station.id))} % WORN`,
+    note: short ? `NEED ${formatCR(cost)} CR, HAVE ${formatCR(world.ledger.credits)}` : `${Math.round(100 * world.ledger.wear.get(station.id))}% WORN`,
     run: () => world.repairStation(station) };
 }
 

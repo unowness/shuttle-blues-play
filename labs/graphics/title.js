@@ -9,8 +9,8 @@ import { codesOf, codeName, keyText, keyName } from '../../src/controls.js';
 // Condensed at SX's request. The four-paragraph original remains in archive/title-v2/.
 export const STORY = Object.freeze([
   'The year is 3000 . . .',
-  'Meteor showers have devastated the first settlers’ stations on the edge of settled space. Those who remain struggle to keep the sector running.',
-  'You’ve inherited an old shuttle and a small garage. Haul food, spare parts and seedlings to earn a living and bring back the shipyards, the dock lights and the gardens under glass, one delivery at a time.',
+  "Meteor showers have wrecked the first settlers’ stations at the edge of settled space. Those who stayed struggle to keep the sector running.",
+  "You’ve inherited an old shuttle and a small garage. Haul food, spare parts and seedlings. Earn your living and bring back shipyards, dock lights and gardens under glass, one delivery at a time.",
   'Helping each other is all that holds this world together.',
 ]);
 // The keys' names are the bindings table's (src/controls.js, chat C): the four flight keys by their first and second keys

@@ -19,8 +19,13 @@ import { mulberry32 } from './util.js';
 // It is scheduled from the frame (Sound.update) a couple of seconds ahead of
 // the audio clock, so a slow frame never delays a note (Chris Wilson's "A Tale
 // of Two Clocks"). Presentation only; it reads nothing of the world.
+//
+// Since 2026-10-16 it is one of two pieces under the conductor (src/score.js): in a fight the breakcore (src/breakcore.js)
+// plays and this is paused (`pause`, what sounds rings out), and it comes back on a chord the conductor names (`resume`). The
+// breakcore's pads are this score's own voice: it keeps a Music of its own and lays its chords with `voice`. Both send their
+// wet share to one room (`room`) the conductor makes, under a soft lowpass.
 
-const hz = (note) => 440 * 2 ** ((note - 69) / 12);
+export const hz = (note) => 440 * 2 ** ((note - 69) / 12);
 
 // The notes, as MIDI numbers. Every chord keeps to D F G A C with one colour
 // tone (E, Bb), voiced in the middle register, never below G2: long tones low
@@ -43,14 +48,20 @@ const NEXT = [[1, 2, 4], [0, 2, 3], [0, 3, 4], [1, 2, 4], [0, 2, 3]];
 export class Music {
   // `ctx` the AudioContext, `out` the node the score goes to (the music bus),
   // `rng` a random source (seeded in checks), `reverb` the impulse's samples at
-  // the context's rate, [left, right] (reverbFor(ctx.sampleRate) when not given).
-  constructor(ctx, out, { rng = Math.random, reverb = null } = {}) {
+  // the context's rate, [left, right] (reverbFor(ctx.sampleRate) when not given);
+  // `room` a reverb made elsewhere to send the wet share to (the conductor's, shared with the breakcore), instead of one of its
+  // own; `stars` the notes its stars are drawn from (SCORE.stars by default; the breakcore's are in its key).
+  constructor(ctx, out, { rng = Math.random, reverb = null, room = null, stars = SCORE.stars } = {}) {
     this.ctx = ctx;
     this.rng = rng;
+    this.stars = stars;
     this.chord = Math.floor(rng() * SCORE.chords.length);
     this.nextChord = null;
     this.nextStar = null;
     this.playing = 0;               // notes sounding now, for the checks
+    this.stilled = false;           // the conductor's: nothing new is scheduled while it is (not `paused`: that word is the world's)
+    this.forced = null;             // the chord the next one must be (the conductor's), an index of SCORE.chords
+    this.after = null;              // when the chord after a forced one comes, with no rest between
     const M = CONFIG.sound.music;
     this.dry = ctx.createGain();
     this.dry.gain.value = 1;
@@ -60,7 +71,11 @@ export class Music {
     // wrapped here; what was not prepared for this rate is made now.
     // No convolver (an old browser, the checks' stand-in) means dry only.
     this.wet = null;
-    if (ctx.createConvolver) {
+    if (room) {
+      this.wet = ctx.createGain();
+      this.wet.gain.value = 1;
+      this.wet.connect(room);
+    } else if (ctx.createConvolver) {
       const verb = ctx.createConvolver();
       verb.buffer = impulse(ctx, reverb || reverbFor(ctx.sampleRate));
       this.wet = ctx.createGain();
@@ -73,9 +88,22 @@ export class Music {
 
   between([a, b]) { return a + (b - a) * this.rng(); }
 
+  // Nothing new from now: what sounds rings out (a fight has begun: src/score.js).
+  pause() { this.stilled = true; }
+
+  // Again from `at`, on `chord` (an index of SCORE.chords) with its own swell, and the chord after it with no rest between (a rest
+  // drawn there was 6-16 s of silence just after the fight's pads had gone).
+  resume(at, chord) {
+    this.stilled = false;
+    this.forced = chord;
+    this.nextChord = at;
+    this.nextStar = at + this.between(CONFIG.sound.music.stars.first);
+  }
+
   // One frame: whatever falls within the look-ahead is scheduled now. A context
   // that slept (a hidden page) does not replay what it missed.
   update(now) {
+    if (this.stilled) return;
     const M = CONFIG.sound.music;
     if (this.nextChord === null || this.nextChord < now - 1) this.nextChord = now + 0.3;
     if (this.nextStar === null || this.nextStar < now - 1) this.nextStar = now + this.between(M.stars.first);
@@ -87,6 +115,7 @@ export class Music {
       this.nextChord += this.rng() < M.rest.chance
         ? long + this.between(M.rest.length)
         : Math.min(long - 2, this.between(M.chordEvery));
+      if (this.after !== null) { this.nextChord = this.after; this.after = null; }
     }
     while (this.nextStar < now + M.lookahead) {
       this.playStar(this.nextStar);
@@ -94,11 +123,14 @@ export class Music {
     }
   }
 
-  // The next chord, its notes entering a little apart. Returns how long it lasts.
+  // The next chord, its notes entering a little apart (the forced one, if the conductor named it). Returns how long it lasts.
   playChord(t0) {
     const M = CONFIG.sound.music;
-    const options = NEXT[this.chord];
-    this.chord = options[Math.floor(this.rng() * options.length)];
+    const forced = this.forced !== null;
+    if (forced) { this.chord = this.forced; this.forced = null; } else {
+      const options = NEXT[this.chord];
+      this.chord = options[Math.floor(this.rng() * options.length)];
+    }
     const notes = SCORE.chords[this.chord];
     const attack = this.between(M.attack), hold = this.between(M.hold), release = this.between(M.release);
     let longest = 0;
@@ -109,6 +141,7 @@ export class Music {
       this.voice(hz(note), at, attack, hold, release, pan);
       longest = Math.max(longest, at - t0 + attack + hold + release);
     });
+    if (forced) this.after = t0 + Math.min(longest - 2, this.between(M.chordEvery));
     return longest;
   }
 
@@ -151,7 +184,7 @@ export class Music {
   // A star: one high note, struck softly and left to ring into the reverb.
   playStar(t0) {
     const ctx = this.ctx, M = CONFIG.sound.music, S = M.stars;
-    const note = SCORE.stars[Math.floor(this.rng() * SCORE.stars.length)];
+    const note = this.stars[Math.floor(this.rng() * this.stars.length)];
     const decay = this.between(S.decay);
     const osc = ctx.createOscillator();
     osc.type = 'sine';

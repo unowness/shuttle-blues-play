@@ -46,7 +46,7 @@ export const ORDER = Object.freeze(['approach', 'settle', 'fuel', 'repair', 'bri
 const ORDER_ALL = ['away', ...ORDER];
 // What the menu says while the garage has the ship (it can only be waited out).
 const PHASE_WORDS = Object.freeze({
-  approach: 'COMING IN', settle: 'SETTLING', fuel: 'REFUELLING', repair: 'MENDING THE HULL', bridge: 'BRIDGE OUT', door: 'OPENING',
+  approach: 'COMING IN', settle: 'SETTLING', fuel: 'REFUELLING', repair: "REPAIRING HULL", bridge: 'BRIDGE OUT', door: 'OPENING',
   close: 'CLOSING', unbridge: 'BRIDGE IN', backout: 'BACKING OUT', leave: 'LEAVING',
 });
 
@@ -408,9 +408,9 @@ export function dockRefusal(world, station) {
 function quoteNote(q) {
   if (q.points <= 0) return null;
   const parts = [];
-  if (q.free > 0) parts.push(`+${q.free} FREE`);
-  if (q.paid > 0) parts.push(`+${q.paid} FOR ${q.cost} CR`);
-  return `HULL ${parts.join(' / ')}`;
+  if (q.free > 0) parts.push(`+${q.free} HULL FREE`);
+  if (q.paid > 0) parts.push(`+${q.paid} HULL: ${q.cost} CR`);
+  return `${parts.join(' / ')}`;
 }
 
 // The berth's middle in the world, where a ship stands in it.

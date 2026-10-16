@@ -44,18 +44,18 @@ export const fitScheme = (v) => (v === 'M' ? 'M' : DEFAULT_SCHEME);
 // coverage check reads `proof`,
 // an export of that file that must name the way, where the way is a list's member: a gesture of the flight). The corner row under the
 // shelf (B3: PAUSE, SCREEN, SOUND, HOME) was taken off the screen on SX's word of 2026-10-06 («кнопки для мышки убрать»): the mouse
-// pauses on the pilot's screen (its P PAUSE), and finds the screen filter, the sound and the home bearing in the pause.
+// pauses on the pilot's screen (its ESC PAUSE), and finds the screen filter, the sound and the home bearing in the pause.
 
 export const MOUSE_WAYS = Object.freeze({
   // The flight (labs/graphics/mouse-flight.js GESTURES; grammar D's mouse, B on the M0 page).
   'hold-l-ahead': { says: 'HOLD L', how: 'hold the left button, the pointer ahead', by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
-  'hold-l-aside': { says: ' ASIDE', how: 'hold the left button, the pointer aside of the course', by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
+  'hold-l-aside': { says: ' ASIDE', how: "hold the left button; point beside your course", by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
   'hold-l-behind': { says: ' BEHIND', how: 'hold the left button, the pointer behind', by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
   'pointer': { says: 'POINTER', how: 'the pointer, a button held', by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
   'hold-r': { says: 'HOLD R', how: 'hold the right button', by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
-  'double-l': { says: 'L L, HOLD', how: 'press the left button twice and hold, or turn the wheel up', by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
+  'double-l': { says: 'L L, HOLD', how: "double-click and hold the left button, or scroll up", by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
   'wheel-up': { says: 'WHEEL UP', how: 'turn the wheel up', by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
-  'r-in-air': { says: 'R, IN AIR', how: 'the right button, in the air', by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
+  'r-in-air': { says: 'R, IN AIR', how: "right-click while airborne", by: 'labs/graphics/mouse-flight.js', proof: 'GESTURES' },
   // What the screen shows, clicked (labs/graphics/input-router.js and the screen's own hit tests).
   'click:row': { says: 'CLICK', how: 'click its row or its [key]', by: 'labs/graphics/clicks.js' },                        // a menu's row, a [KEY] in a panel's text
   'click:away': { says: 'CLICK AWAY', how: 'click outside the window', by: 'labs/graphics/input-router.js' },            // outside the pop-up on top
@@ -63,7 +63,7 @@ export const MOUSE_WAYS = Object.freeze({
   'click:locator': { says: 'LOCATOR', how: 'click the locator', by: 'labs/graphics/locator.js' },
   'click:legend': { says: 'LEGEND', how: 'click the legend\'s key', by: 'labs/graphics/locator.js' },
   'click:radio': { says: 'RADIO', how: 'click the radio\'s row', by: 'labs/graphics/radio.js' },
-  'click:tracker': { says: 'BUILD', how: 'click the tracker\'s button', by: 'labs/graphics/tracker.js' },
+  'click:tracker': { says: "RUINS", how: 'click the tracker\'s button', by: 'labs/graphics/tracker.js' },
   'click:deck': { says: 'BUTTON', how: 'click its button on the pilot\'s screen', by: 'labs/graphics/hud.js' },                         // the pilot's screen's C, L, ? and P
   'click:quest': { says: 'CLICK', how: 'click a quest\'s plate', by: 'labs/graphics/quest-list.js' },
   'click:panel': { says: 'CLICK', how: 'click it on the panel', by: 'labs/graphics/screens.js' },                     // a card's tile and lines, a ship, a word
@@ -107,35 +107,38 @@ const ROWS = [
   // key in order: -1 the left, 1 the right; src/shipStep.js, `stuntPair` below).
   // The mouse's jump and figure have no side (its pass is in BACKLOG). In MOUSE + HOTKEYS Space is the jump, the one key that flies
   // there (SX, 2026-10-07: «можно оставить пробел для прыжка в данной раскладке»).
-  { id: 'jump', name: 'Jump, held to hang: either key, the first pressed', on: 'flight', keys: ['KeyQ', 'KeyE'], sides: [-1, 1],
+  { id: 'jump', name: "Jump with either key; hold to stay airborne", on: 'flight', keys: ['KeyQ', 'KeyE'], sides: [-1, 1],
     mouse: 'double-l', shares: ['nextQuest', 'figure'], flies: true, mKeys: ['Space'] },
-  { id: 'figure', name: 'Trick in the air: the other key, the figure to its side', on: 'flight', keys: ['KeyQ', 'KeyE'],
+  { id: 'figure', name: "Trick in the air: the other key sets the side", on: 'flight', keys: ['KeyQ', 'KeyE'],
     mouse: 'r-in-air', shares: ['jump'], flies: true },
   { id: 'undock', name: 'Leave a berth', on: 'flight', keys: ['KeyW', 'ArrowUp'], mouse: 'click:row', shares: ['thrust'], flies: true },
   // Near an object: its window's rows, the one way to act on a station or a ship (no click on the thing, no key on the nose's pick).
-  { id: 'choices', name: 'An object\'s menu: its rows', on: 'flight', keys: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'], mouse: 'click:row' },
+  { id: 'choices', name: "Choose a menu action", on: 'flight', keys: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'], mouse: 'click:row' },
   { id: 'close', name: 'Close', on: 'everywhere', keys: ['Digit0'], mouse: 'click:away' },
   { id: 'back', name: 'Back, close, pause', on: 'everywhere', keys: ['Escape'], mouse: 'click:away' },
-  { id: 'banner', name: 'The notice: open or acknowledge', on: 'flight', keys: ['Enter', 'NumpadEnter'], mouse: 'click:banner' },
+  { id: 'banner', name: "Open or acknowledge a notice", on: 'flight', keys: ['Enter', 'NumpadEnter'], mouse: 'click:banner' },
   // The pilot and the cockpit.
-  { id: 'map', name: 'Map', on: 'flight', keys: ['Tab'], mouse: 'click:locator' },
-  { id: 'card', name: 'Pilot card', on: 'flight', keys: ['KeyC'], mouse: 'click:deck' },
+  // M the map, P the pilot card, the pause on Escape alone, the legend on N (SX, 2026-10-16: «M карта, P карточка пилота ... давай перераспределим
+  // и исправим»): the map keeps TAB as its second key; P again, or Escape, closes the card.
+  { id: 'map', name: 'Map', on: 'flight', keys: ['KeyM', 'Tab'], mouse: 'click:locator' },
+  { id: 'card', name: 'Pilot card', on: 'flight', keys: ['KeyP'], mouse: 'click:deck' },
   { id: 'sign', name: 'Leave a sign', on: 'flight', keys: ['KeyL'], mouse: 'click:deck' },
   { id: 'help', name: 'Controls', on: 'everywhere', keys: ['Slash', 'F1'], mouse: 'click:deck' },
   // R attaches the keys to the quest list (arrows, Enter, Escape); Q is the jump.
-  { id: 'nextQuest', name: 'Quests: the keys on the list', on: 'flight', keys: ['KeyR'], mouse: 'click:quest' },
+  { id: 'nextQuest', name: "Focus the quest list", on: 'flight', keys: ['KeyR'], mouse: 'click:quest' },
   { id: 'listUp', name: 'Quest list: up', on: 'quests', keys: ['ArrowUp'], mouse: 'click:quest' },
   { id: 'listDown', name: 'Quest list: down', on: 'quests', keys: ['ArrowDown'], mouse: 'click:quest' },
-  // In the pause, GAMEPLAY's HOME BEARING (labs/graphics/pause.js); the pause itself, the pilot's screen's P PAUSE (labs/graphics/hud.js).
+  // In the pause, GAMEPLAY's HOME BEARING (labs/graphics/pause.js); the pause itself, the pilot's screen's ESC PAUSE (labs/graphics/hud.js): Escape,
+  // which pauses once nothing else it closes is open (labs/graphics/input-router.js), since P went to the pilot card (2026-10-16).
   { id: 'homeGuide', name: 'Home bearing', on: 'flight', keys: ['KeyG'], mouse: 'click:pause' },
-  { id: 'pause', name: 'Pause', on: 'flight', keys: ['KeyP'], mouse: 'click:deck' },
-  { id: 'legend', name: 'Locator legend', on: 'flight', keys: ['KeyM'], mouse: 'click:legend' },
+  { id: 'pause', name: 'Pause', on: 'flight', keys: ['Escape'], mouse: 'click:deck', shares: ['back'] },
+  { id: 'legend', name: 'Locator legend', on: 'flight', keys: ['KeyN'], mouse: 'click:legend', shares: ['rename'] },
   // The radio under the quests shown or hidden to its row (SX's W1 POCKET, 2026-10-05; labs/graphics/radio.js). T: free in the flight
   // (the sign composer's T is its own screen's), beside R QUESTS on the keyboard.
   { id: 'radio', name: 'Radio: show or hide', on: 'flight', keys: ['KeyT'], mouse: 'click:radio' },
   // The ruins' tracker on the deck's left shoulder, shown or hidden (SX, 2026-10-08: «позволил бы скрывать как и легенду»; labs/graphics/
   // tracker.js). B: free in the flight, as the legend's M and the radio's T are.
-  { id: 'tracker', name: 'Ruins\' tracker: show or hide', on: 'flight', keys: ['KeyB'], mouse: 'click:tracker' },
+  { id: 'tracker', name: "Ruin tracker: show or hide", on: 'flight', keys: ['KeyB'], mouse: 'click:tracker' },
   // In the pause: GRAPHICS's DISPLAY and AUDIO's SOUND.
   { id: 'display', name: 'Screen filter', on: 'page', keys: ['KeyV'], mouse: 'click:pause' },
   { id: 'sound', name: 'Sound on / off', on: 'page', keys: ['KeyO'], mouse: 'click:pause' },
@@ -147,11 +150,11 @@ const ROWS = [
   { id: 'down', name: 'Choose: down', on: 'screens', keys: ['ArrowDown', 'KeyS'], mouse: 'click:panel' },
   // Enter (or Space, where the flight is not under it) clicks where the keyboard's focus is parked: a pause's row, a thing of the
   // garage's room, the middle of the map (a flag put there).
-  { id: 'confirm', name: 'Click where the keys point', on: 'screens', keys: ['Enter', 'NumpadEnter', 'Space'], mouse: 'click:pause' },
+  { id: 'confirm', name: "Confirm selection", on: 'screens', keys: ['Enter', 'NumpadEnter', 'Space'], mouse: 'click:pause' },
   // The name is typed (C0 conflict 11 would give the mouse a grid of letters on the card): N in both modes, the keyboard being there for the
   // hotkeys in MOUSE + HOTKEYS too (no gap since 2026-10-07).
   { id: 'rename', name: 'Pilot card: name', on: 'card', keys: ['KeyN'], mouse: null },
-  { id: 'nextPaint', name: 'Pilot card: paint', on: 'card', keys: ['KeyP'], mouse: 'click:panel', shares: ['pause'] },
+  { id: 'nextPaint', name: 'Pilot card: paint', on: 'card', keys: ['KeyC'], mouse: 'click:panel' },
   { id: 'nextCockpit', name: 'Pilot card: cockpit', on: 'card', keys: ['KeyK'], mouse: 'click:panel', shares: ['nextCursor'] },
   { id: 'nextLook', name: 'Pilot card: look', on: 'card', keys: ['KeyL'], mouse: 'click:panel', shares: ['sign'] },
   // The charm that hangs from the locator (labs/graphics/charm.js; SX, 2026-10-08: «можно отключить отображание сувенира в карточке
@@ -268,11 +271,11 @@ const TANK = Object.freeze({ steer: 'tank' }), SCREEN = Object.freeze({ steer: '
 const TANK_BRAKE = Object.freeze({ ...BRAKE, ...TANK }), SCREEN_BRAKE = Object.freeze({ ...BRAKE, ...SCREEN });
 // SCREEN's four directions (the four verbs' keys), in the order a list writes them: 'W A S D / ↑ ← ↓ →' (keyText).
 const DIRECTIONS = Object.freeze(['thrust', 'turnLeft', 'retro', 'turnRight']);
-const SCREEN_FLY = 'Fly to its side of the screen';
+const SCREEN_FLY = "Fly in the key's direction";
 const HELP = {};
 const PILOT_NEXT = ['PILOT', [[k('map'), 'Map'], [k('card'), 'Pilot card'], [k('sign'), 'Leave a sign'], [k('nextQuest'), 'Quests'],
-  [k('homeGuide'), 'Home bearing'], [k('pause'), 'Pause, or {back}']]];
-const DISPLAY_NEXT = ['DISPLAY', [[k('legend'), 'Locator legend'], [k('radio'), 'Radio'], [k('tracker'), 'Ruins\' tracker'], [k('display'), 'Screen filter'],
+  [k('homeGuide'), 'Home bearing'], [k('pause'), 'Pause']]];
+const DISPLAY_NEXT = ['DISPLAY', [[k('legend'), 'Locator legend'], [k('radio'), 'Radio'], [k('tracker'), "Ruin tracker"], [k('display'), 'Screen filter'],
   [k('sound'), 'Sound on / off'], [k('nextCursor'), 'Cursor']]];
 // A page for each mode (C0's pages of controls.html, «Справка», since 2026-10-07 two), the mode the pilot plays in first, ← → to the
 // other. KEYS + CLICKS: the keys fly, a click does what it does on the screen. MOUSE + HOTKEYS: the mouse flies, Space jumps, every key
@@ -282,7 +285,7 @@ HELP.K = [
     [k('thrust', 'turnLeft', 'retro', 'turnRight'), SCREEN_FLY, SCREEN], [k('brake'), 'Brake, drift in turns', TANK_BRAKE],
     [k('brake'), 'Brake, drift to a side', SCREEN_BRAKE], [k('fire'), 'Fire', NO_FIRE], [k('jump'), 'Jump; hold to stay airborne'],
     [k('figure'), 'Trick: press the other key']]],
-  ['NEAR AN OBJECT', [[{ range: ['choices', MENU_ROWS] }, 'Choose action, or click it'], [k('close', 'back'), 'Close, or click away'],
+  ['NEAR AN OBJECT', [[{ range: ['choices', MENU_ROWS] }, "Choose or click an action"], [k('close', 'back'), 'Close, or click away'],
     [k('banner'), 'Open the notice']]]],
   [PILOT_NEXT, DISPLAY_NEXT],
 ];
@@ -290,12 +293,12 @@ HELP.M = [
   [['FLY', [[{ mouse: 'hold-l-ahead' }, 'Fly to the cursor'], [{ mouse: 'hold-l-aside' }, 'Drift, when fast', NO_DRIFT], [{ mouse: 'hold-l-behind' }, 'Brake'],
     [{ mouse: 'hold-r' }, 'Fire', NO_FIRE], [{ keys: ['jump'], scheme: 'M' }, 'Jump; hold to stay airborne'], [{ mouse: 'double-l' }, 'Jump; or WHEEL UP'],
     [{ mouse: 'r-in-air' }, 'Trick']]],
-  ['CLICK', [[{ words: 'A ROW' }, 'Choose'], [{ words: 'A KEY' }, 'Press it'], [{ words: 'AWAY' }, 'Close']]]],
+  ['CLICK', [[{ words: 'A ROW' }, 'Choose'], [{ words: 'A KEY' }, "Use shortcut"], [{ words: 'AWAY' }, 'Close']]]],
   [PILOT_NEXT, DISPLAY_NEXT, ['TRACKPAD', [[{ words: '2 FINGERS' }, 'Right button']]]],
 ];
 export const HELP_INTRO = Object.freeze({
-  K: 'Deliver cargo for credits. Approach stations for services. {map} opens the map.',
-  M: 'Deliver cargo for credits. Approach stations for services. Click the locator for the map.',
+  K: "Deliver cargo for CR. Dock for fuel and repairs. {map} opens the map.",
+  M: "Deliver cargo for CR. Dock for fuel and repairs. Click the locator for the map.",
 });
 
 // A help cell as drawn: a string.
@@ -362,15 +365,20 @@ export function mouseSays(way) {
 // brake, the fire, the drift (the brake and a turn's two keys, `via`), the jump, and the trick, which is the figure's key; `by` the side of the
 // key that jumped (World.air.by: -1 the pair's left, 1 its right), so the key shown for the trick is the other one, the one that plays it.
 // The first flight's (SX, 2026-10-09: «W чтобы ехать вперед ... АД, чтобы рулить, С, чтобы назад»): the thrust, the turn's two (one way, `turn`) and
-// the reverse (`back`, the steering's second), each by its first key, the letter, as he says them.
-const SKILL_ACTIONS = Object.freeze({ thrust: 'thrust', steer: 'turnLeft turnRight', back: 'retro', brake: 'brake', fire: 'fire', drift: 'drift',
-  jump: 'jump', trick: 'figure' });
-const FIRST_KEY = new Set(['thrust', 'steer', 'back']);
+// the reverse (`back`, the steering's second), each by its first key, the letter, as he says them; the four round the ship (SX, 2026-10-16:
+// «w внизу, s наверху a d слева и справа»), each its own (`left`, `right`). The tutorial's (2026-10-16): the screen filter, the controls list,
+// the map, the pilot card and the sign, each by its first key; and the trick as it is played from the ground, `combo`: the pair's left key that
+// jumps, then its right that plays the figure («q -> e трюк»; the mouse's trick has no pair, its words).
+const SKILL_ACTIONS = Object.freeze({ thrust: 'thrust', steer: 'turnLeft turnRight', back: 'retro', left: 'turnLeft', right: 'turnRight',
+  brake: 'brake', fire: 'fire', drift: 'drift', jump: 'jump', trick: 'figure', combo: 'figure', display: 'display', help: 'help', map: 'map',
+  card: 'card', sign: 'sign' });
+const FIRST_KEY = new Set(['thrust', 'steer', 'back', 'left', 'right', 'display', 'help', 'map', 'card', 'sign']);
 export function skillWay(skill, scheme = DEFAULT_SCHEME, by = 0) {
   const ids = (SKILL_ACTIONS[skill] ?? '').split(' '), a = byId.get(ids[0]);
   if (!a) return '';
   const names = (codes) => [...new Set(codes.map(codeName))].join(' ');
-  if (scheme === 'M') return names(codesIn(a.id, 'M')) || mouseSays(a.mouse);
+  if (scheme === 'M') { const codes = codesIn(a.id, 'M'); return names(FIRST_KEY.has(skill) ? codes.slice(0, 1) : codes) || mouseSays(a.mouse); }
+  if (skill === 'combo') return names([STUNT_PAIR.left[0], STUNT_PAIR.right[0]]);
   if (skill === 'trick') return names(by < 0 ? STUNT_PAIR.right : by > 0 ? STUNT_PAIR.left : a.keys);
   if (FIRST_KEY.has(skill)) return names(ids.map((id) => codesOf(id)[0]));
   return names(a.via ? a.via.split(' ').map((id) => codesOf(id)[0]) : a.keys);

@@ -7,12 +7,15 @@
 //   waiting: this tab was opened last; it plays and saves, and an older one is still open.
 //   clear:   the older one has closed; any key plays on here.
 //   older:   a newer tab was opened; this one is paused for good and saves nothing.
+// The key is read from the bindings (src/controls.js), never typed (Codex's text pass UD03, 2026-10-16).
+import { keyName } from './controls.js';
+
 export const TAB_WINDOWS = {
   waiting: {
     kind: 'refusal', mark: '!', title: 'GAME OPEN ELSEWHERE',
     lines: ['GAME OPEN IN ANOTHER TAB.', 'THIS TAB WILL SAVE YOUR PROGRESS.', 'THE OTHER TAB IS PAUSED.'],
-    status: 'WAITING FOR OTHER TAB', waiting: true,
-    key: '[ESC] CONTINUE HERE',
+    status: "READY TO PLAY HERE", waiting: true,
+    key: `[${keyName('back')}] CONTINUE HERE`,
   },
   clear: {
     kind: 'gain', mark: '+', title: 'READY TO CONTINUE',
@@ -22,8 +25,8 @@ export const TAB_WINDOWS = {
   },
   older: {
     kind: 'danger', mark: '!', title: 'ACTIVE IN ANOTHER TAB',
-    lines: ['GAME OPENED IN ANOTHER TAB.', 'THIS TAB IS PAUSED AND WILL NOT SAVE.', 'CONTINUE PLAYING IN THE OTHER TAB.'],
-    status: 'CLOSE THIS TAB OR RELOAD TO SWITCH BACK',
+    lines: ['GAME OPENED IN ANOTHER TAB.', 'THIS TAB IS PAUSED AND WILL NOT SAVE.', "CONTINUE IN THE OTHER TAB."],
+    status: "RELOAD TO PLAY IN THIS TAB",
     key: null,
   },
 };

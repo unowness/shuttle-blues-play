@@ -1,37 +1,38 @@
-// SCOOTY JR.'s own cockpit, while the opening's loaner is flown (src/loaner.js flyingLoaner): SX's pick P3+ CHARMS, PLAIN on
+// SCOOTY JR.'s own cockpit, while it is flown (the opening's loaner, src/loaner.js flyingLoaner, or the STANDARD wearing it once the opening is
+// over, src/shipLooks.js scooter): SX's pick P3+ CHARMS, PLAIN on
 // labs/graphics/sketches/scooty-cockpit.html (2026-10-04: «у скутера из вступления должна быть своя упрощенная дурацкая панель, где
 // штурвал это как у самоката рычаг, в цветах этого корабля»; then P3 CHARMS with «Звонок и тормоза изобрази попроще ... не космические»;
 // «берем P3+»). No dashboard: a kick scooter's handlebar dressed as a child's, in the loaner's livery: streamers off the grips for the
 // speed, the bell a signal lamp that lights on the brake, the brakes one line over each grip, the rental tag swinging under the bar
-// with where SCOOTY JR. goes back to and a needle along the course there; HULL and FUEL bare where the pilot's left screen has them,
-// CONTROLS bare at the right. No thrust, speed, PILOT CARD or LEAVE SIGN: boarding the pilot's own shuttle, the full cockpit comes
-// (hud.js), which is the promotion the sketch aimed at. The wallet stands over the rail at the pilot's place (hud.js draws it for both
-// cockpits since 2026-10-08, SX: «сейчас нет индикатора монет нигде»), and the HULL and FUEL bars run to the same text edge as the pilot's.
+// with where SCOOTY JR. goes back to and a needle along the course there (the loaner's only). Since 2026-10-16 the handlebar is all of
+// the interface on the scooter (SX: «когда на самокате едем можешь показывать только руль самоката и метку на карте, вообще никакого
+// интерфейса не надо больше ну и обучение управлением»; labs/graphics/flight-frame.js draws it alone): no notch, HULL, FUEL or wallet;
+// two keys in the screen's lower corners, ESC PAUSE and ? CONTROLS (SX: «Можешь там расположить по углам контроль подсказки»); its lamp faces the way the pilot looks, its lens forward and its light up the screen, its back to the pilot (SX: «фара должна быть
+// обращена в сторону взгляда сидящего за монитором человека а не ему в лицо»).
 //
-// The drawing is the sketch's, moved here as it stood (its handlebar, its plain levers and lamp, its streamers and tag, its HULL and
-// FUEL rows and help item); what the game adds is only what the page has and the sketch did not: the course from the objective's
-// bearing (src/course.js, as every arrow), the help a button (labs/graphics/clicks.js, src/hover.js), the panel's motion stepped on the
+// The drawing is the sketch's, moved here as it stood (its handlebar, its plain levers, its streamers and tag); what the game adds is
+// only what the page has and the sketch did not: the course from the objective's
+// bearing (src/course.js, as every arrow), the panel's motion stepped on the
 // world's clock, the springs of a jump on the bar (HELM_FX lean and pull, as on the pilot's lever), the scale over it (HELM_FX.gauge:
 // a heavy hit ahead, the jump's), and the warning's lamp (HELM_FX.lamp) on the bell, as on BRAKES. Reduced motion stills the streamers'
 // flutter and the tag's swing; their readings (the streamers' spread, the needle) stay.
 import { helmPose } from '../../src/helm.js';
 import { fitText } from '../../src/interface.js';
 import { UI, uiMetrics } from '../../src/uiGrid.js';
-import { keyName } from '../../src/controls.js';
 import { PALETTE, ROLES } from '../../src/roles.js';
 import { clamp } from '../../src/util.js';
-import { LOANER } from '../../src/loaner.js';
+import { LOANER, flyingLoaner } from '../../src/loaner.js';
 import { stationDefById } from '../../src/sectors.js';
 import { openingQuest } from '../../src/opening.js';
 import { questNavigation } from '../../src/navigation.js';
 import { courseOf } from '../../src/course.js';
+import { keyName } from '../../src/controls.js';
 import { hoverItem } from '../../src/hover.js';
 import { hollowBar } from './cockpit-frame.js';
-import { GRIP_INK, HELM_FX, drawGauge } from './vector-helm.js';
 import { keycap, keycapBox, KEYCAP_PAD } from './ui-parts.js';
 import { noteKeycap } from './clicks.js';
-import { EDGE } from './hud-layout.js';
-import { barLook, barStep, drawMeterBar, meterRow } from './meter-bar.js';
+import { EDGE, deckLayout } from './hud-layout.js';
+import { GRIP_INK, HELM_FX, drawGauge } from './vector-helm.js';
 
 // ------------------------------------------------------------------------------------------------ the livery
 
@@ -85,39 +86,21 @@ function needle(ctx, x, y, a, length, ink) {
 const capMid = (r, y) => { const m = uiMetrics(r); return y + (m.capTop + m.capBottom) / 2; };
 const textWidth = (r, text) => Array.from(text).length * r.cellW;
 
-// HULL over FUEL as the pilot's left screen draws them (hud.js drawFlightScreen: the same labels, steps, inks and columns, the bars
-// stretched to the same text edge `end`, SX, 2026-10-08: «hp и fuel сделай просто подлинее полоски»). The wallet over the rail is the
-// panel's (hud.js). `x` the rows' left, `rows` their tops.
-function hullAndFuel(r, x, end, rows, world) {
-  const cw = r.cellW;
-  const max = world.hullMax, hull = clamp(Math.round(world.hull), 0, max);
-  const tank = world.fuelTank, fuel = clamp(world.fuel, 0, tank);
-  const unit = barStep(max, tank);
-  const steps = Math.max(1, Math.round(max / unit)), fuelSteps = Math.max(1, Math.round(tank / unit));
-  const { barX, valueX, pitch } = meterRow({ x, end, cw, count: Math.max(steps, fuelSteps), digits: Math.max(String(max).length, String(Math.ceil(tank)).length),
-    capLeft: uiMetrics(r).capLeft });
-  r.text('HULL', x, rows[0], INK.label, 1);
-  drawMeterBar(r, barX, rows[0], (hull / max) * steps, steps, barLook(hull / max), pitch);
-  r.text(`${hull}`, valueX, rows[0], INK.value, 1);
-  r.text('FUEL', x, rows[1], INK.label, 1);
-  drawMeterBar(r, barX, rows[1], (fuel / tank) * fuelSteps, fuelSteps, barLook(fuel / tank, 'fuel'), pitch);
-  r.text(`${Math.ceil(fuel)}`, valueX, rows[1], INK.value, 1);
-}
-
-// The help's key and its word, as the pilot's right screen draws its items (hud.js drawPilotScreen: a button from its cap to the end
-// of its words, coming up under the pointer), its cap in the livery. The key's name is read from the controls' table, never typed.
-// `x` the cap's left edge.
-function helpItem(r, x, y) {
-  const key = keyName('help') || '?', capX = x + KEYCAP_PAD, after = capX + textWidth(r, key) + r.cellW;
+// A key and its word in a lower corner, as the pilot's right screen draws its items (hud.js drawPilotScreen: a button from its cap to the
+// end of its words, coming up under the pointer, a click the key's), its cap in the livery. The key's name is read from the controls'
+// table, never typed. `x` the item's left edge, or its right with `right`.
+function cornerKey(r, id, word, x, y, { right = false } = {}) {
+  const key = keyName(id) || '?', width = textWidth(r, key) + r.cellW + KEYCAP_PAD + textWidth(r, word);
+  const left = right ? x - width : x, capX = left + KEYCAP_PAD, after = capX + textWidth(r, key) + r.cellW;
   const cap = keycapBox(r, key, capX, y);
-  const box = { ...cap, w: after + textWidth(r, 'CONTROLS') - cap.x + KEYCAP_PAD };
+  const box = { ...cap, w: after + textWidth(r, word) - cap.x + KEYCAP_PAD };
   noteKeycap(key, box, 0, r);
-  hoverItem(r, 'deck:help', box, () => {
+  hoverItem(r, `deck:${id}`, box, () => {
     keycap(r, key, capX, y, { cap: INK.line, reach: 0 });
-    r.text('CONTROLS', after, y, INK.label, 1);
+    r.text(word, after, y, INK.label, 1);
   });
+  return box;
 }
-const helpWidth = (r) => textWidth(r, keyName('help') || '?') + r.cellW + KEYCAP_PAD + textWidth(r, 'CONTROLS');
 
 // ------------------------------------------------------------------------------------------------ the handlebar
 
@@ -132,7 +115,8 @@ export const HANDLEBAR = Object.freeze({
   grip: 46,      // a grip's length
   gripH: 12,     // and thickness
   cut: 4,        // its outer corners' cut
-  lamp: 10,      // the lamp's radius
+  lamp: 10,      // the lamp's half width at its lens
+  beam: 26,      // its light's reach up the screen
   stem: 10,      // the stem's width
   yaw: 0.5,
   persp: 0.36,
@@ -144,8 +128,8 @@ export const PLAIN = Object.freeze({ open: 7, shut: 2, chime: 5 });
 export const SCOOTY_DECK = Object.freeze({ rise: 120 });
 
 // `at` the bar's middle at rest ({ x, y }); `stemTo` where the stem ends below (y). `pose` { turn, travel, lean, squeeze, lamp }:
-// `lamp` the bell's light (0..1) and its ink. `charms` { tag: { swing, text, bearing }, streamers: { speed, phase } }. Returns the
-// bar's points.
+// `lamp` the bell's light (0..1) and its ink. `charms` { tag: { swing, text, bearing }, streamers: { speed, phase } }, the tag null for
+// none. Returns the bar's points.
 function drawHandlebar(r, at, pose, { stemTo = null, charms = null } = {}) {
   const H = HANDLEBAR, ctx = r.ctx;
   const phi = pose.turn * H.yaw, cos = Math.cos(phi), sin = Math.sin(phi);
@@ -190,11 +174,19 @@ function drawHandlebar(r, at, pose, { stemTo = null, charms = null } = {}) {
     }
   }
 
-  // The clamp where the stem meets the bar, and the lamp on it: the drawing's `o`, lit.
+  // The clamp where the stem meets the bar, and the lamp on it: the drawing's `o`, seen from behind as the pilot sees it, facing the way
+  // the pilot looks: its housing's back toward the pilot, narrower, its lens the wide edge ahead, lit, and three short lines of its light
+  // up the screen (a lamp's light, not a gradient).
   const [cx, cy] = P(0);
   path(ctx, cutBox(cx - 9, cy + 2, 18, 8, 2), INK.line, { closed: true, fill: ROLES.backing });
-  path(ctx, octagon(Math.round(cx), Math.round(cy - 2), H.lamp), INK.lamp, { closed: true, fill: ROLES.backing });
-  path(ctx, octagon(Math.round(cx), Math.round(cy - 2), 4), INK.lamp, { closed: true, fill: INK.lamp });
+  {
+    const x = Math.round(cx) + 0.5, lens = Math.round(cy - 9) + 0.5, back = Math.round(cy + 3) + 0.5, w = H.lamp, b = Math.round(H.lamp * 0.6);
+    path(ctx, [[x - w, lens], [x + w, lens], [x + b, back], [x - b, back]], INK.line, { closed: true, fill: ROLES.backing });
+    path(ctx, [[x - w + 2, lens], [x + w - 2, lens]], INK.lamp, { width: 2 });
+    ctx.globalAlpha = 0.5;
+    for (const k of [-1, 0, 1]) path(ctx, [[x + k * (w - 3), lens - 4], [x + k * (w + 4), lens - 4 - H.beam + Math.abs(k) * 6]], INK.lamp);
+    ctx.globalAlpha = 1;
+  }
 
   // The grips: their inner end square to the bar, the outer cut; the contour by the hands, as the pilot's grip (GRIP_INK); three
   // rings each.
@@ -294,9 +286,10 @@ function course(world) {
 
 // ------------------------------------------------------------------------------------------------ the panel
 
-// SCOOTY JR.'s cockpit in place of the pilot's lower panel (hud.js drawLabCockpit, part 'deck'), over the flight. `layout` the deck's
-// (hud-layout.js deckLayout: its two text rows); `input` the hands (its brake). Returns the help's box and the bar's top.
-export function drawScootyDeck(r, world, input, layout, { reducedMotion = false } = {}) {
+// SCOOTY JR.'s cockpit in place of the pilot's interface (labs/graphics/flight-frame.js; hud.js drawLabCockpit, part 'deck', for the
+// boot's warm-up), over the flight. `input` the hands (its brake). Returns the bar's points and the `box` the bar and its streamers take
+// (what the marks and the windows keep off). The tag hangs only from the opening's loaner, which goes back to A.
+export function drawScootyDeck(r, world, input, { reducedMotion = false } = {}) {
   const W = r.width, H = r.height, cx = W / 2;
   const p = helmPose(world, { reducedMotion });
   const braking = p.live && !!input?.damp && !world.drift && !world.docked;
@@ -307,15 +300,17 @@ export function drawScootyDeck(r, world, input, layout, { reducedMotion = false 
   const pose = { turn: p.turn + HELM_FX.lean / HANDLEBAR.yaw, travel: p.travel + HELM_FX.pull, lean: p.thrusting ? 'forward' : p.retroing ? 'back' : 'rest',
     squeeze: m.squeeze, lamp: warned ? 0.67 : m.ding, lampInk: warned ? (HELM_FX.lamp.level > 1 ? ROLES.danger : ROLES.caution) : null };
   const speed = Math.hypot(world.ship.vx, world.ship.vy) / world.ship.params().maxSpeed;
-  const way = course(world);
+  const way = flyingLoaner(world) ? course(world) : null;
   const bar = drawHandlebar(r, { x: cx, y: H - SCOOTY_DECK.rise }, pose, { stemTo: H, charms: {
-    tag: { swing: m.tag.a, text: fitText(way.label, 11), bearing: way.bearing },
+    tag: way ? { swing: m.tag.a, text: fitText(way.label, 11), bearing: way.bearing } : null,
     streamers: { speed: clamp(speed, 0, 1), phase: m.flap },
   } });
   // The scale over the bar (vector-helm.js drawGauge): what the pilot's lever shows over its grip, a heavy hit ahead or the jump's.
   if (HELM_FX.gauge) drawGauge(r, { grip: [[cx, bar.top]], pivot: [cx, bar.top] }, HELM_FX.gauge);
-  const [one, two] = layout?.left?.rows ?? [H - 64, H - 64 + UI.row];
-  hullAndFuel(r, EDGE, layout?.left?.textEnd ?? EDGE + 6 * r.cellW + 11 * r.cellW, [one, two], world);
-  helpItem(r, W - EDGE - helpWidth(r), two);
-  return { braking, bar };
+  const reach = 90, top = Math.round(bar.top - HANDLEBAR.beam - 16);
+  const box = { x: Math.round(cx - HANDLEBAR.half - reach), y: top, w: Math.round(2 * (HANDLEBAR.half + reach)), h: H - top };
+  // The two keys on the row the pilot's deck has its lower words on: ESC first at the left, as every window's foot has it.
+  const row = deckLayout(r).left.rows[1];
+  const keys = [cornerKey(r, 'pause', 'PAUSE', EDGE, row), cornerKey(r, 'help', 'CONTROLS', W - EDGE, row, { right: true })];
+  return { braking, bar, box, keys };
 }

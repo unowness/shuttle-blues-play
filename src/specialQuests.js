@@ -174,7 +174,7 @@ const swordfish = {
     }
     return null;
   },
-  rows: (p) => ['BOUNTY TARGETS IN', `${p.ground.name}. ${p.total} OF THEM.`, 'ARMED. NEED A PILOT.'],
+  rows: (p) => ["GOT A BOUNTY IN", `${p.ground.name}. ${p.total} TARGETS.`, "ARMED. WANT IN?"],
   start(world, s) { s.q = { stage: 'go', down: 0, batches: batchesOf(s.plan), nextAt: 0, hadAlive: false }; },
   step(world, s, dt, end) {
     const q = s.q, g = s.plan.ground;
@@ -269,7 +269,7 @@ const express = {
     }
     return { planet: planetDest(o.sector, o.p), stops: way, cars: c.cars };
   },
-  rows: (p) => ['FREIGHT JOB AVAILABLE.', `${p.cars} CRATES AT ${p.planet.name}.`, 'NEED A RELIEF PILOT.'],
+  rows: (p) => ["GOT A LOAD FOR YOU.", `${p.cars} CRATES AT ${p.planet.name}.`, "COVER MY SHIFT?"],
   start(world, s) { s.q = { stage: 'load', cars: [], delivered: 0 }; s.loadTop = 1; },
   step(world, s, dt) {
     const q = s.q;
@@ -328,7 +328,7 @@ const serenity = {
     const pick = pickOf(pool, world.rng('quest'));
     return { dest: stationDest(pick.d), distance: Math.round(pick.len), time: Math.round(pick.len / c.speed + c.slack) };
   },
-  rows: (p) => ['HULL IS BREAKING UP.', 'NEED A PILOT. TAKE US', `TO ${p.dest.name}.`],
+  rows: (p) => ['HULL IS BREAKING UP.', "NEED A PILOT. FLY US", `TO ${p.dest.name}.`],
   start(world, s) { s.q = { ends: world.ledger.clock + s.plan.time, rate: (world.hullMax * (1 - C().serenity.hullEnd)) / s.plan.time, sparkIn: 0 }; },
   step(world, s, dt, end) {
     const q = s.q, ship = world.ship;

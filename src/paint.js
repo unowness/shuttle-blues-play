@@ -105,7 +105,11 @@ export const PAINT_INKS = new Set(PAINTS.flatMap((p) => (p.inks ? Object.values(
 // the paint's `structure`, and a lamp or a pod in LAMP, the paint's `jets` (ships/SCHEMA.md).
 // Null for a colour or a paint the paint does not cover: the caller's own ink then.
 export const LAMP = '#ffa66b';
-const AUTHORED = Object.freeze({ '#6f74c0': 'material', '#b9a5f0': 'highlight', '#5ce422': 'engine', '#f0a5c0': 'structure', [LAMP]: 'jets' });
+// SCOOTY JR.'s livery (src/loaner.js LOANER.livery, ships/scooty-jr.json) read as roles too, its warm hull the material and its lamp the
+// jets: worn by the STANDARD once the opening is over (src/shipLooks.js), it takes a paint as the others do (SX, 2026-10-16: «у них все
+// работает также как и у стандартного»). The loaner itself is never painted, so it keeps them.
+const AUTHORED = Object.freeze({ '#6f74c0': 'material', '#b9a5f0': 'highlight', '#5ce422': 'engine', '#f0a5c0': 'structure', [LAMP]: 'jets',
+  '#bd9c5e': 'material', '#ffd27f': 'jets' });
 const ARCS = new Set(['◝', '◜']);
 export function paintedHull(paintId, cell, engineOn = false) {
   const inks = paintById(paintId)?.inks;

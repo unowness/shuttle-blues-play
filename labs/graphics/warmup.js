@@ -36,7 +36,7 @@ export const WARM_EXTRA = [
   '◐◓◑◒',                                // RELAY 12's cargo, its cassettes' reels turning (cargo-art.js, 2026-10-16)
   '✳╋',                                  // pirate mine cue and NEEDLE hull
   '╿▼',                                  // the pirates' guns and the TALON's and HOOK's keels (2026-09-30)
-  '╽',                                   // THUNDER's and BLACKBIRD's pitot probe (ships/thunder.json, ships/blackbird.json, 2026-10-08)
+  '▔',                                   // MODERN's wing flats (ships/modern.json, 2026-10-16)
   '╬╪╫',                                 // a repair droid's parts on their way (CONFIG.droids.part, 2026-10-01)
   '╻╡╞╸',                                // the home garage's crane, bridge and hose (garage-art.js, 2026-10-02)
   '›',                                   // the picked flag's mark on the map's column (map-screen.js, 2026-10-02)

@@ -580,7 +580,7 @@ const homeTerms = () => {
     `Then ${formatCR(H.repairPrice)} CR per hull point.`];
 };
 // What opening a cache costs this pilot (World.findPrice: nothing for a free claim, the opening's first cache).
-const costLine = (price) => (price > 0 ? `Opening it costs ${formatCR(price)} CR.` : 'Opening it costs nothing.');
+const costLine = (price) => (price > 0 ? `Open for ${formatCR(price)} CR.` : "Free to open.");
 // What a thing on the map says, for the column: a title in its ink and lines of text.
 export function mapWords(hit, world, map = null) {
   const L = world?.ledger ?? EMPTY_LEDGER;
@@ -613,11 +613,11 @@ export function mapWords(hit, world, map = null) {
     }
     case 'cache': {
       const o = hit.def, def = findDef(o.id, L);
-      if (o.kind === 'look') return { title: `${lookById(o.props.look)?.name ?? 'LOOK'} LOOK`, ink: INK.text, lines: ['Look collected. Change it in Graphics or on the pilot card.'] };
+      if (o.kind === 'look') return { title: `${lookById(o.props.look)?.name ?? 'LOOK'} LOOK`, ink: INK.text, lines: ["Look collected. Select it in Graphics or on your pilot card."] };
       if (hit.state === 'taken') return { title: findLabel(def), ink: cacheInk(o), lines: [`Opened. A ${o.props.cacheKind} cache.`] };
       return { title: findTitle(def), ink: cacheInk(o),
-        lines: [hit.state === 'marked' ? 'Cache marked by a station. Approach to open.' : hit.state === 'told' ? 'Cache revealed in this sector. Approach to open.'
-          : 'Cache discovered. Not opened.', costLine(world?.findPrice ? world.findPrice(def) : def.price)] };
+        lines: [hit.state === 'marked' ? "Marked by a station. Approach to open." : hit.state === 'told' ? "Cache revealed here. Approach to open."
+          : "Cache found. Still sealed.", costLine(world?.findPrice ? world.findPrice(def) : def.price)] };
     }
     case 'ship': return { title: 'YOU', lines: ['Your current position.'] };
     case 'flag': return { title: `FLAG ${hit.i + 1}  ${FLAGS[hit.i].name}`, ink: FLAGS[hit.i].ink,

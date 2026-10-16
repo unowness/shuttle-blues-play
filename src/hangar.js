@@ -11,7 +11,7 @@ import { SPECIALS } from './specialShips.js';
 // the page loads (registerShipModel) and the world never reads. Prices are the v1
 // economy's (ECONOMY_V1_HANDOFF.md, 2026-10-01): 1,200 and 1,800, were 600 and 900.
 export const SHIPS = [
-  { id: 'standard', label: 'STANDARD', chassis: 'standard', model: 'ships/spaceship.json', price: 0,
+  { id: 'standard', label: 'STANDARD', chassis: 'standard', model: 'ships/modern.json', price: 0,
     note: 'ALL-ROUND' },
   { id: 'courier', label: 'COURIER', chassis: 'courier', model: 'ships/courier.json', price: 1200,
     note: 'FAST / HIGH BURN' },
@@ -27,7 +27,7 @@ const STARTER_SHIP = 'standard';
 // (src/specialShips.js specialModel, made in code, in its own colours, never the pilot's paint). `note` is what its chassis is, in the
 // hangar's words: SWORDFISH II's TWIN GUN and the FALCON's QUICK GUN stay in their quests.
 const CREW_NOTES = Object.freeze({
-  delorean: 'FAST / FRAGILE', swordfish: 'NIMBLE / FIGHTER', express: 'SLOW / STRONG',
+  delorean: 'FAST / FRAGILE', swordfish: 'NIMBLE / FIGHTER', express: "SLOW / TOUGH",
   falcon: 'TOUGH / SLOW TURN', serenity: 'BIG / THIN HULL', xwing: 'AGILE / SMALL',
 });
 export const CREW_SHIPS = Object.freeze(SPECIALS.map((sp) => Object.freeze({

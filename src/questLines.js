@@ -44,8 +44,8 @@ export const QUEST_LINES = Object.freeze({
   // A cache to open (src/quests.js, the side quest `find`): its title names the kind of find (SOUVENIR or PAINT), never the find itself
   // (SX, 2026-10-09: a closed cache is a surprise); the done row, which comes once it is opened, names what it held.
   find: Object.freeze({
-    title: line(0, ['kind'], (kind) => `FIND A ${kind}`),
-    sub: line(1, ['sector'], (sector) => `CACHE IN ${sector}`),
+    title: line(0, ['kind'], (kind) => `OPEN ${kind} CACHE`),
+    sub: line(1, ['sector'], (sector) => `${sector} / OPEN CACHE`, { act: true }),
     done: line(0, ['find'], (find) => `${find} FOUND`),
     doneSub: line(1, ['what'], (what) => `${what} COLLECTED`),
   }),
@@ -69,7 +69,7 @@ export const QUEST_LINES = Object.freeze({
   // A pilot out of fuel (`rescue`).
   rescue: Object.freeze({
     title: line(0, [], () => 'PILOT OUT OF FUEL'),
-    bring: line(1, ['sector', 'count'], (sector, fuel) => `${sector} / ${fuel} FUEL`),
+    bring: line(1, ['sector', 'count'], (sector, fuel) => `${sector} / GIVE ${fuel} FUEL`, { act: true }),
     handIn: line(1, ['sector'], (sector) => `${sector} / HAND IN`, { act: true }),
     done: line(0, [], () => 'FUEL TRANSFERRED'),
     paid: line(1, ['cr', 'sector'], (cr, sector) => `+${cr} CR / ${sector}`),
@@ -147,7 +147,7 @@ export const QUEST_LINES = Object.freeze({
     collect: line(0, [], () => 'GET YOUR SHUTTLE'),
     board: line(0, [], () => 'BOARD YOUR SHUTTLE'),
     brake: line(1, [], () => 'BRAKE TO A STOP', { act: true }),
-    service: line(1, ['station'], (station) => `${station} / SERVICE`),
+    service: line(1, ['station'], (station) => `GO TO ${station}`, { act: true }),
     reached: line(0, ['station'], (station) => `${station} REACHED`),
     serviceBerth: line(1, [], () => 'SERVICE BERTH'),
     berth: line(1, [], () => "SCOOTY'S BERTH"),
@@ -157,8 +157,8 @@ export const QUEST_LINES = Object.freeze({
     dispatch: line(1, ['station'], (station) => `${station} DISPATCH`),
     fitted: line(0, [], () => 'LOCATOR, MAP FITTED'),
     marked: line(1, ['station'], (station) => `${station} MARKED`),
-    freight: line(0, [], () => 'ACCEPT THE FREIGHT'),
-    seeMap: line(1, ['station'], (station) => `${station} / SEE MAP`),
+    freight: line(0, [], () => "TAKE FREIGHT"),
+    seeMap: line(1, ['station'], (station) => `${station} / SEE MAP`, { act: true }),
     accepted: line(0, [], () => 'FREIGHT ACCEPTED'),
     to: line(1, ['station'], (station) => `TO ${station}`),
     refuel: line(0, ['station'], (station) => `REFUEL AT ${station}`),
@@ -174,9 +174,9 @@ export const QUEST_LINES = Object.freeze({
     shelfAt: line(1, ['station'], (station) => `AT ${station}`),
     shelfFitted: line(0, [], () => 'SHELF FITTED'),
     card: line(0, [], () => 'OPEN PILOT CARD'),
-    cardSub: line(1, [], () => 'ITEMS AND YOUR LOOK'),
+    cardSub: line(1, [], () => "ITEMS + APPEARANCE"),
     cardOpened: line(0, [], () => 'CARD OPENED'),
-    lookYours: line(1, [], () => 'LOOK IS YOURS'),
+    lookYours: line(1, [], () => "MAKE IT YOURS"),
     load: line(0, [], () => 'TAKE RETURN LOAD'),
     loadTaken: line(0, [], () => 'LOAD TAKEN'),
     // Slice 4 (chat N2 part 2): the ruin R (A tells of it, a row of A's menu marks it), its guards with the short shooting practice, the
@@ -185,7 +185,7 @@ export const QUEST_LINES = Object.freeze({
     askRuin: line(0, ['ruin'], (ruin) => `ASK ABOUT ${ruin}`),
     ruinAt: line(1, ['station'], (station) => `AT ${station}`),
     ruinMarked: line(0, ['ruin'], (ruin) => `${ruin} MARKED`),
-    ruinCost: line(1, ['cr'], (cr) => `${cr} CR TO REBUILD`),
+    ruinCost: line(1, ['cr'], (cr) => `${cr} CR TO RESTORE`),
     guards: line(0, [], () => 'CLEAR THE PIRATES'),
     guardsAt: line(1, ['ruin', 'ships'], (ruin, n) => `${ruin} / ${n} SHIPS`),
     fire: line(1, [], () => 'AIM AND FIRE', { act: true }),
@@ -196,7 +196,7 @@ export const QUEST_LINES = Object.freeze({
     earnSub: line(1, [], () => 'TAKE FREIGHT', { act: true }),
     repairer: line(0, [], () => 'FIND REPAIR DROID'),
     checkHull: line(1, [], () => 'CHECK YOUR HULL', { act: true }),
-    hullSound: line(0, [], () => 'HULL IS SOUND'),
+    hullSound: line(0, [], () => "HULL CHECKED"),
     hullMended: line(0, [], () => 'HULL REPAIRED'),
     droidMet: line(1, [], () => 'REPAIR DROID'),
     reopen: line(0, ['ruin'], (ruin) => `REOPEN ${ruin}`),
@@ -206,12 +206,12 @@ export const QUEST_LINES = Object.freeze({
   support: Object.freeze({
     title: line(0, [], () => 'RECOVERY RUN'),
     run: line(1, ['ruin'], (ruin) => `RUN FUNDS ${ruin}`),
-    ready: line(0, [], () => 'SUPPORT IS READY'),
-    go: line(1, ['ruin'], (ruin) => `GO TO ${ruin}`),
+    ready: line(0, [], () => "SUPPORT READY"),
+    go: line(1, ['ruin'], (ruin) => `GO TO ${ruin}`, { act: true }),
     clear: line(1, ['ruin'], (ruin) => `CLEAR ${ruin}`),
     done: line(0, ['ruin'], (ruin) => `${ruin} SUPPORTED`),
-    doneSub: line(1, ['cr'], (cr) => `+${cr} CR BUILT`),
-    none: line(1, [], () => 'YOU NEED NO HELP'),
+    doneSub: line(1, ['cr'], (cr) => `+${cr} CR FUNDED`),
+    none: line(1, [], () => "NO SUPPORT NEEDED"),
   }),
   // The six reference ships' quests (src/specialQuests.js; src/specials.js gives the done row its pay).
   // The boss TOLLKEEPER's quest (src/bossQuest.js): story purple, its mark EXPLORE; in its fight its own name; the banners at its waking,
@@ -219,7 +219,7 @@ export const QUEST_LINES = Object.freeze({
   // COMMONS's chain THE CHORUS (src/chorus.js): the story's purple; a voice's recorder found, then played back at COMMONS; its banners.
   chorus: Object.freeze({
     title: line(0, ['voice'], (voice) => `VOICE: ${voice}`),
-    seekSub: line(1, ['sector'], (sector) => `${sector} / FIND IT`, { act: true }),
+    seekSub: line(1, ['sector'], (sector) => `${sector} / GET RECORDER`, { act: true }),
     carrySub: line(1, [], () => 'COMMONS / PLAY BACK', { act: true }),
     done: line(0, [], () => 'THE CHORUS IS BACK'),
     paid: line(1, ['cr'], (cr) => `+${cr} CR / CHORUS`),
@@ -228,7 +228,7 @@ export const QUEST_LINES = Object.freeze({
     back: line(0, ['voice'], (voice) => `${voice} IS BACK`, { banner: true }),
     backSub: line(1, ['count'], (n) => `${n} OF 4 VOICES`, { banner: true }),
     dropped: line(0, [], () => 'RECORDER DROPPED', { banner: true }),
-    droppedSub: line(1, [], () => 'IT WAITS WHERE IT LAY', { banner: true }),
+    droppedSub: line(1, [], () => "BACK WHERE YOU FOUND IT", { banner: true }),
     roll: line(0, [], () => 'ROLL CALL', { banner: true }),
     rollSub: line(1, ['cr'], (cr) => `+${cr} CR / THE CHORUS`, { banner: true }),
   }),
@@ -249,7 +249,7 @@ export const QUEST_LINES = Object.freeze({
   }),
   special: Object.freeze({
     race: line(0, ['station'], (station) => `RACE TO ${station}`),
-    raceSub: line(1, [], () => 'FIND THE DOC', { timed: true }),
+    raceSub: line(1, [], () => 'FIND THE DOC', { timed: true, act: true }),
     reached: line(0, ['station'], (station) => `${station} REACHED`),
     runFailed: line(0, [], () => 'RUN FAILED'),
     missed: line(1, [], () => 'DESTINATION MISSED'),
@@ -286,7 +286,7 @@ export const QUEST_LINES = Object.freeze({
     // The opening's dispatch call (src/opening.js).
     smallDelivery: line(1, ['station'], (station) => `${station} NEEDS A DELIVERY`, { banner: true }),
     // A toast when K finds no other pointer (labs/graphics/main.js).
-    moreCursors: line(0, [], () => 'SIDE QUESTS GIVE CURSORS', { banner: true }),
+    moreCursors: line(0, [], () => "QUESTS + REBUILDS: CURSORS", { banner: true }),
   }),
 });
 

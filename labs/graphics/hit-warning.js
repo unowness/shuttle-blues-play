@@ -40,7 +40,8 @@ export function stepHitWarning(hw, world, { braking = false, reducedMotion = fal
   if (!t) { hw.said = null; return null; }
   if (hw.said !== t.id) {
     hw.said = t.id;
-    sound?.play('hullCritical', { pitch: t.fatal ? 1.26 : 1 });
+    // A fatal one a fourth up (K23, in the key: 1.26 was F#6 and C#6).
+    sound?.play('hullCritical', { pitch: t.fatal ? 4 / 3 : 1 });
     hw.knockAt = -Infinity;
   }
   if (hw.variant === 'W2' && panel && !reducedMotion && now - hw.knockAt >= WARN_LOOK.knock) {

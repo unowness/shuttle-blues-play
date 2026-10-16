@@ -40,6 +40,7 @@ import { noteAction } from './clicks.js';
 import { saveHudPlace, drawPlaceOverlay, unsaved as unsavedLayout, layoutOrder, LAYOUT_NOTES, NUDGE, groupLabel, takeGroup, nudgeGroup,
   backMove, cancelLayout, resetGroups, lookOf, setLook } from './hud-place.js';
 import { HUD_SIDES, HUD_SIDE_NAMES, setHudSide } from './hud-sides.js';
+import { INTERFACES, INTERFACE_NAMES, MAP_SHAPES, MAP_SHAPE_NAMES, setInterface, setMapShape } from './hud-modern.js';
 import { looksFor, earnedWidgets, widgetsToCome } from '../../src/widgets.js';
 import { VOLUMES, writeVolumes } from './volume-panel.js';
 import { writeMouseReach, reachOfStep, stepOfReach, MOUSE_REACH_STEPS, STEER } from './mouse-flight.js';
@@ -175,9 +176,16 @@ export function createPause(game) {
       choice('CURSOR', o.cursors.map((id) => ({ label: cursorName(id), worn: P.cursor === id, dot: isNew('cursors', id),
         run: () => { game.pointerAsked = null; game.applyCursor(P.wearCursor(id)); game.persist('cursor'); } }))),
       blank, { kind: 'heading', title: 'COCKPIT' },
+      // The interface the flight wears (labs/graphics/hud-modern.js; SX, 2026-10-16: «переключение интерфейса Modern ... по умолчанию.
+      // Legacy — это старый интерфейс»), and the modern one's locator («карту с круглой на квадратную. По умолчанию квадратную»); kept in
+      // this browser.
+      ...(game.interface ? [choice('INTERFACE', INTERFACES.map((id) => ({ label: INTERFACE_NAMES[id], worn: game.interface.style === id,
+        run: () => setInterface(game.interface, id, game.saveBackend) })))] : []),
+      ...(game.interface?.style === 'modern' ? [choice("LOCATOR", MAP_SHAPES.map((id) => ({ label: MAP_SHAPE_NAMES[id], worn: game.interface.map === id,
+        run: () => setMapShape(game.interface, id, game.saveBackend) })))] : []),
       // The mirror switch (labs/graphics/hud-sides.js): the locator and the shelf under it on one side, the quests and the radio on the
-      // other; kept in this browser, and the layout's kept offsets are mirrored with it.
-      ...(game.hudSide ? [choice('SIDES', HUD_SIDES.map((side) => ({ label: HUD_SIDE_NAMES[side], worn: game.hudSide.locator === side,
+      // other; kept in this browser, and the layout's kept offsets are mirrored with it. (LEGACY's: MODERN lays its corners itself.)
+      ...(game.hudSide && game.interface?.style !== 'modern' ? [choice('SIDES', HUD_SIDES.map((side) => ({ label: HUD_SIDE_NAMES[side], worn: game.hudSide.locator === side,
         run: () => setHudSide(game.hudSide, side, game.saveBackend, game.hud.place) })))] : []),
     ];
   }
@@ -188,9 +196,9 @@ export function createPause(game) {
       // The same switch as O (C0), the mouse's way to it since the corner list went (2026-10-06).
       { kind: 'toggle', label: 'SOUND', on: !!sound.enabled, set: () => game.toggleSound() },
       blank, { kind: 'heading', title: 'VOLUME' },
-      ...VOLUMES.map((v) => ({ kind: 'volume', label: v.label, level: sound.volumes[v.id] ?? 1, def: 1, set: (x) => setVolumeFromPanel(v.id, x, v) })),
-      { kind: 'item', label: 'DEFAULTS', foot: true, run: () => {
-        for (const v of VOLUMES) sound.setVolume(v.id, 1);
+      ...VOLUMES.map((v) => ({ kind: 'volume', label: v.label, level: sound.volumes[v.id] ?? CONFIG.sound.volumes[v.id], def: CONFIG.sound.volumes[v.id], set: (x) => setVolumeFromPanel(v.id, x, v) })),
+      { kind: 'item', label: "RESET DEFAULTS", foot: true, run: () => {
+        for (const v of VOLUMES) sound.setVolume(v.id, CONFIG.sound.volumes[v.id]);
         writeVolumes(sound.volumes, saveBackend);
         if (!sound.enabled) game.toggleSound();
       } },
@@ -229,7 +237,7 @@ export function createPause(game) {
         run: () => setGreeting(game.greeting, id, saveBackend) }))));
     }
     // Only the mouse's: quiet where the keys fly (KEYS + CLICKS).
-    rows.push({ kind: 'volume', label: 'TURN RATE', level: stepOfReach(mouseFlight.reach) / MOUSE_REACH_STEPS, least: 1,
+    rows.push({ kind: 'volume', label: "MOUSE TURN", level: stepOfReach(mouseFlight.reach) / MOUSE_REACH_STEPS, least: 1,
       def: stepOfReach(STEER.reach) / MOUSE_REACH_STEPS, value: `${Math.round(mouseFlight.reach * 100)}%`, dim: !!schemes && !schemes.mouseFlies(),
       set: (x) => { mouseFlight.reach = reachOfStep(x * MOUSE_REACH_STEPS); writeMouseReach(mouseFlight.reach, saveBackend); } });
     rows.push({ kind: 'note', label: '100% = KEYBOARD TURN RATE' }, blank, { kind: 'heading', title: 'PARALLAX' });
@@ -239,7 +247,7 @@ export function createPause(game) {
       rows.push({ kind: 'volume', label: d.label, level: n / LEAN_STEPS, least: d.mute ? 0 : 1, def: start[d.id] / LEAN_STEPS,
         value: n ? `${n * 20}%` : 'OFF', set: (x) => setLeanSetting(lean, d.id, x * LEAN_STEPS, saveBackend) });
     }
-    rows.push({ kind: 'item', label: 'DEFAULTS', foot: true, run: () => {
+    rows.push({ kind: 'item', label: "RESET DEFAULTS", foot: true, run: () => {
       mouseFlight.reach = STEER.reach; writeMouseReach(mouseFlight.reach, saveBackend);
       for (const d of LEAN_SETTINGS) setLeanSetting(lean, d.id, start[d.id], saveBackend);
       if (schemes) schemes.setPref(DEFAULT_SCHEME);
@@ -256,9 +264,9 @@ export function createPause(game) {
         { kind: 'item', label: 'STAY', run: () => leavePausePage() },
         { kind: 'item', label: 'LEAVE UNSAVED', run: () => exitToTitle({ unsaved: true }) }];
     }
-    return [back('MAIN MENU'), { kind: 'note', label: 'SAVE BEFORE RETURNING TO MAIN MENU' }, blank,
+    return [back('MAIN MENU'), { kind: 'note', label: "RETURN TO MAIN MENU?" }, blank,
       { kind: 'item', label: 'STAY', run: () => leavePausePage() },
-      { kind: 'item', label: 'LEAVE TO TITLE', run: () => exitToTitle() }];
+      { kind: 'item', label: "SAVE AND RETURN", run: () => exitToTitle() }];
   }
   // The layout editor (labs/graphics/hud-place.js): the groups in the screen's reading order, a row each (a click, or Enter where the
   // keys walk, takes it: the arrows move it, the same again puts it down, Escape takes the move back), then SAVE LAYOUT and CANCEL,
@@ -294,8 +302,8 @@ export function createPause(game) {
           // Saved: the row says it (its UNSAVED goes); not saved: the notch says it too.
           game.notices.notify(title, sub, { kind, life: 2.6, waits: false, fate: kind === 'danger' ? 'flip' : 'gone' });
         } },
-      { kind: 'item', label: 'CANCEL', dim: !changed, run: () => cancelLayout(place) },
-      { kind: 'item', label: 'RESET THIS', quiet: true, dim: !ed.selected, value: ed.selected ? groupLabel(ed.selected) : null,
+      { kind: 'item', label: "REVERT EDITS", dim: !changed, run: () => cancelLayout(place) },
+      { kind: 'item', label: "RESET PANEL", quiet: true, dim: !ed.selected, value: ed.selected ? groupLabel(ed.selected) : null,
         run: () => { if (ed.selected) resetGroups(place, ed.selected); } },
       { kind: 'item', label: 'RESET ALL', quiet: true, run: () => resetGroups(place) });
     return rows;

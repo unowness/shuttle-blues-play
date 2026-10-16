@@ -88,10 +88,10 @@ function drawPilotScreen(r, screen, world) {
       if (words) r.text(words, next, y, ROLES.textSecondary, 1);
     });
   };
-  // P PAUSE in the fourth place since the corner list went (SX, 2026-10-06: «кнопки для мышки убрать»): the mouse alone pauses here.
+  // ESC PAUSE (P PAUSE until P went to the pilot card, 2026-10-16) in the fourth place since the corner list went (SX, 2026-10-06: «кнопки для мышки убрать»): the mouse alone pauses here.
   noteDuring(r, () => {
-    item('C', 'PILOT CARD', 0, one);
-    item('L', LEAVE_SIGN, second, one);
+    item(keyName('card'), 'PILOT CARD', 0, one);
+    item(keyName('sign'), LEAVE_SIGN, second, one);
     item('?', 'CONTROLS', 0, two);
     item(keyName('pause'), 'PAUSE', second, two);
   });
@@ -104,7 +104,7 @@ function drawPilotScreen(r, screen, world) {
 // they close on the word in the danger red, the word white.
 export const BRAKE_LABEL = 'BRAKES';
 export const BRAKE_CHEVRONS = Object.freeze(['▸', '◂']);
-const BRAKE_OPEN = 0.6;
+export const BRAKE_OPEN = 0.6;
 
 // `lamp` (chat F1, SX's 3B): a heavy hit ahead lights it before the brake is touched ({ level 1 heavy, 2 a wreck, lit: the blink's
 // phase}; labs/graphics/hit-warning.js): the chevrons close on the word in the caution's ink (the danger's for a wreck) while lit.
@@ -145,9 +145,11 @@ export function drawLabCockpit(r, world, input, { reducedMotion = false, shift =
   const speed = Math.round(Math.hypot(world.ship.vx, world.ship.vy));
 
   // SCOOTY JR., the opening's loaner, has its own cockpit while it is flown (labs/graphics/scooty-deck.js, SX's P3+): the pilot's
-  // comes with the pilot's own shuttle. The wallet stands in it at the pilot's place; nothing is begun to track.
+  // comes with the pilot's own shuttle. Its handlebar is all of it since 2026-10-16 (SX: «вообще никакого интерфейса не надо больше»):
+  // no wallet, nothing begun to track. (The flight draws it alone, labs/graphics/flight-frame.js; here for the boot's warm-up and the checks.)
   const onDeck = part === 'all' || part === 'deck';
-  if (onDeck && flyingLoaner(world)) drawScootyDeck(r, world, input, layout, { reducedMotion });
+  const loaner = flyingLoaner(world);
+  if (onDeck && loaner) drawScootyDeck(r, world, input, { reducedMotion });
   else if (onDeck) {
     // The lower cockpit's lines and the helm in a reference ship's colours, when the pilot wears them or flies its ship
     // (labs/graphics/cockpit-scheme.js); the rest as it is.
@@ -161,7 +163,7 @@ export function drawLabCockpit(r, world, input, { reducedMotion = false, shift =
     drawBrake(r, layout.readout, state.braking, HELM_FX.lamp);
     if (tracker) layout.tracker = drawTracker(r, tracker, shoulder) ?? shoulder.foot;
   }
-  if (onDeck || part === 'header') drawWallet(r, layout, world.ledger?.credits ?? 0);
+  if ((onDeck || part === 'header') && !loaner) drawWallet(r, layout, world.ledger?.credits ?? 0);
 
   const o = shift?.header;
   if (o && (o.x || o.y)) layout.header = { ...layout.header, x: layout.header.x + o.x, y: layout.header.y + o.y };

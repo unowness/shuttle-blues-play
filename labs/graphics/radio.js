@@ -217,11 +217,13 @@ const flicker = (s, i, j) => !s.reduced && noise3(i, j, Math.floor(s.t / STATIC.
 const PITCH = 2 * UI.pad, HOLE = UI.pad / 2;
 // `part`: 'all' every hole (with no page to stamp on), 'still' the holes alone in their dark ink (the stamp's), 'live' only what
 // lights or flickers over them.
-function grille(r, F, s, part = 'all') {
+// `gone` (i, j): a hole knocked dark (the modern radio's wear), drawn not at all.
+function grille(r, F, s, part = 'all', gone = null) {
   const nx = Math.floor((F.w - HOLE) / PITCH) + 1, ny = Math.floor((F.h - HOLE) / PITCH) + 1;
   const ox = F.x + (F.w - ((nx - 1) * PITCH + HOLE)) / 2, oy = F.y + (F.h - ((ny - 1) * PITCH + HOLE)) / 2;
   const gx = ox + ((nx - 1) * PITCH + HOLE) / 2, gy = oy + ((ny - 1) * PITCH + HOLE) / 2, far = Math.hypot(gx - ox, gy - oy);
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    if (gone && gone(i, j)) continue;
     const x = Math.round(ox + i * PITCH), y = Math.round(oy + j * PITCH), away = Math.hypot(x + HOLE / 2 - gx, y + HOLE / 2 - gy);
     if (part === 'still') { r.fill(x, y, HOLE, HOLE, ROLES.structure); continue; }
     let lit = clamp((s.voice * 0.8 - away / far) / 0.2, 0, 1);
@@ -370,5 +372,78 @@ export function drawRadio(r, radio, place, now, { reducedMotion = false, over = 
   }
   const x = Math.min(row.x, B.x);
   radio.box = { x, y: row.y, w: Math.max(row.x + row.w, unfold > 0.001 ? B.x + B.w : 0) - x, h: Math.ceil(bottom - row.y) };
+  return radio.box;
+}
+
+// ------------------------------------------------------------------------------------------------ the modern interface's radio
+
+// The modern interface's radio (labs/graphics/hud-modern.js; SX's R1 ROUND of 2026-10-16: «R1 раунд нормально»): the same set laid
+// again in a body with round corners, its parts on the windows' air (S from the long lines, C between the parts): the dial S from the line,
+// as tall as that leaves, its index inside it under the ticks (SX: «треугольничек белый, он должен быть внутри диска»), the holes' field C
+// clear of the dial and the lamp, the lamp at the far end. Its row («T HIDE RADIO») under it, on the interface's bottom line; the picture
+// folds down into its row as the legacy one folds up into its own. `place` { box, rowTop, x0, edge, mirror }: the picture's box and the
+// row's. `wear` ({ level, seed }, cockpit-fx.js damageLevel): at the hull's last fifths it breaks where it stands (SX, 2026-10-16: «радио не
+// падает ... На последних десяти-двадцати хп радио на месте остается, у него просто контур ломается ... лампочки пропадают, некоторые»): its
+// holes go dark here and there, then its line breaks in places. Returns the block's box, or null.
+export const RADIO_MODERN = Object.freeze({ h: 9 * UI.vector.space, round: UI.vector.space, s: 9, c: 18,
+  // At each wear level (0-4): the share of holes gone dark, the breaks in its line.
+  dark: Object.freeze([0, 0, 0.04, 0.1, 0.22]), breaks: Object.freeze([0, 0, 0, 1, 4]) });
+function bodyModern(ctx, B) {
+  const x0 = Math.round(B.x) + 0.5, y0 = Math.round(B.y) + 0.5, x1 = Math.round(B.x + B.w) - 0.5, y1 = Math.round(B.y + B.h) - 0.5, rr = RADIO_MODERN.round;
+  ctx.save(); ctx.lineWidth = 1; ctx.beginPath();
+  ctx.moveTo(x0 + rr, y0); ctx.arcTo(x1, y0, x1, y1, rr); ctx.arcTo(x1, y1, x0, y1, rr); ctx.arcTo(x0, y1, x0, y0, rr); ctx.arcTo(x0, y0, x1, y0, rr);
+  ctx.closePath(); ctx.fillStyle = ROLES.backing; ctx.fill(); ctx.strokeStyle = ROLES.structure; ctx.stroke(); ctx.restore();
+}
+function wheelModern(ctx, wx, wy, R, s, mirror) {
+  const k = R / (1.5 * UI.row), turn = (mirror ? 1 : -1) * s.tune * 1.5 * Math.PI, long = Math.max(3, 7 * k), short = Math.max(2, 3 * k);
+  disc(ctx, wx, wy, R, { fill: ROLES.backing, stroke: ROLES.structure });
+  ctx.save(); ctx.globalAlpha = 1; ctx.lineWidth = 1; ctx.strokeStyle = ROLES.structure; ctx.beginPath();
+  for (let i = 0; i < 24; i++) {
+    const a = turn + i * Math.PI / 12, r0 = R - 2, r1 = r0 - (i % 6 === 0 ? long : short);
+    ctx.moveTo(wx + Math.cos(a) * r0, wy + Math.sin(a) * r0); ctx.lineTo(wx + Math.cos(a) * r1, wy + Math.sin(a) * r1);
+  }
+  ctx.stroke(); ctx.restore();
+  const hub = Math.max(UI.pad / 2, UI.pad * k), iy = Math.round(wy - R + 2 + long + 2), markR = (hub + (wy - (iy + UI.pad + 1))) / 2, markA = turn - Math.PI / 2;
+  disc(ctx, wx + Math.cos(markA) * markR, wy + Math.sin(markA) * markR, Math.max(1, 1.5 * k), { fill: ROLES.textPrimary });
+  disc(ctx, wx, wy, hub, { fill: ROLES.backing, stroke: ROLES.structure });
+  path(ctx, [[wx, iy], [wx - UI.pad, iy + UI.pad + 1], [wx + UI.pad, iy + UI.pad + 1]], { fill: ROLES.textPrimary });
+}
+export function drawRadioModern(r, radio, place, now, { reducedMotion = false, over = null, wear = null } = {}) {
+  radio.box = null; radio.row = null;
+  if (!place) return null;
+  const open = !radio.hidden;
+  if (radio.open === null) radio.open = open;
+  else if (radio.open !== open) { radio.open = open; radio.changed = now; }
+  const s = radioState(now, radio.moment, reducedMotion), key = keyName('radio'), since = now - radio.changed, B = place.box;
+  const k = reducedMotion ? 1 : clamp(since / TURN, 0, 1), axis = place.mirror ? 2 * B.x + B.w : null;
+  const row = drawColumnButton(r, { x0: place.x0, edge: place.edge, rowTop: place.rowTop, key, word: open ? 'HIDE RADIO' : 'RADIO',
+    turn: open ? 1 - easeOut(k) : easeOut(k), name: 'radio:button', over, note: (box) => noteKey(key, box, r), axis });
+  radio.row = row;
+  const u = reducedMotion ? 1 : easeOut(clamp(since / QUEST_TIMES.close, 0, 1)), unfold = open ? u : 1 - u;
+  let top = row.y;
+  if (unfold > 0.001) {
+    const ctx = r.ctx, M = RADIO_MODERN, R = Math.floor(B.h / 2 - M.s), wy = Math.round(B.y + B.h / 2);
+    const wx = Math.round(place.mirror ? B.x + M.s + R : B.x + B.w - M.s - R), lx = Math.round(place.mirror ? B.x + B.w - M.s - LAMP_R - 1 : B.x + M.s + LAMP_R + 1);
+    const f0 = place.mirror ? wx + R + M.c : lx + LAMP_R + M.c, f1 = place.mirror ? lx - LAMP_R - M.c : wx - R - M.c;
+    ctx.save();
+    // Folding, it goes down into its row: the part still shown is its lower one.
+    ctx.beginPath(); ctx.rect(B.x - UI.pad - 400, B.y + B.h * (1 - unfold) - UI.pad, B.w + 2 * UI.pad + 800, Math.ceil(B.h * unfold) + 2 * UI.pad + 2000); ctx.clip();
+    const level = wear?.level ?? 0, seed = wear?.seed ?? 1, dark = M.dark[level] ?? 0;
+    bodyModern(ctx, B);
+    grille(r, { x: f0, y: B.y + M.s, w: f1 - f0, h: B.h - 2 * M.s }, s, 'all', dark > 0 ? (i, j) => noise3(seed + i, j, 13) < dark : null);
+    wheelModern(ctx, wx, wy, R, s, place.mirror);
+    lamp(ctx, lx, wy, s);
+    // Its line broken: black over it in places along its long sides, a piece of it knocked a little out of line.
+    for (let i = 0; i < (M.breaks[level] ?? 0); i++) {
+      const t = noise3(seed, i, 17), len = 6 + 10 * noise3(seed, i, 19), onTop = i % 2 === 0;
+      const x = B.x + M.round + t * (B.w - 2 * M.round - len), y = (onTop ? B.y : B.y + B.h) + (onTop ? 0.5 : -0.5);
+      ctx.fillStyle = ROLES.backing; ctx.fillRect(Math.round(x), Math.round(y) - 2, Math.round(len), 4);
+      if (level >= 4 && i % 2 === 1) { ctx.strokeStyle = ROLES.structure; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(Math.round(x) + 2, Math.round(y) + 2.5); ctx.lineTo(Math.round(x + len) - 1, Math.round(y) + 1.5); ctx.stroke(); }
+    }
+    ctx.restore();
+    top = Math.min(top, B.y + B.h * (1 - unfold));
+  }
+  const x = Math.min(row.x, B.x);
+  radio.box = { x, y: Math.floor(top), w: Math.max(row.x + row.w, B.x + B.w) - x, h: Math.ceil(row.y + row.h - top) };
   return radio.box;
 }

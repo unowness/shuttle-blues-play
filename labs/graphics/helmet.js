@@ -45,12 +45,17 @@ import { actionOf } from '../../src/questLines.js';
 // PIRATES, 2 + 39 columns: 291 to 402 px of floor at 1280 x 960); a longer one is cut (notchLine).
 export const HELMET = Object.freeze({ margin: UI.air.inset, widest: 41 });
 export const notchColumns = (r) => 2 + railColumns(r, { family: 'event' });
+// The modern interface's notch (labs/graphics/hud-modern.js, which the page sets each frame it wears it, and null under LEGACY):
+// `capsTop` its top text line's capitals' top, `air` from the row's capitals' foot to the floor's inner line and from the row's ends to the
+// floor's ends. The row, the floor and the notices under them follow it wherever they ask helmetOf, so the line stands in the modern notch
+// and a click on it lands there.
+export const NOTCH_MODE = { modern: null };
 export function helmetOf(r, cols = null) {
   const bw = RAIL.width, bx = Math.round(r.width / 2 - bw / 2), cx = bx + bw / 2, top = -4 * BAR.outer;
-  const m = uiMetrics(r), cw = r.cellW, home = notchColumns(r);
-  const textTop = TOP, below = textTop + m.textY + m.capBottom;
+  const m = uiMetrics(r), cw = r.cellW, home = notchColumns(r), mod = NOTCH_MODE.modern;
+  const textTop = mod ? mod.capsTop - m.textY - m.capTop : TOP, below = textTop + m.textY + m.capBottom;
   const topGap = textTop + m.textY + m.capTop;
-  const floorInk = Math.round(below + topGap), y = floorInk + BAR.outer / 2;
+  const floorInk = Math.round(below + (mod ? mod.air : topGap)), y = floorInk + BAR.outer / 2;
   // The notices a group's step under the floor's lower line (UI.vector.group, 40: the notch with its task and the notice are two
   // groups; SX: «остальные уведомления нужно двигать от нее на больший отступ»).
   const noticeTop = y + BAR.outer / 2 + UI.vector.group;
@@ -58,9 +63,10 @@ export function helmetOf(r, cols = null) {
   // nearer: the row's first and last ink, on its capitals' bottom, stand `lean` px in from the floor's corners to be `margin` off.
   const n = cols == null ? home : clamp(Math.round(cols), home, Math.max(home, HELMET.widest)), words = n - 2;
   const lean = (Math.sqrt(5) * (HELMET.margin + BAR.outer / 2) - (y - below)) / 2;
-  const floorOf = (c) => Math.round(c * cw - 2 * m.capLeft + 2 * lean);
+  const side = mod ? mod.air : lean;
+  const floorOf = (c) => Math.round(c * cw - 2 * m.capLeft + 2 * side);
   const floor = floorOf(n), left = Math.round(cx - floor / 2), right = left + floor, run = (y - top) / 2;
-  const textX = Math.round(left + lean - m.capLeft), wordsX = textX + Math.round(2 * cw);
+  const textX = Math.round(left + side - m.capLeft), wordsX = textX + Math.round(2 * cw);
   // Today's floor, where the trick's scale is laid whatever the line's width (scaleGeom): a task's words never change its timing.
   const homeLeft = Math.round(cx - floorOf(home) / 2), scale = { left: homeLeft, right: homeLeft + floorOf(home) };
   return { cx, top, textTop, below, y, noticeTop, left, right, textX, wordsX, words, cols: n, scale, tl: [left - run, top], tr: [right + run, top],

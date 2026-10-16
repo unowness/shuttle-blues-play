@@ -42,11 +42,15 @@ export const STICK = HOVER.stick;
 // The frame's pointer ({ x, y, inside, down }, the page's labs/graphics/cursor.js state) and whether it reaches what is drawn now
 // (a pop-up over the flight takes it from the interface under it).
 let pointer = null, reach = true, still = false, dt = 1 / 60, frame = 0, under = null, exact = null, exactBefore = null;
+// The button the pointer came onto outright in the last frame (not a panel), for its sound (U1, SX, 2026-10-16: «звуков кнопок не
+// хватает»; src/audio.js `hover`): the page asks hoverEntered() once a frame.
+let exactKind = null, entered = null;
 const states = new Map();          // a thing's id -> { h, p, pV, frame }
 const FORGET = 120;                // frames a thing not drawn keeps its state
 
 // Once a frame, before the interface is drawn.
 export function hoverFrame(p, frameDt, { reducedMotion = false } = {}) {
+  entered = exact !== null && exact !== exactBefore && exactKind !== 'panel' ? exact : null;
   pointer = p ?? null;
   dt = Math.max(0, Math.min(0.05, Number(frameDt) || 0));
   still = !!reducedMotion;
@@ -157,7 +161,7 @@ export function hoverItem(r, id, box, draw, { over = null, disabled = false, kin
   const held = !outright && !disabled && reach && s.h > 0.5 && (exactBefore === null || exactBefore === id)
     && pointerOver(inflate(seen, STICK));
   const on = outright || held;
-  if (outright) exact = id;
+  if (outright) { exact = id; exactKind = kind; }
   if (on) under = id;
   step(s, on, !!pointer?.down);
   if (s.h < 0.004 && Math.abs(s.p) < 0.004 && Math.abs(s.pV) < 0.05) return inside(draw);
@@ -170,5 +174,7 @@ export function hoverItem(r, id, box, draw, { over = null, disabled = false, kin
   }
   try { return dimmed(ctx, alpha, () => inside(draw)); } finally { if (turn) ctx.restore(); }
 }
+// The button the pointer came onto in the last frame, or null.
+export const hoverEntered = () => entered;
 // Whether a thing is being drawn now (its own keys are its own then, not things of their own).
 export const inItem = () => depth > 0;

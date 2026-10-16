@@ -343,7 +343,7 @@ export function thingWords(world, name, room = null) {
   if (T.notes) {
     const notes = notesOf(world), at = notes.length ? (room?.note ?? 0) % notes.length : 0;
     return notes.length ? { title: `${notes[at].title} / ${at + 1} OF ${notes.length}`, text: notes.length > 1 ? `${notes[at].text} Click for the next note.` : notes[at].text }
-      : { title: 'CREW NOTES', text: 'No notes yet. Complete special jobs for visiting crews.' };
+      : { title: 'CREW NOTES', text: "No notes yet. Help visiting crews to earn them." };
   }
   if (T.souvenir) {
     const lore = SOUVENIR_LORE[T.souvenir];

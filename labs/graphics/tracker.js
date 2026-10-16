@@ -59,7 +59,7 @@ export const DONE_WORD = 'RESTORED';
 // the block's lowest ink and the rail's: a container's inset until SX, 2026-10-09: «Чуть подальше, чуть вверх подвинь ... виджет
 // восстановления станции, как-то он на слишком маленьком отступе стоит от панели», now two.
 export const TRACKER = Object.freeze({ fill: 0.6, flash: 1.2, hold: QUEST_TIMES.hold - 1, out: railOutTime('event'), move: QUEST_TIMES.close, over: 2 * UI.air.inset,
-  lore: LORE_TIMES.sweep, glyph: LORE_TIMES.cell, step: LORE_TIMES.step, turn: 0.18, words: Object.freeze({ hidden: 'BUILD', shown: 'HIDE BUILD' }),
+  lore: LORE_TIMES.sweep, glyph: LORE_TIMES.cell, step: LORE_TIMES.step, turn: 0.18, words: Object.freeze({ hidden: "RUINS", shown: "HIDE RUINS" }),
   // the lore's whole length: past it a row's words are plain
   settled: LORE_TIMES.sweep + LORE_TIMES.cell });
 // The widest name of any ruin under any start ruin's roll, in cells: the sector's code stands a cell after it.
@@ -282,8 +282,29 @@ export function drawTracker(r, t, place) {
   t.button = drawColumnButton(r, a);
   const bx = place.x0, bw = place.x1 - place.x0;
   let top = place.rowTop + place.ink.top;
-  const bottom = place.rowTop + place.ink.bottom;
-  if (!t.hidden) {
+  let bottom = place.rowTop + place.ink.bottom;
+  // `down` (the modern interface's, labs/graphics/hud-modern.js): the rows hang under the button, the first nearest it, each its bar over
+  // its words (the bar `rowsTop` + its slot's `pitch`, the words' capitals `under` the bar); as many as stand over `floor`, the rest «+N MORE».
+  if (!t.hidden && place.down) {
+    const pitch = place.pitch, room = place.floor == null ? rows.length : Math.max(0, Math.floor((place.floor - place.rowsTop - BAR_H - place.under - place.capH) / pitch) + 1);
+    const cut = rows.length > room ? Math.max(0, room - 1) : rows.length;
+    for (let i = 0; i < cut; i++) {
+      const row = rows[i], ph = phaseOf(t, row, now);
+      const done = ph.name !== LIVE, share = shareOf(row, now);
+      const y = Math.round(place.rowsTop + (t.reduced ? row.slotTo : slotOf(row, now)) * pitch), capTop = y + BAR_H + place.under;
+      const inkOf = done ? DONE_INK : row.ink;
+      bar(r, bx, y, bw, share, inkOf, row, now, ph.name === OUT ? 1 - easeOut(ph.u) : 1);
+      caps(r, m, say(t, row, row.label), bx, capTop, ROLES.textSecondary);
+      caps(r, m, say(t, row, row.sector), bx + (NAME_CELLS + 1) * cw, capTop, ROLES.textHint);
+      caps(r, m, say(t, row, done ? DONE_WORD : row.pct), place.x1, capTop, done ? DONE_INK : ROLES.textPrimary, true);
+      bottom = Math.max(bottom, capTop + place.capH);
+    }
+    if (cut < rows.length) {
+      const capTop = Math.round(place.rowsTop + cut * pitch) + BAR_H + place.under;
+      caps(r, m, `+${rows.length - cut} MORE`, bx, capTop, ROLES.textHint);
+      bottom = Math.max(bottom, capTop + place.capH);
+    }
+  } else if (!t.hidden) {
     // What fits over the button, the page's boxes above it (a column's last ink) laid; the rest is folded into «+N MORE».
     let ceiling = r.view?.y ?? 0;
     for (let i = 0; i < t.near.length; i++) {

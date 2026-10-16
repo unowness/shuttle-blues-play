@@ -150,7 +150,7 @@ export class Feedback {
       // A ruin restored in one payment (src/ruins.js), and a find marked (src/rewards.js).
       // A part put into a ruin, and how far along it is; its restoration is a notice (labs/graphics/main.js).
       // (The support's building is not the wallet's: +n CR built into it, src/starterSupport.js.)
-      case 'stationInvested': label = event.by === 'support' ? `+${formatCR(event.amount)} CR BUILT / FUNDED ${Math.floor(event.share * 100)}%`
+      case 'stationInvested': label = event.by === 'support' ? `+${formatCR(event.amount)} CR FUNDED / ${Math.floor(event.share * 100)}%`
         : `-${formatCR(event.amount)} CR / FUNDED ${Math.floor(event.share * 100)}%`; break;
       case 'findMarked': label = `MARKED / ${event.label}`; break;
       // A hail is said by the craft itself (drawHail): its line up a slash from it; a friendly ship's and the pilot's greeting (`greet`)

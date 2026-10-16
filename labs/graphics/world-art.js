@@ -6,12 +6,13 @@ import { planetHue, stationDefById } from '../../src/sectors.js';
 import { registerSprite } from '../../src/sprites.js';
 import { Pirate, PIRATE_INKS } from '../../src/pirates.js';
 import { rebuiltShare } from '../../src/ruins.js';
+import { floatOf, floatPhases, floatPose } from '../../src/float.js';
 import { drawBossArt } from './boss-art.js';
 import { paintInk, paintedHull, paintedMotion, LAMP } from '../../src/paint.js';
 import { SPECIAL_INKS } from '../../src/specialShips.js';
 import { keptDraw } from '../../src/grade.js';
 import { ROLES } from '../../src/roles.js';
-import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, MOTION_INKS } from './ship-motion.js';
+import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, wingDraws, WING_GLYPHS, MOTION_INKS } from './ship-motion.js';
 import { BLOCK_TONES, planetTones, ROCK_EDGE, ROCK_INKS, ROCK_LIT, ROCK_SHADE, SHADE_GAP, ROCK_RELIEF } from './art-tones.js';
 import { stationLook, stationCells, lookOrigin, LOOK_SCALE, MAX_CELLS } from './station-art.js';
 import { cargoArt } from './cargo-art.js';
@@ -20,7 +21,7 @@ import { prepareHome, drawHome, homeLive } from './garage-art.js';
 import { BOARD, BOARD_INK, dockState, homeDockState } from '../../src/home.js';
 import { stationDockState, dockLook, cargoStowed } from '../../src/docking.js';
 import { shipDockLook } from './dock-fx.js';
-import { flyingLoaner, LOANER_LIVERY } from '../../src/loaner.js';
+import { flyingLoaner, LOANER, LOANER_LIVERY } from '../../src/loaner.js';
 import { airLook, drawAirShip } from './stunt-fx.js';
 import { passedOver, underShip } from '../../src/trick.js';
 
@@ -56,13 +57,20 @@ export function shipInk(color, active = false, paint = null, livery = null) {
   return ROLES.material;
 }
 
+// The glass of the pilot's ship: a cell in a glass colour (the role `highlight`) that is no strut (SX's CLIPPER writes its outer struts in
+// the glass's colour too).
+const STRUTS = new Set(['/', '\\']);
+const isGlass = (c) => shipMaterials.get(String(c.color).toLowerCase()) === 'highlight' && !STRUTS.has(c.ch);
+
 // The pilot's paint and the ink resolver of the ship flown now (`active`: its engine burning): the pilot's own ships in the pilot's
 // paint; SCOOTY JR. (src/loaner.js) in its own livery and never in the pilot's paint. Every painter of the flown ship reads it (the
 // world's, the dive's, the return's, the pause's toy).
+// SCOOTY JR. worn by the STANDARD (src/shipLooks.js, after the opening) keeps its livery in STANDARD, and a paint dresses it by its roles
+// (src/paint.js paintedHull reads the livery's two as material and jets).
 export function flownShipInks(world, active = false) {
   const loaner = flyingLoaner(world);
   const paint = loaner ? null : world?.pilot?.paint ?? null;
-  const livery = loaner ? LOANER_LIVERY : null;
+  const livery = loaner || world?.ship?.model?.id === LOANER.id ? LOANER_LIVERY : null;
   return { paint, ink: (color) => shipInk(color, active, paint, livery) };
 }
 
@@ -292,11 +300,26 @@ export function drawStationNow(r, cx, cy, station, rebuilt = 1, t = 0, fit = nul
   drawStation(now, cx, cy, station, false, rebuilt, t, scale);
 }
 
-// A station as the world draws it, at its own size (LOOK_SCALE), on `r` now, its middle at (cx, cy): the windows' shots of it (SX, 2026-10-16,
-// the organism: «брал в реальном размере шот ... рандомный фрагмент станции один к одному, но в этом квадрате заключен»; labs/graphics/windows.js
-// drawStationInfo, labs/graphics/talk-beat.js), each a fragment masked by its square.
-export function drawStationTrue(r, cx, cy, station, rebuilt = 1, t = 0) {
-  drawStation(glyphsNow(r), cx, cy, station, false, rebuilt, t, LOOK_SCALE);
+// A station as the world draws it, at its own size (LOOK_SCALE), on `r` now, the point (dx, dy) px off its look's middle at `box`'s middle:
+// the windows' shots of it (SX, 2026-10-16, the organism: «брал в реальном размере шот ... рандомный фрагмент станции один к одному, но в этом
+// квадрате заключен»; labs/graphics/windows.js drawStationInfo, labs/graphics/talk-beat.js), each a fragment masked by its square. At `t` (s)
+// its parts move as they do outside, and it floats as a station floats (src/float.js, the world's numbers, 1 u a px; SX, 2026-10-16: «должен
+// быть флоутинг, медленный»): its orbit, and its turn about the shot's middle rather than its own, so the fragment stays in the square. Only the
+// glyphs near the square are drawn (a look's every cell turned was a canvas turn each).
+export function drawStationTrue(r, box, station, dx = 0, dy = 0, rebuilt = 1, t = 0) {
+  const pose = floatPose(floatPhases(station.id), t, floatOf(station));
+  const step = (CONFIG.float.step * Math.PI) / 180, a = station.kind === 'home' ? 0 : Math.round(pose.angle / step) * step;
+  const c = Math.cos(a), s = Math.sin(a);
+  const cx = box.x + box.w / 2 + pose.dx - (dx * c - dy * s), cy = box.y + box.h / 2 + pose.dy - (dx * s + dy * c);
+  drawStation(glyphsIn(r, box), cx, cy, station, false, rebuilt, t, LOOK_SCALE, null, a);
+}
+// `r`'s glyphs drawn now (glyphsNow), only those within a cell of `box`.
+function glyphsIn(r, box) {
+  const m = r.cellH * LOOK_SCALE, x0 = box.x - m, x1 = box.x + box.w + m, y0 = box.y - m, y1 = box.y + box.h + m;
+  const now = glyphsNow(r), near = Object.create(now), inside = (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
+  near.glyph = (ch, x, y, ink, a, s) => { if (inside(x, y)) now.glyph(ch, x, y, ink, a, s); };
+  near.glyphRot = (ch, x, y, angle, ink, a, s) => { if (inside(x, y)) now.glyphRot(ch, x, y, angle, ink, a, s); };
+  return near;
 }
 // `r` with its glyphs drawn at once rather than queued for the world's flush (what a window draws over the world must be drawn in its turn:
 // a ship's drawing in a talk's picture was queued and came out under the window's black, an empty box).
@@ -314,29 +337,47 @@ export function glyphsNow(r) {
 }
 
 // Where a shot `side` px square of a station is taken (labs/graphics/windows.js drawStationShot): the px from its look's middle (its origin,
-// lookOrigin) to the shot's, the fullest of `SHOT_TRIES` squares round cells of its look picked by the shares `u`, `v` (a station's edges and its
-// open spans are sparse: a shot of them showed a line or two). { dx: 0, dy: 0 } where it has no look (the home garage's board). Kept per look,
-// side and pick.
-const SHOT_TRIES = 12, shotPicks = new Map();
+// lookOrigin) to the shot's. `SHOT.tries` squares round cells of its look drawn by the shares `u`, `v`; of them those at least `SHOT.full` as
+// full as the fullest (a station's edges and its open spans are sparse: a shot of them showed a line or two), then those holding a part that
+// moves (a lamp, a wheel, a dish: SX, 2026-10-16, «какие-то анимации у станции»), then those `SHOT.apart` of a side off the last shot of that
+// look, each kept only while one is left; one of the rest drawn by the same shares. (The fullest alone was the look's dense heart: one opening
+// in four within 60 px of another's; SX: «всегда должен быть рандомный фрагмент, если мы заново открываем диалог».) { dx: 0, dy: 0 } where it
+// has no look (the home garage's board). Kept per look, side and pick.
+const SHOT = Object.freeze({ tries: 32, full: 0.5, apart: 0.5, times: [0, 0.4, 1.1, 1.9, 2.8, 4.3, 6.1] });
+const shotPicks = new Map(), lastShot = new Map();
 export function stationShotAt(r, station, side, u = 0.5, v = 0.5) {
   const look = station?.look ? stationLook(station.look) : null;
   if (!look) return { dx: 0, dy: 0 };
   const key = `${station.look}|${side}|${r.cellW}|${u}|${v}`;
   if (shotPicks.has(key)) return shotPicks.get(key);
-  const cells = [];
+  // Its cells, and the cells that move at a few moments (a part's cells are the frame's own, `moving`).
+  const cells = [], moves = [], moved = new Set();
   stationCells(look, 0, (x, y) => cells.push(x, y));
+  for (const t of SHOT.times) stationCells(look, t, (x, y, ch, ink, alpha, moving) => {
+    if (moving && !moved.has(y * look.W + x)) { moved.add(y * look.W + x); moves.push(x, y); }
+  });
   const w = r.cellW * LOOK_SCALE, h = r.cellH * LOOK_SCALE, hx = side / 2 / w, hy = side / 2 / h, o = lookOrigin(look), n = cells.length / 2;
-  const rng = mulberry32(((u * 1e9) ^ (v * 7e8)) >>> 0);
-  let best = { x: o.x, y: o.y, score: -1 };
-  for (let t = 0; t < SHOT_TRIES && n; t++) {
+  const count = (list, cx, cy) => {
+    let k = 0;
+    for (let j = 0; j < list.length; j += 2) if (Math.abs(list[j] - cx) <= hx && Math.abs(list[j + 1] - cy) <= hy) k += 1;
+    return k;
+  };
+  const rng = mulberry32(((u * 1e9) ^ (v * 7e8)) >>> 0), tries = [];
+  for (let t = 0; t < SHOT.tries && n; t++) {
     const i = Math.floor(rng() * n), cx = cells[2 * i], cy = cells[2 * i + 1];
-    let score = 0;
-    for (let j = 0; j < n; j++) if (Math.abs(cells[2 * j] - cx) <= hx && Math.abs(cells[2 * j + 1] - cy) <= hy) score += 1;
-    if (score > best.score) best = { x: cx, y: cy, score };
+    tries.push({ dx: (cx - o.x) * w, dy: (cy - o.y) * h, full: count(cells, cx, cy), moving: count(moves, cx, cy) });
   }
-  const at = { dx: (best.x - o.x) * w, dy: (best.y - o.y) * h };
-  if (shotPicks.size > 64) shotPicks.clear();
+  const most = tries.reduce((m, c) => Math.max(m, c.full), 0), last = lastShot.get(`${station.look}|${side}`);
+  const narrow = (pool, keep) => { const kept = pool.filter(keep); return kept.length ? kept : pool; };
+  let pool = tries.filter((c) => c.full >= SHOT.full * most);
+  pool = narrow(pool, (c) => c.moving > 0);
+  if (last) pool = narrow(pool, (c) => Math.hypot(c.dx - last.dx, c.dy - last.dy) >= SHOT.apart * side);
+  const pick = pool.length ? pool[Math.floor(rng() * pool.length)] : null;
+  const at = pick ? { dx: pick.dx, dy: pick.dy } : { dx: 0, dy: 0 };
+  // The oldest pick goes first: a shot standing now is among the latest, so it is never worked out again (and moved) mid-way.
+  if (shotPicks.size > 64) shotPicks.delete(shotPicks.keys().next().value);
   shotPicks.set(key, at);
+  lastShot.set(`${station.look}|${side}`, at);
   return at;
 }
 
@@ -359,22 +400,29 @@ export function shipAlpha(invuln, { docked = false, reducedMotion = false } = {}
 // pilot's paint, whose glass darkens to its own glass's darker step.
 // Drawn in the kept layer (src/grade.js keptDraw): a look filters the pilot's ship as art and never repaints it
 // (INTERFACE_LOOKS_HANDOFF.md, SX: «центровой кораблик» must not change).
-// `options.shade`: the hull's cells this much as opaque (the brake's, src/visualScale.js brakeShade; the puffs keep theirs).
+// `options.shade`: the hull's cells this much as opaque (the brake's, src/visualScale.js brakeShade; the puffs keep theirs); `options.brake`
+// the brake's own share of it, which the glass does not take (SX, 2026-10-16: «при тормозе стекло кабины не делай прозрачнее»).
+// `options.braking`: the brake held, as the scale reads it (labs/graphics/flight-frame.js): a drawing with a brake pose (ships/modern.json
+// `brake`, src/asciiModel.js brakeFrame) is drawn in it. Its wings darken on the side of a turn as the glass does (ship-motion.js wingDraws).
 export const drawPilotShip = keptDraw(function drawPilotShip(r, ship, sx, sy, motion, ink, paint = null, options = {}) {
   const model = ship.model;
   const m = ship.metrics || ship.measureDrawing(r.cellW, r.cellH);
   const a = ship.facing, ca = Math.cos(a), sa = Math.sin(a);
   const alpha = shipAlpha(ship.invuln, options) * (options.shade ?? 1);
+  const glassAlpha = alpha / Math.max(0.01, options.brake ?? 1);
   // A paint (src/paint.js) gives each part its ink, the front arcs theirs, the
   // engine its rest and burn; the puffs its smoke and jets; the glass its darker step.
   const burning = ship.thrusting || ship.retroing;
   const inks = paintedMotion(paint, MOTION_INKS);
-  const cells = (model.frames && model.frames[model.idleFrame]) || model.cells;
+  const pose = options.braking && model.brakeFrame != null ? model.brakeFrame : model.idleFrame;
+  const cells = (model.frames && model.frames[pose]) || model.cells;
   for (const c of cells) {
     const lx = c.x * m.w, ly = c.y * m.h;
     const x = sx + lx * ca - ly * sa, y = sy + lx * sa + ly * ca;
     const base = paintedHull(paint, c, burning) ?? ink(c.color);
-    for (const d of glassDraws(motion, c, base, inks)) r.glyphRot(c.ch, x, y, a, d.ink, alpha * d.alpha, model.scale);
+    const cellAlpha = isGlass(c) ? glassAlpha : alpha;
+    const draws = WING_GLYPHS.has(c.ch) ? wingDraws(motion, c, base) : glassDraws(motion, c, base, inks);
+    for (const d of draws) r.glyphRot(c.ch, x, y, a, d.ink, cellAlpha * d.alpha, model.scale);
   }
   drawShipMotion(r, motion, model, sx, sy, a, model.scale, inks, model.baseScale ?? model.scale);
 });
@@ -976,7 +1024,8 @@ export function createWorldPresentation(world, settings) {
     }, dt);
     const paint = (ship, x, y) => {
       const inks = flownShipInks(world, ship.thrusting || ship.retroing);
-      drawPilotShip(r, ship, x, y, motion, inks.ink, inks.paint, { docked: !!world.docked, reducedMotion: api.reducedMotion, shade: api.shipShade });
+      drawPilotShip(r, ship, x, y, motion, inks.ink, inks.paint, { docked: !!world.docked, reducedMotion: api.reducedMotion, shade: api.shipShade,
+        brake: api.shipShade, braking: api.shipBraking });
     };
     // Diving into a station's dock or out of it, and rising (src/docking.js, labs/graphics/dock-fx.js): grown or shrunk, sunk, faded;
     // not drawn at all while it is under the station.
@@ -987,7 +1036,8 @@ export function createWorldPresentation(world, settings) {
       model.scale = this.model.scale * docking.grow;
       const ship = Object.create(this, { model: { value: model }, metrics: { value: { ...m, w: m.w * docking.grow, h: m.h * docking.grow } } });
       const inks = flownShipInks(world, false);
-      drawPilotShip(r, ship, sx, sy + docking.dy, motion, inks.ink, inks.paint, { docked: true, reducedMotion: api.reducedMotion, shade: (api.shipShade ?? 1) * docking.alpha });
+      drawPilotShip(r, ship, sx, sy + docking.dy, motion, inks.ink, inks.paint, { docked: true, reducedMotion: api.reducedMotion, shade: (api.shipShade ?? 1) * docking.alpha,
+        brake: api.shipShade });
       return;
     }
     // Up in a jump, or squashed by its contact (src/trick.js): lifted, grown, folded by a figure.
@@ -1062,6 +1112,8 @@ export function createWorldPresentation(world, settings) {
     shipHidden: false,
     // Set by the page each frame with the ship's scale (src/visualScale.js brakeShade): its hull this much as opaque.
     shipShade: 1,
+    // Set by the page each frame: the brake held, as the scale reads it (a drawing's brake pose, drawPilotShip).
+    shipBraking: false,
     prepare() { world.asteroids.forEach(asteroid); world.pirates.forEach(pirate); },
     captureSprite(id, raw) { if (SPRITE_ART[id]) originals.set(id, structuredClone(raw)); },
     refresh() {

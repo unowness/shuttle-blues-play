@@ -54,6 +54,7 @@ import { readWarnSwitch, createHitWarning } from './hit-warning.js';
 import { createSkillHints } from '../../src/skillHints.js';
 import { createHudPlace, leftColumnEdge, rightColumnEdge } from './hud-place.js';
 import { createHudSide } from './hud-sides.js';
+import { createInterface, createModernFx } from './hud-modern.js';
 import { loadFrames } from '../../src/frames.js';
 import { createRadio } from './radio.js';
 import { readVolumes } from './volume-panel.js';
@@ -400,6 +401,10 @@ export function createGame(env) {
   // MIRROR SWITCH»): this browser's, the left unless the pause's SIDES keeps the right. Where the places keep offsets (`hudPlace`) they are
   // for that side.
   game.hudSide = createHudSide(saveBackend);
+  // The interface the flight wears and the modern one's locator (labs/graphics/hud-modern.js; SX, 2026-10-16): MODERN with a SQUARE locator
+  // unless this browser keeps LEGACY or ROUND (the pause's GRAPHICS > INTERFACE and MAP); what tore off the modern one, falling.
+  game.interface = createInterface(saveBackend);
+  game.modernFx = createModernFx();
   // The windows' frames and rules in the Swiss manner (src/frames.js; SX, 2026-10-09): GRAY unless this browser keeps TINTED (the pause's GRAPHICS > FRAMES).
   loadFrames(saveBackend);
   const hudPlace = createHudPlace(saveBackend);

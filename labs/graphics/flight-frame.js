@@ -13,6 +13,8 @@ import { textShadowed, setTextShadowLean } from '../../src/textShadow.js';
 import { syncQuestBoard, drawQuestBoard, QUEST_TONES } from './quest-list.js';
 import { currentQuests, questTone } from '../../src/quests.js';
 import { drawLabCockpit } from './hud.js';
+import { drawScootyDeck } from './scooty-deck.js';
+import { flyingLoaner } from '../../src/loaner.js';
 import { stepCharm } from './charm.js';
 import { stepTracker } from './tracker.js';
 import { COCKPIT_FX, damageLevel, wearCockpit, shakeOffset, drawPieces, steerLight, mendCockpit, crackShape, drawCracked } from './cockpit-fx.js';
@@ -39,11 +41,11 @@ import { stepKick, putKick, liftKick, nodKick } from './ship-kick.js';
 import { stepStuntFx, drawStuntFx, deckShift, scaleOf } from './stunt-fx.js';
 import { HELM_FX } from './vector-helm.js';
 import { stepHitWarning, warnGauge, warnLamp, drawWarnMark } from './hit-warning.js';
-import { stepSkillHints, settled } from '../../src/skillHints.js';
+import { stepSkillHints, settled, heldOn } from '../../src/skillHints.js';
 import { drawSkillHint } from './skill-hint.js';
 import { stepPointed, pointedMenu } from './world-pointer.js';
 import { beginNotes, endNotes, noteDuring, muteNotes } from './clicks.js';
-import { hoverFrame, hoverReach, itemUnder } from '../../src/hover.js';
+import { hoverFrame, hoverReach, itemUnder, hoverEntered } from '../../src/hover.js';
 import { offsetOf, shifted, settleHudPlace, safeArea, lookOf } from './hud-place.js';
 import { sidePlaces } from './hud-sides.js';
 import { listenRadio, listenQuests, drawRadio, radioPlace, radioSize, deckFloor } from './radio.js';
@@ -51,6 +53,8 @@ import { interfaceGiven } from '../../src/opening.js';
 import { stepCursor, drawCursor, cursorSleep } from './cursor.js';
 import { cornerTile } from './ui-parts.js';
 import { drawHelmet } from './helmet.js';
+import { drawModernHud, wearNotch, stepModernFx } from './hud-modern.js';
+import { hungCharm } from './charm.js';
 
 export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, followPixelRatio, followCursor }) {
   const { world, renderer, input, crt, sound, canvas, feedback, ghost, presentation, notices, screens, pause, router, schemes, keyFocus, questBoard,
@@ -71,6 +75,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     const braking = brakeHands.damp && !world.docked && !held && !surfing(world);
     const factor = stepScale(shipScale, speed, dt, CONFIG.ship.visualScale, ship.alive, braking, held);
     presentation.shipShade = brakeShade(factor, CONFIG.ship.visualScale);
+    presentation.shipBraking = braking;
     const next = m.baseScale * factor;
     if (Math.abs(next - m.scale) > 1e-4) {
       m.scale = next;
@@ -104,8 +109,13 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
   // The brake as the page shows it (the hull's brake look, the helm's lamp, the heavy hit's warning): Space where the keys fly, the
   // mouse's brake (the last steps' hands) in MOUSE + HOTKEYS, where Space is the jump. One object, its one field set each frame.
   const brakeHands = { damp: false };
-  // The controls the world was last stepped with (the skills' hints read the turn and the fire key of them: src/skillHints.js).
+  // The hover's sound (U1): when it was last heard, and how often at most (a sweep across a list is a few, not one a row).
+  const HOVER_SOUND_GAP = 0.06;
+  let hoverHeard = -Infinity;
+  // The controls the world was last stepped with (the skills' hints read the turn and the fire key of them: src/skillHints.js), and the keys
+  // the first flight's cross reads as they are held (its four, whatever the steering makes of them).
   let flown = IDLE_CONTROLS;
+  const heldKeys = heldOn(input);
   function drawViewportOverlay(r) {
     const ship = world.ship;
 
@@ -189,7 +199,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
   // «локатор отдельным блоком ... со скрывающейся легендой. Квесты отдельным блоком»), the shelf, and where a notice comes in (a
   // two-line notice's box when none is up). The task's line stays in the helmet's notch (S8): no box to drag.
   function hudPlaceBoxes(layout) {
-    const sample = { title: 'NOTICES COME IN HERE', sub: 'DRAG TO MOVE', kind: 'news' };
+    const sample = { title: "NOTICES APPEAR HERE", sub: 'DRAG TO MOVE', kind: 'news' };
     // The quests' column: the radio on top (its row and picture as drawn) and the list under it, its head (R QUESTS) and its plates
     // (labs/graphics/quest-list.js); one group, so LAYOUT holds the radio on the screen with the list.
     const list = questBoard.box, radioBox = page.radioArea;
@@ -312,8 +322,11 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
       // The skills' one-time hints (src/skillHints.js): each said once in the whole game, by the ship; what was said is the pilot's, saved as it is.
       if (!settled(skillHints, world)) {
         stepSkillHints(skillHints, world, { braking: brakeHands.damp, controls: flown, warning: hitWarning.threat, dt: rawDt,
-          still: feedback.reducedMotion, frozen: screens.anyScreen(), scheme: schemes.scheme() });
+          still: feedback.reducedMotion, frozen: screens.anyScreen(), scheme: schemes.scheme(), screen: screens.open, display: crt?.mode ?? null,
+          held: heldKeys });
         if (skillHints.changed) { skillHints.changed = false; persist('taught'); }
+        // A hint its deed ended: the skill is answered (T1).
+        if (skillHints.learned) { skillHints.learned = null; sound.play('learned'); }
       }
     }
     const tSim = performance.now();
@@ -396,9 +409,21 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     muteNotes(!hudAnswers);
     hoverFrame(pointer, rawDt, { reducedMotion: feedback.reducedMotion });
     hoverReach(hudAnswers);
+    // The pointer come onto a button: its breath of a click (U1), at most one in HOVER_SOUND_GAP s.
+    if (hoverEntered() !== null && performance.now() - hoverHeard >= HOVER_SOUND_GAP * 1000) { hoverHeard = performance.now(); sound.play('hover'); }
     // Each group of the interface drawn once (`group`): this one, the locator, the cockpit, the quests, the labels and arrows in the
     // flight, the notice.
     group('overlay', renderer, drawViewportOverlay);
+    // The interface the pilot wears (labs/graphics/hud-modern.js, the pause's GRAPHICS > INTERFACE): MODERN draws its own groups in place of
+    // the deck, the helmet, the locator's column, the shelf, the radio and the quests below, and the helmet's geometry (the task's line, the
+    // notices under it) follows its notch from here on.
+    // On SCOOTY JR. (the opening's loaner, or the STANDARD wearing it after the opening, src/shipLooks.js scooter): its handlebar, the marks
+    // of the targets on the rim, an object's window and the skills' hints, and nothing else of the interface, the notices none (SX,
+    // 2026-10-16: «когда на самокате едем можешь показывать только руль самоката и метку на карте, вообще никакого интерфейса не надо
+    // больше ну и обучение управлением»; the texts too, his answer the same day). The notices age unseen meanwhile (notices.age above).
+    const scooter = flyingLoaner(world) || !!game.shipLook?.scooter?.();
+    const modern = !scooter && game.interface?.style === 'modern';
+    wearNotch(renderer, modern);
     // Where each group stands: the sides' place (labs/graphics/hud-sides.js) and LAYOUT's offset from it. The locator and the shelf under
     // it on one side, the quests and the radio on the other; the quest list is no more under the locator, the shelf is.
     const sides = sidePlaces(renderer, hudSide.locator);
@@ -425,7 +450,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     const given = game.focus.shown(interfaceGiven(world)), fitted = given.column;
     // While its legend shows under the scope (M), the charm that hangs there is not drawn and answers nothing; the quests
     // and the radio are on the other side and stay (locator.js legendCovers).
-    const covered = game.hudCovered = given.column && legendCovers(renderer);
+    const covered = game.hudCovered = !modern && !scooter && given.column && legendCovers(renderer);
     const columnBox = scopeBox;                // (the locator's own wipe and corner marks: the quests are given from the first frame)
     // The labels and arrows of the flight (an object's window, the marks on the rim, a ghost's label, the feedback),
     // drawn before the interface, which is the top layer and stands over them whatever they do (SX, 2026-10-07: «почему то пролетают над
@@ -433,29 +458,32 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     // keep off its boxes: the column as it stands, the quests, the shelf and the radio as the last frame drew them, the notch's line and
     // the notice as they stand; and the windows keep to the play area between the helmet's floor and the deck's top (rim-marks.js).
     if (!screens.anyScreen()) {
-      const avoid = fitted ? [scopeBox] : [], lastLayout = game.lastHudLayout;
-      if (given.quests && questBoard.box) avoid.push(questBoard.box);
+      const lastLayout = game.lastHudLayout, wasModern = !!lastLayout?.modern;
+      const rode = !!lastLayout?.scooter;
+      const avoid = rode ? [...lastLayout.avoid] : wasModern ? [...lastLayout.avoid, lastLayout.column, lastLayout.quests].filter(Boolean) : fitted ? [scopeBox] : [];
+      if (!wasModern && !rode && given.quests && questBoard.box) avoid.push(questBoard.box);
       if (lastLayout?.deck && lastLayout.shelf?.h > 0 && !covered) avoid.push(lastLayout.shelf);          // the charm's room, while one hangs
       if (lastLayout?.deck && lastLayout.tracker) avoid.push(lastLayout.tracker);                         // the deck's shoulder: the wallet, the tracker's button and rows
       if (page.radioArea) avoid.push(page.radioArea);
       const taskBox = notices.taskRect(), noticeBox = notices.currentNoticeRect();
-      if (taskBox) avoid.push(taskBox);
-      if (noticeBox) avoid.push(noticeBox);
+      if (taskBox && !scooter) avoid.push(taskBox);
+      if (noticeBox && !scooter) avoid.push(noticeBox);
       group('labels', renderer, (r) => {
-        const occupied = noteDuring(r, () => drawInteraction(r, avoid, playArea(r, { boxes: game.hud.boxes, layout: lastLayout })));
-        const trace = ghost.drawLabel(r, world, occupied);
+        const occupied = noteDuring(r, () => drawInteraction(r, avoid, wasModern && lastLayout.area ? lastLayout.area : playArea(r, { boxes: game.hud.boxes, layout: lastLayout })));
+        const trace = scooter ? null : ghost.drawLabel(r, world, occupied);
         if (trace) occupied.push(trace);
-        feedback.draw(r, world, occupied);
+        if (!scooter) feedback.draw(r, world, occupied);
         // By the ship, riding with it (src/skillHints.js; labs/graphics/skill-hint.js).
         if (skillHints.shown) drawSkillHint(r, world, skillHints.shown, { scheme: schemes.scheme(), reducedMotion: feedback.reducedMotion });
       });
       // Up in a jump over a menu, the ship is drawn over it (SX's M5+: «если ... перепрыгнуть, то он сверху в нее пролетает»).
       if (shipOverPlate()) { const s = world.project(renderer, world.ship.x, world.ship.y); renderer.drawOver(() => world.ship.draw(renderer, s.x, s.y)); }
     }
-    if (colMoved) { renderer.ctx.save(); renderer.ctx.translate(colShift.x, colShift.y); }
-    if (fitted) wiped('column', columnBox, () => group('scope', renderer, (r) => drawLabTopStrip(r, world, { ...scopeArgs, part: 'scope' })), { offset: colShift });
-    const locatorArea = fitted ? shifted(wiped('column', columnBox, () => group('legend', renderer, (r) => drawLabTopStrip(r, world, { ...scopeArgs, part: 'text' })), { offset: colShift }), colShift) : null;
-    if (colMoved) renderer.ctx.restore();
+    const legacyColumn = fitted && !modern && !scooter;
+    if (legacyColumn && colMoved) { renderer.ctx.save(); renderer.ctx.translate(colShift.x, colShift.y); }
+    if (legacyColumn) wiped('column', columnBox, () => group('scope', renderer, (r) => drawLabTopStrip(r, world, { ...scopeArgs, part: 'scope' })), { offset: colShift });
+    let locatorArea = legacyColumn ? shifted(wiped('column', columnBox, () => group('legend', renderer, (r) => drawLabTopStrip(r, world, { ...scopeArgs, part: 'text' })), { offset: colShift }), colShift) : null;
+    if (legacyColumn && colMoved) renderer.ctx.restore();
     // The cockpit (cockpit-fx.js): glints ride its bars as the ship turns or is jolted; it wears the hull's damage a step
     // each fifth; a worse step shakes the whole cockpit and flings pieces of its bars over it.
     const fxNow = performance.now() / 1000;
@@ -485,12 +513,34 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     const cockpitArgs = { cargoAcknowledged: feedback.cargoAcknowledged,
       reducedMotion: feedback.reducedMotion, charm, tracker,
       shift: cockpitShift, steady: { x: -shake.x, y: -shake.y }, shelf: given.shelf };
+    // MODERN: the whole interface under the shake (SX: «при столкновениях весь интерфейс трясется ... как будто бы это ... аугментированный
+    // интерфейс в шлеме»), the charm on its mount's reel, what tore off at the hull's last tenth falling (hud-modern.js).
+    let modernOut = null;
+    if (modern) {
+      const hungId = given.shelf ? hungCharm(world) : null;
+      stepCharm(charm, world.ship, world.time, hungId, pageTime(), rawDt, feedback.reducedMotion);
+      charm.shown = false;
+      stepModernFx(game.modernFx, { share: world.ship.alive && world.hullMax > 0 ? world.hull / world.hullMax : 0, angle: world.ship.angle, dt: rawDt,
+        charmAt: game.lastHudLayout?.modern ? game.lastHudLayout.charmAt : null, charmId: hungId, reducedMotion: feedback.reducedMotion });
+      modernOut = group('modern', renderer, (r) => drawModernHud(r, game, { given, brake: !!brakeHands.damp, lamp: HELM_FX.lamp,
+        speed: Math.hypot(world.ship.vx, world.ship.vy), maxSpeed: world.ship.params().maxSpeed, input: flown, now: pageTime(),
+        scopeArgs: { flags: scopeArgs.flags, quests: scopeArgs.quests, task: scopeArgs.task }, reducedMotion: feedback.reducedMotion,
+        level: damageLevel(world.ship.alive ? world.hull : 0, world.hullMax), attached: keyFocus.holdsArrows(), focusId: notices.focusedQuestId(),
+        markedIds: markedIds(), pointer: screens.anyScreen() ? null : pointer,
+        bearingOf: (q) => { const way = courseOf(questNavigation(world, q)); return way ? Math.atan2(way.dy, way.dx) : null; } }));
+      locatorArea = modernOut.column;
+    }
     // Broken at a wreck (cockpit-fx.js crackShape): each half on its own side of the break, bent.
-    const deckCrack = COCKPIT_FX.shake ? crackShape(fxNow, renderer.width, renderer.height) : null;
+    const deckCrack = !modern && !scooter && COCKPIT_FX.shake ? crackShape(fxNow, renderer.width, renderer.height) : null;
     // (Its layout only, nothing drawn, while the pilot's cockpit waits for its beat: `header` draws nothing.)
     const drawDeck = (r) => drawLabCockpit(r, world, brakeHands, { ...cockpitArgs, part: given.deck ? 'deck' : 'header' });
     const whole = { x: 0, y: 0, w: renderer.width, h: renderer.height };
-    const hudLayout = deckCrack ? drawCracked(renderer.ctx, deckCrack, renderer.width, renderer.height, () => group('cockpit', renderer, drawDeck))
+    // SCOOTY JR.'s handlebar alone (labs/graphics/scooty-deck.js): what the marks and the windows keep off is the bar and its streamers.
+    const rideDeck = () => {
+      const out = group('cockpit', renderer, (r) => drawScootyDeck(r, world, brakeHands, { reducedMotion: feedback.reducedMotion }));
+      return { scooter: true, avoid: out ? [out.box, ...out.keys] : [], deck: null };
+    };
+    const hudLayout = scooter ? rideDeck() : modern ? modernOut : deckCrack ? drawCracked(renderer.ctx, deckCrack, renderer.width, renderer.height, () => group('cockpit', renderer, drawDeck))
       : wiped('cockpit', whole, () => group('cockpit', renderer, drawDeck), { across: true });
     // The top of the helmet (labs/graphics/helmet.js, S8 V1+): the deck's bar across the top with its notch, shaking with the deck, on
     // its own shadow, the scale of a jump or a drift in its floor (stunt-fx.js scaleOf); the task's line in the notch is the banners'
@@ -502,33 +552,36 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     const drawShelfBlock = () => group('shelf', renderer, (r) => drawLabCockpit(r, world, brakeHands, { ...cockpitArgs, part: 'shelf' }));
     // What hangs is what the shelf's layout says (the opening's gate is its, labs/graphics/souvenir-shelf.js shelfLayout); the state keeps
     // swinging while the legend covers its place, so it is where it was when the legend folds.
-    stepCharm(charm, world.ship, world.time, hudLayout?.charm?.id ?? null, pageTime(), rawDt, feedback.reducedMotion);
-    charm.shown = false;
-    if (covered) { /* the legend stands in its place */ }
-    else if (given.shelf) wiped('shelf', hudLayout?.shelf, drawShelfBlock);
+    if (!modern && !scooter) {
+      stepCharm(charm, world.ship, world.time, hudLayout?.charm?.id ?? null, pageTime(), rawDt, feedback.reducedMotion);
+      charm.shown = false;
+      if (covered) { /* the legend stands in its place */ }
+      else if (given.shelf) wiped('shelf', hudLayout?.shelf, drawShelfBlock);
+    }
     if (shake.x || shake.y) renderer.ctx.restore();
-    if (COCKPIT_FX.shake) drawPieces(renderer.ctx, fxNow);
+    if (COCKPIT_FX.shake && !modern && !scooter) drawPieces(renderer.ctx, fxNow);       // (the legacy deck's own pieces)
     game.lastHudLayout = hudLayout;
     // The quests' column, on the side the locator is not (S3 SWAP; SX, 2026-10-08, «ты радио сделай сверху, а список квестов под ним»):
     // the radio on top once the opening has given it (src/opening.js interfaceGiven), on the column's top row, where its picture would
     // reach the cockpit it folds to its row (labs/graphics/radio.js); the quest list under it, a container's inset under its last ink,
     // on the top row with no radio, from the first frame (the opening gives the quests at once). On the right the plates, the heads and
     // the radio are drawn mirrored (hud-sides.js quests.mirror). Dragged on its own under the pause, the list keeps its own offset.
-    page.radioArea = given.radio ? group('radio', renderer, (r) => drawRadio(r, radio, radioPlaceNow(hudLayout, sides, listUser), pageTime(),
+    if (modern) page.radioArea = modernOut.radioArea;
+    else page.radioArea = given.radio && !scooter ? group('radio', renderer, (r) => drawRadio(r, radio, radioPlaceNow(hudLayout, sides, listUser), pageTime(),
       { reducedMotion: feedback.reducedMotion })) : null;
     const listBase = questPlace?.at ?? sides.quests;
     listAt.x = listBase.x + listUser.x;
     listAt.y = questPlace?.at ? listBase.y + listUser.y : page.radioArea ? Math.round(page.radioArea.y + page.radioArea.h + sides.quests.under) : listBase.y + listUser.y;
     if (questPlace) questPlace.home = sides.quests;
     // Its head, R QUESTS, on the column's edges (S3, L3+); it looks as under the pointer while the keys hold the list (key-focus.js).
-    if (given.quests) group('quests', renderer, (r) => drawQuestBoard(r, questBoard, listAt.x, listAt.y, pageTime(), world.ledger.clock, {
+    if (given.quests && !modern && !scooter) group('quests', renderer, (r) => drawQuestBoard(r, questBoard, listAt.x, listAt.y, pageTime(), world.ledger.clock, {
       reducedMotion: feedback.reducedMotion, button: sides.quests.button, attached: keyFocus.holdsArrows(), width: sides.quests.width,
       focusId: notices.focusedQuestId(), markedIds: markedIds(), mirror: sides.quests.mirror,
       bearingOf: (q) => { const way = courseOf(questNavigation(world, q)); return way ? Math.atan2(way.dy, way.dx) : null; },
       pointer: screens.anyScreen() ? null : pointer,
     }));
     // A panel just given, marked by its four corners for a moment (F2, F3).
-    for (const [panel, box] of [['column', columnBox], ['shelf', hudLayout?.shelf]]) {
+    for (const [panel, box] of scooter ? [] : modern ? [['column', modernOut.locator]] : [['column', columnBox], ['shelf', hudLayout?.shelf]]) {
       if (box && box.h > 0 && game.focus.marks(panel, { reducedMotion: feedback.reducedMotion })) cornerTile(renderer, inflateBox(box, BEAT_MARK.air), ROLES.textPrimary, BEAT_MARK.arm);
     }
     // An open panel stands over the screen at half its light (CONFIG.view.underPanel).
@@ -538,7 +591,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     const noticeUnder = screens.anyScreen();
     // The banners (labs/graphics/notices.js): the task slot where the route's header stood, and the notice under it; steady while the
     // deck shakes, over every panel and an object's menu, or under a pop-up's dimming as the notices always were.
-    if (noticeUnder) { group('header', renderer, notices.drawTaskPlaced); group('notice', renderer, notices.drawNoticePlaced); }
+    if (noticeUnder && !scooter) { group('header', renderer, notices.drawTaskPlaced); group('notice', renderer, notices.drawNoticePlaced); }
     if (screens.anyScreen()) {
       renderer.fill(0, 0, renderer.width, renderer.height, CONFIG.render.background, 1 - CONFIG.view.underPanel);
     }
@@ -550,12 +603,15 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     // A talk's beat (labs/graphics/talk-beat.js): its veil over the whole frame and the speaker's window, under any pop-up.
     timed('talk beat', () => game.beat.draw(renderer));
     game.popupOnTop = timed('pop-ups', () => screens.drawPopups(now));
-    game.hud.boxes = hudPlaceBoxes(hudLayout);
+    game.hud.boxes = scooter ? { column: null, quests: null, header: null, shelf: null, notice: null } : modern ? { column: modernOut.column, quests: modernOut.quests, header: null, shelf: null,
+      notice: notices.currentNoticeRect() ?? shifted(noticeRect(renderer, { title: "NOTICES APPEAR HERE", sub: 'DRAG TO MOVE', kind: 'news' }), offsetOf(hudPlace, 'notice')) }
+      : hudPlaceBoxes(hudLayout);
     // A moved group held inside the screen, above the cockpit and off the ship for the next frame (hud-place.js; a resize brings it back).
-    settleHudPlace(hudPlace, game.hud.boxes, safeArea(renderer, hudLayout));
+    // (MODERN's groups stand where it lays them.)
+    if (!modern && !scooter) settleHudPlace(hudPlace, game.hud.boxes, safeArea(renderer, hudLayout));
     const pausing = pause.settle();
     timed('h panel', () => diagnostics.draw(renderer, locatorArea, hudLayout));
-    if (!noticeUnder) { group('header', renderer, notices.drawTaskPlaced); group('notice', renderer, notices.drawNoticePlaced); }   // over the interface
+    if (!noticeUnder && !scooter) { group('header', renderer, notices.drawTaskPlaced); group('notice', renderer, notices.drawNoticePlaced); }   // over the interface
     // Under P's pause, over everything and the rest dimmed as under a pop-up: the pause's window (labs/graphics/pause.js draw).
     if (pausing) timed('pause', () => pause.draw());
     endNotes();

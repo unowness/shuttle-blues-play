@@ -22,7 +22,7 @@ export function createTitleMenu({ game, titleFinal, start, erase, clock = () => 
     if (id === 'new') {
       if (now / 1000 - newAskedAt <= ERASE_WINDOW) { erase(); return; }
       newAskedAt = now / 1000;
-      titleFinal.message = { text: 'NEW GAME ERASES YOUR SAVE  /  CHOOSE AGAIN', at: now };
+      titleFinal.message = { text: "ERASE SAVE? / SELECT NEW GAME AGAIN", at: now };
       game.sound.play('refuse');
       return;
     }

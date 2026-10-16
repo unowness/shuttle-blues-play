@@ -64,13 +64,13 @@ export const VOICES = Object.freeze([
     back: Object.freeze(['La, la-la.', 'Hum it with me, ring.']),
     after: Object.freeze([P('MAYOR', '02.11', 'Thank you.')]) }),
   Object.freeze({ who: 'NIGHT SHIFT', at: '23.59', where: 'sector-j05',
-    hole: P('BAKER', '05.40', 'Who says goodnight now?'),
-    back: Object.freeze(['Goodnight, ring.', 'Goodnight, lamps.', 'Goodnight, whoever is listening.']),
-    after: Object.freeze([P('BAKER', '05.40', 'You look hungry.'), P('NIGHT SHIFT', '23.59', 'Goodnight,'), P('ANNOUNCER', '01.01', 'pilot.')]) }),
+    hole: P('BAKER', '05.40', "Who used to say goodnight—"),
+    back: Object.freeze(['Goodnight, ring.', 'Goodnight, lamps.', "Goodnight, whoever's listening."]),
+    after: Object.freeze([P('BAKER', '05.40', 'You look hungry.'), P('NIGHT SHIFT', '23.59', "Goodnight—"), P('ANNOUNCER', '01.01', 'pilot.')]) }),
   Object.freeze({ who: 'MECHANIC', at: '07.15', where: 'sector-k06',
     hole: P('DOCK WARDEN', '03.14', 'Who fixes the—'),
     back: Object.freeze(['Hit it twice. Left side.', 'Works every time.']),
-    after: Object.freeze([P('DOCK WARDEN', '05.02', 'Berths open.'), P('MECHANIC', '07.15', 'Works every time.'), P('GREENHOUSE KID', '11.20', 'come back soon!')]) }),
+    after: Object.freeze([P('DOCK WARDEN', '05.02', 'Berths open.'), P('MECHANIC', '07.15', 'Works every time.'), P('GREENHOUSE KID', '11.20', "Come back soon!")]) }),
   Object.freeze({ who: 'LAST ONE OUT', at: '00.00', where: 'sector-j06',
     hole: P('ANNOUNCER', '06.40', 'Last call for—'),
     back: Object.freeze(["I'll leave the lights on.", 'In case someone comes back.']),
@@ -81,7 +81,7 @@ export const ROLL_CALL = Object.freeze([
   P('ANNOUNCER', '01.01', 'Roll call.'),
   P('DOCK WARDEN', '03.14', 'Here.'),
   P('BAKER', '05.40', 'Here.'),
-  P('GREENHOUSE KID', '11.20', 'here!'),
+  P('GREENHOUSE KID', '11.20', "Here!"),
   P('MAYOR', '02.11', 'Present.'),
   P('SINGER', '04.30', 'La.'),
   P('NIGHT SHIFT', '23.59', 'Here.'),
@@ -89,14 +89,14 @@ export const ROLL_CALL = Object.freeze([
   P('LAST ONE OUT', '00.00', 'Here.'),
   OWN('here.'),
   OWN('thank you. i only had their words.'),
-  OWN('now i have one of mine.'),
+  OWN("now i have one of my own."),
 ]);
 // What it says to the pilot from then on, its own words, one when the pilot comes near.
 export const GREETINGS = Object.freeze(['hello again.', 'you came back.', 'the lamps are on.', 'here.', 'i kept your berth.']);
 
 // The hole of voice `k` (0-based): its hole, the gap, and where its recorder lies, said by the dock warden and the announcer (who once
 // read out every platform, and every sector).
-const holeOf = (k, sectorId) => [VOICES[k].hole, HOLE, P('DOCK WARDEN', '03.14', 'Out past'), P('ANNOUNCER', '01.01', `${sectorById(sectorId)?.label ?? ''}.`)];
+const holeOf = (k, sectorId) => [VOICES[k].hole, HOLE, P('DOCK WARDEN', '03.14', "Out past—"), P('ANNOUNCER', '01.01', `${sectorById(sectorId)?.label ?? ''}.`)];
 // Voice `k` back: the static, its own recording, then the AI with it.
 const backOf = (k) => [NOISE, ...VOICES[k].back.map((line) => P(VOICES[k].who, VOICES[k].at, line)), ...VOICES[k].after];
 

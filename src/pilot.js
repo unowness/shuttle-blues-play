@@ -22,8 +22,9 @@ export const CHARM_NONE = 'none';
 // The skills the game says once, by the key (SX, 2026-10-09: «Мы нигде не учим пользователя что можно прыгать, тормозить, дрифтить. И
 // стрелять»; src/skillHints.js is when and what): the pilot's record of which it has said, in the save (`taught`), so a new game says them
 // again and a loaded one does not. The first flight's two, the thrust and the steering, since that evening (SX: «первая подсказка по управлению
-// кораблю должна быть, когда ты появляешься в скутере»).
-export const SKILL_IDS = Object.freeze(['thrust', 'steer', 'brake', 'fire', 'drift', 'jump', 'trick']);
+// кораблю должна быть, когда ты появляешься в скутере»). The tutorial's five since 2026-10-16 (SX: «V видео шейдеры», «хоткей для контроля», «m карта,
+// p карточка пилота», «L оставить письмо»): the screen filter, the controls list, the map, the pilot card and the sign, each its key said once.
+export const SKILL_IDS = Object.freeze(['thrust', 'steer', 'brake', 'fire', 'drift', 'jump', 'trick', 'display', 'help', 'map', 'card', 'sign']);
 
 export const NICKNAME_MAX = 12;
 export const DEFAULT_NICKNAME = 'PILOT';

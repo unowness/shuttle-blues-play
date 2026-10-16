@@ -24,7 +24,7 @@ export const STATION_INFO = Object.freeze({
     goods: ['SPARE PARTS', 'FUEL DRUMS', 'PATCHES', 'WIRE', 'LAMPS', 'HOSES'],
   },
   'station-drydock-j04': {
-    lore: 'Rotating cabins surround a fixed repair hub. Painted floor marks guide crews from the airlocks to their ships.',
+    lore: "Cabins turn around a fixed repair hub. Crews follow painted floor marks from the airlocks to their ships.",
     goods: ['HULL PLATES', 'COOLANT CELLS', 'ENGINE CORE', 'HULL SEALS', 'BOLTS', 'WIRE'],
   },
   'station-relay-j05': {
@@ -33,7 +33,7 @@ export const STATION_INFO = Object.freeze({
     goods: ['ARCHIVE TAPES', 'RADIO VALVES', 'MAIL SACKS', 'DIALS', 'FUSES', 'LENSES'],
   },
   'station-halcyon-j05': {
-    lore: 'Power is down across the greenhouse. Water still drips through two roof panes; the seed trays below them are the only wet ones.',
+    lore: "Power is out across the greenhouse. Water drips through two roof panes. Only the seed trays underneath are wet.",
     rebuilt: 'The greenhouse has power again. Water reaches every seed tray, and new sprouts stand in the rows beneath the repaired roof.',
     goods: ['SPROUTS', 'SEED VAULTS', 'HERBS', 'BULBS', 'SOIL', 'FERNS'],
   },
@@ -44,7 +44,7 @@ export const STATION_INFO = Object.freeze({
     goods: ['FOOD CRATES', 'MEDICAL KITS', 'ICE', 'SIGNAL LAMPS', 'COAL SACKS', 'SPROUTS'],
   },
   'station-foundry-k04': {
-    lore: 'The furnace went cold mid-shift. Unfinished hull plates occupy the cooling racks, each marked with a batch number in chalk.',
+    lore: "The furnace went cold mid-shift. Unfinished hull plates sit on the cooling racks, their batch numbers chalked on.",
     rebuilt: 'The furnace is running. Finished hull plates leave the cooling racks in numbered batches. Chalk dust settles on the warm floor.',
     goods: ['COAL SACKS', 'IRON BARS', 'TOOL STEEL', 'ORE', 'SLAG', 'PISTONS'],
   },
@@ -68,7 +68,7 @@ export const STATION_INFO = Object.freeze({
     goods: ['FUEL RODS', 'AIR FILTERS', 'GAS BOTTLES', 'PIPES', 'PUMPS', 'BEARINGS'],
   },
   'station-pharos-j06': {
-    lore: 'The navigation lamp is out. Its lens is intact, but the service log ends before the fault was found. A test chart covers the control desk.',
+    lore: "The navigation lamp is out, its lens intact. The log never names the fault. A test chart covers the control desk.",
     rebuilt: 'The navigation lamp sweeps the lanes. A new entry closes the fault report. The test chart is pinned above the controls, with each reading checked.',
     goods: ['SIGNAL FLARES', 'LAMP OIL', 'LENS GLASS', 'CHARTS', 'TEA TINS', 'WICKS'],
   },
@@ -79,7 +79,7 @@ export const STATION_INFO = Object.freeze({
   },
   'station-wharf-k06': {
     lore: 'The curved repair dock is empty. A seized winch holds a half-wound cable. Its repair ticket lists the work still to be done.',
-    rebuilt: 'Ships fill the curved repair dock. The winch feeds cable through its guides again. Its completed repair ticket is filed beside the new jobs.',
+    rebuilt: "Ships fill the curved repair dock. Cable runs through the winch guides again. The completed repair ticket sits beside the new jobs.",
     goods: ['CABLE REELS', 'WINCH PARTS', 'LIFE RINGS', 'TOWLINES', 'CHAIN', 'FENDERS'],
   },
   'station-hoist-k06': {

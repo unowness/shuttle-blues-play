@@ -13,12 +13,12 @@ export const CRAFT_REPLIES = Object.freeze(['YEAH.', 'HI.', 'MM.', 'SURE.', 'LIK
 // наш корабль, например»), in the answers' own voice, short and dry: src/npcRage.js. A craft with a `curses` list of its own (its record
 // in src/npcShips.js) says those. Then, when a ship is enraged (src/npcFleet.js): what it says as it turns on the pilot, at a ram, and
 // as it calms. Each pool never gives the line it gave last. These words are the agent's, not SX's picks: product copy for him to change.
-export const NPC_CURSES = Object.freeze(['WATCH IT.', 'HEY!', 'LEARN TO FLY.', 'NICE FLYING.', 'MY HULL.', 'LOOK WHERE YOU FLY.',
+export const NPC_CURSES = Object.freeze(['WATCH IT.', 'HEY!', 'LEARN TO FLY.', 'NICE FLYING.', "THAT'S MY HULL.", 'LOOK WHERE YOU FLY.',
   'SPACE IS BIG. USE IT.', 'OH, COME ON.', 'SERIOUSLY?', 'EYES FRONT, PILOT.']);
 export const RAGE_LINES = Object.freeze({
-  turn: Object.freeze(['THAT DOES IT.', 'YOU ASKED FOR IT.', 'COME HERE.', 'MY TURN.', 'HOLD STILL.']),
+  turn: Object.freeze(['THAT DOES IT.', 'YOU ASKED FOR IT.', "GET BACK HERE.", 'MY TURN.', 'HOLD STILL.']),
   ram: Object.freeze(['TAKE THAT.', 'FEEL THAT?', 'ONE MORE.', 'GOT YOU.', 'HOW ABOUT THAT?']),
-  calm: Object.freeze(['FINE. GO.', 'FORGET IT.', "WE'RE EVEN.", 'MOVING ON.', 'NOT WORTH IT.']),
+  calm: Object.freeze(['FINE. GO.', 'FORGET IT.', "WE'RE EVEN.", "WE'RE DONE HERE.", 'NOT WORTH IT.']),
 });
 // The act's word on its offer, by GAMEPLAY's GREETING (labs/graphics/greeting.js; SX, 2026-10-07: «берем g2 wave и нотч»): WAVE beside
 // the ship, or SAY HI after its name. HAIL is gone («мне не нравится название действия Hail»).

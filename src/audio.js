@@ -1,5 +1,7 @@
 import { CONFIG } from './config.js';
-import { Music, prepareReverb } from './music.js';
+import { prepareReverb } from './music.js';
+import { prepareBreak } from './breakcore.js';
+import { Score } from './score.js';
 import { readSound, writeSound } from './prefs.js';
 import { mulberry32, clamp, lerp, smoothstep } from './util.js';
 import { resolveChassis } from './chassis.js';
@@ -38,9 +40,14 @@ import { surfing, driftPreset } from './drift.js';
 // ------------------------------------------------------------------ sounds ---
 
 // Notes the chimes are made of: one major pentatonic, so any two of them heard
-// together agree.
-const N = { G4: 392, C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880, C6: 1046.5, D6: 1174.66,
-  E6: 1318.51, G6: 1567.98, A6: 1760, C7: 2093, E7: 2637 };
+// together agree. It is the key of both pieces of the score as well (SX, 2026-10-16: «надо проверить, что все сейчас с
+// саундтреком вместе в одной гамме было»; labs/graphics/sketches/sound-edit.html): the ambient is in D minor, the breakcore in A
+// minor, and C D E G A rub against no chord of either. Every tone a sound holds, and every slide where it lands, is on one of
+// them, and so is every pitch an event plays a sound at (EVENT_SOUNDS); a sweep over an octave in under a quarter second (a shot,
+// an explosion, a click) is a gesture, not a pitch. checks/audio.mjs holds it.
+const N = { E1: 41.2, A1: 55, C2: 65.41, D2: 73.42, E2: 82.41, A2: 110, C3: 130.81, D3: 146.83, A3: 220, C4: 261.63, D4: 293.66,
+  E4: 329.63, A4: 440, G4: 392, C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880, C6: 1046.5, D6: 1174.66,
+  E6: 1318.51, G6: 1567.98, A6: 1760, C7: 2093, E7: 2637, A7: 3520 };
 
 // A layer: `wave` (sine, triangle, square, sawtooth) or 'noise'; `f` its
 // frequency in Hz, or [from, to] slid exponentially over `slide` s (the whole
@@ -58,9 +65,61 @@ export const SOUNDS = {
     { wave: 'triangle', f: [1250, 300], a: 0.001, d: 0.09, g: 0.16 },
     { wave: 'noise', filter: { type: 'highpass', f: 4200 }, a: 0.001, d: 0.02, g: 0.05 },
   ] },
+  // F1 (SX, 2026-10-16: «не хватает разных звуков стрельбы»): the pilot's shot in three takes played in turn (TAKES), each a
+  // little apart in its sweep and its hiss, over the jitter.
+  shotB: { max: 4, jitter: 40, layers: [
+    { wave: 'triangle', f: [1180, 320], a: 0.001, d: 0.085, g: 0.16 },
+    { wave: 'noise', filter: { type: 'highpass', f: 4700 }, a: 0.001, d: 0.022, g: 0.05 },
+  ] },
+  shotC: { max: 4, jitter: 40, layers: [
+    { wave: 'triangle', f: [1330, 280], a: 0.001, d: 0.095, g: 0.15 },
+    { wave: 'noise', filter: { type: 'highpass', f: 3800 }, a: 0.001, d: 0.018, g: 0.055 },
+  ] },
+  // A pirate's shot when its kind has none of its own.
   pirateShot: { max: 4, jitter: 60, layers: [
     { wave: 'square', f: [560, 170], a: 0.001, d: 0.11, g: 0.07, filter: { type: 'lowpass', f: 2400 } },
     { wave: 'noise', filter: { type: 'bandpass', f: 1300, q: 1.2 }, a: 0.001, d: 0.04, g: 0.05 },
+  ] },
+  // F2-F10: each pirate's own (PIRATE_SHOTS, by shotFired's `kind`), one family, a short sweep and a breath, so a fight is heard as
+  // who fires: MAW barks, DART zips, BRUTE thuds, the WARLORD fires a fifth, NEEDLE a thin wire, WEAVER warbles, JACKAL snaps,
+  // TENDER is soft (it mends), the boss is heavy.
+  shotMaw: { max: 4, jitter: 60, layers: [
+    { wave: 'square', f: [420, 120], a: 0.001, d: 0.12, g: 0.07, filter: { type: 'lowpass', f: 1800 } },
+    { wave: 'noise', filter: { type: 'bandpass', f: 900, q: 1 }, a: 0.001, d: 0.05, g: 0.05 },
+  ] },
+  shotDart: { max: 4, jitter: 60, layers: [
+    { wave: 'triangle', f: [980, 360], a: 0.001, d: 0.06, g: 0.08 },
+    { wave: 'noise', filter: { type: 'highpass', f: 3600 }, a: 0.001, d: 0.02, g: 0.035 },
+  ] },
+  shotBrute: { max: 4, jitter: 50, layers: [
+    { wave: 'sawtooth', f: [300, 85], a: 0.001, d: 0.14, g: 0.06, filter: { type: 'lowpass', f: 1300 } },
+    { wave: 'noise', filter: { type: 'lowpass', f: [1600, 300] }, a: 0.001, d: 0.08, g: 0.06 },
+  ] },
+  shotWarlord: { max: 4, jitter: 40, layers: [
+    { wave: 'square', f: [560, 170], a: 0.001, d: 0.11, g: 0.05, filter: { type: 'lowpass', f: 2200 } },
+    { wave: 'square', f: [840, 255], a: 0.001, d: 0.11, g: 0.035, filter: { type: 'lowpass', f: 2200 } },
+    { wave: 'noise', filter: { type: 'bandpass', f: 1300, q: 1.2 }, a: 0.001, d: 0.04, g: 0.04 },
+  ] },
+  shotNeedle: { max: 4, jitter: 40, layers: [
+    { wave: 'sine', f: [2400, 700], a: 0.001, d: 0.05, g: 0.06 },
+    { wave: 'noise', filter: { type: 'bandpass', f: 5200, q: 3 }, a: 0.0005, d: 0.006, g: 0.05 },
+  ] },
+  shotWeaver: { max: 4, jitter: 50, layers: [
+    { wave: 'triangle', f: [720, 300], a: 0.002, d: 0.13, g: 0.07, vib: [24, 40] },
+    { wave: 'noise', filter: { type: 'bandpass', f: 1100, q: 1.5 }, a: 0.001, d: 0.03, g: 0.03 },
+  ] },
+  shotJackal: { max: 4, jitter: 60, layers: [
+    { wave: 'noise', filter: { type: 'bandpass', f: 1700, q: 1.4 }, a: 0.0005, d: 0.035, g: 0.08 },
+    { wave: 'square', f: [520, 200], a: 0.001, d: 0.06, g: 0.04, filter: { type: 'lowpass', f: 2600 } },
+  ] },
+  shotTender: { max: 4, jitter: 40, layers: [
+    { wave: 'triangle', f: [520, 260], a: 0.002, d: 0.1, g: 0.06 },
+    { wave: 'noise', filter: { type: 'lowpass', f: 1400 }, a: 0.001, d: 0.03, g: 0.03 },
+  ] },
+  shotBoss: { max: 4, jitter: 30, layers: [
+    { wave: 'square', f: [300, 80], a: 0.001, d: 0.18, g: 0.07, filter: { type: 'lowpass', f: 1600 } },
+    { wave: 'sine', f: [90, 40], a: 0.002, d: 0.2, g: 0.12 },
+    { wave: 'noise', filter: { type: 'lowpass', f: [2400, 300] }, a: 0.001, d: 0.12, g: 0.07 },
   ] },
   rockBreak: { max: 5, jitter: 80, layers: [
     { wave: 'noise', filter: { type: 'lowpass', f: [1900, 280] }, a: 0.002, d: 0.3, g: 0.22 },
@@ -82,9 +141,10 @@ export const SOUNDS = {
     { wave: 'square', f: [190, 60], a: 0.002, d: 0.18, g: 0.1, filter: { type: 'lowpass', f: 1400 } },
     { wave: 'noise', filter: { type: 'lowpass', f: [2600, 400] }, a: 0.002, d: 0.22, g: 0.2 },
   ] },
+  // K8 (the key): its ring lands on A5 and its tick is E5 (they were near A5 + 39 cents and F#5).
   pirateHit: { max: 3, jitter: 50, layers: [
-    { wave: 'triangle', f: [1450, 900], a: 0.001, d: 0.07, g: 0.1 },
-    { wave: 'square', f: 720, a: 0.001, d: 0.03, g: 0.03 },
+    { wave: 'triangle', f: [N.G6, N.A5], a: 0.001, d: 0.07, g: 0.1 },
+    { wave: 'square', f: N.E5, a: 0.001, d: 0.03, g: 0.03 },
   ] },
   explosion: { max: 1, layers: [
     { wave: 'noise', filter: { type: 'lowpass', f: [2400, 70] }, a: 0.004, d: 1.5, g: 0.42 },
@@ -95,14 +155,16 @@ export const SOUNDS = {
     { wave: 'noise', filter: { type: 'lowpass', f: [2800, 150] }, a: 0.003, d: 0.62, g: 0.28 },
     { wave: 'sine', f: [140, 42], a: 0.003, d: 0.42, g: 0.2 },
   ] },
+  // K16: down to A1 and up again to A4 (the rise landed on G#4).
   warp: { max: 1, layers: [
-    { wave: 'sine', f: [420, 55], a: 0.05, d: 0.85, g: 0.14, vib: [7, 22] },
+    { wave: 'sine', f: [N.A4, N.A1], a: 0.05, d: 0.85, g: 0.14, vib: [7, 22] },
     { wave: 'noise', filter: { type: 'lowpass', f: [900, 90] }, a: 0.05, d: 0.9, g: 0.12 },
-    { wave: 'sine', f: [60, 420], at: 0.8, a: 0.05, d: 0.5, g: 0.07 },
+    { wave: 'sine', f: [N.A1, N.A4], at: 0.8, a: 0.05, d: 0.5, g: 0.07 },
   ] },
   // The rope past a dead edge throwing the ship back (World.stepBoundary): a soft, low twang that rises, once a dive.
+  // K15: D2 to D3 (it landed on D3 + 37 cents).
   rope: { max: 1, layers: [
-    { wave: 'triangle', f: [70, 150], a: 0.03, d: 0.32, g: 0.08 },
+    { wave: 'triangle', f: [N.D2, N.D3], a: 0.03, d: 0.32, g: 0.08 },
     { wave: 'noise', filter: { type: 'bandpass', f: [260, 520], q: 1.5 }, a: 0.02, d: 0.18, g: 0.03 },
   ] },
 
@@ -118,8 +180,9 @@ export const SOUNDS = {
     { wave: 'triangle', f: N.A5, a: 0.003, d: 0.08, g: 0.06 },
     { wave: 'triangle', f: N.A5, at: 0.16, a: 0.003, d: 0.08, g: 0.06 },
   ] },
+  // K11: A3 down to A2 (it landed on F#2).
   fuelEmpty: { max: 1, layers: [
-    { wave: 'sawtooth', f: [220, 90], a: 0.01, d: 0.55, g: 0.05, filter: { type: 'lowpass', f: 900 } },
+    { wave: 'sawtooth', f: [N.A3, N.A2], a: 0.01, d: 0.55, g: 0.05, filter: { type: 'lowpass', f: 900 } },
   ] },
   hullCritical: { max: 1, bus: 'ui', layers: [
     { wave: 'triangle', f: N.D6, a: 0.003, d: 0.06, g: 0.035 },
@@ -133,17 +196,21 @@ export const SOUNDS = {
   // played (nothing sounding is ever cut short), so the cap must clear a scatter.
   // `max` 6 until 2026-10-01, when a rock's coins doubled (CONFIG.asteroid.drops.coins: up to 7 a break), and 9 until
   // 2026-10-02, when they went half as many again (up to 10 a break).
+  // K1-K3 (the key): the coin's fourth is A5 to D6, where it was B5 to E6 (a B rubs against the ambient's B flat); a handful A5 D6
+  // G6; a spill down the pentatonic, C6 where B5 was. Every coin the same two notes: a run of coins climbing the key was tried and
+  // taken out the same day (SX, 2026-10-16: «верни пожалуйста монетки без прогрессии»).
   coin: { max: 12, jitter: 20, layers: [
-    { wave: 'square', f: 988, a: 0.001, d: 0.05, g: 0.045, filter: { type: 'lowpass', f: 5000 } },
-    { wave: 'square', f: N.E6, at: 0.05, a: 0.001, d: 0.13, g: 0.045, filter: { type: 'lowpass', f: 5000 } },
+    { wave: 'square', f: N.A5, a: 0.001, d: 0.05, g: 0.045, filter: { type: 'lowpass', f: 5000 } },
+    { wave: 'square', f: N.D6, at: 0.05, a: 0.001, d: 0.13, g: 0.045, filter: { type: 'lowpass', f: 5000 } },
   ] },
-  coins: { max: 2, layers: [988, N.E6, N.G6].map((f, i) => (
+  coins: { max: 2, layers: [N.A5, N.D6, N.G6].map((f, i) => (
     { wave: 'square', f, at: i * 0.05, a: 0.001, d: i === 2 ? 0.2 : 0.06, g: 0.045, filter: { type: 'lowpass', f: 5200 } })) },
-  spill: { max: 1, layers: [N.E6, N.D6, 988, N.A5, N.G5].map((f, i) => (
+  spill: { max: 1, layers: [N.E6, N.D6, N.C6, N.A5, N.G5].map((f, i) => (
     { wave: 'square', f, at: i * 0.045, a: 0.001, d: 0.05, g: 0.035, filter: { type: 'lowpass', f: 4000 } })) },
+  // K6: a gulp from C4 to C5, then C5 to E5 (it landed on F#5).
   fuel: { max: 3, jitter: 30, layers: [
-    { wave: 'sine', f: [260, 540], a: 0.004, d: 0.13, g: 0.12 },
-    { wave: 'sine', f: [540, 720], at: 0.08, a: 0.004, d: 0.08, g: 0.05 },
+    { wave: 'sine', f: [N.C4, N.C5], a: 0.004, d: 0.13, g: 0.12 },
+    { wave: 'sine', f: [N.C5, N.E5], at: 0.08, a: 0.004, d: 0.08, g: 0.05 },
   ] },
   tankFull: { max: 1, layers: [
     { wave: 'triangle', f: 330, a: 0.003, d: 0.07, g: 0.04 },
@@ -173,19 +240,22 @@ export const SOUNDS = {
     { wave: 'sine', f: N.C6, at: 0.27, a: 0.01, d: 0.7, g: 0.05 },
   ] },
   thanks: { max: 1, layers: chime([N.E6, N.G6], { at: 0.5, step: 0.1, d: 0.45, g: 0.05 }) },
+  // K12, K13: the dock's thump C3 to C2, the undock's lift C2 to C3 (they landed on C#2 and B2).
   dock: { max: 1, layers: [
-    { wave: 'sine', f: [125, 68], a: 0.002, d: 0.16, g: 0.2 },
+    { wave: 'sine', f: [N.C3, N.C2], a: 0.002, d: 0.16, g: 0.2 },
     { wave: 'noise', filter: { type: 'lowpass', f: 1200 }, a: 0.001, d: 0.05, g: 0.12 },
     { wave: 'square', f: 440, at: 0.2, a: 0.002, d: 0.05, g: 0.03, filter: { type: 'lowpass', f: 2000 } },
   ] },
   undock: { max: 1, layers: [
     { wave: 'noise', filter: { type: 'highpass', f: [1800, 600] }, a: 0.02, d: 0.35, g: 0.07 },
-    { wave: 'sine', f: [70, 125], a: 0.01, d: 0.22, g: 0.1 },
+    { wave: 'sine', f: [N.C2, N.C3], a: 0.01, d: 0.22, g: 0.1 },
   ] },
-  refuel: { max: 1, layers: [300, 360, 430].map((f, i) => (
-    { wave: 'sine', f: [f, f * 1.25], at: i * 0.07, a: 0.004, d: 0.07, g: 0.08 })) },
+  // K5: three rises a fourth each, D-G, E-A, G-C (they landed on F#, A + 39 cents, C + 47 cents); K4: the repair's taps on A6 (39
+  // cents over it).
+  refuel: { max: 1, layers: [[N.D4, N.G4], [N.E4, N.A4], [N.G4, N.C5]].map((f, i) => (
+    { wave: 'sine', f, at: i * 0.07, a: 0.004, d: 0.07, g: 0.08 })) },
   repair: { max: 1, layers: [0, 0.12, 0.24].flatMap((at) => [
-    { wave: 'triangle', f: 1800, at, a: 0.001, d: 0.04, g: 0.05 },
+    { wave: 'triangle', f: N.A6, at, a: 0.001, d: 0.04, g: 0.05 },
     { wave: 'noise', filter: { type: 'bandpass', f: 3000, q: 2 }, at, a: 0.001, d: 0.02, g: 0.04 },
   ]) },
   purchase: { max: 1, layers: [
@@ -197,9 +267,10 @@ export const SOUNDS = {
     { wave: 'square', f: N.A6, at: 0.06, a: 0.001, d: 0.12, g: 0.045, filter: { type: 'lowpass', f: 5000 } },
     ...chime([N.C5, N.E5, N.G5, N.C6], { wave: 'triangle', at: 0.18, step: 0.07, d: 0.35, g: 0.06 }),
   ] },
+  // K14: E1 to E2 (it landed on D#2).
   engineStart: { max: 1, layers: [
     { wave: 'noise', filter: { type: 'lowpass', f: [200, 1300] }, a: 0.2, d: 0.45, g: 0.1 },
-    { wave: 'triangle', f: [38, 76], a: 0.2, d: 0.45, g: 0.12 },
+    { wave: 'triangle', f: [N.E1, N.E2], a: 0.2, d: 0.45, g: 0.12 },
   ] },
   chalk: { max: 1, layers: [0, 0.08, 0.17].map((at) => (
     { wave: 'noise', filter: { type: 'bandpass', f: 2600, q: 3 }, at, a: 0.005, d: 0.05, g: 0.06 })) },
@@ -229,8 +300,9 @@ export const SOUNDS = {
     { wave: 'noise', filter: { type: 'bandpass', f: 4400, q: 3 }, a: 0.0002, d: 0.003, g: 0.07 },
     { wave: 'noise', filter: { type: 'bandpass', f: 3000, q: 2.2 }, at: 0.006, a: 0.0002, d: 0.005, g: 0.06 },
   ] },
+  // K7: D3 (it was C#3).
   refuse: { max: 1, bus: 'ui', layers: [
-    { wave: 'square', f: 140, a: 0.003, d: 0.12, g: 0.05, filter: { type: 'lowpass', f: 1200 } },
+    { wave: 'square', f: N.D3, a: 0.003, d: 0.12, g: 0.05, filter: { type: 'lowpass', f: 1200 } },
   ] },
   blip: { max: 2, bus: 'ui', jitter: 40, layers: [
     { wave: 'noise', filter: { type: 'bandpass', f: 3800, q: 3 }, a: 0.0002, d: 0.003, g: 0.07 },
@@ -245,14 +317,15 @@ export const SOUNDS = {
     { wave: 'noise', filter: { type: 'bandpass', f: 3600, q: 2.5 }, a: 0.0005, d: 0.014, g: 0.05 },
     { wave: 'triangle', f: [2400, 1500], a: 0.0005, d: 0.018, g: 0.012 },
   ] },
-  tickRing: { max: 2, bus: 'ui', jitter: 25, layers: [{ wave: 'sine', f: [980, 720], a: 0.002, d: 0.045, g: 0.035 }] },
+  // K9, K10: RING's pip C6 to G5, DIAMOND's ping E7 and A7 (they landed on F#5 and B7).
+  tickRing: { max: 2, bus: 'ui', jitter: 25, layers: [{ wave: 'sine', f: [N.C6, N.G5], a: 0.002, d: 0.045, g: 0.035 }] },
   tickCorners: { max: 2, bus: 'ui', jitter: 30, layers: [
     { wave: 'noise', filter: { type: 'bandpass', f: 4200, q: 3 }, a: 0.0005, d: 0.008, g: 0.04 },
     { wave: 'noise', filter: { type: 'bandpass', f: 3400, q: 3 }, at: 0.028, a: 0.0005, d: 0.008, g: 0.03 },
   ] },
   tickDiamond: { max: 2, bus: 'ui', jitter: 20, layers: [
-    { wave: 'triangle', f: 2637, a: 0.001, d: 0.06, g: 0.02 },
-    { wave: 'sine', f: 3951, a: 0.001, d: 0.03, g: 0.01 },
+    { wave: 'triangle', f: N.E7, a: 0.001, d: 0.06, g: 0.02 },
+    { wave: 'sine', f: N.A7, a: 0.001, d: 0.03, g: 0.01 },
   ] },
   // What a press lands on: a find's notice a light two-note chime; a plate (the cargo's split flaps, the quest list) a flap's
   // dull clack; a conversation, the friendliest, a warm rising pair (kept for the NPCs' dialogs); every menu item and button of
@@ -273,10 +346,26 @@ export const SOUNDS = {
     { wave: 'triangle', f: N.C5, a: 0.004, d: 0.09, g: 0.04 },
     { wave: 'triangle', f: N.G5, at: 0.05, a: 0.004, d: 0.14, g: 0.04 },
   ] },
+  // U2 (SX, 2026-10-16: «звуков кнопок не хватает»): the same click with a body, a soft E6 under it for 50 ms, nothing under 700
+  // Hz still, so a button is heard as pressed, not only touched.
   clickUi: { max: 3, bus: 'ui', jitter: 40, layers: [
     { wave: 'noise', filter: { type: 'bandpass', f: 5200, q: 3 }, a: 0.0002, d: 0.003, g: 0.09 },
     { wave: 'square', f: 2900, a: 0.0002, d: 0.0025, g: 0.012, filter: { type: 'highpass', f: 2000 } },
     { wave: 'noise', filter: { type: 'bandpass', f: 3300, q: 2.2 }, at: 0.007, a: 0.0002, d: 0.006, g: 0.08 },
+    { wave: 'sine', f: N.E6, at: 0.003, a: 0.002, d: 0.05, g: 0.016 },
+  ] },
+  // U1: the pointer come onto a button or a row (src/hover.js hoverEntered): a breath of a click, half the press's level, a third
+  // of its length.
+  hover: { max: 2, bus: 'ui', jitter: 40, layers: [
+    { wave: 'noise', filter: { type: 'bandpass', f: 6200, q: 4 }, a: 0.0003, d: 0.004, g: 0.035 },
+  ] },
+  // T1 (SX: «посмотри обучение, какие звуки в игре желательны»): a skill's hint ended by the deed itself (src/skillHints.js
+  // `learned`), not by its time running out: a soft rising A5 E6 A6, once a skill, the game saying «yes, that».
+  learned: { max: 1, bus: 'ui', layers: [
+    { wave: 'sine', f: N.A5, a: 0.004, d: 0.3, g: 0.03 },
+    { wave: 'sine', f: N.E6, at: 0.07, a: 0.004, d: 0.32, g: 0.03 },
+    { wave: 'sine', f: N.A6, at: 0.14, a: 0.004, d: 0.5, g: 0.028 },
+    { wave: 'triangle', f: N.A6, at: 0.14, a: 0.02, d: 0.9, g: 0.01 },
   ] },
   start: { max: 1, bus: 'ui', layers: [
     ...chime([N.G4, N.C5, N.E5, N.G5], { step: 0.06, d: 0.3, g: 0.06 }),
@@ -295,6 +384,9 @@ export const SOUNDS = {
   ] },
 };
 
+// Sounds played as takes in turn (F1): the name played and the names it plays.
+export const TAKES = Object.freeze({ shot: Object.freeze(['shot', 'shotB', 'shotC']) });
+
 // How long a sound lasts, from its layers.
 export function soundLength(def) {
   return Math.max(...def.layers.map((l) => (l.at || 0) + (l.a ?? 0.002) + (l.d ?? 0.1)));
@@ -307,8 +399,15 @@ export function soundLength(def) {
 // fall-off with distance are worked out from where it happened (soundsFor).
 // Every event the world emits is either here or in SILENT, with the reason,
 // so a new event has to be given a sound or a reason (checks/audio.mjs).
+// A pirate's shot by its kind (shotFired's `kind`: its type, or 'boss').
+export const PIRATE_SHOTS = Object.freeze({ maw: 'shotMaw', dart: 'shotDart', brute: 'shotBrute', warlord: 'shotWarlord',
+  needle: 'shotNeedle', weaver: 'shotWeaver', jackal: 'shotJackal', tender: 'shotTender', boss: 'shotBoss' });
+// Pitches in the key (K17-K24): a fourth (4/3, 3/4), a fifth (2/3), two fourths down (9/16), a whole tone and two (DRIFT_STEPS).
+const FOURTH = 4 / 3, DOWN_FOURTH = 3 / 4;
+const DRIFT_STEPS = Object.freeze([1, 2 ** (2 / 12), 2 ** (4 / 12)]);
+
 export const EVENT_SOUNDS = {
-  shotFired: (e) => (e.owner === 'pirate' ? 'pirateShot' : 'shot'),
+  shotFired: (e) => (e.owner === 'pirate' ? PIRATE_SHOTS[e.kind] ?? 'pirateShot' : 'shot'),
   rockBroken: (e) => ({ name: 'rockBreak', pitch: [0.75, 1, 1.35][e.tier] ?? 1, gain: [1, 0.8, 0.6][e.tier] ?? 0.6 }),
   shipBumped: () => 'bump',
   // The container meeting something (src/tow.js): the bump, lower and heavier, louder the harder.
@@ -316,16 +415,18 @@ export const EVENT_SOUNDS = {
   tetherSnapped: (e) => ({ name: 'tether', gain: Math.min(1, 0.4 + (e.pull || 0) / 200) }),
   droidArrived: () => 'blip',
   stationBroken: () => 'loss',
-  // A station worn to a tenth by hard blows (CONFIG.station.wear.warn): the loss's sound, lighter than its breaking.
-  stationWorn: () => ({ name: 'loss', gain: 0.5, pitch: 1.2 }),
+  // A station worn to a tenth by hard blows (CONFIG.station.wear.warn): the loss's sound, lighter than its breaking, a fourth up
+  // (K22: it was 1.2, A#4 and G4 + 17 cents).
+  stationWorn: () => ({ name: 'loss', gain: 0.5, pitch: FOURTH }),
   stationRepaired: () => 'repair',
   droidServed: (e) => (e.kind === 'fuel' ? 'refuel' : 'repair'),
   orbitContact: () => 'orbitBrush',
   // The drift and the trick (src/drift.js, src/trick.js), on sounds the game has until SX hears them: the push out of a drift the
   // undock's lift, higher by tier; a jump the same, low and soft; a clean contact a light tap (the M0 page: «чисто — мягкий щелчок»),
   // one off the mark the bump; a planet's pinball the bump, brighter.
-  driftBoost: (e) => ({ name: 'undock', pitch: 1 + 0.12 * (e.tier || 0), gain: 0.7 }),
-  jumped: () => ({ name: 'undock', pitch: 0.75, gain: 0.45 }),
+  // K24: a tier a whole tone up, C D E (it was 1.12 and 1.24 a tier).
+  driftBoost: (e) => ({ name: 'undock', pitch: DRIFT_STEPS[Math.min(2, e.tier || 0)], gain: 0.7 }),
+  jumped: () => ({ name: 'undock', pitch: DOWN_FOURTH, gain: 0.45 }),
   landed: (e) => (e.clean ? { name: 'bump', pitch: 1.7, gain: 0.45 } : { name: 'bump', pitch: 0.85, gain: 0.9 }),
   jumpBounced: () => ({ name: 'bump', pitch: 1.3, gain: 0.9 }),
   shipDamaged: () => 'hit',
@@ -337,7 +438,7 @@ export const EVENT_SOUNDS = {
   // The boss (src/boss.js), on the game's sounds until SX hears it: it reacts with a squad's alarm, its escort out of the bay the same
   // alarm lower, a hit a pirate's, a sled shot off a pirate's breaking, and beaten the big explosion.
   bossWoke: () => 'alarm',
-  bossLaunch: () => ({ name: 'alarm', gain: 0.6, pitch: 0.8 }),
+  bossLaunch: () => ({ name: 'alarm', gain: 0.6, pitch: 2 / 3 }),
   bossHit: () => ({ name: 'pirateHit', gain: 0.7 }),
   bossSledOff: () => 'explosionSmall',
   bossDefeated: () => 'explosion',
@@ -396,16 +497,18 @@ export const EVENT_SOUNDS = {
   // The radio a quest gives (src/questHooks.js giveRadio): a find's chime, as a pointer's.
   radioGiven: () => 'word',
   // (A ship the pilot rammed swearing, or enraged, `angry`: the horn lower, as a pirate's shout is.)
-  trafficHail: (e) => (e.angry ? { name: 'hail', pitch: 0.7, gain: 0.8 } : 'hail'),
+  // K17-K20: a hail a fourth down when angry, two fourths down from a pirate, a coin of loot a fourth down (0.7, 0.6, 0.8 and 0.7
+  // were off the key: C#4 F#4, A#3 D#4, D#4 G#4, F5 A#5); K21 the boss's launch a fifth down.
+  trafficHail: (e) => (e.angry ? { name: 'hail', pitch: DOWN_FOURTH, gain: 0.8 } : 'hail'),
   // A named craft out of O-08 come into the sector (src/traffic.js): the arrival's blip; its horn is the hail.
   visitorArrived: () => 'blip',
   stationRestored: () => 'purchaseShip',
   actionRefused: () => 'refuse',
   stationLog: () => 'blip',
   // A pirate scooping the pilot's coins: the coin sound, from where it is, lower.
-  pirateLoot: () => ({ name: 'coin', pitch: 0.7, gain: 0.7 }),
+  pirateLoot: () => ({ name: 'coin', pitch: DOWN_FOURTH, gain: 0.7 }),
   // A pirate's shout (src/pirates.js): the hail's horn, low and short, from where it is.
-  pirateShout: () => ({ name: 'hail', pitch: 0.6, gain: 0.55 }),
+  pirateShout: () => ({ name: 'hail', pitch: DOWN_FOURTH * DOWN_FOURTH, gain: 0.55 }),
   // Raids (src/raids.js): one begun is an alarm, one won the all-clear, one lost a loss; a ruin's guards beaten, the
   // all-clear's chime.
   raidStarted: () => 'alarm',
@@ -417,7 +520,7 @@ export const EVENT_SOUNDS = {
   // The second round of quests (QUESTS_V2_HANDOFF.md): a call for help is a radio call, the hail's horn, heard in the
   // middle and low; a ship freed is the all-clear and one lost the loss, as a raid's are; money given to a wreck is the
   // coins' sound, lower, going out; a suitcase taken is the cargo's link, delivered the delivery's chime, lost the loss.
-  pesterStarted: () => ({ name: 'hail', pitch: 0.8, gain: 0.8 }),
+  pesterStarted: () => ({ name: 'hail', pitch: DOWN_FOURTH, gain: 0.8 }),
   pesterFreed: () => 'allClear',
   pesterLost: () => 'loss',
   wreckHelped: () => ({ name: 'coins', pitch: 0.75 }),
@@ -490,7 +593,7 @@ export const SILENT = {
 // Sounds that belong to a place in the world: panned by where it is on the
 // screen and quieter with distance past the view's edge, silent past `hearing`.
 // The rest (the interface, alarms, a delivery) are heard in the middle.
-const PLACED = new Set(['shot', 'pirateShot', 'rockBreak', 'bump', 'tether', 'orbitBrush', 'pirateHit', 'explosion',
+const PLACED = new Set(['shot', 'pirateShot', ...Object.values(PIRATE_SHOTS), 'rockBreak', 'bump', 'tether', 'orbitBrush', 'pirateHit', 'explosion',
   'explosionSmall', 'coin', 'coins', 'spill', 'fuel', 'tankFull', 'chalk', 'chalkErase', 'hail']);
 
 // The sounds one event makes: [{ name, pan, gain, pitch }], or none. `r` is the
@@ -521,6 +624,9 @@ export function soundsFor(event, world, r) {
   return out;
 }
 
+// Whether a fight is on, for the score (src/score.js): a squad's or a raid's encounter, or the boss awake and not yet beaten.
+export const inFight = (world) => !!world?.encounter || !!(world?.boss && !world.boss.dormant && !world.boss.defeated);
+
 // ------------------------------------------------------------- preference ---
 
 // A display choice, not progress: its own key (src/prefs.js), never part of the save. Missing, broken or junk storage means sound
@@ -549,10 +655,12 @@ export function noiseData() {
 // of the first frames of the flight, and made these then (20 ms of it the reverb's
 // 308 thousand exponentials); the plan behind the title (labs/graphics/boot.js)
 // runs this a piece a frame instead. Yields the share done.
+// The fight's break (src/breakcore.js) is made here too, a half bar a piece: 235 ms of work in all on an M1.
 export function* prepareSound() {
   noiseData();
   yield 0.1;
-  for (const share of prepareReverb()) yield 0.1 + 0.9 * share;
+  for (const share of prepareReverb()) yield 0.1 + 0.4 * share;
+  for (const share of prepareBreak()) yield 0.5 + 0.5 * share;
 }
 
 // ------------------------------------------------------------------ voices ---
@@ -592,7 +700,8 @@ export class Sound {
     // The player's volumes, 0..1 each (SX, 2026-10-02: «настройки в меню паузы и дать там настроить громкости музыки, общий мастер,
     // звуки системы, эффекты в космосе»; labs/graphics/volume-panel.js): the whole mix, the score, the interface's sounds and the
     // space's (the world's sounds and the engine). They scale the levels of CONFIG.sound; O still turns it all off.
-    this.volumes = { master: 1, music: 1, ui: 1, space: 1 };
+    this.volumes = { ...CONFIG.sound.volumes };
+    this.turns = {};               // F1: the take a sound with takes played last
   }
 
   // One of the volumes, `v` 0..1, heard at once.
@@ -670,7 +779,9 @@ export class Sound {
     this.noise.getChannelData(0).set(noise);
     this.noiseSpan = (0.75 * noise.length) / ctx.sampleRate;      // where a voice may start in it
     this.buildVoices();
-    this.music = new Music(ctx, this.buses.music);
+    // The score: the ambient in peace, the breakcore in a fight (src/score.js); `music` the ambient, as it always was.
+    this.score = new Score(ctx, this.buses.music);
+    this.music = this.score.ambient;
     if (ctx.state === 'suspended' && this.awake) ctx.resume?.();
     else if (!this.awake) ctx.suspend?.();
     return this.ready;
@@ -781,7 +892,10 @@ export class Sound {
       this.slide.filter.frequency.setTargetAtTime(SL.cutoff[0] * (SL.cutoff[1] / SL.cutoff[0]) ** wide, t, SL.attack);
       follow(this.slide.gain.gain, SL.level * lerp(SL.angle[0], SL.angle[1], wide) * lerp(SL.speed[0], SL.speed[1], share), SL.attack, t);
     } else follow(this.slide.gain.gain, 0, SL.release, t);
-    if (this.enabled && this.musicOn) this.music?.update(t);
+    if (this.enabled && this.musicOn && this.score) {
+      this.score.setFight(inFight(world));
+      this.score.update(t);
+    }
 
     // A hull down to a quarter beeps now and then, while flying.
     const low = live && world.hull <= Math.floor((world.hullMax ?? CONFIG.hull.max) / 4);
@@ -808,12 +922,15 @@ export class Sound {
 
   play(name, { pan = 0, gain = 1, pitch = 1 } = {}) {
     if (!this.ready || !this.enabled) return false;
+    // A sound with takes plays them in turn (F1), the voices counted for all its takes together under its own name.
+    const asked = name;
+    if (TAKES[name]) { const takes = TAKES[name]; this.turns[name] = ((this.turns[name] ?? -1) + 1) % takes.length; name = takes[this.turns[name]]; }
     const def = SOUNDS[name];
     if (!def) return false;
-    if (this.hushed?.has(name) && (typeof performance !== 'undefined' ? performance.now() : Date.now()) < this.hushedUntil) return false;
+    if (this.hushed?.has(asked) && (typeof performance !== 'undefined' ? performance.now() : Date.now()) < this.hushedUntil) return false;
     const ctx = this.ctx, now = ctx.currentTime;
-    const playing = (this.voices.get(name) || []).filter((end) => end > now);
-    if (playing.length >= (def.max ?? 3)) { this.voices.set(name, playing); return false; }
+    const playing = (this.voices.get(asked) || []).filter((end) => end > now);
+    if (playing.length >= (def.max ?? 3)) { this.voices.set(asked, playing); return false; }
     const t0 = now + 0.004;
     const cents = def.jitter ? (Math.random() * 2 - 1) * def.jitter : 0;
     const scale = pitch * 2 ** (cents / 1200);
@@ -824,9 +941,10 @@ export class Sound {
     const done = () => { if (--open === 0) out.disconnect(); };
     for (const layer of def.layers) end = Math.max(end, this.layer(layer, t0, out, gain, scale, done));
     playing.push(end);
-    this.voices.set(name, playing);
+    this.voices.set(asked, playing);
     return true;
   }
+
 
   // One layer, scheduled at `t0`; returns when it ends and calls `done` then.
   layer(L, t0, out, gain, scale, done) {

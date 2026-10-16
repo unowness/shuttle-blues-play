@@ -29,7 +29,7 @@ import { loadSprites } from '../../src/sprites.js';
 import { SHIPS, CREW_SHIPS, registerShipModel, shipModel } from '../../src/hangar.js';
 import { specialModel } from '../../src/specialShips.js';
 import { LOANER, flyingLoaner } from '../../src/loaner.js';
-import { SHIP_LOOKS, DEFAULT_SHIP_LOOK, HULL, registerShipLook, shipLookModel } from '../../src/shipLooks.js';
+import { SHIP_LOOKS, DEFAULT_SHIP_LOOK, HULL, registerShipLook, shipLookModel, shipLookById, lookOpen } from '../../src/shipLooks.js';
 import { SECTORS } from '../../src/sectors.js';
 import { Asteroid } from '../../src/bodies.js';
 import { signalsIn } from '../../src/progression.js';
@@ -92,8 +92,9 @@ export function createPageBoot(game, page, { saves, respawnFx, followPixelRatio,
     // applied, the others wait for the hangar. A hangar ship that fails to load
     // is only missing from the hangar, unless it is the one flown.
     // SCOOTY JR. (src/loaner.js) too, the opening's loaner: the drawing a new pilot flies first.
-    // The STANDARD's looks too (src/shipLooks.js): CLASSIC is the STANDARD's own file, the others are loaded beside it, and the one kept
-    // in this browser is registered as the STANDARD's drawing; a look whose file fails is not offered, and one kept that failed is CLASSIC.
+    // The STANDARD's looks too (src/shipLooks.js): MODERN is the STANDARD's own file, the others are loaded beside it, and the one kept
+    // in this browser is registered as the STANDARD's drawing; a look whose file fails is not offered, and one kept that failed, or that
+    // this world has not opened (SCOOTY JR. in a new pilot's opening), is MODERN.
     loadShipModel: async () => {
       const flown = flyingLoaner(world) ? LOANER.id : world.hangar.flying;
       const looks = SHIP_LOOKS.filter((l) => l.id !== DEFAULT_SHIP_LOOK);
@@ -104,10 +105,10 @@ export function createPageBoot(game, page, { saves, respawnFx, followPixelRatio,
           if (def.id === flown && !looks.includes(def)) throw error;
         });
       }));
-      const classic = shipModel(HULL);
-      registerShipLook(DEFAULT_SHIP_LOOK, classic);
-      if (!shipLookModel(game.shipLook.worn)) game.shipLook.worn = DEFAULT_SHIP_LOOK;
-      if (classic) registerShipModel(HULL, shipLookModel(game.shipLook.worn));
+      const own = shipModel(HULL);
+      registerShipLook(DEFAULT_SHIP_LOOK, own);
+      if (!shipLookModel(game.shipLook.worn) || !lookOpen(shipLookById(game.shipLook.worn), world)) game.shipLook.worn = DEFAULT_SHIP_LOOK;
+      if (own) registerShipModel(HULL, shipLookModel(game.shipLook.worn));
       // The crews' ships (src/hangar.js CREW_SHIPS) are drawn in their quests' drawings, made in code: there to fly once their crew's run is done.
       for (const def of CREW_SHIPS) registerShipModel(def.id, specialModel(def.id));
       return shipModel(flown);
@@ -176,6 +177,8 @@ export function createPageBoot(game, page, { saves, respawnFx, followPixelRatio,
     if (title.show) sound.play('start');
     title.active = false;
     input.down.clear(); input.pressed.clear(); clock.reset();
+    // A look kept that this world has not opened (src/shipLooks.js settle) gives way to MODERN for this visit.
+    game.shipLook?.settle?.();
     // The quests the flight starts with were there before it: the radio hears none of them as come (radio.js listenQuests).
     radio.since = null;
     announcementEl.textContent = '';

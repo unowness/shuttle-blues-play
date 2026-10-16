@@ -312,8 +312,8 @@ export function createNotices(game) {
         // The panel a stage gives appears by itself (the shelf, the locator and the map: nothing said). The old station asked about is a
         // card: the one new fact on the board, what it costs to rebuild.
         case 'openingFitted':
-          if (e.what === 'shelf') notify('SHELF FITTED', e.owned ? 'FIRST SOUVENIR ON DISPLAY' : 'THE RACK IS YOURS TO FILL', { kind: 'gain', life: 3.6, fate: 'gone' });
-          else if (e.what === 'ruin') notify(`${e.label} MARKED`, `${e.cost} CR TO REBUILD`, { kind: 'gain', life: 3.8 });
+          if (e.what === 'shelf') notify('SHELF FITTED', e.owned ? 'FIRST SOUVENIR ON DISPLAY' : "FILL IT WITH SOUVENIRS", { kind: 'gain', life: 3.6, fate: 'gone' });
+          else if (e.what === 'ruin') notify(`${e.label} MARKED`, `${e.cost} CR TO RESTORE`, { kind: 'gain', life: 3.8 });
           else notify('LOCATOR AND MAP FITTED', `${e.label} IS MARKED`, { kind: 'gain', life: 3.6, fate: 'gone' });
           break;
         case 'loanerReturned': {
@@ -328,7 +328,7 @@ export function createNotices(game) {
         // What it left is one bundle, one gift card (codex/economy-2026-10-03/CLAUDE_HANDOFF.md: «One display card per achievement
         // bundle»): its paint's picture; its pay is said by its plate in the quest list as it lights (`+300 CR / PAINT, COCKPIT, NOTE`).
         case 'specialDone':
-          notifyBundle({ title: e.label, sub: 'PAINT, COCKPIT, NOTE', picture: e.paint ? { kind: 'paint', id: e.paint } : null,
+          notifyBundle({ title: e.label, sub: "SHIP, PAINT, COCKPIT, NOTE", picture: e.paint ? { kind: 'paint', id: e.paint } : null,
             open: () => screens.openCardOn(), life: 4.6 });
           break;
         case 'specialFailed': notify(`${e.label} / FAILED`, 'YOUR SHIP RETURNED', { kind: 'danger', life: 3.2, fate: 'flip' }); break;
@@ -349,7 +349,7 @@ export function createNotices(game) {
         // The first-dock support (src/starterSupport.js): the offer and the run done are the radio's words (`guideHeard`, said above: a line of
         // the notch); what was built into the ruin, a card (the one achievement of its own), its amount apart from the wallet.
         case 'starterSupport':
-          if (e.stage === 'built') notify(e.amount > 0 ? `${e.label} SUPPORTED` : 'NO SUPPORT NEEDED', e.amount > 0 ? `+${formatCR(e.amount)} CR BUILT` : 'THE REST IS YOURS TO FUND', { kind: 'gain', life: 3.8 });
+          if (e.stage === 'built') notify(e.amount > 0 ? `${e.label} SUPPORTED` : 'NO SUPPORT NEEDED', e.amount > 0 ? `+${formatCR(e.amount)} CR FUNDED` : "FUND THE REST", { kind: 'gain', life: 3.8 });
           break;
         // A restoration opened the next sector (src/frontier.js; SX, 2026-10-02: «Руина открывает сектор»): said after the
         // restoration's own notice; the border beside the pilot is already a seam.
@@ -450,7 +450,7 @@ export function createNotices(game) {
         case 'stationBroken': notify(`${e.label} DAMAGED`, `REOPEN FOR ${formatCR(e.cost)} CR`, { kind: 'danger', life: 3.6, fate: 'flip' }); break;
         // A station worn by hard blows says so at a tenth lost (CONFIG.station.wear.warn); at a fifth it breaks, as above. The words are
         // the agent's, for SX to read (2026-10-08).
-        case 'stationWorn': notify(`${e.label} STRAINED`, `${Math.round(100 * e.wear)} % LOST / BREAKS AT ${Math.round(100 * CONFIG.station.wear.breaks)} %`, { kind: 'danger', life: 3.6, fate: 'flip' }); break;
+        case 'stationWorn': notify(`${e.label} WORN`, `${Math.round(100 * e.wear)}% WORN / BREAKS AT ${Math.round(100 * CONFIG.station.wear.breaks)}%`, { kind: 'danger', life: 3.6, fate: 'flip' }); break;
         case 'stationRepaired': notify(`${e.label} REPAIRED`, `${e.mended ? 'MENDED' : 'REOPENED'} / -${formatCR(e.cost)} CR`, { kind: 'gain', fate: 'gone' }); break;
         // A service droid comes into the sector (src/droids.js): news, and the locator shows where.
         case 'droidArrived': notify(`${e.label} IN SECTOR`, e.name, { life: 3, fate: 'gone' }); break;
@@ -463,7 +463,7 @@ export function createNotices(game) {
         // changed is saved at once, and the one now flown is drawn with its own model.
         case 'hangarRequested': screens.openHangar(); break;
         case 'shipBought':
-          screens.hangarMessage(`${e.label} PURCHASED / -${e.price} CR`);
+          screens.hangarMessage(`${e.label} BOUGHT / -${e.price} CR`);
           screens.hangarUI.bought = e.shipId;
           break;
         case 'shipChanged': {

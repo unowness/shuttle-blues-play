@@ -69,7 +69,7 @@ export function stepSupport(world) {
   if (!world.supportSaid) {
     world.supportSaid = true;
     world.emit('starterSupport', { stage: 'ready', stationId: id, label: def.label, amount: 0, left: stillToInvest(L, def) });
-    world.emit('guideHeard', { step: 'support', line: `RUN IN. COME TO ${def.label}: SUPPORT IS READY.` });
+    world.emit('guideHeard', { step: 'support', line: `SUPPORT READY. COME TO ${def.label}.` });
   }
   if (!world.ship.alive || world.sector.id !== def.sectorId || !guardsDown(L, id) || !closeBy(world, id) || postHeld(world, id)) return;
   const station = world.stations.find((s) => s.id === id);
@@ -88,7 +88,7 @@ function offer(world, L) {
   world.supportSaid = false;
   world.emit('starterSupport', { stage: 'offered', stationId: id, label: def.label, amount: 0, left: stillToInvest(L, def) });
   // The radio's own flow (a step of the line heard: its lamp, its blip, the notch's page): the offer is said as the radio says a step.
-  world.emit('guideHeard', { step: 'support', line: `ANY DELIVERY NOW BUILDS ${def.label}.` });
+  world.emit('guideHeard', { step: 'support', line: `DELIVER ONCE TO HELP ${def.label}.` });
 }
 
 // The offer as a plate of the list, or null: the radio's, the story's purple. A run to make, then the ruin to come to.

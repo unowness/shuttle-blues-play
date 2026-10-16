@@ -215,14 +215,15 @@ export const INFO = Object.freeze({
   loreRows: 6,                 // the words' lines, at most
 });
 
-// A station's shot in `box`: its look as the world draws it, the square taken where `at` ({ u, v }, the window's pick) finds it fullest
-// (labs/graphics/world-art.js stationShotAt: a station's edges and its open spans are sparse), on the page's clock `t`.
+// A station's shot in `box`: its look as the world draws it, the square taken where `at` ({ u, v }, the window's pick) finds it full, a part
+// moving in it and away from the last shot of it (labs/graphics/world-art.js stationShotAt), on the page's clock `t`: its parts moving and the
+// station floating as outside (world-art.js drawStationTrue).
 export function drawStationShot(r, box, st, world, at = null, t = 0) {
   const { dx, dy } = stationShotAt(r, st, Math.min(box.w, box.h), at?.u ?? 0.5, at?.v ?? 0.5);
   const rebuilt = st.kind === 'ruin' ? rebuiltShare(world.ledger, st) : 1;
   const ctx = r.ctx;
   ctx.save(); ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
-  try { drawStationTrue(r, Math.round(box.x + box.w / 2 - dx), Math.round(box.y + box.h / 2 - dy), st, rebuilt, t); } finally { ctx.restore(); }
+  try { drawStationTrue(r, box, st, dx, dy, rebuilt, t); } finally { ctx.restore(); }
 }
 
 // `ui`: { stationId, shot ({ u, v }: where the fragment is taken), time (the page's clock, s) }. Returns the window's `box`, its `boxes` and the
@@ -343,7 +344,7 @@ export function drawHangar(r, world, ui) {
   const shelfModels = (k) => shelfOf(k).map((x) => fleetModel(world, x));
   const room = { x: pic.x + side * (1 - CARD.inner) / 2, y: pic.y + side * (1 - CARD.inner) / 2, w: side * CARD.inner, h: side * CARD.inner };
   drawFlying(r, pic, fleetModel(world, e), sharedScale(r, shelfModels(e.shelf), room), look(e), ui.still ? 0 : ui.time ?? 0);
-  const tx = pic.x + side + ORG.C, status = e.flying ? ['ACTIVE', INK.blue] : e.owned ? ['OWNED', INK.label] : e.crew ? ['NOT MET', INK.faint] : money(`${formatCR(e.price)} CR`);
+  const tx = pic.x + side + ORG.C, status = e.flying ? ['ACTIVE', INK.blue] : e.owned ? ['OWNED', INK.label] : e.crew || e.locked ? ["LOCKED", INK.faint] : money(`${formatCR(e.price)} CR`);
   win.text(fitText(e.label, Math.floor((p.cxr - tx) / cw) - partLen(status) - 2), tx, p.y(0), INK.text);
   win.part(status, p.cxr, p.y(0), { right: true });
   win.text(e.note, tx, p.y(1), INK.label);
@@ -351,7 +352,7 @@ export function drawHangar(r, world, ui) {
   stats[selected].forEach((s, i) => {
     const Y = p.y(3 + i);
     win.text(s.label, tx, Y, INK.label);
-    win.text(s.text, p.cxr, Y, e.owned || !e.crew ? INK.text : INK.label, { right: true });
+    win.text(s.text, p.cxr, Y, e.owned || !(e.crew || e.locked) ? INK.text : INK.label, { right: true });
     win.squares(Y + win.cap / 2 - ORG.square / 2, Math.min(1, s.value / best[i]), { x0: m0, x1: m1 });
   });
 
@@ -371,6 +372,9 @@ export function drawHangar(r, world, ui) {
         drawShipIn(r, model, sq, { ...look(x), scale: scale * modelScale(model) });
       });
     });
+    // A shelf's squares past its ships stand empty, a slot for a ship to come (SX, 2026-10-16: «можешь там просто оставить слот добавим
+    // корабль»): the first shelf's sixth since THUNDER, EDGES and BLACKBIRD went. Not a button.
+    for (const sq of boxes.slice(list.length)) win.cell(sq);
     return boxes[0].y + boxes[0].h;
   };
   const end1 = shelf(p.next(p.yb(HANGAR.showRows - 1)), 'SPACESHIPS', shelfOf(0));

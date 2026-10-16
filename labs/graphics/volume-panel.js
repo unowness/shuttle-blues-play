@@ -11,7 +11,8 @@ export const VOLUMES = Object.freeze([
   { id: 'space', label: 'EFFECTS', sample: 'coin' },
 ]);
 
-// Kept in this browser under src/prefs.js's key: those volumes that are kept as numbers, held to 0..1 (none kept: every volume full).
+// Kept in this browser under src/prefs.js's key: those volumes that are kept as numbers, held to 0..1 (none kept: CONFIG.sound.volumes,
+// the defaults).
 export const readVolumes = (store) => readKept(VOLUMES.map((v) => v.id), store);
 export const writeVolumes = (volumes, store) => { writeKept(volumes, store); };
 

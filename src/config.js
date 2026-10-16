@@ -693,6 +693,10 @@ export const CONFIG = {
     // bus. `music` is the generative score's bus (src/music.js): «фоновую
     // тихую эмбиент мелодию космоса».
     buses: { sfx: 1, ui: 0.8, engine: 0.15, music: 0.6 },
+    // The player's volumes before they set any (the pause's AUDIO, its DEFAULTS; SX, 2026-10-16: «по умолчанию сразу делай звуки 75%
+    // громкости, музыка 50% громкости. В настройках можно поправить»): the whole mix full, the music half, the interface's and the
+    // space's sounds three quarters. A volume this browser keeps (src/prefs.js) is the player's and stays.
+    volumes: { master: 1, music: 0.5, ui: 0.75, space: 0.75 },
     // `hum` and `brake` are the levels as they stood until 2026-10-07; then (SX: «нужно чуть громче звук мотора сделать и сделать его
     // нарастающим в зависимости от скорости + отдельный звук нужен для дрифта») the hum is set over `hum` by `rise`, and the drift has
     // its own voice, `slide`. All three run on the engine bus, so the space's volume, the master and O hold them as they hold the rest.
@@ -750,6 +754,30 @@ export const CONFIG = {
       rest: { chance: 0.25, length: [6, 16] },
       reverb: { seconds: 3.5, decay: 3.2, chords: [0.55, 0.6], stars: [0.3, 0.9] },
       lookahead: 2,
+    },
+    // The conductor (src/score.js) and the fight's breakcore (src/breakcore.js), SX's S1 of 2026-10-16 (labs/graphics/sketches/
+    // breakcore.html, six rounds: «Dust Life неплохой», «надо отмастерить трек», «пэды ... как ... в оригинальном фоновом»; «Вносим в игру
+    // брейк с дирижёром»). `calm` s with no fight before the way out; `fadeAmbient` the time constant of the ambient fading under a
+    // fight; `roomTop` the lowpass on the one room's return (both pieces'; Butterworth). `fight`: the breakcore. `bpm`; `chordBars`
+    // bars a chord; `shuffle` the share of bars cut and reordered, `cut` the lengths they are cut into (sixteenths, by weight),
+    // `stutter` the share of cuts stuttered; `fills` the end of a phrase's choices, `fill4` the chance of a small one in its fourth
+    // bar, `fill8` of one at its end; `roll` hits a sixteenth in a roll, `rollPitch` its last hit's rate; `drums` the break's
+    // level, `wet` its share of the room, `sat` the soft curve's drive, `top` the hats', ride's and crash's level in the kit,
+    // `tone` the drums' lowpass open, where ARRIVE starts it (`arrive`) and LEAVE ends it (`closed`); `leaveLevel` the
+    // drums' level at LEAVE's end; `arriveCrash` the crash on a fight's first downbeat; `sub` the sub's peak and `subTop`,
+    // `subQ` its lowpass (Q in dB, as Web Audio counts a lowpass's: -6 is soft, no bump); `jitter` how far a slice's level wanders;
+    // `master` the piece's level (a fight 1 LU over the ambient's peace, K-weighted). Scheduled `lookahead` s ahead.
+    score: {
+      calm: 4,
+      fadeAmbient: 3,
+      roomTop: 3000,
+      fight: {
+        bpm: 160, chordBars: 8,
+        shuffle: 0.25, cut: { 4: 3, 2: 2 }, stutter: 0.06,
+        fills: { roll: 1, stop: 1, reverse: 1, gap: 2, stutter: 0.5 }, fill4: 0.15, fill8: 0.75, roll: 2, rollPitch: 1.25,
+        drums: 0.075, wet: 0.07, sat: 1, top: 0.55, tone: { open: 6500, closed: 260, arrive: 700 }, leaveLevel: 0.35, arriveCrash: 0.22,
+        sub: 0.03, subTop: 140, subQ: -6, jitter: 0.2, master: 0.89, lookahead: 2.5,
+      },
     },
     panWidth: 0.75,
     hearing: 900,

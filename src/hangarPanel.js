@@ -5,7 +5,9 @@ import { UI, uiPanel, centredWindow, windowRoom, frameInk } from './uiGrid.js';
 import { resolveChassis } from './chassis.js';
 import { clockText } from './contracts.js';
 import { SHIPS, CREW_SHIPS, shipById, shipLimits, shipModel } from './hangar.js';
-import { SHIP_LOOKS, DEFAULT_SHIP_LOOK, HULL } from './shipLooks.js';
+import { SHIP_LOOKS, DEFAULT_SHIP_LOOK, HULL, lookOpen, shipLookById } from './shipLooks.js';
+import { ruinOf } from './opening.js';
+import { stationDefById } from './sectors.js';
 import { drawAvatar } from './shipAvatar.js';
 import { hoverItem } from './hover.js';
 
@@ -77,37 +79,41 @@ export function hangarAction(world, id) {
   return { label: `BUY ${def.label} ${formatCR(def.price)} CR`, enabled, reason: enabled ? null : `NEED ${formatCR(def.price)} CR, HAVE ${formatCR(world.ledger.credits)}` };
 }
 
-// ---- the hangar's twelve (SX's H1 SHELF, 2026-10-13) ----------------------------------------------------------------------------
+// ---- the hangar's shelves (SX's H1 SHELF, 2026-10-13) ---------------------------------------------------------------------------
 
 // Every drawing the pilot can fly, in the window's order (labs/graphics/sketches/garage-ships.html, H1B; SX: «в гараже должен быть выбор
 // спрайтов самолета которые у тебя есть»): the STANDARD in each of its looks (src/shipLooks.js: the look is the page's, kept in the browser),
 // the COURIER and the HAULER, on the first shelf; the six crews' ships (src/hangar.js CREW_SHIPS) on the second. `ship` is the hangar's ship it
-// flies, `look` the STANDARD's drawing it wears (null for the others, each in its own).
+// flies, `look` the STANDARD's drawing it wears (null for the others, each in its own). Since 2026-10-16 the looks are MODERN, CLIPPER and
+// SCOOTY JR., the last two on the shelf from the start and had once the opening is over (SX: «После вступления Клиппер и Самокат доступны в
+// гараже»), as a crew's ship is there before its run is won.
 export const FLEET = Object.freeze([
   ...SHIP_LOOKS.map((l) => Object.freeze({ key: `look:${l.id}`, ship: HULL, look: l.id, label: l.label, note: `${shipById(HULL).label} / ${shipById(HULL).note}`, shelf: 0 })),
   ...SHIPS.filter((d) => d.id !== HULL).map((d) => Object.freeze({ key: d.id, ship: d.id, look: null, label: d.label, note: d.note, shelf: 0 })),
   ...CREW_SHIPS.map((d) => Object.freeze({ key: d.id, ship: d.id, look: null, label: d.label, note: d.note, shelf: 1, crew: true })),
 ]);
-export const FLEET_ACROSS = 6;                       // a shelf's ships: the arrows' ↑ ↓ step this many (labs/graphics/screens.js hangarKeys)
 
-// The twelve as they are to the pilot now: `owned` (a look is the STANDARD's, had from the start), `flying` (the ship flown, a look only the one
-// the STANDARD wears, `worn`: the page's, src/shipLooks.js createShipLook), `price` for a ship on sale, `who` a crew's.
+// The shelves as they are to the pilot now: `owned` (a look is the STANDARD's, had from the start or once the opening is over: `locked`
+// until then), `flying` (the ship flown, a look only the one the STANDARD wears, `worn`: the page's, src/shipLooks.js createShipLook),
+// `price` for a ship on sale, `who` a crew's.
 export function fleetOf(world, worn = DEFAULT_SHIP_LOOK) {
   return FLEET.map((e, i) => {
     const def = shipById(e.ship);
-    return { ...e, i, owned: world.hangar.owns(e.ship), flying: world.hangar.flying === e.ship && (!e.look || e.look === worn),
+    const locked = !!e.look && !lookOpen(shipLookById(e.look), world, { garage: true });
+    return { ...e, i, owned: world.hangar.owns(e.ship) && !locked, locked, flying: world.hangar.flying === e.ship && (!e.look || e.look === worn),
       price: def.crew ? null : def.price, who: def.who ?? null };
   });
 }
-// Where a ship of the twelve stands: the one flown, in the look it wears.
+// Where a ship of the shelves stands: the one flown, in the look it wears.
 export const fleetIndexOf = (world, worn = DEFAULT_SHIP_LOOK) => Math.max(0, fleetOf(world, worn).findIndex((e) => e.flying));
 
-// What the key does for one of the twelve (`e`, fleetOf's), and why it cannot: flown already (the key quiet), USE a ship had, BUY one on sale
+// What the key does for one of the shelves (`e`, fleetOf's), and why it cannot: flown already (the key quiet), USE a ship had, BUY one on sale
 // (quiet, with the world's words, short of its price), nothing for a crew's ship not had yet (its crew's run first).
 export function fleetAction(world, e) {
   if (e.flying) return { words: `USE ${e.label}`, enabled: false, reason: null };
   if (e.owned) return { words: `USE ${e.label}`, enabled: true, reason: null };
   if (e.crew) return { words: null, enabled: false, reason: `HELP ${e.who} FIRST` };
+  if (e.locked) return { words: null, enabled: false, reason: `RESTORE ${stationDefById(ruinOf(world))?.label ?? 'YOUR FIRST RUIN'} FIRST` };
   const enabled = world.ledger.credits >= e.price;
   return { words: `BUY ${e.label}`, enabled, reason: enabled ? null : `NEED ${formatCR(e.price)} CR, HAVE ${formatCR(world.ledger.credits)}` };
 }

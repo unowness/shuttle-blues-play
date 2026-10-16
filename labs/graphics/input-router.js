@@ -76,7 +76,7 @@ export function createInputRouter(game) {
     if (later) game.beat.later();
     const escape = !later && key('back') && !listTook && !open.help && (pausedNow || world.docked || !menuOpen(world.selected, game.menu.closed, world.docked));
     if (escape && pausedNow && pause.menu.page !== 'main') pause.leavePausePage();
-    else if ((key('pause') || escape) && !open.help) pause.press(pausedNow);
+    else if (escape && !open.help) pause.press(pausedNow);
     // The workshop's keys (H, R), the lab's only (labs/graphics/lab-keys.js); the game has none.
     game.labKeys?.();
     if (key('legend')) {

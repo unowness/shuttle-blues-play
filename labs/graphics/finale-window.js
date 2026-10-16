@@ -12,7 +12,7 @@ import { Win, ORG, INK, SIZES } from './organism.js';
 
 export const FINALE = Object.freeze({
   size: 'XS', title: 'TOLLKEEPER DOWN', right: 'MAIN GAME COMPLETE',
-  line: 'THE ROUTES ARE FREE. SPACE STAYS OPEN.', share: 'LEGACY', key: 'ENTER', words: 'RETURN TO OPEN SPACE',
+  line: "THE ROUTES ARE FREE. KEEP FLYING.", share: 'LEGACY', key: 'ENTER', words: "CONTINUE FLYING",
 });
 
 // A share as its name, its count at the column's right and its row of squares under them. Returns the squares' bottom.

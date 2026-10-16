@@ -396,7 +396,7 @@ function sideQuestWords(world) {
     // Closed, the cache is only its kind (SX, 2026-10-09: «в квестах про лутбоксы не подписывай, что внутри ... это должен быть
     // сюрприз»); what it held is said when it is opened (the done row).
     return {
-      id: s.id, kind: 'side', title: QL.find.title(what), sub: QL.find.sub(sector),
+      id: s.id, kind: 'side', title: QL.find.title(what), sub: QL.find.sub(sector), pointer: 'CACHE',
       target: { sectorId: f.sector, x: f.x, y: f.y, findId: f.id, mark: f.id, reach: CONFIG.cache.interactRadius },
       done: [QL.find.done(findLabel(f)), QL.find.doneSub(what)],
     };
@@ -412,7 +412,7 @@ function sideQuestWords(world) {
     const newWord = WORDS.some((w) => !world.collection?.words?.has(w.id));
     return {
       id: s.id, kind: 'side', title: near ? QL.signal.titleNear(near.t.label) : QL.signal.titleIn(sector?.label ?? ''),
-      sub: newWord ? QL.signal.newWord(sector?.label ?? '') : QL.signal.tuneIn(sector?.label ?? ''),
+      sub: newWord ? QL.signal.newWord(sector?.label ?? '') : QL.signal.tuneIn(sector?.label ?? ''), pointer: 'SIGNAL',
       target: { sectorId: sig.sector, x: sig.x, y: sig.y, signalId: sig.id, mark: sig.id, reach: CONFIG.signal.reach },
       done: [QL.signal.done(), newWord ? QL.signal.doneWord() : QL.signal.doneAll()],
     };
@@ -423,7 +423,7 @@ function sideQuestWords(world) {
     const to = stationDefById(st.contract.to);
     const sector = sectorById(st.sector)?.label ?? '';
     return {
-      id: s.id, kind: 'side', title: QL.stranger.title(st.author), sub: QL.stranger.sub(sector, st.contract.label),
+      id: s.id, kind: 'side', title: QL.stranger.title(st.author), sub: QL.stranger.sub(sector, st.contract.label), pointer: 'CARGO',
       target: { sectorId: st.sector, x: st.x, y: st.y, contractId: st.contract.id, mark: `stranger:${st.id}`, reach: CONFIG.stranded.interactRadius },
       done: [QL.stranger.done(), QL.stranger.doneSub(to?.label ?? 'ITS STATION')],
     };
@@ -431,7 +431,7 @@ function sideQuestWords(world) {
   if (s.kind === 'rescue') {
     const d = s.drifter, sector = sectorById(d.sectorId)?.label ?? '';
     return {
-      id: s.id, kind: 'side', title: QL.rescue.title(), sub: s.fueled ? QL.rescue.handIn(sector) : QL.rescue.bring(sector, Q().rescue.fuel),
+      id: s.id, kind: 'side', title: QL.rescue.title(), sub: s.fueled ? QL.rescue.handIn(sector) : QL.rescue.bring(sector, Q().rescue.fuel), pointer: 'PILOT',
       target: { sectorId: d.sectorId, x: d.x, y: d.y, mark: DRIFTER_ID, reach: CONFIG.stranded.interactRadius },
       done: [QL.rescue.done(), QL.rescue.paid(formatCR(payFor('rescue', world.ledger.restored.size)), sector)],
     };
@@ -440,7 +440,7 @@ function sideQuestWords(world) {
   if (!def) return null;
   return {
     id: s.id, kind: 'side', title: QL.restore.title(def.label),
-    sub: QL.restore.sub(def.sectorLabel, formatCR(stillToInvest(world.ledger, def))),
+    sub: QL.restore.sub(def.sectorLabel, formatCR(stillToInvest(world.ledger, def))), pointer: def.label,
     target: { sectorId: def.sectorId, x: def.x, y: def.y, stationId: def.id, mark: def.id },
     done: [QL.restore.done(def.label), QL.restore.doneSub()],
   };
@@ -469,7 +469,8 @@ export function endsQuest(world, e) {
 }
 
 // A quest's words on its pointer (P3 KIND + CLOCK): its kind's word (RAID, HELP, PLANET ... or QUEST) and, when it has
-// one, its clock.
+// one, its clock. The side quests name what they lead to: CACHE, SIGNAL, CARGO, PILOT, a ruin's own name (Codex's text pass QD01,
+// 2026-10-16); QUEST is left for a quest with no word of its own.
 export function questPointerLabel(q, clock) {
   const word = q.pointer ?? (q.kind === 'raid' ? 'RAID' : 'QUEST');
   return q.ends != null ? `${word}  ${clockText(Math.ceil(Math.max(0, q.ends - clock)))}` : word;
