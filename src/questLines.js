@@ -277,6 +277,21 @@ export const QUEST_LINES = Object.freeze({
     shaken: line(0, [], () => 'PIRATES SHAKEN OFF'),
     paid: line(1, ['cr'], (cr) => `+${cr} CR / GIFTS`),
   }),
+  // The cargo carried, or lying in space, as a plate of the list, the last (src/tasks.js cargoQuests; SX, 2026-10-16: «о доставке груза
+  // пусть теперь будет квест с грузом ... в полоске квестов»): its name over the station it goes to, or what to do while it lies there, each
+  // after its clock (the delivery's, or the seconds before it goes back); delivered, its pay (the opening's first freight, how it went
+  // against its target); gone back, the station it went to.
+  cargo: Object.freeze({
+    title: line(0, ['cargo'], (cargo) => cargo),
+    to: line(1, ['station'], (station) => `TO ${station}`, { timed: true }),
+    lost: line(1, [], () => 'PICK IT UP', { timed: true }),
+    done: line(0, [], () => 'CARGO DELIVERED'),
+    paid: line(1, ['cr'], (cr) => `+${cr} CR`),
+    onTime: line(1, ['cr'], (cr) => `+${cr} CR / ON TIME`),
+    late: line(1, ['cr'], (cr) => `+${cr} CR / LATE`),
+    back: line(0, [], () => 'CARGO RETURNED'),
+    backTo: line(1, ['station'], (station) => `TO ${station}`),
+  }),
   // Banners that carried the same names past their 27 characters (the defaults round, 2026-10-04).
   banner: Object.freeze({
     // A cargo's notice (labs/graphics/notices.js): what it is and the station it goes to (the sector is the map's).

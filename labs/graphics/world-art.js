@@ -12,7 +12,7 @@ import { paintInk, paintedHull, paintedMotion, LAMP } from '../../src/paint.js';
 import { SPECIAL_INKS } from '../../src/specialShips.js';
 import { keptDraw } from '../../src/grade.js';
 import { ROLES } from '../../src/roles.js';
-import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, wingDraws, wingFlip, WING_GLYPHS, MOTION_INKS } from './ship-motion.js';
+import { createShipMotion, stepShipMotion, drawShipMotion, glassDraws, bankDraws, wingFlip, WING_GLYPHS, BANK_GLYPHS, MOTION_INKS } from './ship-motion.js';
 import { scrambledPlaces, slotOfCell } from './ship-scramble.js';
 import { BLOCK_TONES, planetTones, ROCK_EDGE, ROCK_INKS, ROCK_LIT, ROCK_SHADE, SHADE_GAP, ROCK_RELIEF } from './art-tones.js';
 import { stationLook, stationCells, lookOrigin, LOOK_SCALE, MAX_CELLS } from './station-art.js';
@@ -405,10 +405,14 @@ export function shipAlpha(invuln, { docked = false, reducedMotion = false } = {}
 // `options.shade`: the hull's cells this much as opaque (the brake's, src/visualScale.js brakeShade; the puffs keep theirs); `options.brake`
 // the brake's own share of it, which the glass does not take (SX, 2026-10-16: «при тормозе стекло кабины не делай прозрачнее»).
 // `options.braking`: the brake held, as the scale reads it (labs/graphics/flight-frame.js): a drawing with a brake pose (ships/modern.json
-// `brake`, src/asciiModel.js brakeFrame) is drawn in it. Its wings darken on the side of a turn as the glass does (ship-motion.js wingDraws),
-// and in reverse the one on the turn's side takes its brake pose (wingFlip).
+// `brake`, src/asciiModel.js brakeFrame) is drawn in it. Its side of a turn darkens from the nose back, the whisker, the glass, the wing
+// (ship-motion.js bankDraws), and in reverse the wing on the turn's side takes its brake pose (wingFlip).
 // `options.scramble`: the ship back from a wreck, mixed ({ plan, u }, labs/graphics/ship-scramble.js): each cell drawn at its piece's place,
 // whole and steady (no blink) while it is.
+// The canopy seen from below, a hatch: its rounded corners straight (SX, 2026-10-16: «это дно с точками. Они накладываются на стыке друг
+// на друга, и там крест образуется или полоска ... Можно просто там какой-нибудь прямой ... не сильно груженно»; the rocks' ░ until then,
+// whose dots met at the cells' seams).
+const BELLY_HATCH = Object.freeze({ '╭': '┌', '╮': '┐', '╰': '└', '╯': '┘' });
 // An ink `k` of the way toward black (the belly's), made once an ink and a share.
 const bellies = new Map();
 function bellyInk(ink, k) {
@@ -432,7 +436,7 @@ export const drawPilotShip = keptDraw(function drawPilotShip(r, ship, sx, sy, mo
   const pose = options.braking && model.brakeFrame != null ? model.brakeFrame : model.idleFrame;
   const cells = (model.frames && model.frames[pose]) || model.cells;
   // `ship.belly`: the hull seen from below, a jump's figure turning it over (labs/graphics/stunt-fx.js drawAirShip, a drawing whose look
-  // carries it, SX's Y2 COIN): every ink that much of the way toward black, the canopy closed by the rocks' half-light.
+  // carries it, SX's Y2 COIN): every ink that much of the way toward black, the canopy closed by a hatch of straight lines (BELLY_HATCH).
   const belly = ship.belly ?? 0;
   for (const c of cells) {
     const slot = places ? slotOfCell(mix.plan, c) : -1;
@@ -441,8 +445,8 @@ export const drawPilotShip = keptDraw(function drawPilotShip(r, ship, sx, sy, mo
     const base = bellyInk(paintedHull(paint, c, burning) ?? ink(c.color), belly);
     const cellAlpha = isGlass(c) ? glassAlpha : alpha;
     const wing = WING_GLYPHS.has(c.ch);
-    const ch = belly && isGlass(c) ? ROCK_SHADE.half.ch : wing && pose !== model.brakeFrame ? wingFlip(motion, model, c) : c.ch;
-    const draws = wing ? wingDraws(motion, c, base) : glassDraws(motion, c, base, inks);
+    const ch = belly && isGlass(c) ? BELLY_HATCH[c.ch] ?? c.ch : wing && pose !== model.brakeFrame ? wingFlip(motion, model, c) : c.ch;
+    const draws = BANK_GLYPHS.has(c.ch) ? bankDraws(motion, c, base) : glassDraws(motion, c, base, inks);
     for (const d of draws) r.glyphRot(ch, x, y, a, d.ink, cellAlpha * d.alpha, model.scale);
   }
   drawShipMotion(r, motion, model, sx, sy, a, model.scale, inks, model.baseScale ?? model.scale);

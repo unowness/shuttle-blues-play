@@ -437,6 +437,9 @@ export function crackCockpit(now, rng = Math.random) {
   crack.seed = Math.floor(rng() * 1e5);
 }
 export function mendCockpit() { crack.at = null; }
+// The wreck's break while it stands ({ at, seed }: since when, where its pieces fall), or null: the modern interface breaks its locator
+// and its radio harder by it (hud-modern.js).
+export const cockpitCrack = () => (crack.at === null ? null : crack);
 
 // The break at `now`, or null: where it runs (x across the screen at each y, top to bottom) and how far the halves bend.
 export function crackShape(now, width, height) {

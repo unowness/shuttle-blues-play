@@ -24,7 +24,11 @@
 // «учелок изгибы тоже сломать»; «на последних 30% из шкал пропадают квадратики рандомные ... как будто ... погасшие»): under BREAK.at of the
 // hull the charm tears off its cord and falls (under the quests), thrown aside by the ship's turn, whole again above BREAK.mend or back from a
 // wreck; the radio's holes go dark and its line breaks where it stands (radio.js), the locator's rings break, the notches wear and their
-// walls break too, under BREAK.dead the gauges' cubes go out here and there; the page shakes all of it.
+// walls break too, under BREAK.dead the gauges' cubes go out here and there; the page shakes all of it. Since 2026-10-16 (SX: «локатор во
+// время аварии разрушался побольше. Ну и радио в целом тоже. Например, вот этот диск может отвалиться да, в какой-то момент на 10%»): the
+// radio's wheel tears off with the charm under BREAK.at and falls, hopping off its socket, whole again with it; at a wreck (the deck's break
+// standing, cockpit-fx.js cockpitCrack) a crack runs across the locator's glass and its contour breaks all round (locator.js), the radio's
+// lamp goes out and most of its holes, its line broken all along (radio.js).
 import { ROLES } from '../../src/roles.js';
 import { PALETTE } from '../../src/palette.js';
 import { UI, uiMetrics } from '../../src/uiGrid.js';
@@ -34,12 +38,12 @@ import { readInterface, writeInterface, readMapShape, writeMapShape } from '../.
 import { drawSouvenirPicture } from '../../src/souvenirPictures.js';
 import { ORG } from './organism.js';
 import { BAR } from './cockpit-bar.js';
-import { drawWear, cockpitSpots, cockpitSeed, cockpitLevel, cockpitLight } from './cockpit-fx.js';
+import { drawWear, cockpitSpots, cockpitSeed, cockpitLevel, cockpitLight, cockpitCrack } from './cockpit-fx.js';
 import { barLook, BAR_EDGE } from './meter-bar.js';
 import { drawBrake, BRAKE_LABEL, BRAKE_OPEN } from './hud.js';
 import { buttonInk, columnLayout, drawColumnButton, drawModernScope, drawLegendRowsAt, LEGEND_ROW_COUNT, MODERN_SCOPE } from './locator.js';
 import { drawQuestBoard, questGeometry, QUEST_FRAME } from './quest-list.js';
-import { drawRadioModern, RADIO_MODERN, radioSize } from './radio.js';
+import { drawRadioModern, RADIO_MODERN, radioSize, wheelModern } from './radio.js';
 import { drawTracker } from './tracker.js';
 import { drawWallet } from './souvenir-shelf.js';
 import { drawCharm, hungCharm, CHARM, HANG, charmPlace } from './charm.js';
@@ -99,7 +103,8 @@ const inkAt = (sections, share) => sections.find(([to]) => share < to + 1e-9)?.[
 // The breaking: under `at` of the hull the charm tears off, above `mend` it hangs again; its fall: gravity (px/s²), its first hop, its throw
 // by the ship's turn (px/s for a rad/s) and its most. Under `dead` the gauges' cubes go out, up to `deadMost` of them at an empty hull, each
 // an out lamp (`deadInk`: the white at 5 %). A wall's breaks at each wear level (0-4).
-export const BREAK = Object.freeze({ at: 0.1, mend: 0.25, gravity: 1500, hop: -90, throwBy: 260, throwMax: 700,
+// The radio's wheel hops off its socket `wheelHop` px/s up, `wheelOff` px/s toward the screen's middle, and rolls `wheelRoll` rad a px/s.
+export const BREAK = Object.freeze({ at: 0.1, mend: 0.25, gravity: 1500, hop: -90, throwBy: 260, throwMax: 700, wheelHop: -420, wheelOff: 70, wheelRoll: 0.03,
   dead: 0.3, deadMost: 0.4, deadInk: 'rgba(255, 255, 255, 0.05)', walls: Object.freeze([0, 0, 1, 2, 3]) });
 
 // ------------------------------------------------------------------------------------------------ the lines
@@ -170,27 +175,37 @@ const union = (a, b) => (!a ? b : !b ? a : { x: Math.min(a.x, b.x), y: Math.min(
 // The page's state of what tore off, every field declared here: the charm's fall (`at` since when, null: hanging), the ship's last heading
 // and its turn (which throws the charm).
 export function createModernFx() {
-  return { charm: { at: null, x: 0, y: 0, vx: 0, vy: 0, a: 0, va: 0, id: null }, heading: null, turn: 0 };
+  return { charm: { at: null, x: 0, y: 0, vx: 0, vy: 0, a: 0, va: 0, id: null }, wheel: { at: null, x: 0, y: 0, vx: 0, vy: 0, a: 0, va: 0, R: 0 },
+    heading: null, turn: 0 };
 }
+// A piece torn off flying: gravity, its throw, its turn; gone off the screen for reduced motion.
+function fly(P, step, reducedMotion) {
+  P.at += step;
+  if (reducedMotion) { P.y = 1e5; return; }
+  P.vy += BREAK.gravity * step; P.y += P.vy * step; P.x += P.vx * step; P.a += P.va * step;
+}
+// The wheel as it stands still, turned by its roll alone (radio.js wheelModern's state).
+const STILL_WHEEL = Object.freeze({ tune: 0 });
 // One frame of it: `share` the hull's (0 when wrecked), `angle` the ship's heading, `dt` the page's seconds, `charmAt` where the charm
-// hangs now (its picture's middle, when one hangs and is drawn).
-export function stepModernFx(fx, { share, angle, dt, charmAt = null, charmId = null, reducedMotion = false }) {
+// hangs now (its picture's middle, when one hangs and is drawn), `wheelAt` where the radio's wheel stands (radio.js `wheel`).
+export function stepModernFx(fx, { share, angle, dt, charmAt = null, charmId = null, wheelAt = null, reducedMotion = false }) {
   const step = Math.min(0.05, Math.max(0, dt));
   if (fx.heading != null && step > 0) {
     const d = Math.atan2(Math.sin(angle - fx.heading), Math.cos(angle - fx.heading));
     fx.turn += (d / step - fx.turn) * Math.min(1, step / 0.08);
   }
   fx.heading = angle;
-  const C = fx.charm;
-  if (share >= BREAK.mend) C.at = null;
+  const C = fx.charm, D = fx.wheel, thrown = clamp(-fx.turn * BREAK.throwBy, -BREAK.throwMax, BREAK.throwMax);
+  if (share >= BREAK.mend) C.at = D.at = null;
   if (share <= BREAK.at && C.at == null && charmAt) {
-    const thrown = clamp(-fx.turn * BREAK.throwBy, -BREAK.throwMax, BREAK.throwMax);
     C.at = 0; C.x = charmAt.x; C.y = charmAt.y; C.vx = thrown; C.vy = BREAK.hop * 0.6; C.a = 0; C.va = thrown / 180; C.id = charmId;
   }
-  if (C.at == null) return;
-  C.at += step;
-  if (reducedMotion) { C.y = 1e5; return; }
-  C.vy += BREAK.gravity * step; C.y += C.vy * step; C.x += C.vx * step; C.a += C.va * step;
+  if (share <= BREAK.at && D.at == null && wheelAt?.on) {
+    D.at = 0; D.x = wheelAt.x; D.y = wheelAt.y; D.R = wheelAt.R; D.vx = thrown * 0.5 + wheelAt.dir * BREAK.wheelOff; D.vy = BREAK.wheelHop;
+    D.a = 0; D.va = D.vx * BREAK.wheelRoll;
+  }
+  if (C.at != null) fly(C, step, reducedMotion);
+  if (D.at != null) fly(D, step, reducedMotion);
 }
 
 // A notch's walls broken (its floor wears as the deck does, drawWear): black over its line in places along the two S curves, the broken
@@ -223,7 +238,7 @@ export function drawModernHud(r, game, args) {
   const { world, tracker, radio, questBoard, charm } = game, fx = game.modernFx, ui = game.interface;
   const { given, brake, lamp, speed, maxSpeed, input, now, scopeArgs, reducedMotion, level } = args;
   const ctx = r.ctx, W = r.width, H = r.height, mid = W / 2, cw = r.cellW, m = uiMetrics(r), L = modernLines(r), ink = L.ink, S = MODERN.s, C = MODERN.c;
-  const out = { modern: true, deck: false, column: null, quests: null, radioArea: null, avoid: [], area: null, charm: null };
+  const out = { modern: true, deck: false, column: null, quests: null, radioArea: null, avoid: [], area: null, charm: null, wheelAt: null };
 
   // The notches: the top one round the task's line (helmet.js, its floor and row in NOTCH_MODE), the bottom one round BRAKES.
   const h = game.notices.notch(r);
@@ -296,7 +311,7 @@ export function drawModernHud(r, game, args) {
   const side = sq ? radioSize(r).w : 2 * (R0 + MODERN_SCOPE.apart + 0.5);
   const locBox = { x: L.M, y: Math.round(L.keyRowB + ink.top - S - side), w: Math.round(side), h: Math.round(side) };
   if (given.column) {
-    drawModernScope(r, world, { ...scopeArgs, box: locBox, shape: sq ? 'square' : 'round', reducedMotion, level, seed: cockpitSeed() + 11 });
+    drawModernScope(r, world, { ...scopeArgs, box: locBox, shape: sq ? 'square' : 'round', reducedMotion, level, seed: cockpitSeed() + 11, wreck: cockpitCrack() });
     // The legend's button on the bottom line at the margin; its rows over the locator while they show.
     const phase = Lc?.phase, open = !!phase?.open, key = keyName('legend'), wordL = open ? 'HIDE LEGEND' : 'LEGEND';
     const x0 = L.M + 1, edge = x0 + KEYCAP_PAD + (Array.from(key).length + 1 + wordL.length + 1) * cw + 2 * KEY_MARK_HALF + 1;
@@ -360,9 +375,15 @@ export function drawModernHud(r, game, args) {
   if (given.radio) {
     const box = { x: left, y: L.keyRowB + ink.top - S - RADIO_MODERN.h, w: Wm, h: RADIO_MODERN.h };
     radioArea = drawRadioModern(r, radio, { box, rowTop: L.keyRowB, x0: q.x0 + dx, edge: q.edge + dx, mirror: q.mirror }, now,
-      { reducedMotion, wear: { level, seed: cockpitSeed() + 53 } });
+      { reducedMotion, wear: { level, seed: cockpitSeed() + 53, wreck: !!cockpitCrack() }, torn: fx.wheel.at != null });
   }
   out.radioArea = radioArea;
+  out.wheelAt = given.radio ? radio.wheel : null;
+  // The wheel torn off, hopping off its socket and falling, rolling.
+  const D = fx.wheel;
+  if (D.at != null && D.y < H + D.R) {
+    ctx.save(); ctx.translate(D.x, D.y); ctx.rotate(D.a); wheelModern(ctx, 0, 0, D.R, STILL_WHEEL, false); ctx.restore();
+  }
   // The quests over it under their R row: the row C over the radio's top (or on the bottom line with none), the plates S over the row.
   if (given.quests) {
     const qx = q.x + dx, qRow = Math.round((radioArea ? radioArea.y : L.keyRowB + ink.top + C) - C - ink.bottom);

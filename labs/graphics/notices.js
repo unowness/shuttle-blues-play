@@ -31,13 +31,20 @@
 // A quest done is said by its plate in the quest list (quest-list.js D3), not by a notice. The saves at events are untouched (they
 // follow src/events.js). The lab's `?notices=old` says everything as a card, as before (`NOTICE_FATES`).
 //
+// Since 2026-10-16 (SX: «недоразобрались с оповещениями на верхней панели ... предупреждения о доставке груза осталась, табличка ... о
+// доставке груза пусть теперь будет квест с грузом ... Сверху убираем это. Какие-то там еще оповещения были, Посмотри, что это за
+// категория и куда ее пристроить. Либо в челку, да, либо никуда»): the cargo says nothing at the top, neither in the notch nor under it;
+// it is a plate of the quest list, the last (src/tasks.js cargoQuests), lit green with its pay as it is delivered and red when it went
+// back (`cargoEnds`). The other cards, the progress's and the story's news (a ruin marked or restored, a sector opened, all stations
+// open, the support built, the boss's, THE CHORUS's, a collection complete, every word found), are flips of the notch. Only a find is a
+// card still, and stands where it lands (labs/graphics/notice.js paperOf).
+//
 // Every banner presses in under the pointer as every panel does (src/hover.js) and its one detail turns white; the keyboard's focus
 // looks the same (`game.keysOnly`, chat C's scheme, shows it on the notice Enter acts on). `game` is the page's (main.js), read
 // when a function runs.
 import { CONFIG } from '../../src/config.js';
 import { savesFor } from '../../src/events.js';
 import { endsQuest, questTone } from '../../src/quests.js';
-import { deliveryTiming } from '../../src/feedback.js';
 import { networkMultiplier, formatCR } from '../../src/ruins.js';
 import { findDef, placeOf } from '../../src/rewards.js';
 import { SECTORS } from '../../src/sectors.js';
@@ -47,14 +54,13 @@ import { hoverItem } from '../../src/hover.js';
 import { clockText, isOpeningJob } from '../../src/contracts.js';
 import { PALETTE, ROLES } from '../../src/roles.js';
 import { keptDraw } from '../../src/grade.js';
-import { routeInk } from '../../src/interface.js';
 import { courseOf } from '../../src/course.js';
 import { clamp, inBox, glyphs } from '../../src/util.js';
 import {
   currentTasks, focusedTask, taskNavigation, selectTask, cargoTaskId, createTaskLog, reconcileTasks, advanceTaskLog, allClear,
-  cargoDestination,
 } from '../../src/tasks.js';
-import { NOTICE, NOTICE_KINDS, QUEST_NOTICE, CARGO_MARKS, TASK_TOP, noticeTop, drawNotice, noticeRect, noticeDone, noticeMotion, bannerOut } from './notice.js';
+import { NOTICE, NOTICE_KINDS, QUEST_NOTICE, CARGO_MARKS, TASK_TOP, noticeTop, drawNotice, noticeRect, noticeDone, noticeMotion, bannerOut,
+  placePaper, paperBox, onPaper, paperAway } from './notice.js';
 import { helmetOf, notchLine, drawNotchLine, drawNotchRow, taskLineBox, FLIP, HELMET } from './helmet.js';
 import { giftWords, FIND_LIFE } from './find-notice.js';
 import { RAIL_TIMES, railFit, moneyRuns } from './rail.js';
@@ -124,6 +130,13 @@ export function createNotices(game) {
   // The cargo tasks that ended well, by their task id (the quests' outcomes are the world's: World.questOutcomes).
   const tasksDone = new Set();
   const outcomeOf = (id) => (tasksDone.has(id) ? 'done' : game.world.questOutcomes?.get(id) ?? null);
+  // How a cargo's plate ends, by its task id, as its event says (`outcome` 'done' or 'late', and its words): read once, by the quest list
+  // as the plate goes (quest-list.js syncQuestBoard), with the world's quests' outcomes (`outcomes`).
+  const cargoEnds = new Map();
+  const outcomes = {
+    get: (id) => cargoEnds.get(id)?.outcome ?? game.world.questOutcomes?.get(id) ?? null,
+    words: (id) => { const e = cargoEnds.get(id); cargoEnds.delete(id); return e?.words ?? null; },
+  };
 
   // The notice under the slot (labs/graphics/notice.js): one at a time, the newest in place of the last. `waits`: an event's notice
   // waits while the game does (P, a screen), so one that lands just before C is seen when the card closes; a note from the page does
@@ -140,8 +153,15 @@ export function createNotices(game) {
     state.queue.push(n);
     if (state.queue.length > NOTICE_QUEUE) state.queue.shift();
   }
+  // A find's card lands somewhere of its own as it stands (notice.js placePaper), off the interface as it was last drawn: the modern one's
+  // corners and gauges (hud-modern.js), the columns, the quests, the radio, the task's line.
+  function paperAvoids() {
+    const L = game.lastHudLayout, B = game.hud?.boxes;
+    return [...(L?.avoid ?? []), L?.column, L?.quests, L?.radioArea, B?.column, B?.quests, B?.shelf, taskRect()];
+  }
   function showNotice(n) {
     state.notice = n;
+    if (n?.find && NOTICE_FATES.mode !== 'old') n.paper = placePaper(game.renderer, n, { avoid: paperAvoids() });
     if (n) game.announcementEl.textContent = n.sub ? `${n.title} / ${n.sub}` : n.title;
   }
   // A notice put back to stand again: from its start, unpressed.
@@ -263,34 +283,39 @@ export function createNotices(game) {
           notify('CARGO ACCEPTED', QL.banner.cargo(e.label, stationOnly(e.destination)), { cargo: true, mark: CARGO_MARKS.taken, fate: 'gone' });
           break;
         case 'delivered':
-          // The cargo's task ended well (src/tasks.js: ALL CLEAR may follow when it was the last).
-          if (!e.alreadySettled && e.contractId) tasksDone.add(cargoTaskId(e.contractId));
+          // The cargo's task ended well (src/tasks.js: ALL CLEAR may follow when it was the last); its plate lights green with the whole sum
+          // paid, a finder's fee in it; the opening's first freight (src/opening.js) says how it went against its target.
+          // (The cards it was are kept for the lab's ?notices=old alone: `gone` in the game.)
+          if (!e.alreadySettled && e.contractId) {
+            const id = cargoTaskId(e.contractId), paid = formatCR(e.reward + (e.fee ?? 0));
+            tasksDone.add(id);
+            const sub = isOpeningJob(e.contractId) && e.timing ? (e.timing.elapsed <= e.timing.par ? QL.cargo.onTime(paid) : QL.cargo.late(paid)) : QL.cargo.paid(paid);
+            cargoEnds.set(id, { outcome: 'done', words: { done: [QL.cargo.done(), sub] } });
+          }
           if (e.alreadySettled) notify('ALREADY DELIVERED', 'NO EXTRA PAYMENT', { cargo: true, mark: CARGO_MARKS.delivered, life: 2.4, fate: 'gone' });
-          // The opening's first freight (src/opening.js): its receipt says the time it took against its target, then the pay, apart.
           else if (isOpeningJob(e.contractId) && e.timing) {
             const inside = e.timing.elapsed <= e.timing.par;
             notify(`DELIVERED ${clockText(e.timing.elapsed)} / ${clockText(e.timing.par)}`, `${inside ? 'WITHIN TARGET' : 'LATE'} / +${formatCR(e.reward)} CR`,
-              { kind: 'gain', cargo: true, mark: CARGO_MARKS.delivered, life: 4 });
-          }
-          // The whole sum paid, a finder's fee in it (Codex's text pass UXN08: «+930 CR + 75 FEE / FAST +25%» was cut on the card).
-          else notify('CARGO DELIVERED', `+${formatCR(e.reward + (e.fee ?? 0))} CR${deliveryTiming(e.timing)}`, { kind: 'gain', cargo: true, mark: CARGO_MARKS.delivered });
+              { kind: 'gain', cargo: true, mark: CARGO_MARKS.delivered, life: 4, fate: 'gone' });
+          } else notify('CARGO DELIVERED', `+${formatCR(e.reward + (e.fee ?? 0))} CR`, { kind: 'gain', cargo: true, mark: CARGO_MARKS.delivered, fate: 'gone' });
           break;
         case 'shipWrecked':
           ghost.stop();
           slot.wrecks += 1;
           // The deck breaks with the ship (cockpit-fx.js crackCockpit), till it comes back.
           if (e.cause !== 'reset') crackCockpit(performance.now() / 1000);
+          // The cargo carried stays its plate in the quest list, now with the seconds before it goes back (src/tasks.js cargoQuests); a wreck
+          // in the hidden sector sends it home at once (src/world.js), and its plate goes. (Their flips are the lab's ?notices=old cards.)
           if (e.strandedContract) {
-            // Pirates carry the cargo off to their den; any other wreck leaves it where it fell.
-            if (e.cause === 'pirate') notify('CARGO TAKEN', QL.banner.held(e.strandedContract), { kind: 'danger', cargo: true, mark: CARGO_MARKS.lost, fate: 'flip' });
-            else notify('CARGO STRANDED', `${e.strandedContract} AT THE WRECK`, { cargo: true, mark: CARGO_MARKS.lost, fate: 'flip' });
+            if (e.cause === 'pirate') notify('CARGO TAKEN', QL.banner.held(e.strandedContract), { kind: 'danger', cargo: true, mark: CARGO_MARKS.lost, fate: 'gone' });
+            else notify('CARGO STRANDED', `${e.strandedContract} AT THE WRECK`, { cargo: true, mark: CARGO_MARKS.lost, fate: 'gone' });
           }
-          // A wreck in the hidden sector sends the cargo home instead (src/world.js).
-          if (e.returnedContract) notify('CARGO RETURNED', QL.banner.cargo(e.returnedContract, stationOnly(e.returnedTo)), { cargo: true, mark: CARGO_MARKS.lost, fate: 'flip' });
+          if (e.returnedContract) notify('CARGO RETURNED', QL.banner.cargo(e.returnedContract, stationOnly(e.returnedTo)), { cargo: true, mark: CARGO_MARKS.lost, fate: 'gone' });
           break;
-        // A lost cargo left five minutes goes home (CONFIG.stranded.returnAfter).
+        // A lost cargo left five minutes goes home (CONFIG.stranded.returnAfter): its plate goes red, saying where.
         case 'cargoReturned':
-          notify('CARGO RETURNED', QL.banner.cargo(e.label, stationOnly(e.returnedTo)), { cargo: true, mark: CARGO_MARKS.lost, fate: 'flip' });
+          cargoEnds.set(cargoTaskId(e.contractId), { outcome: 'late', words: { late: [QL.cargo.back(), QL.cargo.backTo(stationOnly(e.returnedTo))] } });
+          notify('CARGO RETURNED', QL.banner.cargo(e.label, stationOnly(e.returnedTo)), { cargo: true, mark: CARGO_MARKS.lost, fate: 'gone' });
           break;
         case 'piratesEngaged':
           // A squad at a post (src/raids.js) says what it was doing there.
@@ -313,7 +338,7 @@ export function createNotices(game) {
         // card: the one new fact on the board, what it costs to rebuild.
         case 'openingFitted':
           if (e.what === 'shelf') notify('SHELF FITTED', e.owned ? 'FIRST SOUVENIR ON DISPLAY' : "FILL IT WITH SOUVENIRS", { kind: 'gain', life: 3.6, fate: 'gone' });
-          else if (e.what === 'ruin') notify(`${e.label} MARKED`, `${e.cost} CR TO RESTORE`, { kind: 'gain', life: 3.8 });
+          else if (e.what === 'ruin') notify(`${e.label} MARKED`, `${e.cost} CR TO RESTORE`, { kind: 'gain', life: 3.8, fate: 'flip' });
           else notify('LOCATOR AND MAP FITTED', `${e.label} IS MARKED`, { kind: 'gain', life: 3.6, fate: 'gone' });
           break;
         case 'loanerReturned': {
@@ -344,12 +369,12 @@ export function createNotices(game) {
           // bundle is this one card (the economy's «one display card per achievement bundle»): the new pay, and the free find it earned
           // (src/stationGifts.js) in place of the caches' count, whose two the sector's card and the map say.
           notify(`${e.label} RESTORED`, e.gift ? `PAY ×${networkMultiplier(e.restored)} / 1 ${e.gift} FREE`
-            : `NEW PAY ×${networkMultiplier(e.restored)}${e.finds ? ` / ${e.finds} CACHES` : ''}`, { kind: 'gain', life: questLife(e, 3.6) });
+            : `NEW PAY ×${networkMultiplier(e.restored)}${e.finds ? ` / ${e.finds} CACHES` : ''}`, { kind: 'gain', life: questLife(e, 3.6), fate: 'flip' });
           break;
         // The first-dock support (src/starterSupport.js): the offer and the run done are the radio's words (`guideHeard`, said above: a line of
         // the notch); what was built into the ruin, a card (the one achievement of its own), its amount apart from the wallet.
         case 'starterSupport':
-          if (e.stage === 'built') notify(e.amount > 0 ? `${e.label} SUPPORTED` : 'NO SUPPORT NEEDED', e.amount > 0 ? `+${formatCR(e.amount)} CR FUNDED` : "FUND THE REST", { kind: 'gain', life: 3.8 });
+          if (e.stage === 'built') notify(e.amount > 0 ? `${e.label} SUPPORTED` : 'NO SUPPORT NEEDED', e.amount > 0 ? `+${formatCR(e.amount)} CR FUNDED` : "FUND THE REST", { kind: 'gain', life: 3.8, fate: 'flip' });
           break;
         // A restoration opened the next sector (src/frontier.js; SX, 2026-10-02: «Руина открывает сектор»): said after the
         // restoration's own notice; the border beside the pilot is already a seam.
@@ -357,22 +382,22 @@ export function createNotices(game) {
           // The sector's name over what it means, with the souvenir the opening gave and where it was laid (World.openFrontier): the map
           // shows it too. The card cut the cache's place off when the name stood in its detail (Codex's text pass UXN05).
           notify(e.title ?? e.label, e.cache ? `SECTOR OPEN / CACHE IN ${e.cache.sectorLabel}` : 'SECTOR OPEN',
-            { kind: 'gain', life: e.cache ? 4.4 : 3.6, after: true });
+            { kind: 'gain', life: e.cache ? 4.4 : 3.6, fate: 'flip' });
           break;
         // After the last restoration's own card, never over it (until 2026-10-14 it stood in the same frame and the card was gone at once).
         case 'networkComplete':
-          notify('ALL STATIONS OPEN', `${e.stations} OF ${e.stations}`, { kind: 'gain', life: 4, after: true });
+          notify('ALL STATIONS OPEN', `${e.stations} OF ${e.stations}`, { kind: 'gain', life: 4, fate: 'flip' });
           break;
         // The boss's quest (src/bossQuest.js): it comes after the restoration's cards; its waking stands at once, in the danger's red; a
         // wreck that sent it next door says where, after the wreck's own; beaten, the window that the main game is done.
         case 'bossQuestOffered':
-          notify(QL.boss.offered(), QL.boss.offeredSub(e.label), { kind: 'news', life: 4.4, after: true });
+          notify(QL.boss.offered(), QL.boss.offeredSub(e.label), { kind: 'news', life: 4.4, fate: 'flip' });
           break;
         case 'bossWoke':
-          notify(QL.boss.woke(), QL.boss.wokeSub(), { kind: 'danger', life: 3.6 });
+          notify(QL.boss.woke(), QL.boss.wokeSub(), { kind: 'danger', life: 3.6, fate: 'flip' });
           break;
         case 'bossMoved':
-          notify(QL.boss.moved(), QL.boss.movedSub(e.label), { kind: 'news', life: 4.4, after: true });
+          notify(QL.boss.moved(), QL.boss.movedSub(e.label), { kind: 'news', life: 4.4, fate: 'flip' });
           break;
         case 'bossQuestDone':
           screens.openFinale?.();
@@ -380,22 +405,23 @@ export function createNotices(game) {
         // COMMONS's chain (src/chorus.js): begun, the first voice to find; a recorder dropped by a wreck, after the wreck's own; a voice
         // back, how many of the four; the four back, the roll call and its pay. The collage itself is said over the station (src/feedback.js).
         case 'chorusBegun':
-          notify(QL.chorus.begun(), QL.chorus.begunSub(e.voice), { kind: 'news', life: 4.4, after: true });
+          notify(QL.chorus.begun(), QL.chorus.begunSub(e.voice), { kind: 'news', life: 4.4, fate: 'flip' });
           break;
         case 'chorusDropped':
-          notify(QL.chorus.dropped(), QL.chorus.droppedSub(), { kind: 'news', life: 3.6, after: true });
+          notify(QL.chorus.dropped(), QL.chorus.droppedSub(), { kind: 'news', life: 3.6, fate: 'flip' });
           break;
         case 'chorusVoiceBack':
-          notify(QL.chorus.back(e.voice), QL.chorus.backSub(e.n), { kind: 'gain', life: 3.6 });
+          notify(QL.chorus.back(e.voice), QL.chorus.backSub(e.n), { kind: 'gain', life: 3.6, fate: 'flip' });
           break;
         case 'chorusDone':
-          if (!e.alreadySettled) notify(QL.chorus.roll(), QL.chorus.rollSub(formatCR(e.pay)), { kind: 'gain', life: 4.4, after: true });
+          if (!e.alreadySettled) notify(QL.chorus.roll(), QL.chorus.rollSub(formatCR(e.pay)), { kind: 'gain', life: 4.4, fate: 'flip' });
           break;
         case 'collectionComplete':
-          notify(`${e.kind === 'paint' ? 'PAINTS' : 'SOUVENIRS'} ${e.of} OF ${e.of}`, 'COLLECTION COMPLETE', { kind: 'gain', life: 4 });
+          notify(`${e.kind === 'paint' ? 'PAINTS' : 'SOUVENIRS'} ${e.of} OF ${e.of}`, 'COLLECTION COMPLETE', { kind: 'gain', life: 4, fate: 'flip' });
           break;
+        // A cargo taken back: its plate goes on (src/tasks.js cargoQuests).
         case 'cargoRecovered':
-          if (!e.alreadySettled) notify('CARGO RECOVERED', QL.banner.cargo(e.label, stationOnly(e.destination)), { cargo: true, mark: CARGO_MARKS.taken, life: questLife(e), fate: 'flip' });
+          if (!e.alreadySettled) notify('CARGO RECOVERED', QL.banner.cargo(e.label, stationOnly(e.destination)), { cargo: true, mark: CARGO_MARKS.taken, life: questLife(e), fate: 'gone' });
           break;
         // The tow back after a wreck is paid for (src/world.js chargeRescue): said after the cargo's plate.
         case 'rescueCharged':
@@ -407,7 +433,7 @@ export function createNotices(game) {
         case 'signalHeard':
           if (!e.alreadySettled) {
             if (e.kind === 'word') notifyFind('signal', null, e, () => screens.openCardOn(), { life: Math.max(FIND_LIFE, questLife(e)) });
-            else notify(`+${e.amount} CR`, 'ALL SIGN WORDS FOUND', { kind: 'gain', life: questLife(e) });
+            else notify(`+${e.amount} CR`, 'ALL SIGN WORDS FOUND', { kind: 'gain', life: questLife(e), fate: 'flip' });
           }
           break;
         case 'signPlaced':
@@ -518,8 +544,10 @@ export function createNotices(game) {
       // a red quest by its clock, the cargo, a quest); its sign or bearing, its title and its clock (SX, 2026-10-07: «выводи пожалуйста
       // сверху все таки какой-то текст о чем речь, а не только таймер со стрелкой»): the title its plate in the quest list wears
       // (src/questLines.js, made to fit a plate's row, so it fits the notch uncut), never the detail's action; no detail.
-      const banners = new Map(tasks.map((t) => [t.id, taskBanner(t, board?.activeId === t.id)]));
-      const timed = tasks.filter((t) => banners.get(t.id).clock);
+      // The cargo stands in the quest list alone since 2026-10-16 (SX: «Сверху убираем это»).
+      const quests = tasks.filter((t) => t.kind === 'quest');
+      const banners = new Map(quests.map((t) => [t.id, taskBanner(t, board?.activeId === t.id)]));
+      const timed = quests.filter((t) => banners.get(t.id).clock);
       const task = focusedTask(timed, board?.activeId ?? null);
       if (task) want = { occ: `task:${task.id}`, kind: 'task', task, banner: { ...banners.get(task.id), sub: null } };
       else if (allClear(slot.log)) want = { occ: `clear:${slot.log.clears}`, kind: 'clear',
@@ -527,27 +555,14 @@ export function createNotices(game) {
     }
     return want && !slot.dismissed.has(want.occ) ? want : null;
   }
-  // A task's banner: its tone's ink and sign, the bearing's arrow once it is selected (as the quest list turns «!» into it), its
-  // title over its timer (in its own ink) and what to do.
+  // A quest's banner: its tone's ink and sign, the bearing's arrow once it is selected (as the quest list turns «!» into it), its
+  // title over its timer (in its own ink) and what to do. (The cargo's went with it, 2026-10-16: its plate in the quest list says it.)
   function taskBanner(task, selected) {
     const { world } = game, way = taskNavigation(world, task), aim = courseOf(way);
     const arrow = selected && way ? bearingGlyph(Math.atan2(aim.dy, aim.dx)) : null;
-    if (task.kind === 'quest') {
-      const q = task.quest, tone = QUEST_TONES[questTone(q)] ?? QUEST_TONES.green;
-      const timer = q.ends != null ? clockText(Math.ceil(Math.max(0, q.ends - world.ledger.clock))) : null;
-      return { family: 'task', ink: tone.ink, mark: arrow ?? tone.mark, title: q.title, sub: q.sub, clock: timer, clockInk: tone.ink };
-    }
-    // The cargo, as the garage room's list says it (DELIVER <cargo> / TO <station>), in the route's ink: green, yellow as its fast
-    // pay melts, red once late (src/interface.js routeInk), its clock first.
-    const ink = routeInk(way), left = way?.clock?.left;
-    const timer = Number.isFinite(left) ? `${left < 0 ? 'LATE ' : ''}${clockText(Math.abs(left))}` : null;
-    const label = task.job?.label ?? '';
-    if (task.kind === 'cargo') {
-      const to = cargoDestination(task);
-      return { family: 'task', ink, mark: arrow ?? CARGO_MARKS.taken, title: `DELIVER ${label}`, sub: to ? `TO ${to.label}` : null, clock: timer, clockInk: ink };
-    }
-    return { family: 'task', ink, mark: arrow ?? CARGO_MARKS.lost, title: `RECOVER ${label}`, sub: way?.sectorLabel ? `AT THE WRECK / ${way.sectorLabel}` : 'AT THE WRECK',
-      clock: timer, clockInk: ink };
+    const q = task.quest, tone = QUEST_TONES[questTone(q)] ?? QUEST_TONES.green;
+    const timer = q.ends != null ? clockText(Math.ceil(Math.max(0, q.ends - world.ledger.clock))) : null;
+    return { family: 'task', ink: tone.ink, mark: arrow ?? tone.mark, title: q.title, sub: q.sub, clock: timer, clockInk: tone.ink };
   }
   // The widest timer a line has shown (its characters), kept while its occurrence stands: the notch fits it once and does not narrow as
   // 10:00 becomes 9:59 (it widens once, when a cargo turns LATE).
@@ -655,13 +670,24 @@ export function createNotices(game) {
     if (!notice || noticeDone(notice)) return null;
     const o = noticeOffset(), moved = o.x || o.y;
     const box = currentNoticeRect();
-    const pointed = !!box && !!pointer?.inside && inBox(box, pointer.x, pointer.y) && !game.screens.anyScreen();
+    const pointed = !!box && !!pointer?.inside && noticeAt(pointer.x, pointer.y) && !game.screens.anyScreen();
     const over = (pointed || keyboardFocus()) && notice.clicked == null && notice.age < notice.life;
     // The fold's progress, eased toward the pointer's (Codex: «180 ms with cubic ease-out, and reverses smoothly from its current
     // position»), at once under reduced motion.
     const now = slot.time, dt = lastFold == null ? 0 : Math.max(0, now - lastFold);
     lastFold = now;
     notice.fold = notice.instant ? (over ? 1 : 0) : clamp((notice.fold ?? 0) + (over ? 1 : -1) * dt / RAIL_TIMES.fold, 0, 1);
+    // A find's paper: turned about its middle where it landed, its pieces flying off its own way when it tears.
+    const P = notice.paper;
+    if (P) {
+      const m = noticeMotion(notice, { over, fold: notice.fold }), local = { x: -P.w / 2, y: -P.h / 2, w: P.w, h: P.h };
+      m.away = paperAway(P);
+      r.ctx.save(); r.ctx.translate(P.cx, P.cy); r.ctx.rotate(P.angle);
+      try {
+        hoverItem(r, 'notice', local, () => drawNotice(r, notice, local.x, local.y, m), { kind: 'panel', over: pointed || (keyboardFocus() && over), disabled: notice.clicked != null });
+      } finally { r.ctx.restore(); }
+      return box;
+    }
     if (moved) { r.ctx.save(); r.ctx.translate(o.x, o.y); }
     const laid = noticeRect(r, notice);
     const m = noticeMotion(notice, { over, fold: notice.fold });
@@ -674,7 +700,14 @@ export function createNotices(game) {
   function currentNoticeRect() {
     const { renderer } = game;
     if (!state.notice || noticeDone(state.notice)) return null;
+    if (state.notice.paper) return paperBox(state.notice.paper);
     return shifted(noticeRect(renderer, state.notice), noticeOffset());
+  }
+  // Whether (x, y) is on the standing notice: a find's paper on the paper itself, turned; any other in its box.
+  function noticeAt(x, y) {
+    const n = state.notice;
+    if (!n || noticeDone(n)) return false;
+    return n.paper ? onPaper(n.paper, x, y) : inBox(currentNoticeRect(), x, y);
   }
 
   // Each frame: the standing notice ages (an event's waits while the game does: P, a screen; a note from the page does not); once it
@@ -705,7 +738,7 @@ export function createNotices(game) {
   // answers it). True when it took the click.
   function click(x, y) {
     if (game.screens.anyScreen()) return false;
-    if (inBox(currentNoticeRect(), x, y)) { press(state.notice); return true; }
+    if (noticeAt(x, y)) { press(state.notice); return true; }
     // A flip standing in the notch: a click ends it (it turns back to the task).
     if (flipShown() && inBox(taskRect(), x, y)) { flips.cur.life = flips.cur.age; return true; }
     if (inBox(taskRect(), x, y)) { pressSlot(); return true; }
@@ -714,6 +747,6 @@ export function createNotices(game) {
   // The keyboard's confirm (input-router.js KEYS.banner, Enter: C0's answer, Space being the brake in flight): the standing notice.
   const confirm = () => press(state.notice);
 
-  return { state, slot, flips, notify, stand, notifyFind, notifyBundle, toast, saveNote, clearNotices, questLife, handleEvents, drawNoticePlaced, drawTaskPlaced,
-    currentNoticeRect, taskRect, taskHome, notch, focusedQuestId, age, click, confirm, pressSlot };
+  return { state, slot, flips, outcomes, notify, stand, notifyFind, notifyBundle, toast, saveNote, clearNotices, questLife, handleEvents, drawNoticePlaced, drawTaskPlaced,
+    currentNoticeRect, noticeAt, taskRect, taskHome, notch, focusedQuestId, age, click, confirm, pressSlot };
 }

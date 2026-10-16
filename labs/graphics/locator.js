@@ -804,7 +804,11 @@ function drawScope(r, world, { cx, cy, radius, reducedMotion, flags, quests, tas
 // (each point (u, v) of the disc to the square's point whose disc is it, the inverse of x·√(1 − y²/2), y·√(1 − x²/2)): the crosshair stays
 // straight, the edge of the disc is the square's edge. Its wear (`level`, cockpit-fx.js damageLevel): breaks in the rim and the contour,
 // more at each step, a broken piece knocked out of line at the worst (SX: «локатор тоже внешний край ломается с внутренним»).
-export const MODERN_SCOPE = Object.freeze({ apart: 5, round: 8, shade: 22, dark: 0.8, long: 9, short: 4, breaks: 2 });
+// `wreck`: at a wreck (SX, 2026-10-16: «локатор во время аварии разрушался побольше») `breaks` more breaks round it, `span` times as long,
+// each piece of the contour knocked `off` px out of line, and a crack across its glass: `steps` jags of up to `jag` px off its line, and `branches` short ones off it,
+// `branch` of the glass's half long.
+export const MODERN_SCOPE = Object.freeze({ apart: 5, round: 8, shade: 22, dark: 0.8, long: 9, short: 4, breaks: 2,
+  wreck: Object.freeze({ breaks: 10, span: 1.8, off: [3, 6], steps: 7, jag: 7, branches: 3, branch: 0.35 }) });
 function discToSquare(u, v) {
   const u2 = u * u, v2 = v * v, t = 2 * Math.SQRT2;
   const x = 0.5 * Math.sqrt(Math.max(0, 2 + u2 - v2 + t * u)) - 0.5 * Math.sqrt(Math.max(0, 2 + u2 - v2 - t * u));
@@ -815,8 +819,9 @@ function roundedRect(ctx, x, y, w, h, rr) {
   ctx.beginPath(); ctx.moveTo(x + rr, y); ctx.arcTo(x + w, y, x + w, y + h, rr); ctx.arcTo(x + w, y + h, x, y + h, rr);
   ctx.arcTo(x, y + h, x, y, rr); ctx.arcTo(x, y, x + w, y, rr); ctx.closePath();
 }
-// `box` its contour's box (whole pixels, square), `shape` 'round' or 'square', `level` its wear (0-4), `seed` where its breaks fall.
-export function drawModernScope(r, world, { box, shape = 'square', reducedMotion = false, flags = [], quests = [], task = null, level = 0, seed = 1 }) {
+// `box` its contour's box (whole pixels, square), `shape` 'round' or 'square', `level` its wear (0-4), `seed` where its breaks fall, `wreck`
+// the deck's break at a wreck while it stands (cockpit-fx.js cockpitCrack: its `seed` where the crack runs), or null.
+export function drawModernScope(r, world, { box, shape = 'square', reducedMotion = false, flags = [], quests = [], task = null, level = 0, seed = 1, wreck = null }) {
   const ctx = r.ctx, S = MODERN_SCOPE, cx = box.x + box.w / 2, cy = box.y + box.h / 2, square = shape === 'square';
   const inner = box.w / 2 - 0.5 - S.apart, dotRound = Math.max(0, S.round - S.apart);
   noteKey(keyName('map'), box, r);
@@ -877,23 +882,50 @@ export function drawModernScope(r, world, { box, shape = 'square', reducedMotion
     // The contour.
     if (square) roundedRect(ctx, box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1, S.round); else { ctx.beginPath(); ctx.arc(cx, cy, inner + S.apart, 0, Math.PI * 2); }
     ctx.stroke();
-    // The wear: black over the rim and the contour where they broke, a piece of the contour knocked out of line at the worst.
-    if (level > 0) {
-      const outerHalf = inner + S.apart, n = level * S.breaks;
+    // The wear: black over the rim and the contour where they broke, a piece of the contour knocked out of line at the worst; at a wreck
+    // breaks all round, the pieces knocked farther, and the crack across the glass.
+    const WR = S.wreck;
+    if (level > 0 || wreck) {
+      const outerHalf = inner + S.apart, n = level * S.breaks + (wreck ? WR.breaks : 0), at3 = wreck ? wreck.seed % 997 : 0;
       const pointAt = (half, a) => { const c = Math.cos(a), sn = Math.sin(a), reach = square ? half / Math.max(Math.abs(c), Math.abs(sn)) : half; return [cx + c * reach, cy + sn * reach]; };
       ctx.lineCap = 'butt';
       for (let i = 0; i < n; i++) {
-        const a = noise3(seed, i, 3) * Math.PI * 2, span = (0.05 + 0.08 * noise3(seed, i, 5)) * (square ? 0.8 : 1);
+        const own = i >= level * S.breaks, sd = own ? seed + at3 : seed;
+        const a = noise3(sd, i, 3) * Math.PI * 2, span = (0.05 + 0.08 * noise3(sd, i, 5)) * (square ? 0.8 : 1) * (own ? WR.span : 1);
         for (const [half, w] of [[outerHalf, 3], ...(i % 2 ? [[inner, 3]] : [])]) {
           ctx.strokeStyle = ROLES.backing; ctx.lineWidth = w; ctx.beginPath();
           for (let k = 0; k <= 6; k++) { const [x, y] = pointAt(half, a - span / 2 + (span * k) / 6); ctx[k ? 'lineTo' : 'moveTo'](x, y); }
           ctx.stroke();
-          if (level >= 3 && half === outerHalf) {
-            const off = 1.5 + noise3(seed, i, 7) * 1.5;
+          if ((level >= 3 || wreck) && half === outerHalf) {
+            const off = wreck ? WR.off[0] + noise3(sd, i, 7) * (WR.off[1] - WR.off[0]) : 1.5 + noise3(seed, i, 7) * 1.5;
             ctx.strokeStyle = ROLES.structure; ctx.lineWidth = 1; ctx.beginPath();
             for (let k = 1; k <= 5; k++) { const [x, y] = pointAt(half + off, a - span / 3 + (span * k) / 9); ctx[k > 1 ? 'lineTo' : 'moveTo'](x, y); }
             ctx.stroke();
           }
+        }
+      }
+      // The crack: from the contour to the contour about across, jagged off its line, a short branch off it here and there; black cut
+      // under a line of the contour's ink.
+      if (wreck) {
+        const sd = seed + at3, a0 = noise3(sd, 1, 61) * Math.PI * 2, a1 = a0 + Math.PI + (noise3(sd, 2, 61) - 0.5);
+        const [x0, y0] = pointAt(outerHalf, a0), [x1, y1] = pointAt(outerHalf, a1), len = Math.hypot(x1 - x0, y1 - y0) || 1;
+        const nx = -(y1 - y0) / len, ny = (x1 - x0) / len, run = [];
+        for (let k = 0; k <= WR.steps; k++) {
+          const t = k / WR.steps, j = k === 0 || k === WR.steps ? 0 : (noise3(sd, k, 67) * 2 - 1) * WR.jag;
+          run.push([x0 + (x1 - x0) * t + nx * j, y0 + (y1 - y0) * t + ny * j]);
+        }
+        const lines = [run];
+        for (let b = 0; b < WR.branches; b++) {
+          const k = 1 + Math.floor(noise3(sd, b, 71) * (WR.steps - 1)), [bx, by] = run[k], side = b % 2 ? 1 : -1;
+          const turn = Math.atan2(y1 - y0, x1 - x0) + side * (0.6 + 0.5 * noise3(sd, b, 73)), L = WR.branch * inner * (0.6 + 0.4 * noise3(sd, b, 79));
+          const mid = L * 0.55, bend = (noise3(sd, b, 83) * 2 - 1) * 0.35;
+          lines.push([[bx, by], [bx + Math.cos(turn) * mid, by + Math.sin(turn) * mid], [bx + Math.cos(turn + bend) * L, by + Math.sin(turn + bend) * L]]);
+        }
+        ctx.lineJoin = 'miter';
+        for (const [w, ink] of [[3, ROLES.backing], [1, ROLES.structure]]) {
+          ctx.strokeStyle = ink; ctx.lineWidth = w; ctx.beginPath();
+          for (const line of lines) line.forEach(([x, y], k) => ctx[k ? 'lineTo' : 'moveTo'](x, y));
+          ctx.stroke();
         }
       }
     }

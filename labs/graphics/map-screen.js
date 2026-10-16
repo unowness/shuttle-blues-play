@@ -41,7 +41,7 @@
 // in the box is the game's own, as it was (the dashed lines in the interface's blue, the blue grid, the editor's bodies); no rule
 // down between the box and the column, space keeps them apart.
 
-import { UI, uiAir, uiMetrics, centredWindow } from '../../src/uiGrid.js';
+import { UI, uiAir, uiMetrics } from '../../src/uiGrid.js';
 import { CONFIG } from '../../src/config.js';
 import { FLAG_NAMES, flagSpot, flagInFrame } from '../../src/flags.js';
 import { SECTORS, SECTOR_SIZE, stationDefById, stationsOf, startRuinOf } from '../../src/sectors.js';
@@ -63,6 +63,7 @@ import { keyName, keyText } from '../../src/controls.js';
 import { sectorLine } from './swiss.js';
 import { Win, ORG, INK as TONE } from './organism.js';
 import { unnoted } from './clicks.js';
+import { roomFrame } from './garage-room.js';
 
 export const MAP = Object.freeze({
   side: 30,             // columns of the right-hand column's text, a group's step (`gap`) from the sectors' box
@@ -231,16 +232,19 @@ export function clampView(v) {
 // less the column and the windows' inset at its sides, its height less the pad; the window may stand over the cockpit's band as the pilot card
 // does. `view` (zoom z, and the middle cx, cy of what shows, as shares of the whole map) moves and scales the sectors inside their pane; the whole
 // map is the default. Returns the window (`win`), its `box`, the sectors' `area`, the `sectors` and the `column`'s place.
+// Since 2026-10-16 no larger than the garage room (SX: «Карта на весь экран не очень смотрится. Подгони примерно под размер комнаты. Но при
+// этом верстку оставить такую же»): the window's sides kept inside the room's box (garage-room.js roomFrame), the layout as it was.
 export function mapLayout(r, view = FIT) {
   const E = ORG.S + 1;                                          // (the screen's edge to the window: the windows' inset)
   const list = shown();
   const across = Math.max(...list.map((s) => s.col)) + 1, down = Math.max(...list.map((s) => s.row)) + 1;
   const probe = new Win(r, { panes: [MAP.side, { px: 1 }] }), colSpan = probe.panes[0].right;
-  const fits = Math.min((r.width - 2 * E - colSpan - 2) / across, (r.height - 2 * UI.pad - probe.headRule - 1 - probe.footBand) / down);
+  const room = roomFrame(r), roomW = Math.min(room.w, r.width - 2 * E), roomH = Math.min(room.h, r.height - 2 * UI.pad);
+  const fits = Math.min((roomW - colSpan - 2) / across, (roomH - probe.headRule - 1 - probe.footBand) / down);
   const side = Math.max(2, 2 * Math.floor(fits / 2));
   const win = new Win(r, { panes: [MAP.side, { px: across * side + 1 }], id: 'map' }).body(down * side);
   win.place((w, h) => {
-    const at = centredWindow(r, w, h, { clear: false });
+    const at = { x: Math.round(room.x + (room.w - w) / 2), y: Math.round(room.y + (room.h - h) / 2) };   // where the room stands
     return { x: Math.max(E, Math.min(r.width - w - E, at.x)), y: Math.max(UI.pad, Math.min(r.height - h - UI.pad, at.y)) };
   });
   const inside = win.panes[1].inside, ax0 = inside.x, ay0 = inside.y, ax1 = ax0 + across * side, ay1 = ay0 + down * side;

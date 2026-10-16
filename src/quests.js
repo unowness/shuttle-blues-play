@@ -432,7 +432,9 @@ function sideQuestWords(world) {
     const d = s.drifter, sector = sectorById(d.sectorId)?.label ?? '';
     return {
       id: s.id, kind: 'side', title: QL.rescue.title(), sub: s.fueled ? QL.rescue.handIn(sector) : QL.rescue.bring(sector, Q().rescue.fuel), pointer: 'PILOT',
-      target: { sectorId: d.sectorId, x: d.x, y: d.y, mark: DRIFTER_ID, reach: CONFIG.stranded.interactRadius },
+      // (Its pointer over the ship, not on it: SX, 2026-10-16, «если метка стоит на NPC, то она прямо посередине его корабля ... чуть-чуть
+      // поодаль ... чтобы его рисунок не закрывала метка»; a wreck's and a pestered ship's have their `lift`, src/navigation.js.)
+      target: { sectorId: d.sectorId, x: d.x, y: d.y, mark: DRIFTER_ID, reach: CONFIG.stranded.interactRadius, lift: 110 },
       done: [QL.rescue.done(), QL.rescue.paid(formatCR(payFor('rescue', world.ledger.restored.size)), sector)],
     };
   }

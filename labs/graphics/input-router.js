@@ -156,18 +156,15 @@ export function createInputRouter(game) {
   function pressSound(x, y) {
     const inBox = (b) => !!b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
     if (game.title.active) return 'clickUi';
-    if (!game.screens.anyScreen() && inBox(game.notices.currentNoticeRect())) return game.notices.state.notice?.cargo ? 'clickPlate' : 'clickFind';
+    if (!game.screens.anyScreen() && game.notices.noticeAt(x, y)) return game.notices.state.notice?.cargo ? 'clickPlate' : 'clickFind';
     if (!game.screens.anyScreen() && inBox(game.notices.taskRect())) return 'clickPlate';
     if (actionAt(x, y) || game.screens.anyScreen() || keyAt(x, y)) return 'clickUi';
     if (questBoardHit(game.questBoard, x, y)) return 'clickPlate';
     if (charmAt(x, y) !== null || itemUnder()) return 'clickUi';
     return POINTER_TICK[game.pointer.code] ?? 'tick';
   }
-  const answersClick = (x, y) => {
-    const nb = game.notices.currentNoticeRect();
-    return !!keyAt(x, y) || !!actionAt(x, y) || !!itemUnder() || charmAt(x, y) !== null || questBoardHit(game.questBoard, x, y)
-      || (!!nb && x >= nb.x && x <= nb.x + nb.w && y >= nb.y && y <= nb.y + nb.h);
-  };
+  const answersClick = (x, y) => !!keyAt(x, y) || !!actionAt(x, y) || !!itemUnder() || charmAt(x, y) !== null || questBoardHit(game.questBoard, x, y)
+    || game.notices.noticeAt(x, y);
   // The mouse on the world (labs/graphics/world-pointer.js): a friendly craft or a station under the pointer, where no menu or
   // the interface answers it: its window shows (main.js stepPointed). A click on it does nothing, in either mode (SX, 2026-10-07: «нет убери клик в станцию саму везде только по контекстной меню»): a station or a ship is acted on only through its
   // window's rows up close. In MOUSE + HOTKEYS a press over one is the flight's, as over open space.
@@ -236,8 +233,7 @@ export function createInputRouter(game) {
       // A menu's key under the pointer is a button (labs/graphics/clicks.js), and so is an item that sinks under it
       // (src/hover.js) and a notice (a find's opens what it says, the rest go at a click); a station or a ship is not.
       if (!game.title.active && (keyAt(p.x, p.y) || itemUnder())) canvas.style.cursor = 'pointer';
-      const nb = !game.title.active && game.notices.state.notice && !screens.anyScreen() ? game.notices.currentNoticeRect() : null;
-      if (nb && p.x >= nb.x && p.x <= nb.x + nb.w && p.y >= nb.y && p.y <= nb.y + nb.h) canvas.style.cursor = 'pointer';
+      if (!game.title.active && !screens.anyScreen() && game.notices.noticeAt(p.x, p.y)) canvas.style.cursor = 'pointer';
     });
     canvas.addEventListener('pointerleave', () => { leaveLean(game.lean); cursorLeave(pointer); });
     canvas.addEventListener('pointerdown', (event) => {

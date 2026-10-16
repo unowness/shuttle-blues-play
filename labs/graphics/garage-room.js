@@ -50,6 +50,7 @@ import { REBOOT } from './respawn-fx.js';
 
 export const ROOM = Object.freeze({
   inset: 48,          // px from every edge of the screen, at most (the binding side; SX: 48 or 56, a multiple of 4)
+  aspect: 1672 / 941, // the painting's width over its height: the room's shape before the painting is read (roomFrame)
   band: 2,            // px, the frame: a band of space's black round the room, square at the corners
   cols: 166,          // the room's cells across (B2)
   dark: 0.16,         // s the screen takes to go to space's black and its stars before the room comes (and to come back after)
@@ -156,6 +157,15 @@ export function roomGone(room, now) {
 }
 
 // ---- where things stand ----------------------------------------------------------------------------------------------
+
+// The box the room stands in on a screen of this size, before its painting is read: its shape, ROOM.inset from the binding sides,
+// in the middle. The map's window keeps to it (labs/graphics/map-screen.js mapLayout; SX, 2026-10-16: «Карта на весь экран не очень
+// смотрится. Подгони примерно под размер комнаты»).
+export function roomFrame(r) {
+  const availW = r.width - 2 * ROOM.inset, availH = r.height - 2 * ROOM.inset;
+  const w = Math.floor(Math.min(availW, availH * ROOM.aspect)), h = Math.floor(Math.min(availH, availW / ROOM.aspect));
+  return { x: Math.round((r.width - w) / 2), y: Math.round((r.height - h) / 2), w, h };
+}
 
 function roomLayout(r) {
   const s = scene.s;

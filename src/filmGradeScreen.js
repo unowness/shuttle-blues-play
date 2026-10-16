@@ -11,6 +11,12 @@
 //
 // Lengths in the settings are CSS px; everything here is in the canvas's device px.
 //
+// Since 2026-10-17 the three are SX's picks of the screens' second round (labs/graphics/sketches/screens-v2.html: C1 PSX, L2 BLEND, V1
+// FRINGE; the page's own drawing brought here): the CRT lays a still texture over the bent picture with its scanlines, a 4 x 4 ordered
+// dither fixed to the screen's pixels (a Trinitron's grille, at 0, beside it), and a gain the browser lays (BRIGHT, `showLift`); the LCD is
+// flat, its blend of frames drawn straight onto the screen's canvas, its fine panel grid a still layer; the VHS's red, laid back over the
+// cyan, is also scaled about the middle, so the two part by nothing there and FRINGE px at the sides.
+//
 // The game's display (src/display.js) draws through this class too, so it is one drawing for the editor and the game:
 // `options.target` is a canvas already in the page to draw on (the game's #crt) instead of one made here, `zIndex` its
 // layer (the veil lies one above), and `seed` starts the screen's own stream of random numbers (the VHS's wobble, tear
@@ -18,6 +24,11 @@
 
 import { planStrips, paintVeil } from './crt.js';
 import { CONFIG } from './config.js';
+
+// The ordered dither's thresholds, the 4 x 4 Bayer matrix (0..15).
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+const lcm = (a, b) => (a * b) / gcd(a, b);
 
 // The tube of 2026-09-30, which CURVE 100 % is: the game's own numbers, not a copy of them.
 const TUBE = { bend: CONFIG.crt.bend, inset: CONFIG.crt.inset, stripStep: CONFIG.crt.stripStep, vignetteReach: CONFIG.crt.vignetteReach };
@@ -87,6 +98,7 @@ export class Screen {
     this.veilKey = ''; this.veilWanted = ''; this.veilAsked = 0;
     this.patterns = {};
     this.fresh = true;
+    this.lastT = null; this.layerKey = ''; this.lift = null; this.liftColour = '';
     this.make();
   }
 
@@ -120,6 +132,7 @@ export class Screen {
     this.out.canvas.width = this.out.canvas.height = 0;
     this.veil.canvas.width = this.veil.canvas.height = 0;
     if (this.lines) { this.lines.canvas.width = this.lines.canvas.height = 0; this.lines.key = ''; }
+    this.lastT = null; this.layerKey = '';
   }
 
   // A working canvas of the frame's size (or another), made once and resized with the frame.
@@ -130,8 +143,9 @@ export class Screen {
     return b;
   }
 
+  // The LCD is flat: no bend, so no inset either.
   tube() {
-    const k = (this.p.curve ?? 100) / 100;
+    const k = this.mode === 'lcd' ? 0 : (this.p.curve ?? 100) / 100;
     return { ...TUBE, bend: TUBE.bend * k, inset: TUBE.inset * Math.min(1, k),
       corner: (this.p.corner ?? 2.5) / 100, vignette: (this.p.vignette ?? 42) / 100 };
   }
@@ -142,16 +156,19 @@ export class Screen {
     // Written when it changes, not every frame (a style written is the page's to restyle).
     if (this.out.canvas.style.display !== shown) this.out.canvas.style.display = shown;
     if (this.veil.canvas.style.display !== shown) this.veil.canvas.style.display = shown;
-    if (flat) this.showLines(false);
+    if (flat) { this.showLines(false); this.showLift(0); }
     if (flat || !w || !h) return;
     if (w !== this.w || h !== this.h) { this.w = w; this.h = h; this.out.canvas.width = w; this.out.canvas.height = h; this.fresh = true; }
     this.dpr = w / (src.clientWidth || w);
 
-    // The CRT, the base (any other name draws it too), lays its texture after the bend, not before it (bentCrt).
+    // The CRT, the base (any other name draws it too), lays its texture after the bend, not before it (bentCrt); the LCD draws
+    // straight onto the screen's canvas, flat.
     const crt = this.mode !== 'lcd' && this.mode !== 'vhs';
     if (crt) this.bentCrt(src);
-    else this.bend(this.mode === 'lcd' ? this.lcd(src) : this.vhs(src, t));
-    this.showLines(crt);
+    else if (this.mode === 'lcd') this.lcd(src, t);
+    else this.bend(this.vhs(src, t));
+    this.showLines(this.mode !== 'vhs');
+    if (!crt) this.showLift(0);
     this.paintVeil();
     this.fresh = false;
   }
@@ -164,9 +181,11 @@ export class Screen {
   // picture's, so it follows the tube's curve (the flat frame's, then bent with it, was the same within a pixel or two at the
   // corners); the lines are bent from a flat stripe pattern rather than darkening the frame before its bend, so their edges are
   // resampled once alone (the same stripes, a shade apart at the edges of the tube where the strips stretch them).
+  // Since 2026-10-17 (C1 PSX) the gain (BRIGHT, showLift) and the still texture over the scanlines (paintLayer) too.
   bentCrt(src) {
-    const scan = (this.p.scan ?? 0) / 100, glow = (this.p.glow ?? 0) / 100;
+    const glow = (this.p.glow ?? 0) / 100;
     this.bend(src);
+    this.showLift((this.p.bright ?? 0) / 100);
     if (glow) {
       const ctx = this.out.ctx;
       const bw = Math.max(1, Math.round(this.w / 6)), bh = Math.max(1, Math.round(this.h / 6));
@@ -180,7 +199,84 @@ export class Screen {
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
     }
+    this.paintLayer();
+  }
+
+  // The still layer over the picture: the CRT's scanlines bent with the glass (paintLines), then the flat texture over them (the CRT's
+  // dither and grille, the LCD's grid), black at an alpha, painted again only for a new size or new numbers. The texture is flat, fixed to
+  // the screen's own pixels, not bent with the picture: a fine pattern resampled by the bend's strips beats into moiré near the rim, and a
+  // real tube's mask sits on the glass.
+  paintLayer() {
+    const p = this.p, crt = this.mode !== 'lcd' && this.mode !== 'vhs';
+    const scan = crt ? (p.scan ?? 0) / 100 : 0;
+    const cfg = this.tube();
+    const key = [this.mode, this.w, this.h, this.dpr, cfg.bend, cfg.inset, scan, p.dither, p.dot, p.grille, p.grid, p.pitch].join('|');
+    if (this.lines && this.layerKey === key) return;
+    this.layerKey = key;
+    if (this.lines) this.lines.key = '';
     this.paintLines(scan);
+    const tile = crt ? this.crtTile() : this.lcdTile();
+    if (!tile) return;
+    const c = this.lines.ctx;
+    c.fillStyle = c.createPattern(tile, 'repeat');
+    c.fillRect(0, 0, this.w, this.h);
+  }
+
+  // One tile of the CRT's texture: the dither's 4 x 4 cells, each `dot` points square, darkened by its threshold; the grille's dark
+  // column every third device pixel (one of three, a phosphor triad's width). Both on one tile, their least common size.
+  crtTile() {
+    const p = this.p, dither = (p.dither ?? 0) / 100, grille = (p.grille ?? 0) / 100;
+    if (!dither && !grille) return null;
+    const cell = Math.max(1, Math.round((p.dot ?? 1) * this.dpr));
+    const dw = dither ? cell * 4 : 1, dh = dither ? cell * 4 : 1, gw = grille ? 3 : 1;
+    const tw = lcm(dw, gw), th = dh;
+    const tile = this.doc.createElement('canvas');
+    tile.width = tw; tile.height = th;
+    const c = tile.getContext('2d');
+    const img = c.createImageData(tw, th);
+    for (let y = 0; y < th; y++) {
+      for (let x = 0; x < tw; x++) {
+        const d = dither ? dither * (BAYER[(Math.floor(y / cell) % 4) * 4 + (Math.floor(x / cell) % 4)] + 0.5) / 16 : 0;
+        const g = grille && x % 3 === 2 ? grille : 0;
+        img.data[(y * tw + x) * 4 + 3] = Math.round((1 - (1 - d) * (1 - g)) * 255);
+      }
+    }
+    c.putImageData(img, 0, 0);
+    return tile;
+  }
+
+  // One tile of the LCD's grid: a panel pixel `pitch` points square with a dark device-pixel line on its right and its foot.
+  lcdTile() {
+    const p = this.p, grid = (p.grid ?? 0) / 100;
+    if (!grid) return null;
+    const period = Math.max(2, Math.round((p.pitch ?? 1.5) * this.dpr));
+    const tile = this.doc.createElement('canvas');
+    tile.width = tile.height = period;
+    const c = tile.getContext('2d');
+    c.fillStyle = `rgba(0,0,0,${grid})`;
+    c.fillRect(period - 1, 0, 1, period);
+    c.fillRect(0, period - 1, period - 1, 1);
+    return tile;
+  }
+
+  // The gain is laid by the browser, not drawn: an even grey `g` over the picture in `color-dodge`, which divides every channel by
+  // 1 - g, so g = b / (1 + b) is a gain of 1 + b (black stays black, no hue moves, white clips as it would). Drawing it into the canvas
+  // cost a full-frame pass, a fifth of the CRT's in software; the dodge is the compositor's, once a refresh, as the veil's alpha is.
+  // Under the scanlines and the texture, over the picture.
+  showLift(bright) {
+    if (!this.lift) {
+      if (!(bright > 0)) return;
+      const lift = this.doc.createElement('div');
+      lift.setAttribute?.('aria-hidden', 'true');
+      Object.assign(lift.style, { position: 'fixed', left: '0', top: '0', width: '100vw', height: '100vh', pointerEvents: 'none',
+        zIndex: String(this.zIndex), mixBlendMode: 'color-dodge', display: 'none' });
+      this.out.canvas.after?.(lift);
+      this.lift = lift;
+    }
+    const shown = bright > 0 ? 'block' : 'none';
+    if (this.lift.style.display !== shown) this.lift.style.display = shown;
+    const g = (255 * bright / (1 + bright)).toFixed(2), colour = `rgb(${g}, ${g}, ${g})`;
+    if (bright > 0 && this.liftColour !== colour) { this.lift.style.background = colour; this.liftColour = colour; }
   }
 
   // The scanlines bent once onto `lines`: the flat stripes of `rows` cut into the same two passes of strips as the picture.
@@ -223,8 +319,9 @@ export class Screen {
     }
   }
 
-  // The scanlines' layer shown only while it is what the CRT draws.
+  // The still layer shown only while the CRT or the LCD draws it.
   showLines(on) {
+    if (!on) this.layerKey = '';
     if (!this.lines) return;
     const shown = on ? 'block' : 'none';
     if (this.lines.canvas.style.display !== shown) this.lines.canvas.style.display = shown;
@@ -249,40 +346,32 @@ export class Screen {
     return r.pattern;
   }
 
-  lcd(src) {
-    const px = Math.max(1, Math.round((this.p.pixel ?? 3) * this.dpr));
-    const grid = (this.p.grid ?? 40) / 100, lag = (this.p.lag ?? 45) / 100;
-    const bw = Math.ceil(this.w / px), bh = Math.ceil(this.h / px);
-    // Each panel pixel the average of what it covers.
-    const small = this.buf('small', bw, bh);
-    small.ctx.imageSmoothingEnabled = true;
-    small.ctx.imageSmoothingQuality = 'high';
-    small.ctx.drawImage(src, 0, 0, this.w, this.h, 0, 0, this.w / px, this.h / px);
-    // The panel's slow response: the new frame laid over the last at 1 - lag.
-    const acc = this.buf('lag');
-    acc.ctx.imageSmoothingEnabled = false;
-    acc.ctx.globalAlpha = this.fresh ? 1 : 1 - lag;
-    acc.ctx.drawImage(small.canvas, 0, 0, bw, bh, 0, 0, bw * px, bh * px);
-    acc.ctx.globalAlpha = 1;
-    if (!grid || px < 2) return acc.canvas;
-    // The dark lines between pixels.
-    const a = this.buf('a');
-    a.ctx.drawImage(acc.canvas, 0, 0);
-    const key = `grid|${px}|${grid.toFixed(3)}`;
-    if (this.patterns.grid?.key !== key || this.patterns.grid.ctx !== a.ctx) {
-      const tile = this.doc.createElement('canvas');
-      tile.width = tile.height = px;
-      const c = tile.getContext('2d');
-      const line = Math.max(1, Math.round(px * 0.22));
-      c.fillStyle = `rgba(0,0,0,${grid})`;
-      c.fillRect(px - line, 0, line, px);
-      c.fillRect(0, px - line, px - line, line);
-      this.patterns.grid = { key, ctx: a.ctx, pattern: a.ctx.createPattern(tile, 'repeat') };
+  // L2 BLEND (2026-10-17): straight onto the screen's canvas, which keeps the last frame, the new one laid over it at 1 - lag, as the
+  // LCD's own buffer did (`lag` what a frame keeps at 60 a second, held so at any refresh rate); the picture snapped to panel pixels of
+  // PIXEL points (from two device pixels); flat, no bend; its grid a still layer (paintLayer). It was bent and gridded every frame until
+  // then: «размазывается жестко», «изгиб ... сделать плоским».
+  lcd(src, t) {
+    const p = this.p, ctx = this.out.ctx, { w, h } = this;
+    const dt = this.lastT == null ? 1 / 60 : Math.min(0.1, Math.max(0, t - this.lastT));
+    this.lastT = t;
+    const keep = this.fresh ? 0 : Math.pow((p.lag ?? 0) / 100, dt * 60);
+    let image = src, iw = w, ih = h;
+    const px = Math.round((p.pixel ?? 0) * this.dpr);
+    if (px >= 2) {
+      iw = Math.ceil(w / px); ih = Math.ceil(h / px);
+      const small = this.buf('small', iw, ih);
+      small.ctx.imageSmoothingEnabled = true;
+      small.ctx.imageSmoothingQuality = 'low';
+      small.ctx.drawImage(src, 0, 0, w, h, 0, 0, w / px, h / px);
+      image = small.canvas;
+      ctx.imageSmoothingEnabled = false;
     }
-    a.ctx.fillStyle = this.patterns.grid.pattern;
-    a.ctx.fillRect(0, 0, this.w, this.h);
-    a.ctx.fillStyle = '#000000';
-    return a.canvas;
+    const dw = image === src ? w : iw * px, dh = image === src ? h : ih * px;
+    ctx.globalAlpha = 1 - keep;
+    ctx.drawImage(image, 0, 0, iw, ih, 0, 0, dw, dh);
+    ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = true;
+    this.paintLayer();
   }
 
   snow(ctx) {
@@ -304,10 +393,13 @@ export class Screen {
     return s.pattern;
   }
 
+  // V1 FRINGE (2026-10-17): the red, laid back over the cyan `bleed` px to the right, also drawn scaled about the middle by 1 + k, so it
+  // parts from the cyan by nothing at the middle and FRINGE px at the sides (a lens's lateral aberration), breathing by BREATHE over 7 s.
   vhs(src, t) {
     const { w, h, dpr } = this;
     const soft = (this.p.soft ?? 35) / 100, bleed = (this.p.bleed ?? 2.5) * dpr;
     const wobble = (this.p.wobble ?? 0.75) * dpr, tracking = (this.p.tracking ?? 45) / 100, noise = (this.p.noise ?? 20) / 100;
+    const fringe = (this.p.fringe ?? 0) * dpr * (1 + ((this.p.breathe ?? 0) / 100) * Math.sin(t * 2 * Math.PI / 7)), k = fringe > 0 ? (2 * fringe) / w : 0;
     const a = this.buf('a');
     // The tape's softness along the lines: through a narrower copy and back.
     a.ctx.imageSmoothingEnabled = true;
@@ -318,8 +410,8 @@ export class Screen {
       narrow.ctx.drawImage(src, 0, 0, w, h, 0, 0, bw, h);
       a.ctx.drawImage(narrow.canvas, 0, 0, bw, h, 0, 0, w, h);
     } else a.ctx.drawImage(src, 0, 0);
-    // Red runs right: the red alone, laid back over the green and blue `bleed` px over. Black stays black.
-    if (bleed > 0) {
+    // Red runs right: the red alone, laid back over the green and blue `bleed` px over, and scaled by the fringe. Black stays black.
+    if (bleed > 0 || k > 0) {
       const red = this.buf('red');
       red.ctx.drawImage(a.canvas, 0, 0);
       red.ctx.globalCompositeOperation = 'multiply';
@@ -331,7 +423,13 @@ export class Screen {
       a.ctx.fillStyle = '#00FFFF';
       a.ctx.fillRect(0, 0, w, h);
       a.ctx.globalCompositeOperation = 'lighter';
-      a.ctx.drawImage(red.canvas, bleed, 0);
+      // Scaled by nearest pixel: the fringe steps a device pixel at a time, as the bleed does (a smoothed scale cost the software
+      // canvas a sixth of the VHS's frame, a plain copy nothing).
+      if (k > 0) {
+        a.ctx.imageSmoothingEnabled = false;
+        a.ctx.drawImage(red.canvas, 0, 0, w, h, Math.round(bleed - (w * k) / 2), Math.round(-(h * k) / 2), Math.round(w * (1 + k)), Math.round(h * (1 + k)));
+        a.ctx.imageSmoothingEnabled = true;
+      } else a.ctx.drawImage(red.canvas, bleed, 0);
       a.ctx.globalCompositeOperation = 'source-over';
       a.ctx.fillStyle = '#000000';
     }

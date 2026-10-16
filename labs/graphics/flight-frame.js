@@ -20,7 +20,7 @@ import { stepTracker } from './tracker.js';
 import { COCKPIT_FX, damageLevel, wearCockpit, shakeOffset, drawPieces, steerLight, mendCockpit, crackShape, drawCracked } from './cockpit-fx.js';
 import { keepFrame, startRespawn, respawning, handsOff, drawReboot, drawRisingShip, scrambleOf } from './respawn-fx.js';
 import { drawContextPlates, shipOverPlate, PLATE } from './context.js';
-import { selectedTask, markedQuests } from '../../src/tasks.js';
+import { selectedTask, markedQuests, boardQuests } from '../../src/tasks.js';
 import { menuOpen, standShare } from '../../src/interaction.js';
 import { GUIDE_PLATE, noticeRect } from './notice.js';
 import { ROLES } from '../../src/roles.js';
@@ -336,7 +336,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     notices.handleEvents();
     // The quests come and ended as the radio hears them (a wave in yellow, green or red: SX, 2026-10-08), at the board's own time.
     const boardNow = pageTime();
-    syncQuestBoard(questBoard, currentQuests(world), world.questOutcomes, boardNow);
+    syncQuestBoard(questBoard, boardQuests(world), notices.outcomes, boardNow);
     listenQuests(radio, questBoard, boardNow);
     feedback.step(world.paused || game.labOpen ? 0 : rawDt);
     sound.update(world, screens.anyScreen() ? IDLE_CONTROLS : router.hands(), rawDt, { active: !world.paused && !game.labOpen });
@@ -523,7 +523,8 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
       stepCharm(charm, world.ship, world.time, hungId, pageTime(), rawDt, feedback.reducedMotion, MODERN_HOLD);
       charm.shown = false;
       stepModernFx(game.modernFx, { share: world.ship.alive && world.hullMax > 0 ? world.hull / world.hullMax : 0, angle: world.ship.angle, dt: rawDt,
-        charmAt: game.lastHudLayout?.modern ? game.lastHudLayout.charmAt : null, charmId: hungId, reducedMotion: feedback.reducedMotion });
+        charmAt: game.lastHudLayout?.modern ? game.lastHudLayout.charmAt : null, charmId: hungId,
+        wheelAt: game.lastHudLayout?.modern ? game.lastHudLayout.wheelAt : null, reducedMotion: feedback.reducedMotion });
       modernOut = group('modern', renderer, (r) => drawModernHud(r, game, { given, brake: !!brakeHands.damp, lamp: HELM_FX.lamp,
         speed: Math.hypot(world.ship.vx, world.ship.vy), maxSpeed: world.ship.params().maxSpeed, input: flown, now: pageTime(),
         scopeArgs: { flags: scopeArgs.flags, quests: scopeArgs.quests, task: scopeArgs.task }, reducedMotion: feedback.reducedMotion,

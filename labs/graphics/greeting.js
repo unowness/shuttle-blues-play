@@ -16,8 +16,10 @@
 //   NOTCH  (G4) the offer: SAY HI after the ship's name, one row, a hairline under the row. Each line said in a bubble over its ship: a
 //          black sheet in the windows' frame, its tail a notch cut down out of its own bottom line, one line with the frame
 //
-// The sketch's G4 slid the name left so the row stood centred; the world writes the name centred under the ship (src/worldDraw.js), so
-// here the offer follows the name where it stands.
+// A ship's name stands over its words, in the quiet ink, the words white under it, both flush on one edge (SX, 2026-10-16: «Имена NPC
+// ... залезают на их рисунок и на их речь залезают. Имена NPC пусть появляются только когда вот я нажал поздороваться ... и пусть имя
+// будет там сверху на два фразочкой то есть двойная линия выровненная ... имя там приглушенная фразочка белая»); the world writes no
+// name under a ship since (src/worldDraw.js), so NOTCH's offer stands centred under it (the sketch's G4 had slid it after the name).
 //
 // State is kept (one record a craft, made the first time it is seen); the frame draws through scratch objects and module-level painters.
 import { CONFIG } from '../../src/config.js';
@@ -133,11 +135,10 @@ export function drawGreetOffer(r, world, target, presence, { live = true, far = 
   const wide = KEYCAP_PAD * 2 + key.length * r.cellW + r.cellW + word.length * r.cellW;
   O.r = r; O.key = key; O.word = word; O.lit = lit; O.ink = far ? QUIET : G; O.live = live; O.hover = s.hover;
   if (style === 'notch') {
-    // After the name the world writes under the ship (src/worldDraw.js), a cell's line of air between; centred where it has none.
-    const nameW = craft.label ? craft.label.length * r.cellW : 0;
+    // Centred under the ship, a row down.
     O.y = C.y + rows.length * r.cellH * scale * 0.5 + r.cellH;
-    O.x = nameW ? C.x + nameW / 2 + UI.line.cols * r.cellW : C.x - wide / 2;
-    O.line = true; O.x0 = nameW ? C.x - nameW / 2 : O.x; O.x1 = O.x + wide;
+    O.x = C.x - wide / 2;
+    O.line = true; O.x0 = O.x; O.x1 = O.x + wide;
   } else {
     // On the craft's side toward the pilot's ship, off its hull (the keycap's rise and its row about the craft's middle row).
     const hull = pilotHull(r, world), p = besideToward(r, C.x, C.y, colsOf(rows) * r.cellW * scale / 2, rows.length * r.cellH * scale / 2,
@@ -158,13 +159,15 @@ export function drawGreetOffer(r, world, target, presence, { live = true, far = 
 
 // NOTCH's bubble and what it reads: the words on a black sheet in the windows' frame, its tail a notch cut in its bottom line down to
 // the point (x, y) at the interface's 2:1 slant, one line with the frame. Its words stand on the sheet, not on the sky (onPlate).
-const B = { r: null, rows: null, x: 0, y: 0, ink: W, alpha: 1 };
+// `name` the ship's, a row of its own over the words in the quiet ink (none for the pilot's own).
+const B = { r: null, rows: null, name: null, x: 0, y: 0, ink: W, alpha: 1 };
 function paintBubbleWords() {
-  const r = B.r;
-  for (let k = 0; k < B.rows.length; k++) r.text(B.rows[k], B.x + r.cellW, B.y + UI.pad + k * UI.row + (UI.row - r.cellH) / 2, B.ink, B.alpha);
+  const r = B.r, top = B.name ? 1 : 0, at = (k) => B.y + UI.pad + k * UI.row + (UI.row - r.cellH) / 2;
+  if (B.name) r.text(B.name, B.x + r.cellW, at(0), G, B.alpha);
+  for (let k = 0; k < B.rows.length; k++) r.text(B.rows[k], B.x + r.cellW, at(k + top), B.ink, B.alpha);
 }
-function bubble(r, rows, x, y, ink, alpha, box) {
-  const w = colsOf(rows) * r.cellW + 2 * r.cellW, h = rows.length * UI.row + 2 * UI.pad;
+function bubble(r, rows, x, y, ink, alpha, box, name = null) {
+  const lines = rows.length + (name ? 1 : 0), w = Math.max(colsOf(rows), name ? name.length : 0) * r.cellW + 2 * r.cellW, h = lines * UI.row + 2 * UI.pad;
   const tail = UI.row / 2, bx = Math.round(x - 2 * r.cellW), by = Math.round(y - tail - h);
   const c = r.ctx;
   c.save(); c.globalAlpha = alpha;
@@ -175,7 +178,7 @@ function bubble(r, rows, x, y, ink, alpha, box) {
   c.fillStyle = ROLES.backing; c.fill();
   c.strokeStyle = ROLES.frame; c.lineWidth = 1; c.stroke();
   c.restore();
-  B.r = r; B.rows = rows; B.x = bx; B.y = by; B.ink = ink; B.alpha = alpha;
+  B.r = r; B.rows = rows; B.name = name; B.x = bx; B.y = by; B.ink = ink; B.alpha = alpha;
   onPlate(paintBubbleWords);
   box.x = bx; box.y = by; box.w = w; box.h = h + tail;
   return box;
@@ -197,11 +200,11 @@ export function drawGreetAnswer(r, world, item, style = DEFAULT_GREETING) {
     }
     const craft = at.craft, scale = craft.scale ?? 1;
     const hw = colsOf(craft.rows) * r.cellW * scale / 2, hh = craft.rows.length * r.cellH * scale / 2;
-    return bubble(r, rows, C.x - hw * 0.3, C.y - hh - UI.pad, W, alpha, box);
+    return bubble(r, rows, C.x - hw * 0.3, C.y - hh - UI.pad, W, alpha, box, craft.label ?? null);
   }
   // WAVE: in the offer's place, behind a line in the hull's ink, on the side toward the other ship (the pilot's, or for the pilot's own
   // words the craft greeted), the words past the line, away from the ship that says them; the offer keeps out while it stands.
-  let hw, hh, ink, to, hull = null;
+  let hw, hh, ink, to, hull = null, name = null;
   if (pilot) {
     const ship = world.ship, mt = ship.metrics || ship.measureDrawing(r.cellW, r.cellH), other = world.craftAt?.(item.hail.to);
     hw = ship.model.width * mt.w / 2; hh = ship.model.height * mt.h / 2;
@@ -213,8 +216,11 @@ export function drawGreetAnswer(r, world, item, style = DEFAULT_GREETING) {
     hw = colsOf(craft.rows) * r.cellW * scale / 2; hh = craft.rows.length * r.cellH * scale / 2;
     ink = item.hail.angry ? ROLES.danger : hullInk(craft); hull = pilotHull(r, world);   // a ship's curse or rage: the line in the danger ink
     to = { x: hull.x + hull.w / 2, y: hull.y + hull.h / 2 };
+    name = craft.label ?? null;
   }
-  const textW = colsOf(rows) * r.cellW, bw = GREETING.width + r.cellW + textW, bh = (rows.length - 1) * UI.row + r.cellH + 2 * UI.pad;
+  // Its name a row over its words, both flush to the line's side (the pilot's own words have none).
+  const head = name ? 1 : 0, textW = Math.max(colsOf(rows), name ? name.length : 0) * r.cellW;
+  const bw = GREETING.width + r.cellW + textW, bh = (rows.length + head - 1) * UI.row + r.cellH + 2 * UI.pad;
   const p = besideToward(r, C.x, C.y, hw, hh, bw, bh, to, hull, PLACE);
   // The line on the side by the ship, the words beyond it.
   const x = p.side > 0 ? p.x + GREETING.width : p.x + bw - GREETING.width, top = p.y, y = top + UI.pad;
@@ -222,8 +228,12 @@ export function drawGreetAnswer(r, world, item, style = DEFAULT_GREETING) {
   const c = r.ctx;
   c.save(); c.globalAlpha = alpha; c.strokeStyle = ink; c.lineWidth = GREETING.width; c.lineJoin = 'miter';
   c.beginPath(); c.moveTo(px(x), px(top)); c.lineTo(px(x), px(top + bh * grow)); c.stroke(); c.restore();
-  const tx = p.side > 0 ? x + r.cellW : x - r.cellW - textW;
-  if (grow >= 1) for (let k = 0; k < rows.length; k++) r.text(rows[k], tx, y + k * UI.row, W, alpha);
+  // Flush to the line: from it on its right, up to it on its left.
+  const flush = (s) => (p.side > 0 ? x + r.cellW : x - r.cellW - s.length * r.cellW);
+  if (grow >= 1) {
+    if (name) r.text(name, flush(name), y, item.hail.angry ? ROLES.danger : G, alpha);
+    for (let k = 0; k < rows.length; k++) r.text(rows[k], flush(rows[k]), y + (k + head) * UI.row, W, alpha);
+  }
   box.x = p.x; box.y = top; box.w = bw; box.h = bh;
   return box;
 }

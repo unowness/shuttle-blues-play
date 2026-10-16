@@ -23,6 +23,12 @@
 //   NAV    the locator and the map fitted: M MAP  P PILOT CARD                                                 the map, the card opened
 //   SIGN   the first word found beyond the starters: L LEAVE A SIGN                                           the composer opened
 //
+// The lines after the loaner (ARMS, NAV, SIGN) come only in a calm stretch, one at a time with a pause between (SX, 2026-10-16: «чуть
+// помедленнее, постепенно в спокойные моменты. Не в моменты боя, да, не в моменты даже доставки ... с какими-то паузами не подряд ... я не
+// заметил, когда подсказывают карту, не заметил, когда подсказывают, как карточку пилота открыть»): no fight on (src/audio.js inFight) and no
+// pirate within HINT.clear u, no cargo carried or job running, nothing selected, for HINT.pause s with no hint standing. A calm line that
+// stands when a fight or a job comes goes unsaid (a part already done is said) and comes again in the next calm stretch.
+//
 // In MOUSE + HOTKEYS the first flight is the two it was (the keys do not fly there): THRUST, the pointer's words, then STEER. The moments
 // any pilot meets, the tutorial's skills among them for a pilot who never had it (a veteran's world, a skipped chapter):
 //
@@ -50,6 +56,7 @@ import { openingTeaches, openingStage, loanerOut, STAGES } from './opening.js';
 import { WORDS } from './progression.js';
 import { skillWay, codesOf, DEFAULT_SCHEME } from './controls.js';
 import { hypot2 } from './util.js';
+import { inFight } from './audio.js';
 
 const MOUSE_MODE = 'M';
 // A part of a line: the skill it says (src/pilot.js SKILL_IDS), its way (src/controls.js skillWay's name), its verb (none in the cross: the
@@ -79,7 +86,10 @@ export const HINTS = Object.freeze({
 // 45»; his table's 5 s before); `hold` s a turn is held, or the sky is open, before its moment comes (SX's «удержанный секунду выше 300 u/s»);
 // `fade` s it comes and goes in (none for reduced motion), and a part done dims in; `done` how much of itself a part done shows while the rest
 // of its line stands («затухают, когда узер все кнопки нажал»).
-export const HINT = Object.freeze({ life: 45, hold: 1, fade: 0.25, done: 0.3 });
+// `pause` s of calm with no hint standing before a calm line comes, `clear` u no pirate is within for the calm (CALM).
+export const HINT = Object.freeze({ life: 45, hold: 1, fade: 0.25, done: 0.3, pause: 12, clear: 3000 });
+// The lines that wait for a calm stretch: the tutorial's after the loaner.
+export const CALM = Object.freeze(['arms', 'nav', 'sign']);
 // Which moment wins when two are on in one frame, and which a standing hint yields to: the jump's figure is on while the ship is up, the heavy
 // hit ahead is the nearest danger; then the tutorial in its order, the first flight first; the moments of a pilot without it last.
 export const ORDER = Object.freeze(['trick', 'brake', 'move', 'thrust', 'steer', 'ride', 'view', 'arms', 'nav', 'sign', 'fire', 'drift', 'jump']);
@@ -105,8 +115,9 @@ function unsaid(world, skill) {
 // jumped, for the trick's key), parts (a bit a part shown), done (a bit a part answered), since (s since each part was answered), cells (each
 // part's way as the mode says it), scheme }), how long a turn and an open sky have been held, the screen filter last seen (`display`: its
 // change is the V's deed), and whether the record changed since the page last saved it.
-// `learned` the hint whose deeds have just ended it (not its time, not the ship), for the page's sound (src/audio.js `learned`).
-export const createSkillHints = () => ({ shown: null, turning: 0, open: 0, display: null, changed: false, learned: null });
+// `learned` the hint whose deeds have just ended it (not its time, not the ship), for the page's sound (src/audio.js `learned`). `calm` s the
+// flight has been calm with no hint standing (CALM's lines wait for HINT.pause of it).
+export const createSkillHints = () => ({ shown: null, turning: 0, open: 0, calm: 0, display: null, changed: false, learned: null });
 
 const canFire = (ship) => ship.params().can?.fire !== false;
 // A hull's gun reaches what a shot covers in its life (the shot's own speed over CONFIG.bullet.life, from the hull).
@@ -166,6 +177,11 @@ function figureSpeed(P) {
   return v;
 }
 
+// No fight on, no pirate within HINT.clear, no cargo carried and no job running: what a standing calm line needs to stay.
+const peaceful = (world) => !inFight(world) && !pirateWithin(world, HINT.clear) && !world.ledger.active && !world.cargo;
+// And nothing selected (no station's or ship's window up close): what the calm stretch needs to count.
+const calmNow = (world) => !world.selected && peaceful(world);
+
 // Open space at a speed a jump with a figure fits: nothing selected (no window near), and no rock, planet, station, hole or pirate within the
 // way a jump covers (the speed over the hang it would have) and the thing's own size.
 function openSky(world, P, speed) {
@@ -192,9 +208,9 @@ function momentOf(id, h, world, a) {
     // The first flight's words said, or the first flight past without them.
     case 'ride': return newPilot(world) && (!firstFlight(world) || world.pilot.taught.has('thrust') && world.pilot.taught.has('steer'));
     case 'view': return newPilot(world) && sayableParts(world, 'ride', a.scheme) === 0 && momentOf('ride', h, world, a);
-    case 'arms': return newPilot(world) && !loanerOut(world);
-    case 'nav': return newPilot(world) && navFitted(world);
-    case 'sign': return newPilot(world) && wordFound(world);
+    case 'arms': return newPilot(world) && !loanerOut(world) && h.calm >= HINT.pause;
+    case 'nav': return newPilot(world) && navFitted(world) && h.calm >= HINT.pause;
+    case 'sign': return newPilot(world) && wordFound(world) && h.calm >= HINT.pause;
     case 'brake': return !!a.warning;
     case 'fire': return canFire(ship) && pirateWithin(world, gunReach(ship));
     case 'drift': return h.turning >= HINT.hold;
@@ -242,6 +258,7 @@ function answered(id, parts, world, a) {
 function dwell(h, world, a, dt) {
   const ship = world.ship, pilot = world.pilot, speed = hypot2(ship.vx, ship.vy);
   const up = ship.airborne || !ship.alive || world.docked || world.home;
+  h.calm = !h.shown && ship.alive && !world.docked && !world.home && calmNow(world) ? h.calm + dt : 0;
   const turning = !up && !pilot.taught.has('drift') && !!driftPreset(world) && speed > FLIGHT.drift.start && Math.abs(a.controls?.turn ?? 0) >= FLIGHT.drift.turning;
   h.turning = turning ? h.turning + dt : 0;
   const P = pilot.taught.has('jump') ? null : trickPreset(world);
@@ -269,10 +286,10 @@ function firstOn(h, world, a, before = ORDER.length) {
 // The frame's hands, kept (a step's own object each frame would be garbage a frame for the whole game).
 const A = { braking: false, controls: null, warning: null, scheme: DEFAULT_SCHEME, screen: null, filtered: false, held: null };
 const teach = (h, pilot, skill) => { if (pilot.teach(skill)) h.changed = true; };
-// Every skill of the parts shown said.
-function teachParts(h, pilot, s) {
+// Every skill of the parts shown said (or of those among `bits`: a calm line broken says only what was done).
+function teachParts(h, pilot, s, bits = s.parts) {
   const list = HINTS[s.id].parts;
-  for (let i = 0; i < list.length; i++) if (s.parts & (1 << i)) teach(h, pilot, list[i].skill);
+  for (let i = 0; i < list.length; i++) if (bits & (1 << i)) teach(h, pilot, list[i].skill);
 }
 // The parts' deeds of this frame put on the hint that stands: what is answered stays answered, dimming in.
 function answer(s, world, a, dt) {
@@ -312,8 +329,10 @@ export function stepSkillHints(h, world, { braking = false, controls = null, war
     const line = HINTS[s.id], life = line.life ?? HINT.life;
     const deed = flying && s.age < life && s.done === s.parts;
     const ends = !flying || s.age >= life || deed || (line.cross && !firstFlight(world));
-    if (!ends && !firstOn(h, world, A, ORDER.indexOf(s.id))) return s;
+    const broken = !ends && CALM.includes(s.id) && !peaceful(world);
+    if (!ends && !broken && !firstOn(h, world, A, ORDER.indexOf(s.id))) return s;
     if (ends) teachParts(h, pilot, s);
+    else if (broken) teachParts(h, pilot, s, s.done);
     if (deed) h.learned = s.id;
     if (fade > 0) s.out = 0; else h.shown = s = null;
   }

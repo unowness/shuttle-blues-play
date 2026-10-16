@@ -355,8 +355,9 @@ function drawHail(r, world, item, occupied = []) {
   const half = craft ? Math.max(craft.rows[0].length * r.cellW, craft.rows.length * row) * craft.scale / 2 : 40;
   const alpha = Math.max(0, Math.min(1, item.age / HAIL.fade, (item.life - item.age) / HAIL.fade));
   if (alpha <= 0) return null;
-  const rows = item.hail.rows ?? hailRows(item.hail.line);
-  const width = Math.max(...rows.map((t) => t.length)) * r.cellW, height = rows.length * row;
+  // Its name a row over its words, in the quiet ink (SX, 2026-10-16: «имя там приглушенная фразочка белая»); the world writes none under it.
+  const rows = item.hail.rows ?? hailRows(item.hail.line), name = item.hail.name ?? null, head = name ? 1 : 0;
+  const width = Math.max(name ? name.length : 0, ...rows.map((t) => t.length)) * r.cellW, height = (rows.length + head) * row;
   const shoulder = half * 0.55, rise = HAIL.rise * row * 1.5, run = rise / 2;
   const place = (dir, up) => {
     const sx = p.x + dir * shoulder, sy = p.y - up * shoulder;
@@ -378,6 +379,7 @@ function drawHail(r, world, item, occupied = []) {
   ctx.strokeStyle = CONFIG.hud.color; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(Math.round(sx) + .5, Math.round(sy) + .5); ctx.lineTo(Math.round(ex) + .5, Math.round(ey) + .5); ctx.stroke();
   ctx.restore();
-  rows.forEach((t, k) => r.text(t, tx, ty + k * row, labelInk(item.type), alpha));
+  if (name) r.text(name, tx, ty, ROLES.textSecondary, alpha);
+  rows.forEach((t, k) => r.text(t, tx, ty + (k + head) * row, labelInk(item.type), alpha));
   return box;
 }

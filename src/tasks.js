@@ -20,14 +20,17 @@ import { currentQuests, questTone } from './quests.js';
 import { deliveryNavigation, questNavigation, legTo } from './navigation.js';
 import { CONFIG } from './config.js';
 import { withCourse } from './course.js';
-import { isOpeningJob } from './contracts.js';
+import { isOpeningJob, contractById, parTime } from './contracts.js';
+import { QUEST_LINES as QL } from './questLines.js';
 
 // Seconds ALL CLEAR stands, counted only while it can be seen (no screen over the flight, not paused).
 export const CLEAR_SECONDS = 30;
 
 // The task of the cargo carried, of a cargo lost at `contractId`: their ids, which share the quest list's `activeId` with the quests'.
+// One id for both since 2026-10-16: the cargo is one plate of the quest list from its taking to its delivery, lost and taken back on the
+// way (cargoQuests).
 export const cargoTaskId = (contractId) => `cargo:${contractId}`;
-export const recoveryTaskId = (contractId) => `recovery:${contractId}`;
+export const recoveryTaskId = cargoTaskId;
 
 // Every task now, each { id, kind ('cargo' | 'recovery' | 'quest'), tone, ends (the deadline on the pilot's clock, or null), and
 // its source: contractId and job, or quest }.
@@ -165,6 +168,30 @@ export function taskTarget(world, task) {
   const s = world.ledger.stranded?.get(task.contractId);
   return s ? { sectorId: s.sectorId, x: s.x / SECTOR_SIZE.width, y: s.y / SECTOR_SIZE.height } : null;
 }
+
+// The cargo as plates of the quest list, the last of it (labs/graphics/quest-list.js QUEST_ORDER; SX, 2026-10-16: «о доставке груза пусть
+// теперь будет квест с грузом висеть самый нижний по приоритету в полоске квестов просто. Появился, когда взял груз, когда потерял груз
+// какой-то, тайм-аут висит о том, что нужно его подобрать, как только время закончилось, он пропадает. Если подобрал, то квест
+// продолжается, когда сдал, анимация, что квест сдал. Сверху убираем это»): one by its contract, carried or lying in space (cargoTaskId),
+// its name over TO <station> after its delivery clock (`left` s of its par, below 0 late), or PICK IT UP after the seconds before it goes
+// back to its station (`lost`). Its end is the page's, by its event (labs/graphics/notices.js: its pay as it lights green, red when it
+// went back). Added onto `out` (the world's quests, src/quests.js currentQuests), which it returns.
+export function cargoQuests(world, out = []) {
+  const L = world.ledger;
+  if (L.active) {
+    const job = L.activeJob?.() ?? contractById(L.active.id), elapsed = L.elapsed(L.active.id), par = parTime(job);
+    out.push({ id: cargoTaskId(L.active.id), kind: 'cargo', tone: 'cargo', contractId: L.active.id, lost: false, par,
+      left: elapsed == null ? null : par - elapsed, title: QL.cargo.title(job?.label ?? ''), sub: QL.cargo.to(stationDefById(job?.to)?.label ?? '') });
+  }
+  for (const [id, s] of L.stranded ?? []) {
+    const job = s.job ?? contractById(id);
+    out.push({ id: cargoTaskId(id), kind: 'cargo', tone: 'cargo', contractId: id, lost: true, par: null, left: L.returnsIn(id),
+      title: QL.cargo.title(job?.label ?? ''), sub: QL.cargo.lost() });
+  }
+  return out;
+}
+// What the quest list holds: the world's quests and the cargo (the page's frame syncs the list with it).
+export const boardQuests = (world) => cargoQuests(world, currentQuests(world));
 
 // The station a cargo goes to, for its words: { label, sectorLabel } or null.
 export function cargoDestination(task) {

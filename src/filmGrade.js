@@ -297,29 +297,40 @@ export const lookByCode = (code) => ALL_LOOKS.find((l) => l.code === code) || nu
 // и эффекты»; colour is the looks' alone, so no screen shifts a hue or lifts black). CRT is the tube of 2026-09-30
 // (src/crt.js) and the base; every screen but FLAT is curved, the LCD less; FLAT is kept for checks only. The starts
 // are SX's own settings of 2026-10-02 («я уже вот так накрутил, сделать стандартом»). Lengths are CSS px;
-// src/filmGradeScreen.js draws them.
+// src/filmGradeScreen.js draws them. Since 2026-10-17 the three are SX's picks of the second round (labs/graphics/sketches/screens-v2.html,
+// «C1 PSX, L2 BLEND, V1 FRINGE», his COPY's numbers): the CRT a PlayStation's ordered dither, halved scanlines, a stronger bend and a gain
+// (BRIGHT); the LCD flat, its blend of frames drawn straight, a fine panel grid, square corners; the VHS bent more, red and cyan parting
+// toward the sides (FRINGE).
 const curve = (start) => ({ label: 'CURVE', min: 0, max: 200, step: 5, start, unit: ' %', says: '100 % is the tube of 2026-09-30' });
 const vignette = (start) => ({ label: 'VIGNETTE', min: 0, max: 80, step: 2, start, unit: ' %', says: 'the light the rim takes' });
 export const SCREENS = Object.freeze({
-  crt: { label: 'CRT', says: "The game's tube: the bend, the rounded corners, the vignette, faint scanlines and glow. The base.", params: {
-    curve: curve(40), vignette: vignette(8),
+  crt: { label: 'CRT', says: "The game's tube: the bend, the rounded corners, the vignette, a PlayStation's dither, faint scanlines and glow. The base.", params: {
+    curve: curve(52), vignette: vignette(8),
     corner: { label: 'CORNERS', min: 0, max: 8, step: 0.5, start: 3, unit: ' %', says: "how round the tube's corners" },
-    scan: { label: 'SCANLINES', min: 0, max: 100, step: 5, start: 10, unit: ' %', says: 'dark rows between the lines, bent with the glass' },
+    scan: { label: 'SCANLINES', min: 0, max: 100, step: 5, start: 5, unit: ' %', says: 'dark rows between the lines, bent with the glass' },
     glow: { label: 'GLOW', min: 0, max: 100, step: 5, start: 15, unit: ' %', says: 'light spilling round what is bright' },
+    dither: { label: 'DITHER', min: 0, max: 50, step: 2, start: 18, unit: ' %', says: 'the 4 x 4 ordered dither: how much its darkest cell takes' },
+    dot: { label: 'DOT', min: 1, max: 3, step: 0.5, start: 1, unit: ' PX', says: "one dither cell, in the screen's points" },
+    grille: { label: 'GRILLE', min: 0, max: 50, step: 2, start: 0, unit: ' %', says: 'how dark the gaps between the phosphor columns' },
+    bright: { label: 'BRIGHT', min: 0, max: 25, step: 1, start: 14, unit: ' %', says: 'the picture this much brighter; black stays black' },
   } },
-  lcd: { label: 'LCD', says: 'A panel: its pixels, the lines between them, and a slow response that smears what moves.', params: {
-    pixel: { label: 'PIXEL', min: 1, max: 6, step: 0.25, start: 1, unit: ' PX', says: 'how big one panel pixel is' },
-    grid: { label: 'GRID', min: 0, max: 100, step: 5, start: 0, unit: ' %', says: 'how dark the lines between pixels' },
-    lag: { label: 'LAG', min: 0, max: 90, step: 5, start: 55, unit: ' %', says: 'how much of the last frame each pixel keeps' },
-    curve: curve(15), vignette: vignette(28),
+  lcd: { label: 'LCD', says: 'A flat panel: its pixels, the fine lines between them, and a slow response that smears what moves.', params: {
+    lag: { label: 'LAG', min: 0, max: 80, step: 5, start: 55, unit: ' %', says: 'how much of the last frame each pixel keeps, at 60 a second' },
+    grid: { label: 'GRID', min: 0, max: 50, step: 2, start: 14, unit: ' %', says: 'how dark the lines between the panel pixels' },
+    pitch: { label: 'PITCH', min: 1, max: 3, step: 0.5, start: 2, unit: ' PX', says: 'one panel pixel of the grid' },
+    pixel: { label: 'PIXEL', min: 0, max: 2, step: 1, start: 1, unit: ' PX', says: 'the picture snapped to panel pixels this big (0 off)' },
+    vignette: vignette(24),
+    corner: { label: 'CORNERS', min: 0, max: 8, step: 0.5, start: 0, unit: ' %', says: "how round the panel's corners" },
   } },
-  vhs: { label: 'VHS', says: 'A tape on a tube: the picture itself sways and tears, red runs right, the head noise at the bottom.', params: {
+  vhs: { label: 'VHS', says: 'A tape on a tube: the picture itself sways and tears, red runs right and parts from cyan toward the sides, the head noise at the bottom.', params: {
     wobble: { label: 'WOBBLE', min: 0, max: 4, step: 0.25, start: 0.75, unit: ' PX', says: 'how far each line sways' },
     tracking: { label: 'TRACKING', min: 0, max: 100, step: 5, start: 10, unit: ' %', says: 'the band that rolls down tearing the picture' },
     bleed: { label: 'BLEED', min: 0, max: 8, step: 0.5, start: 1, unit: ' PX', says: 'how far red runs to the right' },
     soft: { label: 'SOFT', min: 0, max: 100, step: 5, start: 10, unit: ' %', says: "the tape's blur along the lines" },
     noise: { label: 'NOISE', min: 0, max: 100, step: 5, start: 25, unit: ' %', says: 'snow over the picture' },
-    curve: curve(50), vignette: vignette(56),
+    fringe: { label: 'FRINGE', min: 0, max: 4, step: 0.25, start: 1, unit: ' PX', says: 'how far red and cyan part at the sides; none at the middle' },
+    breathe: { label: 'BREATHE', min: 0, max: 60, step: 5, start: 0, unit: ' %', says: 'the fringe swells and ebbs by this much over 7 s' },
+    curve: curve(62), vignette: vignette(56),
   } },
   flat: { label: 'FLAT', says: 'No glass at all: for checks only.', params: {} },
 });

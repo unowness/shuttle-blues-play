@@ -17,7 +17,7 @@ import { openStrangersIn } from './strangers.js';
 import { drawPaintTin, drawTin } from './paint.js';
 import { lookFindsIn, lookTinInks } from './looks.js';
 import { availableIn } from './rewards.js';
-import { craftPose, drawCraft, craftReach, craftSize, HAIL_REACH, visitorPose, isEnraged } from './traffic.js';
+import { craftPose, drawCraft, craftReach, craftSize, HAIL_REACH, visitorPose } from './traffic.js';
 import { npcCraft } from './npcShips.js';
 import { drawPestered } from './pester.js';
 import { drawWreck } from './wrecked.js';
@@ -784,8 +784,9 @@ class WorldDrawing {
       drawTin(r, s.x, s.y + float(c), lookTinInks(c.def.content), t, 1, c.angle);
     }
 
-    // Friendly traffic (src/traffic.js): each craft where the clock puts it, a
-    // named one with its name under it while the pilot is near.
+    // Friendly traffic (src/traffic.js): each craft where the clock puts it. No name under it since 2026-10-16 (SX: «Имена NPC ... залезают
+    // на их рисунок и на их речь залезают. Имена NPC пусть появляются только когда вот я нажал поздороваться»): a ship's name stands over
+    // its words (labs/graphics/greeting.js, src/feedback.js drawHail).
     lap('ships');
     for (const craft of this.trafficHere(this.sector.id, t)) {
       const pose = craftPose(craft, t, this.width, this.height);
@@ -794,12 +795,6 @@ class WorldDrawing {
       // Under the pointer it stays its size: the pointer shows its window instead (SX, 2026-10-04; labs/graphics/world-pointer.js).
       // Darker a moment while the ship is up over it in a jump (src/trick.js underShip).
       drawCraft(r, craft, s.x, s.y, pose.angle, underShip(this, r, craft, s.x, s.y, craftSize(r, craft)));
-      // An enraged ship (src/npcFleet.js) wears its name in the danger ink, wherever it is on the screen.
-      const angry = isEnraged(craft);
-      if (craft.label && (angry || Math.hypot(pose.x - this.ship.x, pose.y - this.ship.y) < HAIL_REACH * 2.5)) {
-        const w = craft.label.length * r.cellW;
-        r.text(craft.label, s.x - w / 2, s.y + craft.rows.length * r.cellH * craft.scale * 0.5 + r.cellH, angry ? CONFIG.hud.danger : CONFIG.hud.color, 0.9);
-      }
     }
     this.drawFogTraffic(r, t);
 
@@ -813,17 +808,11 @@ class WorldDrawing {
     drawRecorderLying(this, r, t);
     drawSpecial(this, r, t);
 
-    // A visitor out of O-08 (src/traffic.js), on its pass, named while the pilot is near.
+    // A visitor out of O-08 (src/traffic.js), on its pass (its name over its words, as a friendly ship's).
     if (this.visitor) {
       const v = this.visitor, craft = v.craft, pose = visitorPose(v);
       const s = this.project(r, pose.x, pose.y);
-      if (r.onScreen(s.x, s.y, craftReach(r, craft))) {
-        drawCraft(r, craft, s.x, s.y, pose.angle, underShip(this, r, craft, s.x, s.y, craftSize(r, craft)));
-        if (Math.hypot(pose.x - this.ship.x, pose.y - this.ship.y) < HAIL_REACH * 2.5) {
-          const w = craft.label.length * r.cellW;
-          r.text(craft.label, s.x - w / 2, s.y + craft.rows.length * r.cellH * craft.scale * 0.5 + r.cellH, CONFIG.hud.color, 0.9);
-        }
-      }
+      if (r.onScreen(s.x, s.y, craftReach(r, craft))) drawCraft(r, craft, s.x, s.y, pose.angle, underShip(this, r, craft, s.x, s.y, craftSize(r, craft)));
     }
 
     // Service droids (src/droids.js), upright over their bob, and what one sold on its way to the hull; under each, while the pilot

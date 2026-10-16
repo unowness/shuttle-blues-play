@@ -14,8 +14,9 @@ import { ROLES, PALETTE } from '../../src/roles.js';
 //   brake   - short alternating puffs from the two side nozzles, outward
 //   glass   - the left @ goes one ink step darker while turning left, the right @ while
 //             turning right (a glint sliding off the cockpit glass)
-//   wings   - MODERN's wing on the side of a turn darkens as the glass does; in reverse it
-//             also flips to its brake pose (wingFlip)
+//   wings   - MODERN's side of a turn darkens from the nose back: the whisker, the glass's
+//             half, the wing (bankDraws); in reverse the wing also flips to its brake pose
+//             (wingFlip)
 //
 // Data flow: input -> stepShipMotion (state) -> drawShipMotion (glyph calls). The state
 // is plain data; the drawing reads it and the model's cells, and nothing else.
@@ -41,8 +42,9 @@ export const MOTION = Object.freeze({
   brakeShare: 0.9,
   // Glass: seconds to swing between the two inks (a crossfade by alpha).
   glassSeconds: 0.12,
-  // MODERN's wings: how far toward black the wing on the side of a turn goes, on the glass's timing (wingDraws).
+  // MODERN's side of a turn: how far toward black it goes (bankDraws), and the seconds the darkening takes to run from the nose to the wing.
   wingDark: 0.45,
+  bankSeconds: 0.28,
   // A port at or below this level is not firing (and is not drawn).
   fire: 0.05,
   maxPuffs: 160,
@@ -238,6 +240,7 @@ export function createShipMotion(seed = 1) {
     emit: zeros(),     // fractional puffs owed
     puffs: [],         // live puffs { port, age, life, reach, side, k }
     glass: { left: 0, right: 0 },
+    bank: { left: 0, right: 0 },   // MODERN's side of a turn darkening, 0..1 (bankDraws)
     flip: { left: 0, right: 0 },   // a wing turned over in reverse, 0..1 (wingFlip)
     rng: mulberry32(seed),
   };
@@ -296,6 +299,10 @@ export function stepShipMotion(state, input, dt) {
   const g = 1 / M.glassSeconds;
   state.glass.left = clamp(state.glass.left + (turn < -0.1 ? g : -g) * dt, 0, 1);
   state.glass.right = clamp(state.glass.right + (turn > 0.1 ? g : -g) * dt, 0, 1);
+  // The side of a turn darkening from the nose back (bankDraws), on its own longer timing.
+  const b = 1 / M.bankSeconds;
+  state.bank.left = clamp(state.bank.left + (turn < -0.1 ? b : -b) * dt, 0, 1);
+  state.bank.right = clamp(state.bank.right + (turn > 0.1 ? b : -b) * dt, 0, 1);
   // A wing turned over: in reverse, on the side of the turn, on the glass's timing.
   state.flip.left = clamp(state.flip.left + (retro && turn < -0.1 ? g : -g) * dt, 0, 1);
   state.flip.right = clamp(state.flip.right + (retro && turn > 0.1 ? g : -g) * dt, 0, 1);
@@ -341,7 +348,8 @@ export function firingNozzles(state, min = MOTION.fire) {
 }
 export function isAtRest(state) {
   return state.puffs.length === 0 && firingPorts(state, 0).length === 0
-    && state.glass.left === 0 && state.glass.right === 0 && state.flip.left === 0 && state.flip.right === 0;
+    && state.glass.left === 0 && state.glass.right === 0 && state.flip.left === 0 && state.flip.right === 0
+    && state.bank.left === 0 && state.bank.right === 0;
 }
 
 // ---- cockpit glass -----------------------------------------------------------------
@@ -362,14 +370,24 @@ export function glassDraws(state, cell, baseInk, inks = MOTION_INKS) {
   return [{ ink: baseInk, alpha: 1 }, { ink: inks.glassDark, alpha: k }];
 }
 
-// ---- the wings ---------------------------------------------------------------------
-// MODERN's wings (ships/modern.json: the triangles and the flats under them) darken on the side of a turn, as the glass does and on its
-// timing (SX, 2026-10-16: «при поворотах делай крылошки затемняющимися во в сторону поворотов»): the cell's own ink `wingDark` toward
-// black, a crossfade by alpha as the glass's. A drawing without these glyphs (SX's CLIPPER) has none.
+// ---- the side of a turn ------------------------------------------------------------
+// MODERN's side of a turn darkens (SX, 2026-10-16: «при поворотах делай крылошки затемняющимися во в сторону поворотов»; then «нужно
+// покрасить еще какие-то символы на этой стороне, кроме крыла. Но не все ... либо стекло кабины, это внутренний овал, либо, может,
+// спереди вот боковой ус ... нужна чуть было мне реализованная анимация поворачивания»): from the nose back, as if the hull banked into
+// it, the front whisker first, then the glass's half on that side, then the wing (its triangles and the flats under them), each over its
+// share of `bankSeconds` (BANK); the tail stays. The cell's own ink `wingDark` toward black, a crossfade by alpha as the glass's. A drawing
+// without these glyphs (SX's CLIPPER) has none.
 export const WING_GLYPHS = new Set(['◢', '◣', '◤', '◥', '▔']);
+const BANK = Object.freeze([
+  Object.freeze({ glyphs: new Set(['◟', '◞']), from: 0, to: 0.5 }),              // the front whiskers
+  Object.freeze({ glyphs: new Set(['╭', '╮', '╰', '╯']), from: 0.2, to: 0.75 }),  // the glass
+  Object.freeze({ glyphs: WING_GLYPHS, from: 0.45, to: 1 }),                      // the wing
+]);
+export const BANK_GLYPHS = new Set(BANK.flatMap((g) => [...g.glyphs]));
 const wingInks = new Map();
-export function wingDraws(state, cell, baseInk) {
-  const k = !cell || !WING_GLYPHS.has(cell.ch) ? 0 : cell.x < 0 ? state.glass.left : cell.x > 0 ? state.glass.right : 0;
+export function bankDraws(state, cell, baseInk) {
+  const group = cell ? BANK.find((g) => g.glyphs.has(cell.ch)) : null, side = !cell ? 0 : cell.x < 0 ? state.bank.left : cell.x > 0 ? state.bank.right : 0;
+  const k = group ? smooth(group.from, group.to, side) : 0;
   if (k < 0.02 || typeof baseInk !== 'string' || baseInk.length !== 7) return [{ ink: baseInk, alpha: 1 }];
   let dark = wingInks.get(baseInk);
   if (!dark) { dark = mixHex(baseInk, '#000000', MOTION.wingDark); wingInks.set(baseInk, dark); }

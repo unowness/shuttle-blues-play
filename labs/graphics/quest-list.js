@@ -38,6 +38,7 @@ import { keptDraw } from '../../src/grade.js';
 import { RAIL, LORE, LORE_TIMES, sweepAt, washOf, moneyRuns, railFit, drawRailGrid } from './rail.js';
 import { hoverItem, withAlpha } from '../../src/hover.js';
 import { MARK_FOCUS } from '../../src/tasks.js';
+import { routeInk } from '../../src/interface.js';
 import { keyName } from '../../src/controls.js';
 import { easeOut as ease, noise3 as noise, inBox } from '../../src/util.js';
 
@@ -55,7 +56,11 @@ export const QUEST_TONES = Object.freeze({
   // O-08's violet (CONFIG.blackHole.color) until the pick.
   story: { ink: QUEST_INKS.story, mark: '◆' },
   special: { ink: QUEST_INKS.special, mark: '◆' },
+  // The cargo carried (src/tasks.js cargoQuests, since 2026-10-16): the route's ink by its clock (green, yellow as its fast pay melts, red
+  // once late: src/interface.js routeInk), the cargo plates' → while carried and ! while it lies in space, in the danger's red.
+  cargo: { ink: QUEST_INKS.green, mark: '→' },
 });
+const CARGO_LOST = Object.freeze({ ink: QUEST_INKS.red, mark: '!' });
 const toneOf = (q) => QUEST_TONES[questTone(q)] ?? QUEST_TONES.green;
 export const QUEST_OUTCOME = Object.freeze({
   done: { ink: PALETTE.green, mark: '+' },
@@ -79,6 +84,8 @@ const BEARINGS = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'];
 export const bearingGlyph = (a) => BEARINGS[(Math.round(a / (Math.PI / 4)) % 8 + 8) % 8];
 const glyphs = (s) => Array.from(String(s ?? ''));
 
+const idHash = (id) => Array.from(String(id)).reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
+
 export function createQuestBoard() {
   // `auto`: the id the chapter selected by itself (activeId while it is the pilot's own pick no more than that): the selection that gives the
   // banner, the locator and the map their one task, and dims no other plate or pointer.
@@ -95,6 +102,9 @@ export function syncQuestBoard(board, quests, outcomes, now) {
     if (plate.doneAt != null) continue;
     plate.doneAt = now;
     plate.outcome = outcomes?.get(plate.id) ?? null;
+    // An end that says itself in its own words (the cargo's: its pay, the station it went back to; labs/graphics/notices.js).
+    const said = outcomes?.words?.(plate.id);
+    if (said) plate.q = { ...plate.q, ...said };
     if (board.activeId === plate.id) board.activeId = null;
   }
   for (const q of quests) {
@@ -102,7 +112,9 @@ export function syncQuestBoard(board, quests, outcomes, now) {
     board.serial += 1;
     // Every field a plate is given, given now (its shape does not change as it is drawn): its place (`y`, `target`, `from`, `moveAt`),
     // when it came in again (`shown`), whether it was clicked (`seen`) and is gone (`gone`).
-    board.plates.push({ id: q.id, q, born: now, doneAt: null, outcome: null, seed: board.serial * 7919 + Math.floor(now * 1000) % 7919,
+    // Its seed (the corners its lore sweeps from) by its id and its place in the list's history, not by the clock: a plate may come in a frame
+    // run behind the title (the cargo of a loaded save, since the cargo is a plate: 2026-10-16), on a clock nothing holds.
+    board.plates.push({ id: q.id, q, born: now, doneAt: null, outcome: null, seed: board.serial * 7919 + idHash(q.id) % 7919,
       y: null, target: null, from: null, moveAt: null, shown: null, seen: false, gone: false });
     // The opening chapter's objective (src/opening.js `select`) selects itself as it comes: it is the one thing to do. A red or a
     // purple quest no longer does (it did until 2026-10-07): every quest shows its marks as it comes (src/tasks.js markedQuests). It is
@@ -110,10 +122,16 @@ export function syncQuestBoard(board, quests, outcomes, now) {
     // clicked: a quest that is not the pilot's pick is lit while its marks are on).
     if (q.select) { board.activeId = q.id; board.auto = q.id; }
   }
-  // The red ones first (a raid, a ship pestered), then side quests, each in the order they came.
-  const rank = (p) => (questTone(p.q) === 'red' ? 0 : questTone(p.q) === 'special' ? 1 : 2);
-  board.plates.sort((a, b) => (rank(a) === rank(b) ? a.born - b.born : rank(a) - rank(b)));
+  // In QUEST_ORDER's tiers, each in the order they came (the newest lowest).
+  board.plates.sort((a, b) => (rankOf(a.q) === rankOf(b.q) ? a.born - b.born : rankOf(a.q) - rankOf(b.q)));
 }
+// The list's order (SX, 2026-10-16: «фиолетовые и сюжетные, они всегда первые ... По времени, чем недавнее пришел, тем ниже он стоит. И по
+// значимости. Фиолетовый точно самый значимый. Дальше посмотри просто по количеству случаев, когда этот квест встречается»): the purple ones
+// (the story's, a reference ship's), then the tones by how rarely they come, the rarer higher (tools/quest-economy-sim.mjs --rules built,
+// 60 runs of 240 min, offers a run: green 7.0, blue 16.4, red 19.8), the cargo carried last (SX: «самый нижний по приоритету»). Red was first
+// until then (a raid, a ship pestered).
+export const QUEST_ORDER = Object.freeze({ story: 0, special: 0, green: 1, yellow: 2, blue: 2, red: 3, cargo: 4 });
+const rankOf = (q) => QUEST_ORDER[questTone(q)] ?? QUEST_ORDER.green;
 
 // The active quest's data, or null.
 export function activeQuest(board) {
@@ -154,14 +172,24 @@ export function clickQuestBoard(board, x, y) {
 export const questBoardHit = (board, x, y) => board.boxes.some((b) => inBox(b, x, y)) || inBox(board.hintBox, x, y);
 
 // What a plate says now: its ink, mark and words by its state.
+// The cargo's clock: its delivery's (LATE past its par), or the seconds before it goes back while it lies in space.
+const cargoClock = (q) => (q.left == null ? '' : q.lost || q.left >= 0 ? clockText(Math.ceil(Math.max(0, q.left))) : `LATE ${clockText(Math.ceil(-q.left))}`);
+// (Kept, filled again for each plate: a frame's objects would be garbage.)
+const CARGO_ROUTE = { clock: { par: 0, left: 0 } }, CARGO_TONE = { ink: '', mark: QUEST_TONES.cargo.mark };
+function cargoTone(q) {
+  if (q.lost) return CARGO_LOST;
+  CARGO_ROUTE.clock.par = q.par ?? 0; CARGO_ROUTE.clock.left = q.left ?? 0;
+  CARGO_TONE.ink = q.left == null ? QUEST_TONES.cargo.ink : routeInk(CARGO_ROUTE);
+  return CARGO_TONE;
+}
 function plateWords(plate, clock, bearing) {
-  const q = plate.q;
+  const q = plate.q, cargo = q.kind === 'cargo', tone = cargo ? cargoTone(q) : toneOf(q);
   const outcome = plate.outcome ? QUEST_OUTCOME[plate.outcome] : null;
   const words = plate.outcome === 'done' ? q.done : plate.outcome === 'late' ? q.late : [q.title, q.sub];
-  const timer = q.ends != null && !plate.outcome ? clockText(Math.ceil(Math.max(0, q.ends - clock))) : '';
+  const timer = plate.outcome ? '' : cargo ? cargoClock(q) : q.ends != null ? clockText(Math.ceil(Math.max(0, q.ends - clock))) : '';
   return {
-    ink: outcome?.ink ?? toneOf(q).ink,
-    mark: bearing != null && !plate.outcome && plate.doneAt == null ? bearingGlyph(bearing) : outcome?.mark ?? toneOf(q).mark,
+    ink: outcome?.ink ?? tone.ink,
+    mark: bearing != null && !plate.outcome && plate.doneAt == null ? bearingGlyph(bearing) : outcome?.mark ?? tone.mark,
     title: words?.[0] ?? q.title, sub: words?.[1] ?? q.sub, timer,
   };
 }

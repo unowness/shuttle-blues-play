@@ -86,7 +86,7 @@ const TURN = 0.18;
 // read (its plates were there before: none of them is a quest come), `open` whether the picture was shown last frame and `changed`
 // since when (s, the page's clock).
 export function createRadio(store) {
-  return { hidden: readRadio(store), store, moment: null, after: null, since: null, open: null, changed: -Infinity, box: null, row: null };
+  return { hidden: readRadio(store), store, moment: null, after: null, since: null, open: null, changed: -Infinity, box: null, row: null, wheel: { on: false, x: 0, y: 0, R: 0, dir: -1 } };
 }
 // `kind` heard at `now`: a quest's signal waits behind a call or a line begun the same frame (they carry words), else the newest plays.
 function hear(radio, kind, now) {
@@ -204,6 +204,8 @@ function chamfered(b, c) {
 }
 // The lamp, LAMP_R round: dark with the hint's ring when off, the moment's ink when lit.
 const LAMP_R = UI.pad * 3 / 4;
+// A lamp out (a wreck's).
+const DEAD = Object.freeze({ lamp: Object.freeze({ k: 0, ink: null }) });
 function lamp(ctx, x, y, s) {
   disc(ctx, x, y, LAMP_R, { fill: ROLES.backing, stroke: s.lamp.k > 0.02 ? s.lamp.ink : ROLES.textHint });
   if (s.lamp.k > 0.02) disc(ctx, x, y, LAMP_R, { fill: s.lamp.ink, alpha: s.lamp.k });
@@ -386,15 +388,18 @@ export function drawRadio(r, radio, place, now, { reducedMotion = false, over = 
 // падает ... На последних десяти-двадцати хп радио на месте остается, у него просто контур ломается ... лампочки пропадают, некоторые»): its
 // holes go dark here and there, then its line breaks in places. Returns the block's box, or null.
 export const RADIO_MODERN = Object.freeze({ h: 9 * UI.vector.space, round: UI.vector.space, s: 9, c: 18,
-  // At each wear level (0-4): the share of holes gone dark, the breaks in its line.
-  dark: Object.freeze([0, 0, 0.04, 0.1, 0.22]), breaks: Object.freeze([0, 0, 0, 1, 4]) });
+  // At each wear level (0-4): the share of holes gone dark, the breaks in its line (more since SX, 2026-10-16: «Ну и радио в целом тоже»);
+  // at a wreck (the deck's break standing, cockpit-fx.js cockpitCrack): `wreck`'s, its lamp out, every other break knocked out of line.
+  dark: Object.freeze([0, 0.02, 0.06, 0.14, 0.3]), breaks: Object.freeze([0, 1, 2, 3, 5]),
+  wreck: Object.freeze({ dark: 0.55, breaks: 9 }) });
 function bodyModern(ctx, B) {
   const x0 = Math.round(B.x) + 0.5, y0 = Math.round(B.y) + 0.5, x1 = Math.round(B.x + B.w) - 0.5, y1 = Math.round(B.y + B.h) - 0.5, rr = RADIO_MODERN.round;
   ctx.save(); ctx.lineWidth = 1; ctx.beginPath();
   ctx.moveTo(x0 + rr, y0); ctx.arcTo(x1, y0, x1, y1, rr); ctx.arcTo(x1, y1, x0, y1, rr); ctx.arcTo(x0, y1, x0, y0, rr); ctx.arcTo(x0, y0, x1, y0, rr);
   ctx.closePath(); ctx.fillStyle = ROLES.backing; ctx.fill(); ctx.strokeStyle = ROLES.structure; ctx.stroke(); ctx.restore();
 }
-function wheelModern(ctx, wx, wy, R, s, mirror) {
+// The tuning wheel at (wx, wy), radius R, turned by the state's tune (also drawn torn off and falling: hud-modern.js, `s` { tune }).
+export function wheelModern(ctx, wx, wy, R, s, mirror) {
   const k = R / (1.5 * UI.row), turn = (mirror ? 1 : -1) * s.tune * 1.5 * Math.PI, long = Math.max(3, 7 * k), short = Math.max(2, 3 * k);
   disc(ctx, wx, wy, R, { fill: ROLES.backing, stroke: ROLES.structure });
   ctx.save(); ctx.globalAlpha = 1; ctx.lineWidth = 1; ctx.strokeStyle = ROLES.structure; ctx.beginPath();
@@ -408,8 +413,11 @@ function wheelModern(ctx, wx, wy, R, s, mirror) {
   disc(ctx, wx, wy, hub, { fill: ROLES.backing, stroke: ROLES.structure });
   path(ctx, [[wx, iy], [wx - UI.pad, iy + UI.pad + 1], [wx + UI.pad, iy + UI.pad + 1]], { fill: ROLES.textPrimary });
 }
-export function drawRadioModern(r, radio, place, now, { reducedMotion = false, over = null, wear = null } = {}) {
-  radio.box = null; radio.row = null;
+// `wear` { level, seed, wreck }: its wear's step, where its breaks fall, the wreck's break standing; `torn` its wheel gone (hud-modern.js:
+// torn off under BREAK.at of the hull, SX, 2026-10-16: «вот этот диск может отвалиться да, в какой-то момент на 10%»), its socket left.
+// Where the wheel stands is kept on the radio (`wheel`: on while drawn, x, y, R, `dir` toward the screen's middle), for the page to tear it from.
+export function drawRadioModern(r, radio, place, now, { reducedMotion = false, over = null, wear = null, torn = false } = {}) {
+  radio.box = null; radio.row = null; radio.wheel.on = false;
   if (!place) return null;
   const open = !radio.hidden;
   if (radio.open === null) radio.open = open;
@@ -428,17 +436,24 @@ export function drawRadioModern(r, radio, place, now, { reducedMotion = false, o
     ctx.save();
     // Folding, it goes down into its row: the part still shown is its lower one.
     ctx.beginPath(); ctx.rect(B.x - UI.pad - 400, B.y + B.h * (1 - unfold) - UI.pad, B.w + 2 * UI.pad + 800, Math.ceil(B.h * unfold) + 2 * UI.pad + 2000); ctx.clip();
-    const level = wear?.level ?? 0, seed = wear?.seed ?? 1, dark = M.dark[level] ?? 0;
+    const level = wear?.level ?? 0, seed = wear?.seed ?? 1, wreck = !!wear?.wreck, dark = wreck ? M.wreck.dark : M.dark[level] ?? 0;
     bodyModern(ctx, B);
     grille(r, { x: f0, y: B.y + M.s, w: f1 - f0, h: B.h - 2 * M.s }, s, 'all', dark > 0 ? (i, j) => noise3(seed + i, j, 13) < dark : null);
-    wheelModern(ctx, wx, wy, R, s, place.mirror);
-    lamp(ctx, lx, wy, s);
+    if (!torn) wheelModern(ctx, wx, wy, R, s, place.mirror);
+    else {
+      // The socket it tore from: black, the ring where it sat dotted, the axle.
+      disc(ctx, wx, wy, R, { fill: ROLES.backing });
+      ctx.save(); ctx.lineWidth = 1; ctx.strokeStyle = ROLES.structure; ctx.setLineDash([1, 3]); ctx.beginPath(); ctx.arc(wx, wy, R - 0.5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      disc(ctx, wx, wy, Math.max(2, UI.pad / 2), { fill: ROLES.structure });
+    }
+    radio.wheel.on = true; radio.wheel.x = wx; radio.wheel.y = wy; radio.wheel.R = R; radio.wheel.dir = place.mirror ? 1 : -1;
+    lamp(ctx, lx, wy, wreck ? DEAD : s);
     // Its line broken: black over it in places along its long sides, a piece of it knocked a little out of line.
-    for (let i = 0; i < (M.breaks[level] ?? 0); i++) {
+    for (let i = 0; i < (wreck ? M.wreck.breaks : M.breaks[level] ?? 0); i++) {
       const t = noise3(seed, i, 17), len = 6 + 10 * noise3(seed, i, 19), onTop = i % 2 === 0;
       const x = B.x + M.round + t * (B.w - 2 * M.round - len), y = (onTop ? B.y : B.y + B.h) + (onTop ? 0.5 : -0.5);
       ctx.fillStyle = ROLES.backing; ctx.fillRect(Math.round(x), Math.round(y) - 2, Math.round(len), 4);
-      if (level >= 4 && i % 2 === 1) { ctx.strokeStyle = ROLES.structure; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(Math.round(x) + 2, Math.round(y) + 2.5); ctx.lineTo(Math.round(x + len) - 1, Math.round(y) + 1.5); ctx.stroke(); }
+      if ((level >= 4 || wreck) && i % 2 === 1) { ctx.strokeStyle = ROLES.structure; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(Math.round(x) + 2, Math.round(y) + 2.5); ctx.lineTo(Math.round(x + len) - 1, Math.round(y) + 1.5); ctx.stroke(); }
     }
     ctx.restore();
     top = Math.min(top, B.y + B.h * (1 - unfold));

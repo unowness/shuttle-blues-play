@@ -275,6 +275,56 @@ export function noticeRect(r, notice) {
   return { x: Math.round(r.width / 2 - w / 2), y: noticeTop(r), w, h };
 }
 
+// ------------------------------------------------------------------------------------------------ a find's paper
+
+// A find's card stands where it lands, a paper blown onto the camera on the ship's nose (SX, 2026-10-16: «оповещение о том, что ты получил
+// предмет. Пусть он, короче, как будто появляется на экране в рандомном месте с углом плюс-минус 30 градусов ... Если в левой части экрана
+// ... левый угол вниз наклоняет. Если в правой части, то правый угол вниз ... Если левый нижний квадрат, то у него правый нижний угол вниз
+// ... Если правый нижний квадрат ... правый верхний угол вверх ... клик по нему разрывает его, и он уносится ... когда он разрывается, пусть
+// по яркости одинаковые две половинки будут ... делим экран на квадраты ... в ту сторону ... бумажка и улетает ... камера на носу нашего
+// корабля ... Можно кликнуть, можно дождаться»): anywhere on the flight's view, off the interface's boxes and `clear` px round the ship; turned `tilt` degrees, more or less, as if laid on a ring round the screen's middle: the outer end down in the
+// upper quarters, up in the lower ones (in the upper left the left end down, in the upper right the right one, in the lower left the right
+// one, in the lower right the left one). Torn, by a click or at the end of its time, its two pieces fly off away from the screen's middle,
+// toward its quarter's corner, as the sky does past the nose (rail.js giftOut, `away`), growing as they come nearer, the same light both.
+export const PAPER = Object.freeze({ tilt: Object.freeze([8, 30]), clear: 110, edge: 24, tries: 40 });
+
+// Where a find's paper lands on a screen `r` (its middle `cx`, `cy`), how it is turned (`angle`, rad: positive turns its right end down),
+// and the way it flies off (`away`, a unit on the screen). `area` { x0, x1, y0, y1 } where it may stand (the flight's view under the
+// notch by default), `avoid` the interface's boxes it keeps off (the locator's column, the quests, the gauges ...), `rng` the look's own
+// dice (Math.random: nothing of the world's). A place that keeps off everything is taken; with none in `PAPER.tries`, the one that
+// covers least.
+export function placePaper(r, notice, { area = null, avoid = [], rng = Math.random } = {}) {
+  const { w, h } = railSize(r, noticeBanner(notice)), W = r.width, H = r.height, mx = W / 2, my = H / 2, E = PAPER.edge;
+  const view = r.view ?? { x: 0, y: 0, w: W, h: H };
+  const A = area ?? { x0: E, x1: W - E, y0: Math.max(noticeTop(r), view.y + E), y1: view.y + view.h - E };
+  const shipX = r.cx ?? mx, shipY = r.cy ?? my, C = PAPER.clear;
+  const ship = { x: shipX - C, y: shipY - C, w: 2 * C, h: 2 * C }, keep = [ship, ...avoid.filter(Boolean)];
+  const covered = (b) => keep.reduce((n, k) => n + Math.max(0, Math.min(b.x + b.w, k.x + k.w) - Math.max(b.x, k.x)) * Math.max(0, Math.min(b.y + b.h, k.y + k.h) - Math.max(b.y, k.y)), 0);
+  let best = null;
+  for (let i = 0; i < PAPER.tries; i++) {
+    const deg = PAPER.tilt[0] + rng() * (PAPER.tilt[1] - PAPER.tilt[0]), a = (deg * Math.PI) / 180;
+    const hw = (Math.cos(a) * w + Math.sin(a) * h) / 2, hh = (Math.sin(a) * w + Math.cos(a) * h) / 2;
+    const cx = A.x0 + hw + rng() * Math.max(0, A.x1 - A.x0 - 2 * hw), cy = A.y0 + hh + rng() * Math.max(0, A.y1 - A.y0 - 2 * hh);
+    const n = covered({ x: cx - hw, y: cy - hh, w: 2 * hw, h: 2 * hh });
+    if (!best || n < best.n) best = { cx, cy, deg, hw, hh, n };
+    if (n === 0) break;
+  }
+  const { cx, cy } = best, sign = (cx < mx) === (cy < my) ? -1 : 1, angle = sign * (best.deg * Math.PI) / 180;
+  const dx = cx - mx, dy = cy - my, d = Math.hypot(dx, dy);
+  const away = d > 1 ? { x: dx / d, y: dy / d } : { x: Math.SQRT1_2 * (sign < 0 ? -1 : 1), y: -Math.SQRT1_2 };
+  return Object.freeze({ cx, cy, angle, away: Object.freeze(away), w, h, hw: best.hw, hh: best.hh });
+}
+// The paper's box on the screen (its turned corners' bounds), and whether (x, y) is on the paper itself.
+export const paperBox = (p) => ({ x: Math.round(p.cx - p.hw), y: Math.round(p.cy - p.hh), w: Math.round(2 * p.hw), h: Math.round(2 * p.hh) });
+export function onPaper(p, x, y) {
+  if (!p) return false;
+  const c = Math.cos(p.angle), s = Math.sin(p.angle), dx = x - p.cx, dy = y - p.cy;
+  const u = dx * c + dy * s, v = -dx * s + dy * c;
+  return Math.abs(u) <= p.w / 2 && Math.abs(v) <= p.h / 2;
+}
+// The way off in the paper's own turn (rail.js reads its pieces' flight in the paper's frame).
+export const paperAway = (p) => { const c = Math.cos(p.angle), s = Math.sin(p.angle); return { x: p.away.x * c + p.away.y * s, y: -p.away.x * s + p.away.y * c }; };
+
 // The motion a notice is drawn with now (rail.js drawRail's `m`), from its clock: the sweep in, the press of a click, the way out.
 export function noticeMotion(notice, { over = false, fold = 0, seed = 0 } = {}) {
   const age = notice.age ?? 0, life = notice.life ?? NOTICE.life;

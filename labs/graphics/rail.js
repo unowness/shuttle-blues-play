@@ -66,7 +66,7 @@ export const RAIL_TIMES = Object.freeze({ press: 0.09, fold: 0.18, tear: 0.52, a
 export const railInTime = () => LORE_TIMES.sweep + LORE_TIMES.scatter + LORE_TIMES.cell;
 export const railOutTime = (family) => (family === 'gift' ? GIFT_TIMES.out : LORE_TIMES.sweep * 0.94 + LORE_TIMES.cell + LORE_TIMES.scatter);
 // A gift's (F1a): its coupon fed out of its stub, and torn off and fallen with the stub after it.
-export const GIFT_TIMES = Object.freeze({ in: 0.64, out: 0.92 });
+export const GIFT_TIMES = Object.freeze({ in: 0.64, out: 0.92 });   // (out: the tear's 0.26 s and the pieces' 0.62)
 
 // ------------------------------------------------------------------------------------------------ the wash
 
@@ -363,13 +363,26 @@ export function drawRail(r, b, x, y, m = {}) {
 // torn down the perforation faster and faster (the coupon turned a little about its lower left corner, still held), then the coupon
 // falls turning slightly and fades, the stub holds 0.2 s and falls and fades after it. Reduced motion: whole, and gone at once. Until
 // then a gift came in the banners' squares and went by a 45° tear, which drew it whole for its last frames (SX: «сначала пропадает,
-// потом 1 раз мигает как баг»): nothing of a piece is drawn once it has faded.
+// потом 1 раз мигает как баг»): nothing of a piece is drawn once it has faded. Since 2026-10-16 (SX: «когда он разрывается, пусть по
+// яркости одинаковые две половинки будут»; «в ту сторону ... бумажка и улетает»): the two pieces go together, at one light, and a gift that
+// landed somewhere of its own (labs/graphics/notice.js placePaper: `m.away`, the way off in its own turn) flies off that way, the pieces
+// drawing apart, turning, growing as they come nearer (`PIECES`), instead of falling.
 const GIFT_IN = Object.freeze({ arms: 0.14, edge: [0.06, 0.12], picture: [0.08, 0.16], feed: [0.18, 0.32], settle: 0.4 });
 const GIFT_OUT = Object.freeze({ pull: 0.06, tear: [0.04, 0.22] });
+// The pieces' flight off: seconds, px along the way off (eased in: the wind takes them), px apart, rad each turns, how much larger at its end.
+const PIECES = Object.freeze({ fly: 0.62, reach: 520, apart: 40, turn: 0.35, grow: 0.6 });
 const easeIn = (u) => clamp(u, 0, 1) ** 2;
-// How a piece goes once it is free, `s` s after the tear has run its length: { dx, dy } moved, `turn` (rad) about its middle, `alpha`.
-const COUPON_FALL = (s) => { const u = clamp(s / 0.5, 0, 1); return { dx: 12 * u, dy: 46 * u * u, turn: 0.16 * easeIn(u), alpha: 1 - easeIn(u) }; };
-const STUB_FALL = (s) => { const u = clamp((s - 0.2) / 0.44, 0, 1); return { dx: -2 * u, dy: 30 * u * u, turn: -0.07 * easeIn(u), alpha: 1 - easeIn(u) }; };
+// How a piece goes once it is free, `s` s after the tear has run its length: { dx, dy } moved, `turn` (rad) about its middle, `k` its
+// scale, `alpha`, the same for both pieces; `side` 1 the coupon, -1 the stub; `away` the way off, or none: they fall.
+function pieceGoes(s, side, away) {
+  if (!away) {
+    const u = clamp(s / 0.5, 0, 1);
+    return side > 0 ? { dx: 12 * u, dy: 46 * u * u, turn: 0.16 * easeIn(u), k: 1, alpha: 1 - easeIn(u) }
+      : { dx: -2 * u, dy: 30 * u * u, turn: -0.07 * easeIn(u), k: 1, alpha: 1 - easeIn(u) };
+  }
+  const u = clamp(s / PIECES.fly, 0, 1), e = easeIn(u), d = PIECES.reach * e;
+  return { dx: away.x * d + side * PIECES.apart * u, dy: away.y * d, turn: side * PIECES.turn * u, k: 1 + PIECES.grow * e, alpha: 1 - e };
+}
 // The coupon's three jerks out of the stub, each eased and held.
 const feed = (u) => { u = clamp(u, 0, 1); const j = Math.min(2, Math.floor(u * 3)), f = u * 3 - j; return (j + easeOut(Math.min(1, f / 0.55))) / 3; };
 
@@ -471,7 +484,7 @@ function piece(r, f, mx, my, clip, paint) {
   if (f.alpha <= 0.01) return;
   const ctx = r.ctx;
   ctx.save();
-  ctx.translate(mx + f.dx, my + f.dy); ctx.rotate(f.turn); ctx.translate(-mx, -my);
+  ctx.translate(mx + f.dx, my + f.dy); ctx.rotate(f.turn); if (f.k !== 1) ctx.scale(f.k, f.k); ctx.translate(-mx, -my);
   ctx.beginPath(); ctx.rect(...clip); ctx.clip();
   withAlpha(ctx, f.alpha, paint);
   ctx.restore();
@@ -485,12 +498,12 @@ function giftOut(r, b, x, y, t, m) {
   const pX = x + FIELD + 1, pY = y + H;
   ctx.save();
   ctx.translate(pX + 2 * easeOut(t / T.pull), pY); ctx.rotate(0.035 * f); ctx.translate(-pX, -pY);
-  piece(r, COUPON_FALL(s), x + (FIELD + 1 + W) / 2, y + H / 2, [x + FIELD + 1, y - 2, W - FIELD + 2, H + 4], () => {
+  piece(r, pieceGoes(s, 1, m.away), x + (FIELD + 1 + W) / 2, y + H / 2, [x + FIELD + 1, y - 2, W - FIELD + 2, H + 4], () => {
     pressed(ctx, box, press, () => giftCard(r, b, x, y, { age: m.age }));
     if (front > 0) stroke(r, zigzag(x + FIELD + 1, y, Math.min(front, H - 1), 1), ROLES.textPrimary, false);
   });
   ctx.restore();
-  piece(r, STUB_FALL(s), x + FIELD / 2, y + H / 2, [x - 2, y - 2, FIELD + 3, H + 4], () => {
+  piece(r, pieceGoes(s, -1, m.away), x + FIELD / 2, y + H / 2, [x - 2, y - 2, FIELD + 3, H + 4], () => {
     pressed(ctx, box, press, () => giftCard(r, b, x, y, { age: m.age }));
     perforation(r, x, y, free ? H : front);
   });
