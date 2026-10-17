@@ -34,7 +34,7 @@
 //
 // The window round the picture is in the Swiss manner since SX's S5 of 2026-10-09 (labs/graphics/sketches/windows-swiss-2.html:
 // «берем но наши текущие контекстные окна не трогаем мы сейчас поп апами занимаемся»; «Держись минимализма»; the kit,
-// labs/graphics/swiss.js, the chrome, labs/graphics/swiss-window.js): black in a gray frame, a head (MAP THE GRID, the sector the
+// labs/graphics/swiss.js, the chrome, then labs/graphics/sketches/swiss-window.js): black in a gray frame, a head (MAP THE GRID, the sector the
 // ship is in and how many are open) over a rule, the sectors' box at the left and the column at the right in hanging heads, 01 HERE
 // (the sector's figures, or what the pointer is on), 02 FLAGS (a key, the flag in its colour, its name and where it stands: the picked
 // one and the one under the pointer the inverted row) and 03 LEGEND, a rule and the foot's keys as the cockpit's caps. The picture

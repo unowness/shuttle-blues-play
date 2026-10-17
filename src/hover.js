@@ -64,7 +64,7 @@ export function hoverFrame(p, frameDt, { reducedMotion = false } = {}) {
 // Whether the pointer reaches what is drawn next (false under a pop-up, true again for the pop-up itself).
 export function hoverReach(on) { reach = !!on; }
 // The frame's seconds and whether motion is reduced, as hoverFrame was told: for what eases with a hover (a window's dimming under
-// the row that comes up, labs/graphics/ledger.js).
+// the row that comes up: the LEDGER+ look of the sketch pages, labs/graphics/sketches/ledger.js).
 export const hoverPace = () => ({ dt, still });
 // The id of the thing under the pointer this frame, or null: the page's cursor reads it as a button (labs/graphics/cursor.js).
 export const itemUnder = () => under;

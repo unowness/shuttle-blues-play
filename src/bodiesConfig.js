@@ -147,6 +147,10 @@ export const BODIES = {
   planet: {
     // Density ramp, darkest to brightest.
     ramp: ' .:-=+*#%@',
+    // A classic planet's cell mixes its dark into its tint in steps of a sixth, so a planet is five tones and its rim (its mix runs
+    // from 0.34): it was a smooth mix, a few hundred near-identical colours a planet (SX, 2026-10-17, of SPAWN's study: «очень много
+    // красных оттенков, одинаковых практически? Откуда эти бесконечные красные?»; «Вносим T4 ... планеты в пять тонов»).
+    mixSteps: 6,
     rimGlyphs: '.·',
     light: { x: -0.55, y: -0.42, z: 0.72 },
     // How a planet looks (SX, 2026-10-02, of the map editor: «генерировать ... внешний вид ... в стилях, которые мы применили ...

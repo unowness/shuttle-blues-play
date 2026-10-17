@@ -63,6 +63,14 @@ export const INK = Object.freeze({
 // The keycaps' tiers: the way back, every other key, a quest's.
 export const TIER = Object.freeze({ back: ROLES.textQuiet, key: ROLES.structure, quest: ROLES.story });
 export const tierInk = (tier) => TIER[tier] ?? tier ?? TIER.key;
+// A chosen thing's mark: a white hairline square `off` (the context's MARK) off its box, the pause's square (here since 2026-10-17, from the
+// LEDGER+ look before the organism, labs/graphics/sketches/ledger.js).
+export function selectMark(ui, box, off = ui.MARK) {
+  const ctx = ui.r.ctx;
+  ctx.save(); ctx.lineWidth = 1; ctx.strokeStyle = ROLES.textPrimary; ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.rect(px(box.x - off), px(box.y - off), Math.round(box.w + 2 * off) - 1, Math.round(box.h + 2 * off) - 1); ctx.stroke();
+  ctx.restore();
+}
 
 export const len = (s) => glyphs(String(s ?? '')).length;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));

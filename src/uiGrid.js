@@ -152,7 +152,8 @@ export function uiAir(r) {
 // сбалансированы, нужно расстановки с оптической компенсацией»; «когда карточка пилота открывается она упирается в рамку квестов, надо
 // исправлять»). One rule for every centred window: the pilot card, station INFO, the hangar, the sign composer, the two-tabs window,
 // the controls list, and the pause where it has no ship to come down over.
-//   down    in the flight area (`r.view`, between the top strip and the cockpit), at its optical middle: of the height the window
+//   down    in the windows' area (`r.windowView`: the flight view between the top strip and LEGACY's cockpit, or the whole screen
+//           under MODERN, which has no cockpit band: src/renderer.js layout), at its optical middle: of the height the window
 //           leaves free there, OPTICAL.above stands over it and the rest under it, so it sits a little above the geometric middle
 //           (a small window more, one that nearly fills the area hardly at all); kept UI.pad inside the screen;
 //   across  in the middle of the screen, unless one of the HUD's two columns (the locator with the shelf under it on one side, the
@@ -177,7 +178,7 @@ export function windowRoom(r, ink = 0) {
   return right - left + 2 * ink;
 }
 export function centredWindow(r, w, h, { ink = 0, clear = true } = {}) {
-  const view = r.view || { x: 0, y: 0, w: r.width, h: r.height };
+  const view = r.windowView || r.view || { x: 0, y: 0, w: r.width, h: r.height };
   const y = Math.max(UI.pad, Math.min(r.height - h - UI.pad, view.y + (view.h - h) * OPTICAL.above));
   // `clear: false`: a window wider than the room between the columns (the pilot card in the Swiss manner, SX allowed it: 1100 px at
   // 1280) stands in the middle of the screen over them, never pushed off its edge.

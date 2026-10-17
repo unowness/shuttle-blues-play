@@ -98,6 +98,8 @@ export function finalDraw(draw) {
 }
 // Whether a look is worn (ORIGINAL wears none: the grade above, to the digit), and one ink as the worn look paints the interface.
 export const lookWorn = () => look !== null;
+// The worn look's function itself (null under ORIGINAL), for what it carries besides inks: src/frames.js reads its `frames` and `frameHue`.
+export const wornLook = () => look;
 export const wornInk = (hex) => (look ? look(hex) : gradeHex(hex));
 
 const cache = new Map(), keptCache = new Map();

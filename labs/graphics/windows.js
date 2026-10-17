@@ -34,10 +34,9 @@ import { PICTURE } from '../../src/souvenirPictures.js';
 import { balancedCells, largestCells, drawSouvenirCentred } from '../../src/souvenirArt.js';
 import { keyName, helpColumns, helpIntro, SCHEMES, SCHEME_NAMES, DEFAULT_SCHEME } from '../../src/controls.js';
 import { noteKey } from './clicks.js';
-import { keyTokens } from './swiss-window.js';
-import { selectMark } from './ledger.js';
 import { drawStationTrue, stationShotAt } from './world-art.js';
-import { Win, ORG, INK, len, money, partLen } from './organism.js';
+import { keyTokens } from './swiss.js';
+import { Win, ORG, INK, len, money, partLen, selectMark } from './organism.js';
 
 const NAME_COLS = 14;                       // the name field's columns: a name's twelve letters (src/pilot.js) and two
 

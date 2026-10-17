@@ -30,15 +30,21 @@ import { waiverFor, redeemWaiver } from './rewardLedger.js';
 // day (SX's answer 3 to chat SC: «дешево», he bought a souvenir and two paints in one pass; the paints dearer, not the wallet): two of
 // them, 750, are more than the 400 a new pilot starts with and than what one holds when the opening lets go (the first freight and the
 // radio's two pays: 610 to 670 on time, 720 at the fastest). One of them, a first souvenir free, is still in reach.
+// Then E1 LIGHT (SX, 2026-10-17: «Надо, чтобы чуть-чуть в натяг было. Надо, чтобы надо было что-то поделать, чтобы что-то открыть»;
+// «по экономике давай пока Е1 возьмем»): every price twice, the start's paints 500 (a third more): a souvenir 250, the first four
+// ruins' paints 400, the last four's 500. Measured: a souvenir had been a fifth of a mid-game delivery and bought the moment it opened
+// (docs/decisions/2026-10.md, "E1 LIGHT: the economy a little tighter").
 // What the game says where a find's price would stand when it costs this pilot nothing (a free claim, World.findPrice): the words
 // the opening already gives for what it gives (SCOOTY's radio, «NO CHARGE»).
 export const FREE_WORDS = 'NO CHARGE';
 const find = (content, kind, sector, x, y, price, station = null, closedAtMost = null) =>
   Object.freeze({ id: `find-${content}`, content, kind, sector, x, y, price, station, closedAtMost });
 
-export const SOUVENIR_PRICE = 125;
+export const SOUVENIR_PRICE = 250;
 const S = SOUVENIR_PRICE;
-export const STARTER_PAINT_PRICE = 375;
+export const STARTER_PAINT_PRICE = 500;
+// The ruins' paints: the first four ruins' and the last four's (200 and 250 until E1).
+const RP1 = 400, RP2 = 500;
 const SP = STARTER_PAINT_PRICE;
 
 // The slots as SX laid them: which content each slot holds here is the catalogue's own deal (a pilot's deals it again, `findsFor`).
@@ -60,22 +66,22 @@ export const CATALOGUE = Object.freeze([
   find('eva03', 'paint', 'sector-k05', 0.4, 0.18, SP),
   // Unlocked by restoring a ruin, in the order of the ruins' prices.
   find('mixtape', 'souvenir', 'sector-j05', 0.18, 0.18, S, 'station-halcyon-j05'),
-  find('express', 'paint', 'sector-j05', 0.4, 0.18, 200, 'station-halcyon-j05'),
+  find('express', 'paint', 'sector-j05', 0.4, 0.18, RP1, 'station-halcyon-j05'),
   find('videotape', 'souvenir', 'sector-k04', 0.84, 0.4, S, 'station-foundry-k04'),
-  find('neon', 'paint', 'sector-k04', 0.88, 0.82, 200, 'station-foundry-k04'),
+  find('neon', 'paint', 'sector-k04', 0.88, 0.82, RP1, 'station-foundry-k04'),
   find('instant-photo', 'souvenir', 'sector-j06', 0.4, 0.18, S, 'station-commons-j06'),
-  find('arctic', 'paint', 'sector-j06', 0.84, 0.4, 200, 'station-commons-j06'),
+  find('arctic', 'paint', 'sector-j06', 0.84, 0.4, RP1, 'station-commons-j06'),
   find('manga', 'souvenir', 'sector-k05', 0.84, 0.4, S, 'station-spool-j06'),
-  find('carbon', 'paint', 'sector-j04', 0.84, 0.4, 200, 'station-spool-j06'),
+  find('carbon', 'paint', 'sector-j04', 0.84, 0.4, RP1, 'station-spool-j06'),
   find('handheld', 'souvenir', 'sector-j06', 0.88, 0.82, S, 'station-pharos-j06'),
-  find('patina', 'paint', 'sector-j06', 0.5, 0.85, 250, 'station-pharos-j06'),
+  find('patina', 'paint', 'sector-j06', 0.5, 0.85, RP2, 'station-pharos-j06'),
   find('floppy', 'souvenir', 'sector-k06', 0.4, 0.18, S, 'station-apiary-k06'),
-  find('royal', 'paint', 'sector-k06', 0.84, 0.4, 250, 'station-apiary-k06'),
+  find('royal', 'paint', 'sector-k06', 0.84, 0.4, RP2, 'station-apiary-k06'),
   find('virtual-pet', 'souvenir', 'sector-k06', 0.88, 0.82, S, 'station-wharf-k06'),
-  find('dune', 'paint', 'sector-k06', 0.5, 0.85, 250, 'station-wharf-k06'),
+  find('dune', 'paint', 'sector-k06', 0.5, 0.85, RP2, 'station-wharf-k06'),
   find('crt-monitor', 'souvenir', 'sector-k06', 0.15, 0.56, S, 'station-hoist-k06'),
   // The twelfth paint: its look is SX's to choose (src/paint.js, PENDING_PAINT).
-  find('paint-12', 'paint', 'sector-k06', 0.42, 0.69, 250, 'station-hoist-k06'),
+  find('paint-12', 'paint', 'sector-k06', 0.42, 0.69, RP2, 'station-hoist-k06'),
 ]);
 
 // A pilot's own deal (SX, 2026-10-02: «сделай так чтобы сувениры и цвета доступные на старте для каждого юзера рандомно

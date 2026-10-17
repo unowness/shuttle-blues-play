@@ -34,7 +34,7 @@ import { SOUVENIR_LORE } from './souvenir-lore.js';
 import { SPECIALS } from '../../src/specialShips.js';
 import { keyCodeOf, unnoted, noteKeycap } from './clicks.js';
 import { keycap, KEYCAP_PAD, KEYCAP_RISE } from './ui-parts.js';
-import { keyTokens } from './swiss-window.js';
+import { keyTokens } from './swiss.js';
 import { ORG, INK as TONE, TIER } from './organism.js';
 import { drawRail, railSize } from './rail.js';
 import { roomControls, keyName, DEFAULT_SCHEME } from '../../src/controls.js';

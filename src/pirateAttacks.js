@@ -21,20 +21,22 @@ export function attackCommitted(p) { return p.attack?.committed === true || COMM
 // The attackers counted, kept between calls: asked by every pirate every step, it makes nothing.
 const occupied = [];
 export function pressureAvailable(world, p, partnerId = null) {
+  if (p.tune?.noSlot) return true;          // a kind that takes no slot (a style's attack, P4's MAW) waits for none
   occupied.length = 0;
   const T = world.topology, ship = world.ship;
   for (const q of world.pirates) {
     if (q === p || q.id === partnerId || !active(q)) continue;
     if (p.attackOrder?.leaderId === q.id || q.attackOrder?.leaderId === p.id) continue;
     const a = q.attack;
-    if (!a?.pressure && !(a?.pressureUntil > now(world))) continue;
+    if (q.tune?.noSlot || (!a?.pressure && !(a?.pressureUntil > now(world)))) continue;
     const dx = T.dx(q.x, ship.x), dy = T.dy(q.y, ship.y);
     if (Math.hypot(dx, dy) <= Math.max(q.W?.range ?? 0, q.K?.maxSpeed ?? 0) * PATTERNS.pressureRangeScale) {
       const id = q.attackOrder?.leaderId ?? q.id;
       if (!occupied.includes(id)) occupied.push(id);
     }
   }
-  return occupied.length < PATTERNS.pressureSlots;
+  // A style may let more attack at once (CONFIG.pirates.styles, P2 PACK: three).
+  return occupied.length < (p.style?.pressureSlots ?? PATTERNS.pressureSlots);
 }
 
 function state(p) {
@@ -52,8 +54,11 @@ function phase(world, p, name, duration, reason = null) {
   return a;
 }
 
+// A pirate's attack numbers: its kind's (src/pirateAttackConfig.js), or a style's for its kind laid over them (src/pirateStyles.js).
+const tuneOf = (p) => p.tune ?? PATTERNS[p.type];
+
 function recoveryDuration(p) {
-  return PATTERNS[p.type].recover;
+  return tuneOf(p).recover;
 }
 
 function releaseOrder(world, p) {
@@ -81,10 +86,19 @@ function minDistance(world, p) {
   return p.radius + (world.ship.radius ?? PATTERNS.playerRadiusFallback) + PATTERNS.minimumClearance;
 }
 
+// How far off the pilot's nose a pirate is, rad (0 dead ahead, pi behind).
+function offNose(world, p) {
+  const ship = world.ship;
+  return Math.abs(angleGap(Math.atan2(world.topology.dy(p.y, ship.y), world.topology.dx(p.x, ship.x)), ship.angle));
+}
+
 function ready(world, p, ctx) {
+  // A ram that flanks (a style's `flank`, P4's MAW) charges from off the pilot's nose, or once it has waited its `wait` s for it.
+  const F = tuneOf(p).flank;
+  if (F && offNose(world, p) < F.cone && (p.attack?.waited ?? 0) < F.wait) return false;
   // A MAW's charge is not its gun: the gun's cooldown does not hold the charge back.
   return p.mode === 'hunt' && ctx.targetable && visible(world, p) && !(p.lapse > 0) &&
-    (p.type === 'maw' || p.cooldown <= 0) && ctx.dist > minDistance(world, p) && ctx.dist <= p.W.range * PATTERNS.startRangeShare &&
+    (p.type === 'maw' || p.cooldown <= 0) && ctx.dist > minDistance(world, p) && ctx.dist <= p.W.range * (tuneOf(p).startRangeShare ?? PATTERNS.startRangeShare) &&
     ctx.avoidUrgency < PATTERNS.obstacleAbort && pressureAvailable(world, p);
 }
 
@@ -112,11 +126,24 @@ function outward(p, ctx) {
     vdy: Math.sin(heading) * p.K.maxSpeed * PATTERNS.recoverySpeedShare + (ctx.separateY ?? 0), fire: false, steady: false, avoid: true };
 }
 
-function approach(p, ctx) {
+function approach(world, p, ctx) {
   if (p.type !== 'maw') return IDLE;
+  const F = tuneOf(p).flank;
+  if (F) {
+    // Round to the pilot's flank or back, on the side it is already on, `range` u off and `angle` rad from the nose; nose along its
+    // way while it has far to go, guns on the pilot near its place (a style's `flank`, P4's MAW: it comes from where the pilot is
+    // not looking).
+    const ship = world.ship, T = world.topology;
+    const bearing = Math.atan2(T.dy(p.y, ship.y), T.dx(p.x, ship.x));
+    const at = ship.angle + (angleGap(bearing, ship.angle) < 0 ? -1 : 1) * F.angle;
+    const dx = T.dx(ship.x + Math.cos(at) * F.range, p.x), dy = T.dy(ship.y + Math.sin(at) * F.range, p.y);
+    const gap = Math.hypot(dx, dy) || 1, fly = Math.min(p.B.approachMax, gap * p.B.approachGain);
+    const vdx = ship.vx + (dx / gap) * fly + (ctx.separateX ?? 0), vdy = ship.vy + (dy / gap) * fly + (ctx.separateY ?? 0);
+    return { want: gap > F.face ? Math.atan2(vdy - p.vy, vdx - p.vx) : ctx.aim, vdx, vdy, fire: gap <= F.face, steady: false };
+  }
   // Waiting MAWs hold room for the charge instead of quietly ramming while queued, and keep their gun on the pilot as they did
   // before the charge was theirs (SX, 2026-10-13: «Вернуть пушку»; from 2026-10-09 to then a MAW only rammed).
-  const close = clamp((ctx.dist - p.W.range * PATTERNS.maw.holdingRangeShare) * p.B.approachGain,
+  const close = clamp((ctx.dist - p.W.range * tuneOf(p).holdingRangeShare) * p.B.approachGain,
     -p.B.backSpeed, p.B.approachMax);
   return { want: ctx.aim, vdx: (p.seen?.vx ?? 0) + ctx.rx * close + (ctx.separateX ?? 0),
     vdy: (p.seen?.vy ?? 0) + ctx.ry * close + (ctx.separateY ?? 0), fire: true, steady: false };
@@ -205,7 +232,7 @@ function warlord(world, p, dt, ctx) {
 
 export function stepAttack(world, p, dt, ctx) {
   if (!OLD_TYPES.has(p.type)) return world.stepNewPiratePattern?.(world, p, dt, ctx) ?? IDLE;
-  const a = state(p), t = PATTERNS[p.type];
+  const a = state(p), t = tuneOf(p);
   a.time += dt; a.progress = a.duration > 0 ? Math.min(1, a.time / a.duration) : 0;
   if (!active(p) || !ctx.targetable || world.inSafeZone(world.ship.x, world.ship.y)) {
     cancelAttack(world, p, !ctx.targetable ? 'no-target' : p.mode !== 'hunt' ? p.mode : 'refuge');
@@ -221,18 +248,21 @@ export function stepAttack(world, p, dt, ctx) {
     if (result) return result;
   }
   if (a.phase === 'approach') {
-    if (p.type === 'warlord') return approach(p, ctx);
+    if (p.type === 'warlord') return approach(world, p, ctx);
+    // The time a flanking ram has been in reach waiting for the pilot's nose to turn away (`flank.wait`).
+    if (t.flank) a.waited = ctx.dist <= p.W.range * (t.startRangeShare ?? PATTERNS.startRangeShare) ? (a.waited ?? 0) + dt : 0;
     if (ready(world, p, ctx)) {
+      if (t.flank) a.waited = 0;
       a.heading = ctx.aim; a.shots = 0;
       phase(world, p, 'prepare', t.prepare);
       return p.type === 'maw' ? locked(p, p.K.maxSpeed * t.prepareSpeedShare) : gunMotion(p, ctx, t.prepareSpeedShare);
     }
-    return approach(p, ctx);
+    return approach(world, p, ctx);
   }
   if (a.phase === 'prepare') {
     a.heading = ctx.aim;
     if (a.time >= a.duration) {
-      if (Math.abs(angleGap(p.angle, a.heading)) <= PATTERNS.alignment) {
+      if (Math.abs(angleGap(p.angle, a.heading)) <= (t.alignment ?? PATTERNS.alignment)) {
         phase(world, p, { maw: 'charge', dart: 'pass', brute: 'burst', warlord: 'volley' }[p.type], t.commit);
       } else if (a.time > a.duration + PATTERNS.alignmentGrace) recover(world, p, 'alignment');
     }
@@ -245,6 +275,13 @@ export function stepAttack(world, p, dt, ctx) {
       return outward(p, ctx);
     }
     const speed = p.K.maxSpeed * t.commitSpeedShare;
+    // A charge that turns after the pilot (a style's `homing`, P4's MAW): toward where the pilot will be, at most `homing` rad/s.
+    if (p.type === 'maw' && t.homing) {
+      const ship = world.ship, dx = world.topology.dx(ship.x, p.x), dy = world.topology.dy(ship.y, p.y);
+      const lead = Math.hypot(dx, dy) / Math.max(1, speed);
+      const want = Math.atan2(dy + ship.vy * lead, dx + ship.vx * lead);
+      a.heading += clamp(angleGap(want, a.heading), -t.homing * dt, t.homing * dt);
+    }
     const maxShots = t.shots ?? 0;
     const fire = p.type !== 'maw' && a.shots < maxShots && visible(world, p) && ctx.dist > minDistance(world, p);
     return p.type === 'maw' ? locked(p, speed) : gunMotion(p, ctx, t.commitSpeedShare, fire, p.W.interval * (t.cadence ?? 1));

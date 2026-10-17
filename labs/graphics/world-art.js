@@ -584,7 +584,7 @@ function drawSplit(r, sx, sy, planet) {
     const edge = 0.5 + S.wobble * (fbmWrapped(tx, ty[k], 12, seed + 977, 2) - 0.5) + lean * Math.sin(lon);
     const q = ((lat[k] / Math.PI + 0.5) - edge) / S.seam;
     const [dk, ck] = ramps[q < -1 ? 0 : q > 1 ? 1 : 2];
-    const m = clamp(0.34 + surface * 0.78, 0, 1);
+    const m = Math.round(clamp(0.34 + surface * 0.78, 0, 1) * CONFIG.planet.mixSteps) / CONFIG.planet.mixSteps;
     const code = (Math.round(dk[0] + (ck[0] - dk[0]) * m) << 16) | (Math.round(dk[1] + (ck[1] - dk[1]) * m) << 8) | Math.round(dk[2] + (ck[2] - dk[2]) * m);
     r.glyph(ch, px, py, hexOf(code), clamp(0.42 + shade * 0.9, 0, 1));
   }

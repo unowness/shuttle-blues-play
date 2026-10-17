@@ -3,7 +3,6 @@ import { stationDefById, sectorById } from './sectors.js';
 import { isRestored, reachableStationIds, formatCR, guardSize, stationBill } from './ruins.js';
 import { TAU, lerp } from './util.js';
 import { factsOf, raidStartAt, raidFirstDue, raidGapFor, payFor } from './pacing.js';
-import { lookGivenBy } from './looks.js';
 import { radioFitted } from './opening.js';
 import { contentLinks } from './mapContent.js';
 
@@ -351,8 +350,7 @@ function winRaid(world) {
   world.questOutcomes?.set(raidQuestId(raid), 'done');
   world.emit('raidWon', { ...raidWords(def), stationId: raid.stationId, seconds: L.clock - raid.startedAt, sectorId: world.sector.id,
     pay, credits: L.credits });
-  // The first raid the pilot wins gives a look (src/looks.js, SPAWN; SX: «Первый выигранный рейд»): given once, a later win finds it owned.
-  world.giveLook(lookGivenBy('raid'), 'raid');
+  // (Until 2026-10-17 the first raid won gave SPAWN; it is the default look since, owned from the start: src/looks.js.)
 }
 
 // Late: the station is closed until repaired (the same `broken` a wreck against it leaves, World.brokenActions), and the

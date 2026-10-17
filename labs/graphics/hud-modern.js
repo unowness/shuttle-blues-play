@@ -38,7 +38,7 @@ import { readInterface, writeInterface, readMapShape, writeMapShape } from '../.
 import { drawSouvenirPicture } from '../../src/souvenirPictures.js';
 import { ORG } from './organism.js';
 import { BAR } from './cockpit-bar.js';
-import { drawWear, cockpitSpots, cockpitSeed, cockpitLevel, cockpitLight, cockpitCrack } from './cockpit-fx.js';
+import { drawWear, cockpitSpots, cockpitSeed, cockpitLevel, cockpitLight, cockpitCrack, barLengths, glintPaths } from './cockpit-fx.js';
 import { barLook, BAR_EDGE } from './meter-bar.js';
 import { drawBrake, BRAKE_LABEL, BRAKE_OPEN } from './hud.js';
 import { buttonInk, columnLayout, drawColumnButton, drawModernScope, drawLegendRowsAt, LEGEND_ROW_COUNT, MODERN_SCOPE } from './locator.js';
@@ -147,24 +147,42 @@ function notch(left, right, floor, rail) {
   sWall(points, right, floor, right + run, rail);
   return { points, shoulders: [left - run, right + run], run };
 }
+// The notches by their four numbers: they hold while the layout and the task's line do, so a frame builds none again (the garbage a frame,
+// 2026-10-17: their points, the wear's places and the fill were made anew every frame). A few kept; a run of new ones empties the store.
+const NOTCHES = new Map();
+function notchOf(left, right, floor, rail) {
+  const key = `${left}|${right}|${floor}|${rail}`;
+  let n = NOTCHES.get(key);
+  if (!n) { if (NOTCHES.size >= 32) NOTCHES.clear(); NOTCHES.set(key, (n = notch(left, right, floor, rail))); }
+  return n;
+}
+// What the wear draws on a notch with `seed` (src: cockpit-fx.js cockpitSpots, barLengths, glintPaths) and its fill down to `edge`, kept on it.
+function wearOf(n, seed, edge) {
+  if (n.wear?.seed === seed && n.wear.edge === edge) return n.wear;
+  const bars = [n.points], lengths = barLengths(bars);
+  return (n.wear = { seed, edge, bars, spots: cockpitSpots(bars, seed), lengths, paths: glintPaths(lengths),
+    fill: [[n.shoulders[0], edge], ...n.points, [n.shoulders[1], edge]] });
+}
 // The x where the left wall of `n` stands at height `y`.
 function wallAt(n, y) {
   const pts = n.points;
   for (let i = 1; i <= MODERN.samples; i++) {
-    const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
+    const ax = pts[i - 1][0], ay = pts[i - 1][1], bx = pts[i][0], by = pts[i][1];
     if ((ay - y) * (by - y) <= 0 && ay !== by) return ax + ((y - ay) / (by - ay)) * (bx - ax);
   }
   return pts[MODERN.samples][0];
 }
 function tube(ctx, points) {
-  const trace = () => { ctx.beginPath(); points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); };
+  const trace = () => { ctx.beginPath(); ctx.moveTo(points[0][0], points[0][1]); for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]); };
   ctx.save(); ctx.globalAlpha = 1; ctx.lineJoin = 'round'; ctx.lineCap = 'butt';
   trace(); ctx.lineWidth = BAR.outer; ctx.strokeStyle = ROLES.structure; ctx.stroke();
   trace(); ctx.lineWidth = BAR.inner; ctx.strokeStyle = ROLES.backing; ctx.stroke();
   ctx.restore();
 }
 function fillPoly(ctx, points) {
-  ctx.save(); ctx.fillStyle = ROLES.backing; ctx.beginPath(); points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.fillStyle = ROLES.backing; ctx.beginPath(); ctx.moveTo(points[0][0], points[0][1]);
+  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+  ctx.closePath(); ctx.fill(); ctx.restore();
 }
 function roundedRect(ctx, x, y, w, h, rr) {
   ctx.beginPath(); ctx.moveTo(x + rr, y); ctx.arcTo(x + w, y, x + w, y + h, rr); ctx.arcTo(x + w, y + h, x, y + h, rr);
@@ -246,10 +264,10 @@ export function drawModernHud(r, game, args) {
 
   // The notches: the top one round the task's line (helmet.js, its floor and row in NOTCH_MODE), the bottom one round BRAKES.
   const h = game.notices.notch(r);
-  const top = notch(h.left, h.right, h.y, L.railT);
+  const top = notchOf(h.left, h.right, h.y, L.railT);
   const brakeW = (4 + BRAKE_LABEL.length) * cw + 2 * BRAKE_OPEN * cw, floorB = L.capsB - L.capH - C - BAR.outer / 2;
-  const fit = notch(Math.round(mid - brakeW / 2 - S), Math.round(mid + brakeW / 2 + S), floorB, L.railB);
-  const bottom = notch(Math.round(mid - brakeW / 2 - S - MODERN.wide), Math.round(mid + brakeW / 2 + S + MODERN.wide), floorB, L.railB);
+  const fit = notchOf(Math.round(mid - brakeW / 2 - S), Math.round(mid + brakeW / 2 + S), floorB, L.railB);
+  const bottom = notchOf(Math.round(mid - brakeW / 2 - S - MODERN.wide), Math.round(mid + brakeW / 2 + S + MODERN.wide), floorB, L.railB);
   // The fades at both edges, under the notches.
   for (const [y0, y1] of [[0, L.M], [H, H - L.M]]) {
     const g = ctx.createLinearGradient(0, y0, 0, y1);
@@ -258,9 +276,10 @@ export function drawModernHud(r, game, args) {
   }
   for (const [n, edge, seed] of [[top, 0, 5], [bottom, H, 6]]) {
     if (!given.deck) break;
-    fillPoly(ctx, [[n.shoulders[0], edge], ...n.points, [n.shoulders[1], edge]]);
+    const kept = wearOf(n, cockpitSeed() + seed, edge);
+    fillPoly(ctx, kept.fill);
     tube(ctx, n.points);
-    drawWear(ctx, [n.points], cockpitSpots([n.points], cockpitSeed() + seed), cockpitLevel(), { t: now, light: cockpitLight(now), motion: !reducedMotion, seed: cockpitSeed() + seed });
+    drawWear(ctx, kept.bars, kept.spots, cockpitLevel(), { t: now, light: cockpitLight(now), motion: !reducedMotion, seed: kept.seed, lengths: kept.lengths, paths: kept.paths });
     breakWalls(ctx, n, level, cockpitSeed() + seed * 7);
   }
   if (given.deck) drawBrake(r, { y: L.textB, h: UI.row }, brake, lamp);

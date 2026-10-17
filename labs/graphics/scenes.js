@@ -236,7 +236,7 @@ export function visitPirates(world, renderer, count, { kind = null, paint = null
   const named = {};
   if (kind && Object.hasOwn(CONFIG.pirates.types, kind)) named.types = Array(count).fill(kind);
   if (CONFIG.pirates.paints.some((q) => q.id === paint)) named.paint = paint;
-  world.spawnPirates(count, named);
+  world.spawnPirates(count, { ...named, reinforce: true });   // a gang: a style's reinforcement may follow it (src/pirateStyles.js)
   return { ...result, pirates: world.pirates.length };
 }
 

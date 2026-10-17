@@ -320,7 +320,7 @@ export function createNotices(game) {
         case 'piratesEngaged':
           // A squad at a post (src/raids.js) says what it was doing there.
           notify('PIRATES', e.post ? `${e.count} ${e.post === 'raid' ? 'RAIDING' : e.post === 'pester' ? 'ATTACKING' : e.post === 'gather' ? 'GATHERED AT' : 'GUARDING'} ${e.label ?? 'THE STATION'}`
-            : `${e.count} ${e.count === 1 ? 'SHIP' : 'SHIPS'} INCOMING`, { kind: 'danger', life: 2.6, fate: 'flip' });
+            : `${e.count} ${e.reinforced ? 'MORE' : e.count === 1 ? 'SHIP' : 'SHIPS'} INCOMING`, { kind: 'danger', life: 2.6, fate: 'flip' });
           break;
         // Raids are said by their plate in the quest list (its coming, its turning green or red) and the alarm; the second round of
         // quests (src/pester.js, src/wrecked.js, src/errands.js) by their plates, hails and labels: nothing here but their saves

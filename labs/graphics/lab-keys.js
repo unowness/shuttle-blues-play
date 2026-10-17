@@ -16,5 +16,21 @@ export function createLabKeys(game) {
   return () => {
     const { input } = game;
     if (tapped(input, 'diagnostics')) game.showDiag = !game.showDiag;
+    if (game.pirateWaves) stepWaves(game);
   };
+}
+
+// Fights in a row, to fly a pirate style (`?pirateStyle=P1&pirates=4`, labs/graphics/lab-drawer.js applyReviewLinks): `delay` s after a
+// fight is over and its last pirate gone, with the ship flying, another squad of the same size comes, and the hull is mended first, so
+// each fight starts as the last one did. The lab's own save only: the game never runs it.
+const WAVES = { delay: 4 };
+export function stepWaves(game) {
+  const { world } = game, waves = game.pirateWaves;
+  if (!game.LAB_SAVE) return;
+  if (world.encounter || world.reinforcement || world.pirates.length || !world.ship.alive || world.docked) { waves.at = null; return; }
+  if (waves.at === null) { waves.at = world.time + WAVES.delay; return; }
+  if (world.time < waves.at) return;
+  waves.at = null;
+  world.hull = world.hullMax;
+  world.spawnPirates(waves.count, { reinforce: true });
 }

@@ -185,7 +185,7 @@ export function createPause(game) {
       // Legacy — это старый интерфейс»), and the modern one's locator («карту с круглой на квадратную. По умолчанию квадратную»); kept in
       // this browser.
       ...(game.interface ? [choice('INTERFACE', INTERFACES.map((id) => ({ label: INTERFACE_NAMES[id], worn: game.interface.style === id,
-        run: () => setInterface(game.interface, id, game.saveBackend) })))] : []),
+        run: () => { setInterface(game.interface, id, game.saveBackend); game.renderer.layout(); } })))] : []),
       ...(game.interface?.style === 'modern' ? [choice("LOCATOR", MAP_SHAPES.map((id) => ({ label: MAP_SHAPE_NAMES[id], worn: game.interface.map === id,
         run: () => setMapShape(game.interface, id, game.saveBackend) })))] : []),
       // The mirror switch (labs/graphics/hud-sides.js): the locator and the shelf under it on one side, the quests and the radio on the

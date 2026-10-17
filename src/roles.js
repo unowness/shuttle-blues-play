@@ -49,7 +49,7 @@ export const ROLES = Object.freeze({
 });
 
 // The windows (SX, 2026-10-06: «Короче поп-апам давай возвращать белые рамочки, не видно так их, черный фон и белые рамочки надо
-// вернуть»): every pop-up's sheet plain black, no veil, and a white hairline round it on its box's own edge (labs/graphics/ledger.js
+// вернуть»): every pop-up's sheet plain black, no veil, and a white hairline round it on its box's own edge (then labs/graphics/sketches/ledger.js
 // paintWindow). From SX's V2 LEDGER+ (2026-10-05) until then a window was frameless, its black under a veil a little lighter than
 // space; the frame's ink was the gray `frame` above (2026-10-02) before that.
 export const WINDOW = Object.freeze({ frame: PALETTE.white });

@@ -64,7 +64,8 @@ export const QUESTS = {
   // pilot within `hailReach` u once, and flies off over `leave` s when helped.
   //
   // Quests in four colours (QUESTS_V2_HANDOFF.md, SX, 2026-10-02), the first three of the new ones:
-  // `pester` (red, SX: «Там 2-3 пирата просто пристают к маленькому кораблю»): `squad` pirates (by weight) circle a small
+  // `pester` (red, SX: «Там 2-3 пирата просто пристают к маленькому кораблю»; three or four since his «на одного больше всегда»,
+  // 2026-10-17): `squad` pirates (by weight) circle a small
   // friendly ship (one of `ships`, NPC_ART codes: TAXI, HOPPER, SAMPLER) held still in the open, `ring` u from it; the pilot
   // has `time` s on the pilot's clock to drive them off, and a ship freed pays `pay` CR (a short delivery pays 100-200). It
   // is called on its own clock beside the side quests, as a raid is (a red quest does not wait behind a green one): not
@@ -130,7 +131,7 @@ export const QUESTS = {
       thanks: ["FUEL RECEIVED. THAT'S A RELIEF.", 'ENOUGH FOR THE NEXT LEG. THANKS.', 'THAT SHOULD DO IT. THANKS, PILOT.', 'TRANSFER RECEIVED. MUCH OBLIGED.', 'THANKS. I WAS GETTING WORRIED.', 'I CAN GET MOVING NOW. THANK YOU.'],
       hailReach: 460, leave: 3 },
     pester: {
-      first: 360, afterFight: true, gap: [[0, 480, 720], [4, 900, 1500], [8, 1500, 2400]], time: 180, squad: [[2, 0.5], [3, 0.5]], ships: ['N15', 'N16', 'N28'],
+      first: 360, afterFight: true, gap: [[0, 480, 720], [4, 900, 1500], [8, 1500, 2400]], time: 180, squad: [[3, 0.5], [4, 0.5]], ships: ['N15', 'N16', 'N28'],
       ring: 300, wake: 900, clear: 700, edge: 0.22, apart: 2000, pay: 300, fire: [1.6, 3.4], leave: 3.5, limp: 7,
       hailReach: 460,
       help: ['PIRATES HAVE ME PINNED. HELP!', 'ANYONE FREE TO DEAL WITH PIRATES?', 'TOO MANY OF THEM. NEED COVER.', 'MAYDAY. PIRATES FIRING ON ME.', "PIRATES WON'T LET ME THROUGH."],

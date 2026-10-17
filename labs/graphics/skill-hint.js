@@ -3,7 +3,7 @@
 // one the deck's P, ?, L and ESC are) and the verb in white, right of the ship on its middle line, riding with it as the distances in space do;
 // no reason words, the rock or the pirates are there to see. The interface's one type size, the text's shadow only (src/textShadow.js: the
 // flight's labels group casts it). Where the mode has no key for the skill (MOUSE + HOTKEYS), its way is white words, as the controls
-// window writes one (src/controls.js skillWay, labs/graphics/swiss-window.js keyTokens). Presentation only: nothing here is read by the world.
+// window writes one (src/controls.js skillWay, labs/graphics/swiss.js keyTokens). Presentation only: nothing here is read by the world.
 //
 // Where: the first cap's left stroke the hull's reach and a step's air (`AIR` cells, UI.line) right of the ship's middle; the reach is the
 // hull's radius, its drawing's farthest point however it is turned (SX, 2026-10-16: «посмотри чтобы отступ достаточный был от корабля,
@@ -24,7 +24,7 @@ import { withAlpha } from '../../src/hover.js';
 import { HINTS, HINT, hintWords, partShown, partDone } from '../../src/skillHints.js';
 import { keycap, KEYCAP_PAD, KEYCAP_RISE } from './ui-parts.js';
 import { unnoted } from './clicks.js';
-import { keyTokens } from './swiss-window.js';
+import { keyTokens } from './swiss.js';
 
 const W = ROLES.textPrimary;
 // A cap on the sky is a legend, not a button: it answers no click (clicks.js unnoted), and its letter stands in its cap (no shadow).

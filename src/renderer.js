@@ -209,6 +209,9 @@ export class Renderer {
     this.strip = { x: 0, y: 0, w: this.width, h: strip };
     this.view = { x: 0, y: strip, w: this.width, h: Math.max(1, this.height - strip - cockpit) };
     this.cockpit = { x: 0, y: this.view.y + this.view.h, w: this.width, h: cockpit };
+    // Where the centred windows stand (src/uiGrid.js centredWindow): the flight view between the top strip and the cockpit, or the room
+    // the page reports (`windowViewOf`: the whole screen under the MODERN interface, which draws no cockpit band; null under LEGACY).
+    this.windowView = this.windowViewOf?.(this) ?? this.view;
 
     this.worldView = { x: 0, y: 0, w: this.width, h: this.height };
     this.cx = this.view.x + this.view.w / 2;
@@ -221,6 +224,10 @@ export class Renderer {
     // place over the helm in every window. Without a helm (a compact cockpit), the old rule.
     const panelTop = this.panelTopOf?.(this);
     if (Number.isFinite(panelTop) && panelTop > this.view.y + 60) this.cy = Math.round(panelTop * v.shipCentre);
+    // Under the MODERN interface no helm: the ship stands `modernMiddle` of the way down the screen, a share the page reports
+    // (`shipMiddleOf`, null under LEGACY).
+    const middle = this.shipMiddleOf?.(this);
+    if (Number.isFinite(middle)) this.cy = Math.round(this.height * middle);
     // The sky is full bleed, including gaps between instruments. Account for
     // the off-centre camera when sizing its wrapped tile.
     this.diagonal = 2 * Math.hypot(Math.max(this.cx, this.width - this.cx),

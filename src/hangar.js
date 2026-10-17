@@ -9,13 +9,14 @@ import { SPECIALS } from './specialShips.js';
 // were left with, so changing ships repairs and refuels nothing. How a ship
 // moves is its chassis (src/chassis.js); how it looks is its model file, which
 // the page loads (registerShipModel) and the world never reads. Prices are the v1
-// economy's (ECONOMY_V1_HANDOFF.md, 2026-10-01): 1,200 and 1,800, were 600 and 900.
+// economy's (ECONOMY_V1_HANDOFF.md, 2026-10-01): 1,200 and 1,800, were 600 and 900; twice that since E1 LIGHT (SX, 2026-10-17:
+// «по экономике давай пока Е1 возьмем»; docs/decisions/2026-10.md, "E1 LIGHT…"): a ship a goal of its own, not a few minutes' pay.
 export const SHIPS = [
   { id: 'standard', label: 'STANDARD', chassis: 'standard', model: 'ships/modern.json', price: 0,
     note: 'ALL-ROUND' },
-  { id: 'courier', label: 'COURIER', chassis: 'courier', model: 'ships/courier.json', price: 1200,
+  { id: 'courier', label: 'COURIER', chassis: 'courier', model: 'ships/courier.json', price: 2400,
     note: 'FAST / HIGH BURN' },
-  { id: 'hauler', label: 'HAULER', chassis: 'hauler', model: 'ships/hauler.json', price: 1800,
+  { id: 'hauler', label: 'HAULER', chassis: 'hauler', model: 'ships/hauler.json', price: 3600,
     note: 'TOUGH / LOW BURN' },
 ];
 const STARTER_SHIP = 'standard';

@@ -89,6 +89,11 @@ export const CONFIG = {
     // helm's grip: 0.52, a little under the middle, the bottom's instruments being the heavier (at 1512 x 982: 424 px,
     // the grip's top at 815; it was 444). `shipDrop` stays for a cockpit without a helm.
     shipCentre: 0.52,
+    // Under the MODERN interface (labs/graphics/hud-modern.js), which has no helm and whose two notches mirror each other, the ship
+    // stands this share of the way down the screen (Renderer.layout, the page's `shipMiddleOf`): its middle (SX, 2026-10-17: «Насколько он
+    // выше относительно центра экрана? Мне кажется, его стоит ставить чуть поближе к центру экрана. По вертикали»; it stood 0.52 of the
+    // way to LEGACY's grip, drawn or not: 72 px over the middle at 1440 x 900).
+    modernMiddle: 0.5,
     panel: '#000000',
     // How much of the light the screen behind an open panel keeps: the world and
     // the cockpit under the pilot card, the hangar, a sign, the controls (SX,
@@ -879,7 +884,8 @@ export const CONFIG = {
   //   light            2    2    2    2    3    5     5     5            5
   // So a rock at a 600 u/s cruise costs 15 (it cost 40 of 100), at the red step 45 (a wreck); a pilot meets a rock at
   // any angle, the closing speed v times its cosine, so at 600 u/s it takes about nine blows to lose a whole hull.
-  // `respawnShare`: a real wreck brings the ship back with half its hull (SX: «с 50 процентами»; 40 % until then).
+  // `respawnShare`: a real wreck brings the ship back with 70 % of its hull (SX, 2026-10-17: «Возрождаться с 50-процентным здоровьем ...
+  // 70-процентное давай сделаем пока что. А то что-то как душно»; half from 2026-10-01, «с 50 процентами»; 40 % before).
   // `repairPrice` is per point: 2 CR, so a whole hull costs what it did (10 points at 20).
   // A third off every base that is not light (SX, 2026-10-05, after flying the field three times as dense: «много стало врезаний надо
   // снижать урон при столкновениях»): a rock 15 -> 10, a planet's surface 30 -> 20, a station's body 6 -> 4, an NPC ship 30 -> 20; the
@@ -919,7 +925,7 @@ export const CONFIG = {
     base: { rock: 20, planet: 20, station: 8, droid: 3, pirate: 3, cache: 3, npc: 24 },
     light: { kinds: ['droid', 'pirate', 'cache'], min: 2, max: 5 },
     landing: { mult: 3 },
-    respawnShare: 0.5,
+    respawnShare: 0.7,
     grace: 1,
     repairPrice: 2,
     // A freight station patches the hull up to `patchShare` of the chassis' whole hull, at `repairPrice` a point; a garage mends

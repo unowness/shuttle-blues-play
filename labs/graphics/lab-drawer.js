@@ -1,7 +1,7 @@
 // The lab's own (labs/graphics/index.html, the game with its drawer), cut from labs/graphics/main.js (PLAN D4 in part, chat F,
 // 2026-10-04): the drawer (` opens it and freezes the flight; its palette, sky and screen settings, its jumps to the review scenes
 // of labs/graphics/scenes.js, the cockpit's wear switches) and the review links a lab page is opened with (`?scene=`, `?pirates=`,
-// `?droid=`, `?visitor=`, `?npcs`, `?raid`, `?special=`, `?quest=`, `?hull=`, `?map`, `?room`). The game (index.html) runs none of
+// `?droid=`, `?visitor=`, `?npcs`, `?raid`, `?special=`, `?quest=`, `?hull=`, `?map`, `?room`, `?pirateStyle=`). The game (index.html) runs none of
 // it. Chat C takes the drawer off the game's hot paths (docs/plans/2026-10-04-roadmap.md). `game` is the page's (main.js).
 import { PALETTE } from '../../src/roles.js';
 import { SECTORS } from '../../src/sectors.js';
@@ -17,6 +17,8 @@ import { visitScene, visitPirates, visitDroid, visitBoss, visitBossQuest, visitC
 import { noteVisit } from './map-screen.js';
 import { COCKPIT_FX } from './cockpit-fx.js';
 import { createLabKeys, respawnNow } from './lab-keys.js';
+import { CONFIG } from '../../src/config.js';
+import { styleIdOf } from '../../src/pirateStyles.js';
 const SCENE_IDS = Object.keys(SCENES);
 
 // The review links, when the flight starts (main.js startFlight): what the lab page was opened to look at.
@@ -34,12 +36,15 @@ export function applyReviewLinks(game) {
   // (Not `?focus=`: it plays a new pilot's opening from HOME, labs/graphics/opening-focus.js; nor a `?scene=` asked for, which it
   // would overwrite on a fresh lab save.)
   else if (game.labFresh && LAB_SAVE && !pageParams.has('focus') && !sceneAsked) visitScene(world, renderer, 'flight');
-  // `?pirates=N` (1-4): a group of pirates at load, on open ground; `&kind=maw&paint=ember` name its hull and paint.
+  // `?pirates=N` (1-5): a group of pirates at load, on open ground; `&kind=maw&paint=ember` name its hull and paint. With `?pirateStyle=`
+  // (how they fight, src/pirateStyles.js; the world's style is set in game.js) another squad of N comes after each fight, the hull mended
+  // (labs/graphics/lab-keys.js stepWaves): fights in a row, to fly a style (SX, 2026-10-17: «лаб с пресетами P1 FASTER, P2 PACK, P3 MOVES»).
   const launch = new URLSearchParams(location.search);
   const wantedPirates = GAME ? 0 : Number(launch.get('pirates'));
-  if (Number.isInteger(wantedPirates) && wantedPirates >= 1 && wantedPirates <= 4) {
+  if (Number.isInteger(wantedPirates) && wantedPirates >= 1 && wantedPirates <= CONFIG.pirates.maxGroup) {
     Object.assign(game.shipScale, createScaleState());
     visitPirates(world, renderer, wantedPirates, { kind: launch.get('kind'), paint: launch.get('paint') });
+    if (launch.has('pirateStyle')) game.pirateWaves = { count: wantedPirates, at: null };
   }
   // `?boss=1`: the boss TOLLKEEPER ahead of the ship, on open ground (src/boss.js); `?boss=quest`: its quest, every ruin restored on the
   // lab's save, the ship short of its EXPLORE mark (src/bossQuest.js).
@@ -149,6 +154,16 @@ export function installLabDrawer(game) {
     respawn.addEventListener('click', () => { setDrawer(false); respawnNow(game); });
     saveSwitch.after(respawn);
   }
+  // A button for every pirate style (CONFIG.pirates.styles): a press reloads the lab on its own save with a squad of the size the page
+  // was opened with (four if none) in that style, and another after each fight (applyReviewLinks).
+  const flown = styleIdOf(world), squadOf = Number(new URLSearchParams(location.search).get('pirates')) || 4;
+  for (const [id, style] of Object.entries(CONFIG.pirates.styles)) {
+    const button = document.createElement('button');
+    button.textContent = `${id} ${style.label}`;
+    button.setAttribute('aria-pressed', String(id === flown));
+    button.addEventListener('click', () => { location.search = `?${new URLSearchParams({ fly: '', pirateStyle: id, pirates: squadOf })}`; });
+    document.getElementById('pirate-style').append(button);
+  }
   // A button for every scene there is (labs/graphics/scenes.js).
   for (const [id, scene] of Object.entries(SCENES)) {
     const button = document.createElement('button');
@@ -226,7 +241,8 @@ export function installLabDrawer(game) {
     button.addEventListener('click', () => {
       if (!LAB_SAVE) {
         const [key, value] = Object.entries(button.dataset)[0];
-        location.search = `?${new URLSearchParams({ fly: '', [key]: value })}`;
+        const style = new URLSearchParams(location.search).get('pirateStyle');   // the pirates' style flown, kept (src/pirateStyles.js)
+        location.search = `?${new URLSearchParams({ fly: '', [key]: value, ...(style ? { pirateStyle: style } : null) })}`;
         return;
       }
       if (screens.open.pilot) screens.closePilot();

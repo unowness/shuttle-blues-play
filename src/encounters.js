@@ -18,7 +18,12 @@ import { replaceRoster } from './pirateRoster.js';
 import { attachPirateCombat, finishPirateCombat } from './pirateCombat.js';
 import { onNewPirateDamaged, onNewPirateRemoved } from './pirateRoles.js';
 import { landedNow } from './trick.js';
+import { applyPirateStyle, styleIdOf, temperTraits, hitMoves, scheduleReinforcement, stepReinforcement } from './pirateStyles.js';
+import { cancelAttack } from './pirateAttacks.js';
 import { contentAreas } from './mapContent.js';
+
+// How many restorations the lab's arena counts as made, for the hulls that replace the old four (src/pirateRoster.js): all of them.
+const ROSTER_OPEN = 99;
 
 // What a blow costs a pirate, on its own few hit points (CONFIG.pirates.hurt.impact): the ship's rule as it was
 // when the hull had 10, so pirates break against each other and the ship as they did.
@@ -34,6 +39,7 @@ export function pirateImpact(closing) {
 export function stepPirates(world, dt) {
   // The opening's guided stretch holds no pirate off (SX, 2026-10-04: «не надо тихих участков»; src/opening.js openingCalm).
   stepPosts(world, dt);
+  if (world.reinforcement) stepReinforcement(world);   // more of a gang just cleared (a style's `reinforce`, src/pirateStyles.js)
   world.stepEncounters(dt);
   if (world.pirates.length) flyPirates(world, dt);
 }
@@ -69,8 +75,9 @@ export function stepEncounters(world, dt) {
     .find(a => Math.hypot(a.x * W - ship.x, a.y * H - ship.y) <= a.radius + C.spawnDistance[1]);
   // Keep the sector's encounter rate and off-screen distance. Near the exposed approach,
   // try its bearing first; pirateGround and the ordinary angular fallback still decide.
-  const options = area ? { angle: Math.atan2(area.y * H - ship.y, area.x * W - ship.x) } : {};
-  world.spawnPirates(openingCalm(world) ? C.patrol : pickGroupSize(world.rng('pirate')), options);
+  const calm = openingCalm(world);
+  const options = { ...(area ? { angle: Math.atan2(area.y * H - ship.y, area.x * W - ship.x) } : null), reinforce: !calm };
+  world.spawnPirates(calm ? C.patrol : pickGroupSize(world.rng('pirate')), options);
 }
 
 // Whether a pirate can be placed at (x, y): inside the sector, off a dead
@@ -102,7 +109,7 @@ export function inSafeZone(world, x, y, pad = 0) {
   return null;
 }
 
-// A group of `count` (1 to 4; the encounters make squads of 2 to 4) appears
+// A group of `count` (1 to 5; the encounters make squads of 3 to 5, SX 2026-10-17) appears
 // outside the view and comes for the ship, aimed at it: a gang, its hulls all different (as far as the four go) in its one paint
 // (SX, 2026-10-15, FC4: «разные банды прилетаеют и это от 2 до 4 пиратов, и разные типы кораблей у них но в одной раскраске»;
 // one kind until then), unless `types`, `mixed: false` or `paint` say otherwise. Options: `angle` (the bearing from the ship to try first),
@@ -140,7 +147,8 @@ export function spawnPirates(world, count = 1, options = {}) {
   // A gang of two or more by default; a single ship is any kind.
   const mixed = options.mixed ?? n > 1;
   const kinds = options.types || replaceRoster(mixed ? pickMixedTypes(n, rng) : pickTypes(n, rng), {
-    restored: world.ledger.restored.size,
+    // The lab's arena (`?pirateStyle=`, labs/graphics/game.js) meets every kind, as a pilot who has restored them all does.
+    restored: world.rosterOpen ? ROSTER_OPEN : world.ledger.restored.size,
     context: options.context ?? (options.post?.kind ?? (options.mixed ? 'raid' : mixed ? 'gang' : 'ordinary')),
     rng: world.rng('pirate-roster'),
   });
@@ -149,6 +157,7 @@ export function spawnPirates(world, count = 1, options = {}) {
   const ring = rng() * TAU;
   const squad = `squad-${world.pirateSerial + 1}`;   // named by its first ship: the lead of a kind with one (src/pirates.js)
   const traits = options.traits ?? (options.personas === false ? [] : rollSquad(n, rng));
+  const styleId = options.style ?? styleIdOf(world);   // how they fight (CONFIG.pirates.styles; the lab's or the game's)
   const made = [];
   for (let i = 0; i < n; i++) {
     const type = kinds[i % kinds.length];
@@ -164,7 +173,8 @@ export function spawnPirates(world, count = 1, options = {}) {
     }
     const toShip = world.delta(ship.x, ship.y, x, y);
     const p = new Pirate(`pirate-${++world.pirateSerial}`, type, x, y, heading ?? Math.atan2(toShip.y, toShip.x),
-      arrive, options.side ?? (i % 2 ? -1 : 1), rng, paint, squad, i, traits[i] ?? null);
+      arrive, options.side ?? (i % 2 ? -1 : 1), rng, paint, squad, i, temperTraits(styleId, type, traits[i] ?? null));
+    applyPirateStyle(world, p, styleId);
     p.squadSize = n;
     if (options.post) { p.post = { ...options.post }; p.posted = options.post.kind; p.mode = 'guard'; }
     world.pirates.push(p);
@@ -174,11 +184,14 @@ export function spawnPirates(world, count = 1, options = {}) {
   if (options.passive) return made;
   if (!world.encounter) world.encounter = { startedAt: world.time, size: 0, farFor: 0, safeFor: 0 };
   world.encounter.size += made.length;
+  // A gang (the zones', the lab's) may be reinforced once it is cleared (a style's `reinforce`); a reinforcement never is.
+  if (options.reinforce && !world.encounter.reinforce) world.encounter.reinforce = { paint, styleId };
+  if (options.reinforced) world.encounter.reinforced = true;
   if (!options.silent) {
     const to = world.delta(centre.x, centre.y, ship.x, ship.y);
     world.emit('piratesEngaged', {
       count: made.length, kinds: made.map((p) => p.type), total: world.pirates.length, sectorId: world.sector.id,
-      bearing: Math.atan2(to.y, to.x), distance: Math.round(Math.hypot(to.x, to.y)),
+      bearing: Math.atan2(to.y, to.x), distance: Math.round(Math.hypot(to.x, to.y)), ...(options.reinforced ? { reinforced: true } : null),
     });
   }
   return made;
@@ -195,6 +208,8 @@ export function hurtPirate(world, p, cause, { amount = 1, x = p.x, y = p.y, aim 
   onNewPirateDamaged(world, p, amount);
   if (p.mode === 'guard') wakePost(world, p);       // a squad at its post wakes when one of it is hit (src/raids.js)
   if (p.hp <= 0) return world.killPirate(p, cause);
+  // A style's moves (src/pirateStyles.js): a hit may send it away, to come back on a boost.
+  if (p.moves && hitMoves(world, p)) cancelAttack(world, p, 'retreat');
   const B = CONFIG.asteroid.bump, F = CONFIG.pirates.flash;
   p.flash = F.time;
   const bits = Array.from({ length: F.sparks }, (_, k) => ({
@@ -279,6 +294,8 @@ export function endEncounter(world, cause, { leave = false, deferEvent = false, 
   // A fight won (every one down, or the rest run): the pilot's first opens the quest economy's ships to be pestered.
   if (world.pilot && (cause === 'cleared' || cause === 'routed')) world.pilot.fought = true;
   const ended = { cause, sectorId: world.sector.id, size: enc.size, left, seconds: world.time - enc.startedAt };
+  // A gang cleared quickly may have more of it coming (a style's `reinforce`, src/pirateStyles.js).
+  if (cause === 'cleared') scheduleReinforcement(world, enc, ended.seconds);
   if (deferEvent) return ended;
   world.emit('encounterEnded', ended);
   return true;

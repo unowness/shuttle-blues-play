@@ -198,7 +198,21 @@ export function contrastOnBlack(hex) {
 // is already at or under it comes back as it is. Steps of tone are decided by
 // contrast, not by a share of the colour: the same share is 14 to 1 for a pale
 // mint and 7.3 to 1 for copper.
+// Each answer is kept, by ratio and colour (the MODERN gauges ask it for every cube of every frame: 31 KB of garbage a frame, 2026-10-17);
+// a long tail of colours never seen again empties the store.
+const DIMMED = new Map();
+let dimmedCount = 0;
 export function dimToContrast(hex, ratio) {
+  let byHex = DIMMED.get(ratio);
+  const known = byHex?.get(hex);
+  if (known !== undefined) return known;
+  if (dimmedCount >= 512) { DIMMED.clear(); dimmedCount = 0; byHex = undefined; }
+  if (!byHex) DIMMED.set(ratio, (byHex = new Map()));
+  const dimmed = dimmedFresh(hex, ratio);
+  byHex.set(hex, dimmed); dimmedCount++;
+  return dimmed;
+}
+function dimmedFresh(hex, ratio) {
   if (contrastOnBlack(hex) <= ratio) return hex;
   let lo = 0, hi = 1;
   for (let i = 0; i < 16; i++) {

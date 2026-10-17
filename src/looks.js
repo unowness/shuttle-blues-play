@@ -12,28 +12,34 @@ import { setGradeLook } from './grade.js';
 // them (SX: «Цифры мои, лежат в film-grade.js — не меняй их без меня»). That is the one place the game imports from a
 // sketch folder, by SX's word; this module is the only door.
 //
-// Five looks to wear: NOW (the game as SX tuned it, a new save starts in it), ORIGINAL (exactly the grade the game had before
-// the looks, src/grade.js, which bypasses the look engine altogether), and the three found:
+// Five looks to wear. Three from the start: SPAWN (SPAWN SOFT since 2026-10-17, the game's default, a new save starts in it: SX,
+// «спаун софт должен быть в умолчании. В настройках все еще можно ... переключиться ... подбираем спаун софт теперь main цвет»), NOW
+// (the default until that day, the game as SX tuned it on 2026-10-02) and ORIGINAL (exactly the grade the game had before the looks,
+// src/grade.js, which bypasses the look engine altogether); and the two found:
 //
-//   SPAWN   the first raid the pilot wins (src/raids.js winRaid)
 //   SUNSET  a cache at the far east dead edge of K-06 (LOOK_FINDS, free to open, a find and not a purchase)
 //   TYRELL  the pilot's fourth restored ruin, whichever (src/world.js investStation), with that restoration's finds
 //
+// (SPAWN was the first raid the pilot won until it became the default; a raid gives no look now.)
+//
 // Which are owned and which is worn are the pilot's (Pilot.looks, Pilot.look), saved with the card, like the paints.
-// NOW and ORIGINAL are owned from the start and never stored; `looks` holds the found ones.
+// The start looks are owned from the start and never stored; `looks` holds the found ones. A save keeps the look it wears: one
+// from before 2026-10-17 wears NOW until the pilot puts on another.
 
 export const ORIGINAL_ID = 'ORIGINAL';
-export const DEFAULT_LOOK = 'G0';                         // NOW: the editor's own code for it
-// Where the editor's looks other than NOW are found, by the editor's code (G1 SPAWN, G2 SUNSET, G3 TYRELL).
-const SOURCE = Object.freeze({ G1: 'raid', G2: 'cache', G3: 'ruin' });
-export const START_LOOKS = Object.freeze([DEFAULT_LOOK, ORIGINAL_ID]);
+export const DEFAULT_LOOK = 'G1';                         // SPAWN: the editor's own code for it
+export const NOW_ID = 'G0';
+// Where the editor's looks are had, by the editor's code (G0 NOW and G1 SPAWN from the start, G2 SUNSET, G3 TYRELL found).
+const SOURCE = Object.freeze({ G0: 'start', G1: 'start', G2: 'cache', G3: 'ruin' });
+export const START_LOOKS = Object.freeze([DEFAULT_LOOK, NOW_ID, ORIGINAL_ID]);
 
 const look = (id, name, film, source, def) => Object.freeze({ id, name, film, source, def });
-// In the card's order: the default first, its plain companion, then the found ones in the editor's order.
+// In the card's order: the start looks first (the default, NOW, the plain ORIGINAL), then the found ones in the editor's order.
+const byCode = (code) => ALL_LOOKS.find((l) => l.code === code);
 export const LOOKS = Object.freeze([
-  look(DEFAULT_LOOK, ALL_LOOKS[0].name, ALL_LOOKS[0].film, 'start', ALL_LOOKS[0]),
+  ...[DEFAULT_LOOK, NOW_ID].map((code) => { const l = byCode(code); return look(l.code, l.name, l.film, 'start', l); }),
   look(ORIGINAL_ID, 'ORIGINAL', "The game's own grade as it was before the looks, to the digit", 'start', null),
-  ...ALL_LOOKS.slice(1).map((l) => look(l.code, l.name, l.film, SOURCE[l.code] ?? null, l)),
+  ...ALL_LOOKS.filter((l) => !START_LOOKS.includes(l.code)).map((l) => look(l.code, l.name, l.film, SOURCE[l.code] ?? null, l)),
 ]);
 const byId = new Map(LOOKS.map((l) => [l.id, l]));
 export const lookById = (id) => byId.get(id) || null;

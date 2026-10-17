@@ -7,6 +7,7 @@ import { TAU, clamp, lerp, wrapTo, hypot2 } from './util.js';
 import { WRAP, PLANE } from './topology.js';
 import { personaBrain, personaWeapon, personaCraft, hideChance, hideTime, wantsToRun, shoutFor } from './personas.js';
 import { wakePost, besieged, harass } from './raids.js';
+import { assignCutoffs, cutoffVelocity, lookMoves, tickMoves, startBoost, passVelocity, movesPush, movesTop, shotMoves } from './pirateStyles.js';
 
 // Pirates (SX, 2026-09-29): armed craft that chase the ship and shoot at it,
 // one or a group of two to four, four hit points each. Their bullets can hit one
@@ -498,6 +499,7 @@ function startHide(world, p) {
 const AVOID = { x: 0, y: 0, urgency: 0 };
 const APART = { x: 0, y: 0 };
 const DUCK = { x: 0, y: 0 };
+const STYLED = { x: 0, y: 0 };   // a style's wanted velocity (src/pirateStyles.js: the cutoff's way, a pass)
 
 // What a pirate's attack pattern is handed each step (src/pirateAttacks.js stepAttack): one object, filled again for each pirate, so a
 // step makes none (it made one a pirate a step from 2026-10-09 to 2026-10-13). A pattern reads it during its call and keeps nothing.
@@ -540,6 +542,8 @@ function stepPirate(world, p, dt) {
         p.watching = false;
         p.alert = false;
       }
+      // ... and, with a style's moves, whether the pilot's nose has held on it long enough to jink aside (src/pirateStyles.js).
+      if (p.moves && !(p.lapse > 0)) lookMoves(world, p, gap, attackCommitted(p));
       // ... and whether loose coins nearby tempt it away from the hunt: a rate per
       // second, so how often it looks (`react`) does not change how greedy it is.
       if (p.mode === 'hunt' && !attackCommitted(p) && p.greedCool <= 0 && world.pirates.reduce((n, q) => n + (q.mode === 'greed' ? 1 : 0), 0) < B.greed.max) {
@@ -568,6 +572,7 @@ function stepPirate(world, p, dt) {
   const R = world.delta(tx, ty, p.x, p.y);
   const dist = Math.hypot(R.x, R.y) || 1;
   const rx = R.x / dist, ry = R.y / dist;
+  if (p.moves) tickMoves(world, p, dt, dist);
 
   // After the kill (World.endEncounter `loot`): the wreck's coins, every one within reach, then away.
   if (p.mode === 'loot') {
@@ -619,8 +624,12 @@ function stepPirate(world, p, dt) {
     }
     if (p.mode === 'break') {
       p.modeTimer -= dt;
-      if (p.modeTimer <= 0) p.mode = 'hunt';
-    } else if (!attackCommitted(p) && p.mode !== 'greed' && p.mode !== 'loot' && !guarding && targetable && dist < B.breakRange) {
+      if (p.modeTimer <= 0) {
+        p.mode = 'hunt';
+        // A retreat (a style's moves) ends in a return on a boost.
+        if (p.moves?.retreating) { p.moves.retreating = false; startBoost(world, p); }
+      }
+    } else if (!attackCommitted(p) && p.mode !== 'greed' && p.mode !== 'loot' && !guarding && targetable && dist < B.breakRange && !p.moves?.pass) {
       p.mode = 'break';
       p.modeTimer = B.breakTime;
       p.swerve = p.orbitDir;
@@ -661,9 +670,12 @@ function stepPirate(world, p, dt) {
       vdx = (o.vx || 0) + (to.x / gap) * fly;
       vdy = (o.vy || 0) + (to.y / gap) * fly;
     } else if (p.mode === 'break') {
-      const away = Math.atan2(-ry, -rx) + p.swerve * B.breakSwerve;
-      vdx = p.seen.vx + Math.cos(away) * B.breakSpeed;
-      vdy = p.seen.vy + Math.sin(away) * B.breakSpeed;
+      // A retreat (a style's moves) goes further and faster than a break from a ship too close.
+      const back = p.moves?.retreating ? p.style.moves.retreat : null;
+      const away = Math.atan2(-ry, -rx) + p.swerve * (back ? back.swerve : B.breakSwerve);
+      const speed = back ? K.maxSpeed * back.speed : B.breakSpeed;
+      vdx = p.seen.vx + Math.cos(away) * speed;
+      vdy = p.seen.vy + Math.sin(away) * speed;
       want = away;
     } else if (p.mode === 'greed' || p.mode === 'loot') {
       // Straight for the coin, easing as it closes so it touches it and does not fly through.
@@ -680,6 +692,13 @@ function stepPirate(world, p, dt) {
       const pace = B.ramSpeed * (0.85 + 0.3 * p.standoffAt);
       vdx = p.seen.vx + rx * pace;
       vdy = p.seen.vy + ry * pace;
+    } else if (p.cutoff && targetable) {
+      // A squad's cutoff (a style's `cutoff`, src/pirateStyles.js): to the point ahead on the pilot's course while the rest chase.
+      cutoffVelocity(world, p, tx, ty, STYLED);
+      vdx = STYLED.x; vdy = STYLED.y;
+    } else if (p.moves && targetable && passVelocity(world, p, -R.x, -R.y, dist, dt, STYLED)) {
+      // Passes instead of circling (a style's moves): aimed beside the pilot, out past it, back the other side.
+      vdx = STYLED.x; vdy = STYLED.y;
     } else {
       // Closing speed: proportional to the range still to cover, but never more
       // than it can brake from before the standoff; inside the standoff it
@@ -699,11 +718,17 @@ function stepPirate(world, p, dt) {
       vdy = p.seen.vy + ry * close + rx * around;
     }
 
+    // A boost (a style's moves) asks for more of its own way on top of the pilot's velocity.
+    if (p.moves?.boost > 0 && p.mode === 'hunt') {
+      const up = p.style.moves.boost.top;
+      vdx = p.seen.vx + (vdx - p.seen.vx) * up;
+      vdy = p.seen.vy + (vdy - p.seen.vy) * up;
+    }
     separate(world, p, APART);
     vdx += APART.x;
     vdy += APART.y;
-    const wanted = Math.hypot(vdx, vdy);
-    if (wanted > K.maxSpeed) { vdx *= K.maxSpeed / wanted; vdy *= K.maxSpeed / wanted; }
+    const wanted = Math.hypot(vdx, vdy), top = p.moves ? movesTop(p) : K.maxSpeed;
+    if (wanted > top) { vdx *= top / wanted; vdy *= top / wanted; }
 
     if (p.mode === 'hunt' && targetable && dist < B.aimRange) want = aim;
     else if (guarding) { if (Math.hypot(vdx, vdy) > 30) want = Math.atan2(vdy, vdx); }
@@ -719,6 +744,13 @@ function stepPirate(world, p, dt) {
   const pattern = stepAttack(world, p, dt, c);
   aim = pattern.aim ?? aim; want = pattern.want ?? want;
   vdx = pattern.vdx ?? vdx; vdy = pattern.vdy ?? vdy;
+  // A charge that starts on a boost (a style's attack `chargeBoost`, P4's MAW).
+  if (p.moves && p.tune?.chargeBoost && p.attack?.phase === 'charge' && p.attack.time <= dt) startBoost(world, p);
+  // A jink aside (a style's moves): across the line from the pilot, on top of whatever else it wants, unless its attack holds it.
+  if (p.moves?.side > 0 && !pattern.steady && p.mode === 'hunt') {
+    const jink = p.moves.sideDir * p.style.moves.sidestep.speed;
+    vdx += -ry * jink; vdy += rx * jink;
+  }
 
   // The acceleration that would close the velocity error, split across the
   // nose and across it, and what the craft can actually give.
@@ -738,8 +770,9 @@ function stepPirate(world, p, dt) {
   // it was aimed. It costs the pirate's own aim nothing (its shots carry the
   // sideways velocity and are aimed with it), only the pilot's.
   const weave = !pattern.steady && !leaving && !guarding && dist < B.weaveRange ? B.weaveAccel * Math.sin(p.age * p.weaveRate + p.weavePhase) : 0;
-  const along = clamp(adx * fx + ady * fy, -K.retro, K.thrust);
-  const across = clamp(-adx * fy + ady * fx + weave, -K.strafe, K.strafe);
+  const push = p.moves ? movesPush(p) : 1;   // a jink's or a boost's extra push (a style's moves)
+  const along = clamp(adx * fx + ady * fy, -K.retro * push, K.thrust * push);
+  const across = clamp(-adx * fy + ady * fx + weave, -K.strafe * push, K.strafe * push);
   p.thrusting = along > 60;
   p.retroing = along < -60;
 
@@ -753,7 +786,13 @@ function stepPirate(world, p, dt) {
   const k = Math.max(0, 1 - K.drag * dt);
   p.vx *= k; p.vy *= k;
   const sp = hypot2(p.vx, p.vy);
-  if (sp > K.maxSpeed) { p.vx *= K.maxSpeed / sp; p.vy *= K.maxSpeed / sp; }
+  if (p.moves) {
+    // Over its top after a burst it eases back down (a style's moves), not at once.
+    const cap = movesTop(p);
+    const ease = p.style.moves.boost?.ease;
+    const to = cap > K.maxSpeed || !ease ? cap : Math.max(cap, sp - ease * dt);
+    if (sp > to) { p.vx *= to / sp; p.vy *= to / sp; }
+  } else if (sp > K.maxSpeed) { p.vx *= K.maxSpeed / sp; p.vy *= K.maxSpeed / sp; }
   p.x += p.vx * dt;
   p.y += p.vy * dt;
   if (world.topology.mode === WRAP) { p.x = wrapTo(p.x, world.width); p.y = wrapTo(p.y, world.height); }
@@ -779,15 +818,21 @@ function stepPirate(world, p, dt) {
       Math.abs(wrapPi(p.angle - aim)) < W.cone && !world.inSafeZone(ship.x, ship.y) &&
       !(p.careful && wingmanInWay(world, p, aim, dist))) {
     const heading = (pattern.steady ? aim : p.angle) + (pattern.exact ? 0 : gauss(rng) * W.error);
-    const ux = Math.cos(heading), uy = Math.sin(heading);
-    world.bullets.push({
-      x: p.x + ux * W.muzzleOffset, y: p.y + uy * W.muzzleOffset,
-      vx: p.vx + ux * W.muzzleSpeed, vy: p.vy + uy * W.muzzleSpeed,
-      life: W.life, owner: 'pirate', by: p.id, kind: p.type, damage: W.damage,
-    });
+    // A kind with a `shot` fan (a style's, P4's BRUTE) fires that many bolts, `spread` apart round the one aimed.
+    const fan = p.style?.shot?.fan ?? 1, spread = p.style?.shot?.spread ?? 0;
+    for (let k = 0; k < fan; k++) {
+      const h = heading + (k - (fan - 1) / 2) * spread;
+      const ux = Math.cos(h), uy = Math.sin(h);
+      world.bullets.push({
+        x: p.x + ux * W.muzzleOffset, y: p.y + uy * W.muzzleOffset,
+        vx: p.vx + ux * W.muzzleSpeed, vy: p.vy + uy * W.muzzleSpeed,
+        life: W.life, owner: 'pirate', by: p.id, kind: p.type, damage: W.damage,
+      });
+    }
     world.emit('shotFired', { owner: 'pirate', kind: p.type, x: p.x, y: p.y, sectorId: world.sector.id });
     p.cooldown = pattern.cooldown ?? W.interval * (1 + (rng() * 2 - 1) * W.jitter);
     attackShot(world, p);
+    if (p.moves) shotMoves(world, p);       // a sniper's break away after its shot (a style's `scoot`)
     // A daring one may slip behind a rock until its gun is ready again.
     const hide = hideChance(p.traits);
     if (!attackCommitted(p) && hide > 0 && rng() < hide) startHide(world, p);
@@ -866,6 +911,8 @@ export function stepPirates(world, dt) {
     if (p.role !== 'cover' || p.mode === 'leave') continue;
     if (!list.some((q) => q.squad === p.squad && q.role === 'lead' && q.mode !== 'leave')) p.setRole('lead');
   }
+  // A style with a cutoff (src/pirateStyles.js): each squad's, again, so the next takes over when it is gone.
+  if (list.some((p) => p.style?.cutoff)) assignCutoffs(world);
 
   for (let i = list.length - 1; i >= 0; i--) {
     const p = list[i];

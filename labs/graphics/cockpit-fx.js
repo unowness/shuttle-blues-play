@@ -84,7 +84,7 @@ export function barLengths(bars) {
   const lengths = [];
   bars.forEach((bar, b) => {
     for (let i = 0; i < bar.length - 1; i++) {
-      const [ax, ay] = bar[i], [bx, by] = bar[i + 1], len = Math.hypot(bx - ax, by - ay);
+      const ax = bar[i][0], ay = bar[i][1], bx = bar[i + 1][0], by = bar[i + 1][1], len = Math.hypot(bx - ax, by - ay);
       if (len >= 1) lengths.push({ index: lengths.length, bar: b, ax, ay, ux: (bx - ax) / len, uy: (by - ay) / len, len });
     }
   });

@@ -7,6 +7,13 @@
 
 import { PIRATE_ROLES, PIRATE_ROLE_ART, PIRATE_ROLE_DONORS } from './pirateRolesConfig.js';
 
+// The styles' shared sections (CONFIG.pirates.styles below): P2's cutoff and P3's moves, dealt out by kind in P4.
+const CUTOFF = { lead: 1.2, ahead: [500, 1100], minSpeed: 160, gain: 2.2 };
+const SIDESTEP = { cone: 0.14, range: 1200, after: 0.15, chance: 0.75, speed: 460, time: 0.32, cool: [1.1, 2.0], push: 2.2 };
+const BOOST = { top: 1.3, push: 1.8, time: 0.55, every: [3, 6], ease: 500 };
+const RETREAT = { chance: 0.55, time: [0.9, 1.5], speed: 0.95, swerve: 0.6, cool: 4 };
+const PASSES = { engage: 1.6, miss: [300, 420], out: 450, speed: 0.85, time: 6 };
+
 export const PIRATES = {
   // Pirates (SX, 2026-09-29: "пираты тоже умеют стрелять, они гоняются за
   // кораблем ... у пиратов по 1 хп ... могут попасть друг в друга ... врезаться
@@ -64,13 +71,14 @@ export const PIRATES = {
       { sectorId: 'sector-k06', x0: 0, y0: 0, x1: 1, y1: 1, rate: 2.6 },
     ],
     // Squads of two to four, never one (SX, 2026-09-30: «пираты летают только отрядами по 2-4
-    // корабля»; a lone pirate was 40 % of encounters until then).
-    groupSize: [[2, 0.5], [3, 0.35], [4, 0.15]],   // [ships, share]
+    // корабля»; a lone pirate was 40 % of encounters until then). Three to five since SX's «хочется на одного больше всегда»
+    // (2026-10-17), the shares as they were; the opening's patrol, a ruin's guards, a raid and the boss's escort as they were.
+    groupSize: [[3, 0.5], [4, 0.35], [5, 0.15]],   // [ships, share]; [[2, 0.5], [3, 0.35], [4, 0.15]] until 2026-10-17
     // Before a new pilot's first delivery (the opening's guided stretch, src/opening.js openingCalm) a group is a patrol of `patrol`
     // ships, never a squad of three or four (SX, 2026-10-04, his answer 4 to chat SC: «a two-ship patrol instead of a squad»). A gang
     // of two like any other since 2026-10-15 (two different hulls in one paint): SX's «от 2 до 4» holds it.
     patrol: 2,
-    maxGroup: 4,
+    maxGroup: 5,            // 4 until 2026-10-17 (a gang one larger)
     cooldown: 60,           // s of peace after an encounter ends (240, 120, then 75 until the evening of 2026-09-30)
     // s of peace after the world starts or a save loads. 120 until 2026-09-30, when the
     // upper row got zones: a new pilot starts in J-04 by DRY DOCK, and the first three
@@ -455,6 +463,80 @@ export const PIRATES = {
     // view reaches about 640 u to either side of the ship and 430 up and down (1280 x 960): from further they woke before
     // they were seen (1400 u, at once, on the first try), and «там группа пиратов» is a squad seen circling first.
     guard: { speed: 170, lead: 0.35, gap: 360, wake: 1000, notice: 1 },
+
+    // How a squad fights: presets of behaviour (SX, 2026-10-17: «А с пиратами довольно скучно сражаться ... они довольно однообразно
+    // ведут себя и довольно медленные. А в целом, немножко нединамично ощущаются»; «лаб с пресетами P1 FASTER, P2 PACK, P3 MOVES»).
+    // `style` is the game's; the lab flies another (`?pirateStyle=`, its drawer: world.pirateStyle), and a pirate keeps the one it was
+    // made with (src/pirateStyles.js). P0 is the fight as it was until 2026-10-17, kept to fly against. Every section is optional, so a mix
+    // is the sections of two together.
+    //   craft    every kind's top (`speed`), push (`push`: thrust, retro, strafe) and turn (`turn`: its rate and how soon it gets
+    //            there) times these. At 1.2 the DART (739 -> 887) and the MAW (639 -> 767) pass the ship's red step (749), the
+    //            WARLORD (703) and the BRUTE (512) stay under it.
+    //   pressureSlots  how many of the nearby squads attack at once (src/pirateAttacks.js PATTERNS.pressureSlots, 2, otherwise).
+    //   cutoff   one of a squad, its fastest gunner (src/pirateStyles.js assignCutoffs), cuts the pilot off while the rest chase: it
+    //            slides to the point `lead` s ahead on the pilot's course (`ahead` u at the least and the most), its guns on the pilot
+    //            all the way (flown nose along its way it fired too little: the fight cost the scripted pilot a sixth less); a pilot
+    //            slower than `minSpeed` u/s it takes from the far side of the squad instead, at its own range. `gain`: closing speed
+    //            per unit of the way still to go.
+    //   moves    sidestep: a pirate the pilot's nose has held inside `cone` rad and `range` u for `after` s jinks aside (`chance` of
+    //            such looks) at `speed` u/s for `time` s, then not again for `cool` s; boost: a burst of `time` s with its top
+    //            times `top` and its push times `push`, at the turn into each pass, at the return from a retreat and, closing in from
+    //            afar, every `every` s (eased back to its top at `ease` u/s^2); retreat: a hit sends it away for `time` s
+    //            (`chance` of hits, `cool` s apart) at `speed` of its top, `swerve` rad off straight away, and it comes back on a boost;
+    //            passes: inside `engage` of its range it no longer circles but makes passes, aimed `miss` u beside the pilot at
+    //            `speed` of its top, out `out` u past it (or after `time` s), then back the other side. A ram (the MAW) keeps its
+    //            charge and never retreats; a WARLORD's cover keeps its range.
+    // Chance comes from the world's 'pirate-moves' stream, drawn only by a pirate that has moves, so P0's world is the same.
+    // P4 CHARACTERS since SX's «давай так» (2026-10-17), after flying P1-P3 and P4; P0 until then.
+    style: 'P4',
+    styles: {
+      P0: { label: 'AS IT WAS' },
+      P1: { label: 'FASTER', craft: { speed: 1.2, push: 1.2, turn: 1.2 } },
+      P2: { label: 'PACK', pressureSlots: 3, cutoff: CUTOFF },
+      P3: { label: 'MOVES', moves: { sidestep: SIDESTEP, boost: BOOST, retreat: RETREAT, passes: PASSES } },
+      // A character for every kind (SX, 2026-10-17, after flying P1-P3: «отличие довольно слабо заметно ... в P2 пэк я играл больше всего
+      // ... Я бы это замиксил»; «каждому типу пирата нужно придумать характер, характер его стрельбы, может какие-то особые маневры.
+      // Распределить это сбалансированно. Да, некоторые не бывают трусами, некоторые таранят»; «таран надо делать без долгого стояния на
+      // месте»; «ХП не хочется больше им делать»; «у тебя было 2 или 3 пирата, ты их быстро разбил, случается реинфорсмент, и на тебя
+      // еще 2 из этой серии ... С небольшим таким шансом, типа 25%. Может 20%»). P1, P2 and P3 dealt out by kind: the squad's sections
+      // (pressureSlots, cutoff, reinforce) for all, and a kind's own in `kinds` laid over them (src/pirateStyles.js styleFor). Besides
+      // the sections above a kind may have: `brain` and `weapon` numbers in place of its own; `range`, its range times this; `attack`,
+      // its attack pattern's numbers in place of src/pirateAttackConfig.js's (`startRangeShare`, `alignment`, `homing` rad/s of turn in
+      // a charge, `noSlot`: it takes no pressure slot); `shot`, a fan of `fan` bolts `spread` rad apart; `temper`, its character's points
+      // held inside [least, most] (src/personas.js: a trait it never has, or always); moves' `scoot` (it breaks away after every shot of
+      // its own) and `shy` (it breaks away from a pilot nearer than this, u). No hit points changed.
+      //   reinforce  a gang cleared within `within` s: `chance` of `count` more in its paint, `delay` s after (never for a reinforcement).
+      //   cutoffRank the kinds in the order they take the cutoff (a WEAVER ahead of the pilot lays its mines across the course).
+      P4: { label: 'CHARACTERS', pressureSlots: 3, cutoff: CUTOFF,
+        cutoffRank: ['weaver', 'dart', 'jackal', 'warlord', 'brute', 'needle', 'tender'],
+        reinforce: { chance: 0.22, count: 2, delay: [4, 8], within: 45 },
+        kinds: {
+          // WASP: the fastest, past the red step; strafing passes with its double tap, a boost into each, a jink from the nose.
+          dart: { craft: { speed: 1.2, push: 1.2, turn: 1.2 }, moves: { sidestep: SIDESTEP, boost: BOOST, passes: PASSES } },
+          // RAM: never runs and always angry; no standing off to wait its turn: it swings round to the pilot's flank or back (`flank`:
+          // `range` u off, `angle` rad from the nose) and charges from there, from further, without slowing to line up, on a boost
+          // (919 u/s, past the red step, for the boost's half second), turning after the pilot in the charge; once it has waited `wait` s
+          // in reach for the nose to turn away it charges anyway. A little faster (735, under the red step); weaves hard on the way in.
+          maw: { craft: { speed: 1.15, push: 1.15, turn: 1.15 }, brain: { weaveAccel: 600 }, moves: { boost: BOOST },
+            attack: { prepare: 0.12, prepareSpeedShare: 1, commitSpeedShare: 1.25, recover: 0.3, holdingRangeShare: 0.3,
+              startRangeShare: 1.4, alignment: 0.6, homing: 1.1, noSlot: true, chargeBoost: true,
+              flank: { angle: 2.2, range: 650, cone: 1.0, wait: 2.5, face: 300 } },
+            temper: { cowardice: [0, 0], aggression: [7, 10] } },
+          // WALL: never runs, never hides; walks in closer and fires a fan of three (the hull's grace counts one hit a second).
+          brute: { range: 0.8, shot: { fan: 3, spread: 0.13 }, temper: { cowardice: [0, 0], daring: [0, 3] } },
+          // CAPTAIN: its squad's volleys as before; a good pilot, it jinks from the nose and boosts in; does not run (cowardice under 5).
+          warlord: { craft: { speed: 1.1, push: 1.1, turn: 1.1 }, moves: { sidestep: SIDESTEP, boost: BOOST }, temper: { cowardice: [0, 4] } },
+          // SNIPER: its lock and long shot, then away on a boost to another place; breaks away from a pilot who closes in or hits it.
+          needle: { moves: { boost: BOOST, retreat: { ...RETREAT, chance: 0.8, swerve: 1.1 }, scoot: true, shy: 450 },
+            temper: { aggression: [0, 4] } },
+          // MINER: the squad's cutoff first, so its mines fall across the pilot's course; a little faster; backs off a hit.
+          weaver: { craft: { speed: 1.1, push: 1.1, turn: 1.1 }, moves: { boost: BOOST, retreat: RETREAT } },
+          // MEDIC: mends the others; backs off every hit, and runs when the squad is losing.
+          tender: { moves: { boost: BOOST, retreat: { ...RETREAT, chance: 0.9 } }, temper: { cowardice: [6, 10], aggression: [0, 3] } },
+          // JACKAL (the rescue's thief): greedy, quick, jinks.
+          jackal: { craft: { speed: 1.2, push: 1.2, turn: 1.2 }, moves: { sidestep: SIDESTEP, boost: BOOST }, temper: { greed: [7, 10] } },
+        } },
+    },
   },
 };
 

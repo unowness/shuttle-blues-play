@@ -102,7 +102,7 @@ export class Planet {
       const shade = clamp(0.09 + diffuse[k] * (0.46 + 0.62 * surface), 0, 0.999);
       const ch = rampGlyph(ramp, shade);
       if (ch === ' ') continue;
-      const m = clamp(0.34 + surface * 0.78, 0, 1);
+      const m = Math.round(clamp(0.34 + surface * 0.78, 0, 1) * CONFIG.planet.mixSteps) / CONFIG.planet.mixSteps;
       const code = (Math.round(dr + (tr - dr) * m) << 16) | (Math.round(dg + (tg - dg) * m) << 8) | Math.round(db + (tb - db) * m);
       let color = HEX.get(code);
       if (color === undefined) { color = '#' + ((1 << 24) | code).toString(16).slice(1); HEX.set(code, color); }

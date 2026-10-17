@@ -108,9 +108,12 @@ export const ECONOMY = {
   //                 credits rounded down, never more than `cap` (it was every coin).
   // Since 2026-10-04 (proposal.json `delivery`): each station restored adds 0.15 of the tariff, to 2.2 with all eight (it was 0.2,
   // to 2.6), so the network rewards the work rather than paying past it; `networkMax` holds it there.
+  // Since E1 LIGHT (SX, 2026-10-17: «по экономике давай пока Е1 возьмем»): 0.1 a station, to 1.8 (it was 0.15, to 2.2). Measured on the
+  // sim's pilot that matches SX's friend's finished save: the tariff tripled a late hour's pay while every price stayed flat, and the
+  // wallet ran to 21k at 100 min (docs/decisions/2026-10.md, "E1 LIGHT…"). A job keeps the tariff it was quoted (src/contracts.js).
   economy: {
-    networkBonus: 0.15,
-    networkMax: 2.2,
+    networkBonus: 0.1,
+    networkMax: 1.8,
     pirates: { share: 0.2, cap: 250 },
   },
 

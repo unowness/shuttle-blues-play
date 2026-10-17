@@ -99,7 +99,7 @@ export const EVENTS = Object.freeze({
   capsuleDropped: E('capsuleId pirateId reason x y', 'combat'),
   capsuleRecovered: E('capsuleId owner', 'combat'),
   newEnemySystemsEnded: E('reason encounterId'),
-  piratesEngaged: E('count kinds total sectorId bearing distance post stationId label'),
+  piratesEngaged: E('count kinds total sectorId bearing distance post stationId label reinforced'),
   pirateHit: E('pirateId kind cause left hp x y sectorId'),
   pirateDown: E('pirateId kind cause coins held left x y sectorId post'),
   pirateFled: E('pirateId kind why x y sectorId post'),
@@ -107,6 +107,8 @@ export const EVENTS = Object.freeze({
   pirateGreedEnd: E('pirateId kind got reason sectorId'),
   pirateLoot: E('pirateId kind coins hold x y sectorId'),
   pirateShout: E('pirateId kind trait line x y sectorId'),
+  // A pirate's burst of speed (a style with `moves`, src/pirateStyles.js): the turn into a pass, the return from a retreat.
+  pirateBoost: E('pirateId kind x y sectorId'),
   encounterEnded: E('cause sectorId size left seconds'),
   // The boss TOLLKEEPER (src/boss.js): there, a pattern's step, its escort let out, a part hit, a sled shot off, its phase, beaten; whole
   // again after the pilot's wreck.

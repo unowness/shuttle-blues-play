@@ -1,4 +1,4 @@
-import { gradeHex, oklch, fromLch, gradeEpoch, lookWorn, wornInk, finalDraw } from './grade.js';
+import { gradeHex, oklch, fromLch, gradeEpoch, lookWorn, wornInk, wornLook, finalDraw } from './grade.js';
 import { PALETTE } from './palette.js';
 import { readFrames, writeFrames } from './prefs.js';
 
@@ -44,18 +44,29 @@ export function setFrames(style, store) {
   return true;
 }
 
+// A look may tidy them (src/filmGrade.js `tidy`, SPAWN since 2026-10-17): draw one as another (`frames: { dash: 'rule' }`), or as an ink it
+// paints (`frame: ROLES.textFaint`: the frame is the faint text's gray), and turn their own small share of colour to its gray's hue
+// (`frameHue`; SX: «Если это серый оттенок с какой-то долей цвета из now, то просто сделай эту долю цвета из спауна»). In GRAY, the default;
+// TINTED is its own rule.
+//
 // A frame ink as it is to be seen now (a final hex, for `onFrame`): `name` 'frame' or 'rule'. Kept per look worn (the grade's epoch).
 const kept = new Map();
 export function frameInk(name, style = frames.style) {
   const key = `${gradeEpoch()}|${style}|${name}`;
   let ink = kept.get(key);
   if (ink) return ink;
-  const written = FRAME_GRAYS[name];
-  ink = gradeHex(written);
-  if (style === 'tinted' && lookWorn()) {
-    const [, chroma, hue] = oklch(wornInk(PALETTE.blue));
-    const [light] = oklch(ink);
-    if (hue !== null) ink = fromLch(light, chroma * FRAME_TINT, hue);
+  const tidy = style === 'tinted' ? null : wornLook(), as = tidy?.frames?.[name];
+  if (as && !FRAME_GRAYS[as]) ink = wornInk(as);
+  else {
+    ink = gradeHex(FRAME_GRAYS[as ?? name]);
+    if (style === 'tinted' && lookWorn()) {
+      const [, chroma, hue] = oklch(wornInk(PALETTE.blue));
+      const [light] = oklch(ink);
+      if (hue !== null) ink = fromLch(light, chroma * FRAME_TINT, hue);
+    } else if (tidy?.frameHue) {
+      const [, , hue] = oklch(wornInk(PALETTE.gray)), [light, chroma] = oklch(ink);
+      if (hue !== null) ink = fromLch(light, chroma, hue);
+    }
   }
   if (kept.size > 64) kept.clear();
   kept.set(key, ink);

@@ -368,7 +368,7 @@ export function mouseSays(way) {
 }
 
 // The way a skill's one-time hint names (src/skillHints.js; SX, 2026-10-09, «берем Т4 by the ship»): a cell as the controls list writes one
-// (labs/graphics/swiss-window.js keyTokens tells a cell of keys from words): the keys the mode flies it by ('SPACE', 'SPACE A D', 'Q E', each
+// (labs/graphics/swiss.js keyTokens tells a cell of keys from words): the keys the mode flies it by ('SPACE', 'SPACE A D', 'Q E', each
 // drawn as a cap) or, where the mode has no key for it, the mouse's own words ('HOLD L BEHIND'). A skill is the action it is named for: the
 // brake, the fire, the drift (the brake and a turn's two keys, `via`), the jump, and the trick, which is the figure's key; `by` the side of the
 // key that jumped (World.air.by: -1 the pair's left, 1 its right), so the key shown for the trick is the other one, the one that plays it.

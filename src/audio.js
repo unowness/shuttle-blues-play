@@ -574,6 +574,7 @@ export const SILENT = {
   outatime: 'an Easter egg keeps its own counsel',
   pirateGreed: 'a pirate turning for coins is seen, not heard',
   pirateGreedEnd: 'nor its turning back',
+  pirateBoost: 'a pirate\'s burst is seen by its puff (src/pirateStyles.js); a squad of five would make it a constant noise',
   pirateFled: 'a pirate running is seen and says so (its shout); the fight ending is the sound',
   questOffered: 'a side quest is seen coming in the list, quietly: it is an offer, not an alarm',
   droidLeft: 'a droid going is seen on the locator, not heard',

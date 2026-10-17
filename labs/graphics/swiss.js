@@ -149,7 +149,7 @@ export function keycapAt(ui, key, ix, top, ink = W, onBarAt = false) {
   } else keycap(r, key, box.x + KEYCAP_PAD, y, { ink, reach: 0 });
   return box;
 }
-// A key and its words: [↑ ↓] MOVE, the words in `words` gray a cell after the key (ledger.js keysLeaf's way). Returns { box (the cap's), end }.
+// A key and its words: [↑ ↓] MOVE, the words in `words` gray a cell after the key (the way of keysLeaf in labs/graphics/sketches/ledger.js). Returns { box (the cap's), end }.
 export function keyWords(ui, key, words, ix, top, { dim = false } = {}) {
   const cap = keycapAt(ui, key, ix, top);
   const wx = cap.x + cap.w - KEYCAP_PAD + SWISS.keyGap * ui.cw;
@@ -157,6 +157,15 @@ export function keyWords(ui, key, words, ix, top, { dim = false } = {}) {
   return { box: cap, end: wx + len(words) * ui.cw };
 }
 export const keyWidth = (ui, key, words) => keycapWidth(ui, key) - KEYCAP_PAD + (SWISS.keyGap + len(words)) * ui.cw;
+
+// A cell the lists show as its keys ('W / ↑' -> W, ↑; 'A D / ← →' four; '1-7' one range), or null where it is no key's (HOLD L, A ROW, POINT):
+// the controls window, the garage room's controls plate and the skills' hints draw such a cell as keycaps (here since 2026-10-17, from the
+// Swiss chrome before the organism, labs/graphics/sketches/swiss-window.js).
+const KEY_WORD = /^(?:[A-Z0-9?]|ESC|TAB|ENTER|SPACE|BKSP|SHIFT|[←→↑↓]|\d-\d)$/;
+export function keyTokens(cell) {
+  const parts = String(cell).split(/ \/ | /).filter(Boolean);
+  return parts.length && parts.every((s) => KEY_WORD.test(s)) ? parts : null;
+}
 
 // ---- the switches ---------------------------------------------------------------------------------------------------------------
 

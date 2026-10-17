@@ -48,7 +48,7 @@ const DOT = 4;
 // Where it stands (SX, 2026-10-06, 2026-10-08): in the middle of the screen, `above` px over it, and there it stays, floated only by the toy's
 // blows (`shake`, pause-toy.js). It comes over `appear` s, `drop` px from above and `scale` larger; it goes (SX: «когда ты выключаешь
 // меню, оно как бы вверх взлетает») over `leave` s, `rise` px up. `dim`: the 10 % the rest of a window darkened under a hovered row, until
-// the inverted row (the other windows read it still, labs/graphics/ledger.js).
+// the inverted row (the sketch pages' LEDGER+ look reads it still, labs/graphics/sketches/ledger.js).
 export const PAUSE_WINDOW = Object.freeze({ size: 'S', labelCols: 10, trackCols: 11, levelCols: 6, w: SIZES.S[0],
   appear: 0.32, drop: 12, scale: 0.06, leave: 0.36, rise: 36, dim: 0.1, above: 36 });
 

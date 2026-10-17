@@ -24,7 +24,8 @@
 //
 // labs/graphics/sketches/film-grade.html is the editor: the game running in it, the looks, the sliders, the export.
 
-import { gradeHex } from './grade.js';
+import { gradeHex, oklch, fromLch } from './grade.js';
+import { SPAWN_FOLDS } from './lookFolds.js';
 import { PAINT_INKS } from './paint.js';
 import { PALETTE, ROLES } from './roles.js';
 
@@ -199,8 +200,13 @@ function lookOf(look) {
   };
 }
 
-// A look's function, with SX's sliders on it.
+// A look's function, with SX's sliders on it, and the look's tidying over it when it has one (`tidy`, below).
 export function makeLook(look, tune) {
+  const base = lookBody(look, tune);
+  return look?.tidy ? tidied(base, look.tidy) : base;
+}
+
+function lookBody(look, tune) {
   const t = { ...TUNE_START, ...(look?.tune || {}), ...(tune || {}) };
   const m = { light: 0, warmth: 0, contrast: 0, saturation: 100, hue: 0, ...(look?.mood || {}) };
   const toSignals = t.signals / 100, toArt = t.art / 100, strength = t.strength / 100;
@@ -253,6 +259,56 @@ export function makeLook(look, tune) {
   return apply;
 }
 
+// A look tidied (SX, 2026-10-17, T4 on labs/graphics/sketches/spawn-tidy.html: «одну гамму ... прибранную, чтобы не было ненужных
+// повторений ... не была прям супер яркая ... сами окна остаются черными ... с белыми рамками и серыми оттенками ... Если это серый
+// оттенок с какой-то долей цвета из now, то просто сделай эту долю цвета из спауна»; «Вносим T4 в игру как новый SPAWN»), over what the
+// look paints:
+//
+//   folds    { target: [written colours] }: each written colour painted as its target (src/lookFolds.js: near twins, one thing one ink);
+//   greys    a look's code: an ink the look paints as a gray (under GREY_C of chroma) takes that look's lightness and share of colour, in
+//            this look's hue: as quiet and as legible as there, tinted as here. The ship paints' own inks are left as they are;
+//   kept     'interface': the kept layer (the plates, the notices, the quest list, the pointers, the pilot's ship and its picture) is
+//            painted as the interface, so one role is one ink on the screen; the ship paints' own inks stay art;
+//   frames   the windows' grays (src/frames.js, drawn as they are): which is drawn as which (`dash: 'rule'`, or `frame: <ink>` painted
+//            by the look), and with `frameHue` their own small share of colour turned to this look's gray's hue.
+//
+// The roles' inks are the interface's even where a paint shares one (#D6DCE3 is the primary text and an EVA-02 ink).
+export const GREY_C = 0.035;
+const ROLE_SET = new Set([...Object.values(PALETTE), ...Object.values(ROLES)].filter((v) => typeof v === 'string' && v.startsWith('#')).map((h) => h.toUpperCase()));
+const ART = new Set([...PAINTS].filter((h) => !ROLE_SET.has(h)));
+function tidied(base, { folds = null, greys = null, kept = null, frames = null, frameHue = false }) {
+  const into = new Map();
+  for (const [to, from] of Object.entries(folds ?? {})) for (const h of from) if (h.toUpperCase() !== to.toUpperCase()) into.set(h.toUpperCase(), to.toUpperCase());
+  let quiet = null, grayHue = null;
+  const cache = new Map();
+  const apply = (hex) => {
+    const h = hex.toUpperCase();
+    if (h === '#000000') return h;
+    let out = cache.get(h);
+    if (out) return out;
+    if (into.has(h)) out = apply(into.get(h));
+    else {
+      out = base(h);
+      if (greys && !ART.has(h)) {
+        const [, C, H] = oklch(out);
+        if (C < GREY_C) {
+          quiet ??= makeLook(lookByCode(greys));
+          grayHue ??= oklch(base(PALETTE.gray))[2];
+          const [Lq, Cq] = oklch(quiet(h));
+          out = fromLch(Lq, Cq, H ?? grayHue);
+        }
+      }
+    }
+    if (cache.size > 4096) cache.clear();
+    cache.set(h, out);
+    return out;
+  };
+  apply.keep = kept === 'interface' ? (hex) => (into.has(hex.toUpperCase()) || !ART.has(hex.toUpperCase()) ? apply(hex) : base.keep(hex)) : base.keep;
+  apply.frames = frames;
+  apply.frameHue = frameHue;
+  return apply;
+}
+
 // The looks (SX, 2026-10-02: «Четыре типа. Now, Sunset, Spawn и Tyrell»). `palette` is each role's ink: the
 // interface's four roles free and final, the signals' held to their families (inFamily); `mood` is the atmosphere the
 // interface's palette has, as a grade, which the signals and the art take in part. `logic` says it in a line.
@@ -270,7 +326,11 @@ export const LOOKS = Object.freeze([
     palette: { depth: '#0A1645', structure: '#3961A9', secondary: '#7185A0', primary: '#AEC4E0', route: '#5EAC8A',
       caution: '#F79043', danger: '#E5484A', brake: '#FDD383', credits: '#FDE7AA', creditsLabel: '#D5A23E' },
     mood: { light: -0.3, warmth: -4.5, saturation: 80 },
-    tune: { strength: 110, light: 0.3, warmth: 4.5, contrast: -1, saturation: 120, hue: 5, signals: 55, art: 10 },
+    // SPAWN SOFT (SX, 2026-10-17: «берем софт»): the colours one notch quieter, saturation 85 where SX's tune had 120, and tidied (above):
+    // its grays as quiet as NOW's in its own hue, the kept layer in it, the near twins folded, the windows' dash the rule and their frame
+    // the faint text, their grays in its hue. The game's default look since that day («спаун софт должен быть в умолчании»).
+    tune: { strength: 110, light: 0.3, warmth: 4.5, contrast: -1, saturation: 85, hue: 5, signals: 55, art: 10 },
+    tidy: { folds: SPAWN_FOLDS, greys: 'G0', kept: 'interface', frames: { dash: 'rule', frame: ROLES.textFaint }, frameHue: true },
   },
   {
     code: 'G2', name: 'SUNSET', film: 'The sky just after the sun: steel and lavender over the last warm light (SX\'s tuning)',

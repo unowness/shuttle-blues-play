@@ -29,6 +29,7 @@ import { deckLayout } from './hud-layout.js';
 import { createWorldPresentation, unassignedMaterials } from './world-art.js';
 import { Input } from '../../src/input.js';
 import { World } from '../../src/world.js';
+import { PIRATE_STYLE_IDS } from '../../src/pirateStyles.js';
 import { setSecretHole } from '../../src/secretHole.js';
 import { normalizeModel, PLACEHOLDER } from '../../src/asciiModel.js';
 import { TAU, deepFreeze } from '../../src/util.js';
@@ -124,7 +125,7 @@ export function createGame(env) {
   // wiped first: to compare the beats from the start as often as wanted, never touching the pilot's game.
   const FOCUS_RUN = !GAME && pageParams.has('focus');
   const LAB_SAVE = !GAME && (REVIEW || FOCUS_RUN || pageParams.get('save') === 'lab' || ['look', 'looks'].some((key) => pageParams.has(key)) ||
-    ['placeQuests', 'startRuin', 'raid', 'quest', 'special', 'restored'].some((key) => pageParams.has(key)) || pageParams.get('map') === 'all');
+    ['placeQuests', 'startRuin', 'raid', 'quest', 'special', 'restored', 'pirateStyle'].some((key) => pageParams.has(key)) || pageParams.get('map') === 'all');
   const gameBackend = () => { try { return env.storage() || null; } catch { return null; } };
   const saveBackend = LAB_SAVE ? createLabBackend() : gameBackend();
   const tuningBackend = GAME ? null : createLabBackend();
@@ -212,6 +213,11 @@ export function createGame(env) {
   // link calls them with `?pirates=` or a drawer button, so a review of anything else is
   // not interrupted.
   world.autoEncounters = !REVIEW;
+  // `?pirateStyle=P0..P3` (the lab, on its own save): how the pirates made from now on fight (CONFIG.pirates.styles, src/pirateStyles.js;
+  // SX, 2026-10-17: «лаб с пресетами P1 FASTER, P2 PACK, P3 MOVES»). The game's is CONFIG.pirates.style.
+  // Its squads are drawn as a pilot who has restored every ruin meets them, so the hulls that replace the old four come too
+  // (SX, 2026-10-17: «ни одного пирата, который кодекс рисовал, мне не встретилось»).
+  if (!GAME && PIRATE_STYLE_IDS.includes(pageParams.get('pirateStyle'))) { world.pirateStyle = pageParams.get('pirateStyle'); world.rosterOpen = true; }
   // The drift G1 GLIDE and the jump J2, the game's (chat F1: src/drift.js, src/trick.js, FLIGHT's presets in src/flightConfig.js); the lab
   // may put the pilot's NORMAL or PRO aside (labs/graphics/stunt-fx.js readStuntSwitches). NORMAL or PRO is kept in this browser; nothing
   // else of it is saved.
@@ -406,6 +412,13 @@ export function createGame(env) {
   // The interface the flight wears and the modern one's locator (labs/graphics/hud-modern.js; SX, 2026-10-16): MODERN with a SQUARE locator
   // unless this browser keeps LEGACY or ROUND (the pause's GRAPHICS > INTERFACE and MAP); what tore off the modern one, falling.
   game.interface = createInterface(saveBackend);
+  // Under MODERN the ship stands at the screen's middle, not over LEGACY's helm (src/renderer.js layout; CONFIG.view.modernMiddle); laid
+  // again now that the choice is known, and when the pause changes it.
+  renderer.shipMiddleOf = () => (game.interface.style === 'modern' ? CONFIG.view.modernMiddle : null);
+  // And its centred windows (the pilot card, INFO, the hangar, the controls ...) in the middle of the whole screen, not of LEGACY's flight
+  // view over a cockpit band it does not draw (SX, 2026-10-17: «карточка пилота почему-то не по центру экрана она как-то завышена»).
+  renderer.windowViewOf = (r) => (game.interface.style === 'modern' ? { x: 0, y: 0, w: r.width, h: r.height } : null);
+  renderer.layout();
   game.modernFx = createModernFx();
   // The camera's height over the world (src/zoom.js; SX, 2026-10-17: «камеру чуть повыше взять»): this browser's step, 90 % unless − and = or
   // the pause's GRAPHICS > CAMERA kept another; the lab's `?zoom=100|90|83` one for this load, not kept. The world's layer is fitted to it
