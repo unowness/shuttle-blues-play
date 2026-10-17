@@ -536,7 +536,8 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
       charm.shown = false;
       stepModernFx(game.modernFx, { share: world.ship.alive && world.hullMax > 0 ? world.hull / world.hullMax : 0, angle: world.ship.angle, dt: rawDt,
         charmAt: game.lastHudLayout?.modern ? game.lastHudLayout.charmAt : null, charmId: hungId,
-        wheelAt: game.lastHudLayout?.modern ? game.lastHudLayout.wheelAt : null, reducedMotion: feedback.reducedMotion });
+        wheelAt: game.lastHudLayout?.modern ? game.lastHudLayout.wheelAt : null, thrust: flown?.thrust ?? 0, retro: flown?.retro ?? 0,
+        reducedMotion: feedback.reducedMotion });
       modernOut = group('modern', renderer, (r) => drawModernHud(r, game, { given, brake: !!brakeHands.damp, lamp: HELM_FX.lamp,
         speed: Math.hypot(world.ship.vx, world.ship.vy), maxSpeed: world.ship.params().maxSpeed, input: flown, now: pageTime(),
         scopeArgs: { flags: scopeArgs.flags, quests: scopeArgs.quests, task: scopeArgs.task }, reducedMotion: feedback.reducedMotion,

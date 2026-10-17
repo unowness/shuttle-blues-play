@@ -227,7 +227,7 @@ export class Feedback {
       if (item.sectorId !== world.sector.id) continue;
       if (!item.label) continue;
       if (item.hail) {
-        const box = item.hail.greet && this.drawGreet ? this.drawGreet(r, world, item) : drawHail(r, world, item, occupied);
+        const box = item.hail.greet && this.drawGreet ? this.drawGreet(r, world, item, occupied) : drawHail(r, world, item, occupied);
         if (box) occupied.push(box);
         continue;
       }
@@ -347,7 +347,9 @@ export function hailRows(line, wrap = HAIL.wrap) {
   return best ? best.rows : [text];
 }
 
-function drawHail(r, world, item, occupied = []) {
+// `name` over the words (the hail's own unless given; null for none) in `nameInk`: a friendly ship's words and the pilot's greeting are drawn
+// here too (labs/graphics/greeting.js drawGreetAnswer).
+export function drawHail(r, world, item, occupied = [], name = item.hail.name ?? null, nameInk = ROLES.textSecondary) {
   const at = world.craftAt?.(item.hail.craftId);
   if (at) { item.x = at.x; item.y = at.y; }
   const p = world.project(r, item.x, item.y);
@@ -358,7 +360,7 @@ function drawHail(r, world, item, occupied = []) {
   const alpha = Math.max(0, Math.min(1, item.age / HAIL.fade, (item.life - item.age) / HAIL.fade));
   if (alpha <= 0) return null;
   // Its name a row over its words, in the quiet ink (SX, 2026-10-16: «имя там приглушенная фразочка белая»); the world writes none under it.
-  const rows = item.hail.rows ?? hailRows(item.hail.line), name = item.hail.name ?? null, head = name ? 1 : 0;
+  const rows = item.hail.rows ?? hailRows(item.hail.line), head = name ? 1 : 0;
   const width = Math.max(name ? name.length : 0, ...rows.map((t) => t.length)) * r.cellW, height = (rows.length + head) * row;
   const shoulder = half * 0.55, rise = HAIL.rise * row * 1.5, run = rise / 2;
   const place = (dir, up) => {
@@ -381,7 +383,7 @@ function drawHail(r, world, item, occupied = []) {
   ctx.strokeStyle = CONFIG.hud.color; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(Math.round(sx) + .5, Math.round(sy) + .5); ctx.lineTo(Math.round(ex) + .5, Math.round(ey) + .5); ctx.stroke();
   ctx.restore();
-  if (name) r.text(name, tx, ty, ROLES.textSecondary, alpha);
+  if (name) r.text(name, tx, ty, nameInk, alpha);
   rows.forEach((t, k) => r.text(t, tx, ty + (k + head) * row, labelInk(item.type), alpha));
   return box;
 }

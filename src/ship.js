@@ -108,6 +108,13 @@ export class Ship {
     for (const c of this.frameCells) if (c.y > rear) rear = c.y;
     return (rear + 0.5) * m.h;
   }
+  // How far the drawing reaches to either side of the pivot, in pixels (presentation only, as drawnRear: the suitcase is clamped there).
+  drawnSide() {
+    const m = this.metrics || { w: 9 };
+    let side = 0;
+    for (const c of this.frameCells) if (Math.abs(c.x) > side) side = Math.abs(c.x);
+    return (side + 0.5) * m.w;
+  }
   // Rotation that maps model space (art points up) onto the heading.
   get facing() { return this.angle + Math.PI / 2 + this.model.baseRotation; }
 

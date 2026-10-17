@@ -290,6 +290,8 @@ export const QUEST_LINES = Object.freeze({
     onTime: line(1, ['cr'], (cr) => `+${cr} CR / ON TIME`),
     late: line(1, ['cr'], (cr) => `+${cr} CR / LATE`),
     back: line(0, [], () => 'CARGO RETURNED'),
+    // A cargo lost at its second wreck (src/wreck.js), sent home.
+    gone: line(0, [], () => 'CARGO LOST'),
     backTo: line(1, ['station'], (station) => `TO ${station}`),
   }),
   // Banners that carried the same names past their 27 characters (the defaults round, 2026-10-04).

@@ -805,10 +805,26 @@ function drawScope(r, world, { cx, cy, radius, reducedMotion, flags, quests, tas
 // straight, the edge of the disc is the square's edge. Its wear (`level`, cockpit-fx.js damageLevel): breaks in the rim and the contour,
 // more at each step, a broken piece knocked out of line at the worst (SX: «локатор тоже внешний край ломается с внутренним»).
 // `wreck`: at a wreck (SX, 2026-10-16: «локатор во время аварии разрушался побольше») `breaks` more breaks round it, `span` times as long,
-// each piece of the contour knocked `off` px out of line, and a crack across its glass: `steps` jags of up to `jag` px off its line, and `branches` short ones off it,
-// `branch` of the glass's half long.
+// each piece of the contour knocked `off` px out of line (SX, 2026-10-17: «Рамку у локатора я бы сильнее ломал»: F1 on
+// labs/graphics/sketches/hotfix-1017.html, 10, 1.8 and 3-6 px until then), and its glass cracked as glass cracks (glassCrack; SX's K2 WEB
+// on the same sheet: «Web но он должен быть серым или темно синим, и под внутренний контур ложиться под фейд, можно эмулировать
+// отваливающиеся куски стекла»; then «чуть поменьше деталей ... где-то 5 разных версий. Чтобы он чуть по-разному всегда ломался»; a
+// jagged line across it, with three bent branches, since 2026-10-16): in `ink`, inside the rim under its shade; one of `versions` a wreck,
+// each over `glass` (glassCrack's numbers); `shards` pieces of the glass fall out (drawFallingShards).
 export const MODERN_SCOPE = Object.freeze({ apart: 5, round: 8, shade: 22, dark: 0.8, long: 9, short: 4, breaks: 2,
-  wreck: Object.freeze({ breaks: 10, span: 1.8, off: [3, 6], steps: 7, jag: 7, branches: 3, branch: 0.35 }) });
+  wreck: Object.freeze({ breaks: 16, span: 2.7, off: [5, 11], ink: ROLES.frame,
+    glass: Object.freeze({ at: 0.25, rays: 6, kinks: 3, bend: 0.05, rings: [0.22, 0.46], gaps: 0.3, core: 5, coreLength: 5 }),
+    versions: Object.freeze([
+      Object.freeze({}),
+      Object.freeze({ at: 0.4, rays: 5, rings: [0.3], gaps: 0.2, core: 4 }),
+      Object.freeze({ at: 0.15, rays: 7, rings: [0.2], gaps: 0.4, core: 6, bend: 0.04 }),
+      Object.freeze({ at: 0.5, rays: 6, rings: [0.26, 0.52], gaps: 0.45, core: 0, kinks: 2 }),
+      Object.freeze({ at: 0.3, rays: 5, rings: [0.18, 0.4], gaps: 0.3, core: 5, bend: 0.06 }),
+    ]),
+    // `count` pieces, each out `delay` s after the crack (from the first to the last), falling at `fall` px/s², `drift` px/s away from the
+    // impact, turning `spin` rad/s, gone after `life` s (off the screen by then); a hole where each was. None fall under reduced motion.
+    shards: Object.freeze({ count: 3, delay: [0.08, 0.7], fall: 1100, drift: 60, spin: 2.2, life: 1.6 }),
+  }) });
 function discToSquare(u, v) {
   const u2 = u * u, v2 = v * v, t = 2 * Math.SQRT2;
   const x = 0.5 * Math.sqrt(Math.max(0, 2 + u2 - v2 + t * u)) - 0.5 * Math.sqrt(Math.max(0, 2 + u2 - v2 - t * u));
@@ -821,7 +837,7 @@ function roundedRect(ctx, x, y, w, h, rr) {
 }
 // `box` its contour's box (whole pixels, square), `shape` 'round' or 'square', `level` its wear (0-4), `seed` where its breaks fall, `wreck`
 // the deck's break at a wreck while it stands (cockpit-fx.js cockpitCrack: its `seed` where the crack runs), or null.
-export function drawModernScope(r, world, { box, shape = 'square', reducedMotion = false, flags = [], quests = [], task = null, level = 0, seed = 1, wreck = null }) {
+export function drawModernScope(r, world, { box, shape = 'square', reducedMotion = false, flags = [], quests = [], task = null, level = 0, seed = 1, wreck = null, now = 0 }) {
   const ctx = r.ctx, S = MODERN_SCOPE, cx = box.x + box.w / 2, cy = box.y + box.h / 2, square = shape === 'square';
   const inner = box.w / 2 - 0.5 - S.apart, dotRound = Math.max(0, S.round - S.apart);
   noteKey(keyName('map'), box, r);
@@ -859,6 +875,8 @@ export function drawModernScope(r, world, { box, shape = 'square', reducedMotion
     ctx.fillStyle = ROLES.backing; ctx.strokeStyle = ROLES.textPrimary; ctx.beginPath();
     triangle.forEach((point, index) => ctx[index ? 'lineTo' : 'moveTo'](cx + point.x, cy + point.y));
     ctx.closePath(); ctx.fill(); ctx.stroke();
+    // At a wreck the glass cracks, under the shade and the rim (drawGlassCrack).
+    if (wreck) drawGlassCrack(ctx, { cx, cy, inner, outerHalf: inner + S.apart, square }, wreck, seed, { now, reducedMotion });
     ctx.restore();
     // The shade round the rim, inside it.
     if (square) {
@@ -882,57 +900,155 @@ export function drawModernScope(r, world, { box, shape = 'square', reducedMotion
     // The contour.
     if (square) roundedRect(ctx, box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1, S.round); else { ctx.beginPath(); ctx.arc(cx, cy, inner + S.apart, 0, Math.PI * 2); }
     ctx.stroke();
-    // The wear: black over the rim and the contour where they broke, a piece of the contour knocked out of line at the worst; at a wreck
-    // breaks all round, the pieces knocked farther, and the crack across the glass.
-    const WR = S.wreck;
-    if (level > 0 || wreck) {
-      const outerHalf = inner + S.apart, n = level * S.breaks + (wreck ? WR.breaks : 0), at3 = wreck ? wreck.seed % 997 : 0;
-      const pointAt = (half, a) => { const c = Math.cos(a), sn = Math.sin(a), reach = square ? half / Math.max(Math.abs(c), Math.abs(sn)) : half; return [cx + c * reach, cy + sn * reach]; };
-      ctx.lineCap = 'butt';
-      for (let i = 0; i < n; i++) {
-        const own = i >= level * S.breaks, sd = own ? seed + at3 : seed;
-        const a = noise3(sd, i, 3) * Math.PI * 2, span = (0.05 + 0.08 * noise3(sd, i, 5)) * (square ? 0.8 : 1) * (own ? WR.span : 1);
-        for (const [half, w] of [[outerHalf, 3], ...(i % 2 ? [[inner, 3]] : [])]) {
-          ctx.strokeStyle = ROLES.backing; ctx.lineWidth = w; ctx.beginPath();
-          for (let k = 0; k <= 6; k++) { const [x, y] = pointAt(half, a - span / 2 + (span * k) / 6); ctx[k ? 'lineTo' : 'moveTo'](x, y); }
-          ctx.stroke();
-          if ((level >= 3 || wreck) && half === outerHalf) {
-            const off = wreck ? WR.off[0] + noise3(sd, i, 7) * (WR.off[1] - WR.off[0]) : 1.5 + noise3(seed, i, 7) * 1.5;
-            ctx.strokeStyle = ROLES.structure; ctx.lineWidth = 1; ctx.beginPath();
-            for (let k = 1; k <= 5; k++) { const [x, y] = pointAt(half + off, a - span / 3 + (span * k) / 9); ctx[k > 1 ? 'lineTo' : 'moveTo'](x, y); }
-            ctx.stroke();
-          }
-        }
-      }
-      // The crack: from the contour to the contour about across, jagged off its line, a short branch off it here and there; black cut
-      // under a line of the contour's ink.
-      if (wreck) {
-        const sd = seed + at3, a0 = noise3(sd, 1, 61) * Math.PI * 2, a1 = a0 + Math.PI + (noise3(sd, 2, 61) - 0.5);
-        const [x0, y0] = pointAt(outerHalf, a0), [x1, y1] = pointAt(outerHalf, a1), len = Math.hypot(x1 - x0, y1 - y0) || 1;
-        const nx = -(y1 - y0) / len, ny = (x1 - x0) / len, run = [];
-        for (let k = 0; k <= WR.steps; k++) {
-          const t = k / WR.steps, j = k === 0 || k === WR.steps ? 0 : (noise3(sd, k, 67) * 2 - 1) * WR.jag;
-          run.push([x0 + (x1 - x0) * t + nx * j, y0 + (y1 - y0) * t + ny * j]);
-        }
-        const lines = [run];
-        for (let b = 0; b < WR.branches; b++) {
-          const k = 1 + Math.floor(noise3(sd, b, 71) * (WR.steps - 1)), [bx, by] = run[k], side = b % 2 ? 1 : -1;
-          const turn = Math.atan2(y1 - y0, x1 - x0) + side * (0.6 + 0.5 * noise3(sd, b, 73)), L = WR.branch * inner * (0.6 + 0.4 * noise3(sd, b, 79));
-          const mid = L * 0.55, bend = (noise3(sd, b, 83) * 2 - 1) * 0.35;
-          lines.push([[bx, by], [bx + Math.cos(turn) * mid, by + Math.sin(turn) * mid], [bx + Math.cos(turn + bend) * L, by + Math.sin(turn + bend) * L]]);
-        }
-        ctx.lineJoin = 'miter';
-        for (const [w, ink] of [[3, ROLES.backing], [1, ROLES.structure]]) {
-          ctx.strokeStyle = ink; ctx.lineWidth = w; ctx.beginPath();
-          for (const line of lines) line.forEach(([x, y], k) => ctx[k ? 'lineTo' : 'moveTo'](x, y));
-          ctx.stroke();
-        }
-      }
-    }
+    // The wear and a wreck's breaking (drawScopeWear).
+    if (level > 0 || wreck) drawScopeWear(ctx, { cx, cy, inner, outerHalf: inner + S.apart, square }, { level, seed, wreck });
+    if (wreck) drawFallingShards(ctx, { cx, cy, inner, outerHalf: inner + S.apart, square }, wreck, seed, { now, reducedMotion });
     ctx.restore();
   }, { kind: 'panel' });
   return box;
 }
+// The scope's wear and a wreck's breaks, drawn over it: `g` its geometry (`cx`, `cy` its middle, `inner` the rim's half, `outerHalf` the
+// contour's, `square`), `level` its wear (0-4), `seed` where its breaks fall, `wreck` the deck's break while it stands or null, `look` the
+// wreck's numbers (MODERN_SCOPE.wreck, or a sketch's). Black over the rim and the contour where they broke, a piece of the contour knocked
+// out of line at the worst; at a wreck breaks all round and the pieces knocked farther. (Its own function since 2026-10-17, so the sketch
+// page draws what the game draws; the crack is drawGlassCrack's, under the rim's shade.)
+export function drawScopeWear(ctx, g, { level = 0, seed = 1, wreck = null, look = MODERN_SCOPE.wreck } = {}) {
+  const S = MODERN_SCOPE, WR = look, { cx, cy, inner, outerHalf, square } = g;
+  if (!(level > 0 || wreck)) return;
+  const n = level * S.breaks + (wreck ? WR.breaks : 0), at3 = wreck ? wreck.seed % 997 : 0;
+  const pointAt = (half, a) => { const c = Math.cos(a), sn = Math.sin(a), reach = square ? half / Math.max(Math.abs(c), Math.abs(sn)) : half; return [cx + c * reach, cy + sn * reach]; };
+  ctx.save();
+  ctx.lineCap = 'butt';
+  for (let i = 0; i < n; i++) {
+    const own = i >= level * S.breaks, sd = own ? seed + at3 : seed;
+    const a = noise3(sd, i, 3) * Math.PI * 2, span = (0.05 + 0.08 * noise3(sd, i, 5)) * (square ? 0.8 : 1) * (own ? WR.span : 1);
+    for (const [half, w] of [[outerHalf, 3], ...(i % 2 ? [[inner, 3]] : [])]) {
+      ctx.strokeStyle = ROLES.backing; ctx.lineWidth = w; ctx.beginPath();
+      for (let k = 0; k <= 6; k++) { const [x, y] = pointAt(half, a - span / 2 + (span * k) / 6); ctx[k ? 'lineTo' : 'moveTo'](x, y); }
+      ctx.stroke();
+      if ((level >= 3 || wreck) && half === outerHalf) {
+        const off = wreck ? WR.off[0] + noise3(sd, i, 7) * (WR.off[1] - WR.off[0]) : 1.5 + noise3(seed, i, 7) * 1.5;
+        ctx.strokeStyle = ROLES.structure; ctx.lineWidth = 1; ctx.beginPath();
+        for (let k = 1; k <= 5; k++) { const [x, y] = pointAt(half + off, a - span / 3 + (span * k) / 9); ctx[k > 1 ? 'lineTo' : 'moveTo'](x, y); }
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
+// Where a line from (x, y) the way (dx, dy) leaves a contour of half `R` round the scope's middle: the circle's, or the square's edge.
+function exitAt(g, R, x, y, dx, dy) {
+  const ox = x - g.cx, oy = y - g.cy;
+  if (g.square) {
+    let t = Infinity;
+    for (const [o, d] of [[ox, dx], [oy, dy]]) if (Math.abs(d) > 1e-9) t = Math.min(t, ((d > 0 ? R : -R) - o) / d);
+    return [x + dx * t, y + dy * t];
+  }
+  const b = ox * dx + oy * dy, c = ox * ox + oy * oy - R * R, t = -b + Math.sqrt(Math.max(0, b * b - c));
+  return [x + dx * t, y + dy * t];
+}
+// A crack as glass cracks, its geometry (`g` the scope's, `sd` its seed, `C` its numbers): from a point of impact `at` of the glass's half
+// off its middle, `rays` straight cracks out past the rim, each in `kinks` straight runs that turn a little where they meet (up to `bend`
+// of the run's length aside); round the impact `rings` broken rings (at those shares of the glass's half), a straight chord between each
+// two neighbouring cracks, `gaps` of them left out; `core` short cracks round the impact itself, `coreLength` px. Returns `lines` (each a
+// run of points) and `cells`: the pieces whole cracks close round (the impact's triangles inside the first ring, the quads between the
+// first and the second), each { points, cx, cy } (its middle), the ones a shard may fall out of.
+export function glassCrack(g, sd, C) {
+  const lines = [], cells = [], TAU = Math.PI * 2;
+  const ia = noise3(sd, 1, 91) * TAU, ir = C.at * g.inner * (0.7 + 0.3 * noise3(sd, 2, 91));
+  const ix = g.cx + Math.cos(ia) * ir, iy = g.cy + Math.sin(ia) * ir;
+  const rays = [];
+  for (let k = 0; k < C.rays; k++) {
+    const a = ((k + 0.5) / C.rays) * TAU + (noise3(sd, k, 93) - 0.5) * (TAU / C.rays) * 0.7;
+    const dx = Math.cos(a), dy = Math.sin(a), [ex, ey] = exitAt(g, g.inner + 2, ix, iy, dx, dy), len = Math.hypot(ex - ix, ey - iy);
+    const run = [[ix, iy]];
+    for (let j = 1; j < C.kinks; j++) {
+      const t = j / C.kinks, aside = (noise3(sd, k * 7 + j, 97) * 2 - 1) * C.bend * len;
+      run.push([ix + dx * len * t - dy * aside, iy + dy * len * t + dx * aside]);
+    }
+    run.push([ex, ey]);
+    rays.push(run);
+    lines.push(run);
+  }
+  // A point of a crack `d` px from the impact, along its runs.
+  const along = (run, d) => {
+    let left = d;
+    for (let j = 1; j < run.length; j++) {
+      const [x0, y0] = run[j - 1], [x1, y1] = run[j], L = Math.hypot(x1 - x0, y1 - y0);
+      if (left <= L) return [x0 + ((x1 - x0) * left) / L, y0 + ((y1 - y0) * left) / L];
+      left -= L;
+    }
+    return null;
+  };
+  // Each ring's point on each crack, and whether the chord from crack k to crack k + 1 is there.
+  const rings = (C.rings ?? []).map((share, i) => rays.map((run, k) => along(run, share * g.inner * (0.85 + 0.3 * noise3(sd, k + i * 31, 103)))));
+  const chord = rings.map((pts, i) => pts.map((p, k) => {
+    const q = pts[(k + 1) % pts.length];
+    if (!p || !q || noise3(sd, k + i * 31, 101) < C.gaps) return false;
+    lines.push([p, q]);
+    return true;
+  }));
+  const cell = (points) => cells.push({ points, cx: points.reduce((a, p) => a + p[0], 0) / points.length, cy: points.reduce((a, p) => a + p[1], 0) / points.length });
+  for (let k = 0; k < rays.length; k++) {
+    const k1 = (k + 1) % rays.length;
+    if (rings[1] && chord[0][k] && chord[1][k]) cell([rings[0][k], rings[0][k1], rings[1][k1], rings[1][k]]);
+    else if (rings[0] && !rings[1] && chord[0][k]) cell([[ix, iy], rings[0][k], rings[0][k1]]);
+  }
+  for (let k = 0; k < (C.core ?? 0); k++) {
+    const a = (k / C.core) * TAU + noise3(sd, k, 109), L = C.coreLength * (0.5 + 0.5 * noise3(sd, k, 113));
+    lines.push([[ix + Math.cos(a) * 1.5, iy + Math.sin(a) * 1.5], [ix + Math.cos(a) * L, iy + Math.sin(a) * L]]);
+  }
+  return { lines, cells, ix, iy };
+}
+// The crack of this wreck on this scope: its version (one of `look.versions` by the wreck's seed) and its geometry, kept while they hold.
+const keptCrack = { key: '', value: null };
+export function scopeCrack(g, wreck, seed, look = MODERN_SCOPE.wreck) {
+  const key = `${wreck.seed}|${seed}|${g.cx}|${g.cy}|${g.inner}|${g.square}`;
+  if (look === MODERN_SCOPE.wreck && keptCrack.key === key) return keptCrack.value;
+  const versions = look.versions ?? [{}], C = { ...look.glass, ...versions[wreck.seed % versions.length] };
+  const sd = seed + (wreck.seed % 997), made = glassCrack(g, sd, C);
+  // The shards: `count` of the cells, picked by the seed, each with its moment and its way out.
+  const S = look.shards, order = made.cells.map((c, i) => ({ c, n: noise3(sd, i, 127) })).sort((a, b) => a.n - b.n);
+  made.shards = order.slice(0, S?.count ?? 0).map(({ c }, j, all) => ({ cell: c,
+    delay: S.delay[0] + (all.length > 1 ? j / (all.length - 1) : 0) * (S.delay[1] - S.delay[0]),
+    side: c.cx >= made.ix ? 1 : -1, turn: noise3(sd, j, 131) < 0.5 ? -1 : 1 }));
+  if (look === MODERN_SCOPE.wreck) { keptCrack.key = key; keptCrack.value = made; }
+  return made;
+}
+const tracePoly = (ctx, points, dx = 0, dy = 0) => { ctx.beginPath(); points.forEach(([x, y], k) => ctx[k ? 'lineTo' : 'moveTo'](x + dx, y + dy)); ctx.closePath(); };
+// The crack on the glass, drawn inside the rim before its shade (the caller's clip): a hole where a shard has fallen out (all of them
+// at once under reduced motion), then the cracks, a black cut under a line of `look.ink`. `now` the page's seconds, as `wreck.at`.
+export function drawGlassCrack(ctx, g, wreck, seed, { now = 0, reducedMotion = false, look = MODERN_SCOPE.wreck } = {}) {
+  const made = scopeCrack(g, wreck, seed, look), age = now - (wreck.at ?? now);
+  ctx.save();
+  ctx.fillStyle = ROLES.backing;
+  for (const sh of made.shards) if (reducedMotion || age >= sh.delay) { tracePoly(ctx, sh.cell.points); ctx.fill(); }
+  ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
+  for (const [w, ink] of [[3, ROLES.backing], [1, look.ink]]) {
+    ctx.strokeStyle = ink; ctx.lineWidth = w; ctx.beginPath();
+    for (const line of made.lines) line.forEach(([x, y], k) => ctx[k ? 'lineTo' : 'moveTo'](x, y));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+// The shards falling out, drawn over the whole scope and past it (no clip): each from its moment, down at `fall` px/s², `drift` px/s
+// away from the impact, turning; black glass edged in `look.ink`, gone after `life` s. Nothing under reduced motion.
+export function drawFallingShards(ctx, g, wreck, seed, { now = 0, reducedMotion = false, look = MODERN_SCOPE.wreck } = {}) {
+  if (reducedMotion) return;
+  const made = scopeCrack(g, wreck, seed, look), S = look.shards, age = now - (wreck.at ?? now);
+  for (const sh of made.shards) {
+    const t = age - sh.delay;
+    if (t < 0 || t > S.life) continue;
+    const { cell } = sh, dx = sh.side * S.drift * t, dy = 0.5 * S.fall * t * t, a = sh.turn * S.spin * t;
+    ctx.save();
+    ctx.translate(cell.cx + dx, cell.cy + dy); ctx.rotate(a);
+    tracePoly(ctx, cell.points, -cell.cx, -cell.cy);
+    ctx.fillStyle = ROLES.backing; ctx.fill();
+    ctx.strokeStyle = look.ink; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+  }
+}
+
 // The legend's rows where the modern interface lays them (`L` columnLayout's, its `legendX` and `listTop` the modern's).
 export const drawLegendRowsAt = (r, L, lore = null) => drawLegendRows(r, L, lore);
 export const LEGEND_ROW_COUNT = LEGEND_ROWS;

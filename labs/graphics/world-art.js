@@ -409,10 +409,8 @@ export function shipAlpha(invuln, { docked = false, reducedMotion = false } = {}
 // (ship-motion.js bankDraws), and in reverse its wings take their brake pose (wingFlip).
 // `options.scramble`: the ship back from a wreck, mixed ({ plan, u }, labs/graphics/ship-scramble.js): each cell drawn at its piece's place,
 // whole and steady (no blink) while it is.
-// The canopy seen from below, a hatch: its rounded corners straight (SX, 2026-10-16: «это дно с точками. Они накладываются на стыке друг
-// на друга, и там крест образуется или полоска ... Можно просто там какой-нибудь прямой ... не сильно груженно»; the rocks' ░ until then,
-// whose dots met at the cells' seams).
-const BELLY_HATCH = Object.freeze({ '╭': '┌', '╮': '┐', '╰': '└', '╯': '┘' });
+// The canopy is not drawn from below (SX, 2026-10-17: «ты сделал прозрачную кабинку ... сделай лучше, чтобы ее не было, когда он
+// переворачивается»); it was a hatch of straight corners since 2026-10-16, the rocks' ░ before.
 // An ink `k` of the way toward black (the belly's), made once an ink and a share.
 const bellies = new Map();
 function bellyInk(ink, k) {
@@ -436,16 +434,17 @@ export const drawPilotShip = keptDraw(function drawPilotShip(r, ship, sx, sy, mo
   const pose = options.braking && model.brakeFrame != null ? model.brakeFrame : model.idleFrame;
   const cells = (model.frames && model.frames[pose]) || model.cells;
   // `ship.belly`: the hull seen from below, a jump's figure turning it over (labs/graphics/stunt-fx.js drawAirShip, a drawing whose look
-  // carries it, SX's Y2 COIN): every ink that much of the way toward black, the canopy closed by a hatch of straight lines (BELLY_HATCH).
+  // carries it, SX's Y2 COIN): every ink that much of the way toward black, and no canopy.
   const belly = ship.belly ?? 0;
   for (const c of cells) {
+    if (belly && isGlass(c)) continue;
     const slot = places ? slotOfCell(mix.plan, c) : -1;
     const lx = (slot >= 0 ? places[slot].x : c.x) * m.w, ly = (slot >= 0 ? places[slot].y : c.y) * m.h;
     const x = sx + lx * ca - ly * sa, y = sy + lx * sa + ly * ca;
     const base = bellyInk(paintedHull(paint, c, burning) ?? ink(c.color), belly);
     const cellAlpha = isGlass(c) ? glassAlpha : alpha;
     const wing = WING_GLYPHS.has(c.ch);
-    const ch = belly && isGlass(c) ? BELLY_HATCH[c.ch] ?? c.ch : wing && pose !== model.brakeFrame ? wingFlip(motion, model, c) : c.ch;
+    const ch = wing && pose !== model.brakeFrame ? wingFlip(motion, model, c) : c.ch;
     const draws = bankDraws(motion, cells, c, base) ?? glassDraws(motion, c, base, inks);
     for (const d of draws) r.glyphRot(ch, x, y, a, d.ink, cellAlpha * d.alpha, model.scale);
   }

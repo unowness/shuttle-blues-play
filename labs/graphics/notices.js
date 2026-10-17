@@ -60,7 +60,7 @@ import {
   currentTasks, focusedTask, taskNavigation, selectTask, cargoTaskId, createTaskLog, reconcileTasks, advanceTaskLog, allClear,
 } from '../../src/tasks.js';
 import { NOTICE, NOTICE_KINDS, QUEST_NOTICE, CARGO_MARKS, TASK_TOP, noticeTop, drawNotice, noticeRect, noticeDone, noticeMotion, bannerOut,
-  placePaper, paperBox, onPaper, paperAway } from './notice.js';
+  placePaper, paperBox, onPaper, paperAway, PAPER } from './notice.js';
 import { helmetOf, notchLine, drawNotchLine, drawNotchRow, taskLineBox, FLIP, HELMET } from './helmet.js';
 import { giftWords, FIND_LIFE } from './find-notice.js';
 import { RAIL_TIMES, railFit, moneyRuns } from './rail.js';
@@ -310,7 +310,12 @@ export function createNotices(game) {
             if (e.cause === 'pirate') notify('CARGO TAKEN', QL.banner.held(e.strandedContract), { kind: 'danger', cargo: true, mark: CARGO_MARKS.lost, fate: 'gone' });
             else notify('CARGO STRANDED', `${e.strandedContract} AT THE WRECK`, { cargo: true, mark: CARGO_MARKS.lost, fate: 'gone' });
           }
-          if (e.returnedContract) notify('CARGO RETURNED', QL.banner.cargo(e.returnedContract, stationOnly(e.returnedTo)), { cargo: true, mark: CARGO_MARKS.lost, fate: 'gone' });
+          // A cargo lost a second time is lost (src/wreck.js), back at its station: its plate goes red, saying so.
+          if (e.lostAgain && e.returnedId) {
+            cargoEnds.set(cargoTaskId(e.returnedId), { outcome: 'late', words: { late: [QL.cargo.gone(), QL.cargo.backTo(stationOnly(e.returnedTo))] } });
+          }
+          if (e.returnedContract) notify(e.lostAgain ? 'CARGO LOST' : 'CARGO RETURNED', QL.banner.cargo(e.returnedContract, stationOnly(e.returnedTo)),
+            { kind: e.lostAgain ? 'danger' : undefined, cargo: true, mark: CARGO_MARKS.lost, fate: 'gone' });
           break;
         // A lost cargo left five minutes goes home (CONFIG.stranded.returnAfter): its plate goes red, saying where.
         case 'cargoReturned':
@@ -677,11 +682,13 @@ export function createNotices(game) {
     const now = slot.time, dt = lastFold == null ? 0 : Math.max(0, now - lastFold);
     lastFold = now;
     notice.fold = notice.instant ? (over ? 1 : 0) : clamp((notice.fold ?? 0) + (over ? 1 : -1) * dt / RAIL_TIMES.fold, 0, 1);
-    // A find's paper: turned about its middle where it landed, its pieces flying off its own way when it tears.
+    // A find's paper: turned about its middle where it landed, its pieces flying off its own way when it tears; down, when the ship stood
+    // as it tore (`falls`, kept from that moment: notice.js PAPER.still).
     const P = notice.paper;
     if (P) {
       const m = noticeMotion(notice, { over, fold: notice.fold }), local = { x: -P.w / 2, y: -P.h / 2, w: P.w, h: P.h };
-      m.away = paperAway(P);
+      if (m.outMs != null && notice.falls == null) { const ship = game.world.ship; notice.falls = Math.hypot(ship.vx, ship.vy) < PAPER.still; }
+      m.away = paperAway(P, !!notice.falls); m.fall = !!notice.falls;
       r.ctx.save(); r.ctx.translate(P.cx, P.cy); r.ctx.rotate(P.angle);
       try {
         hoverItem(r, 'notice', local, () => drawNotice(r, notice, local.x, local.y, m), { kind: 'panel', over: pointed || (keyboardFocus() && over), disabled: notice.clicked != null });

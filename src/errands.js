@@ -271,9 +271,10 @@ function ambush(world, e) {
 
 // The suitcase aboard (SX's L4C on labs/graphics/sketches/quest-objects.html, 2026-10-15; until then two rows, `┌─┐ ╞═╡`, «напоминает
 // табуретку»): a cabin trolley standing up («багаж должен быть вертикальным, как вертикальный самолетный чемодан»), the errand's blue,
-// its handle's grip and its wheels the world's gray, its button white; on a short rope behind the hull, its handle toward the ship,
-// swinging as the charm does, and now and then a bit of what is packed comes out of it, turns away from the ship and fades
-// (CONFIG.quests.errand.suitcase). Drawn only: the bits are the page's, kept apart from the world's state and drawn from its clock by a
+// its handle's grip and its wheels the world's gray, its button white; clamped to the hull's left side by a short bar, its handle toward
+// the ship, standing out from it as the ship flies and turns (SX, 2026-10-17: «сбоку пристегивался к кораблю и сбоку торчал ... Отличить
+// его от обычного груза»; on a short rope behind the hull until then, as a cargo is), and now and then a bit of what is packed comes out
+// of it, turns away from the ship and fades (CONFIG.quests.errand.suitcase). Drawn only: the bits are the page's, kept apart from the world's state and drawn from its clock by a
 // hash, so the same frames draw the same bits.
 const CASE_ROWS = [' ╭─╮ ', '╭┴─┴╮', '│   │', '│ ● │', '╰───╯', '•   •'];
 const WHEEL_LIFT = 0.5;   // the wheels' row drawn half a cell up, against the case's foot
@@ -284,7 +285,7 @@ const CASE_CELLS = CASE_ROWS.flatMap((row, j) => Array.from(row).flatMap((ch, i)
   ink: ch === '●' ? 'button' : ch === '•' || j === 0 ? 'gray' : 'edge',
 }])));
 const caseInk = (role) => (role === 'button' ? PALETTE.white : role === 'gray' ? ROLES.material : CONFIG.hud.edge);
-const ROPE_MARKS = [1 / 3, 2 / 3];
+const CLAMP_GLYPH = '═';
 const BIT_GLYPHS = ['▪', '•', '∙', '◦', '≈', '·'];   // glyphs the boot already warms (labs/graphics/warmup.js)
 const BIT_INK_COUNT = 5;
 const bitInk = (k) => (k < 2 ? PALETTE.white : k === 2 ? ROLES.material : k === 3 ? CONFIG.hud.edge : PALETTE.amber);
@@ -293,14 +294,15 @@ const spills = new WeakMap();   // world -> { next, n, last, bits }
 export function drawSuitcase(world, r) {
   const e = errandOf(world), ship = world.ship;
   if (!e || e.stage !== 'return' || !ship.alive || world.docked) return;
-  const C = E().suitcase, t = world.time, a = ship.angle;
-  const ra = a + C.swing[0] * Math.sin(t * C.swing[1]) + C.swing[2] * Math.sin(t * C.swing[3]) + (world.cargo ? C.side : 0);
-  const s = world.project(r, ship.x, ship.y), rear = ship.drawnRear();
-  const fx = s.x - Math.cos(a) * rear, fy = s.y - Math.sin(a) * rear;
-  const half = (CASE_ROWS.length / 2) * r.cellH * C.scale, cx = fx - Math.cos(ra) * (C.rope + half), cy = fy - Math.sin(ra) * (C.rope + half);
-  // The rope: two of the tether's marks between the hull and the handle.
+  const C = E().suitcase, a = ship.angle;
+  // `out` the way from the hull's left side outward (the nose's left, y down), `ra` from the case back toward the hull.
+  const out = a - Math.PI / 2, ra = out + Math.PI;
+  const s = world.project(r, ship.x, ship.y), side = ship.drawnSide();
+  const fx = s.x + Math.cos(out) * side, fy = s.y + Math.sin(out) * side;
+  const half = (CASE_ROWS.length / 2) * r.cellH * C.scale, cx = fx + Math.cos(out) * (C.clamp + half), cy = fy + Math.sin(out) * (C.clamp + half);
+  // The clamp: a bar between the hull and the handle, in the world's gray.
   const tx = cx + Math.cos(ra) * half, ty = cy + Math.sin(ra) * half;
-  for (const k of ROPE_MARKS) r.glyphRot(CONFIG.cargo.tetherGlyph, tx + (fx - tx) * k, ty + (fy - ty) * k, 0, CONFIG.cargo.color, 1, 1.4);
+  r.glyphRot(CLAMP_GLYPH, (fx + tx) / 2, (fy + ty) / 2, out, ROLES.material, 1, C.scale);
   // The case, its handle toward the ship.
   const turn = ra + Math.PI / 2, co = Math.cos(turn), si = Math.sin(turn), w = r.cellW * C.scale, h = r.cellH * C.scale;
   for (const c of CASE_CELLS) {

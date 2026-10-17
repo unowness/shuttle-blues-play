@@ -44,8 +44,11 @@ export function wreckShip(world, cause = 'reset', obstacle = null) {
   // Except in the hidden sector (SX, 2026-09-30): no bearing leads into it from
   // outside, so a cargo left there could never be found again and its contract
   // would stay locked. A wreck there sends the cargo back to its station instead.
+  // And a cargo lost once and taken back is lost at its second wreck (SX, 2026-10-17: «если ты взрываешься, то ты теряешь груз ... один раз
+  // ты можешь его подобрать, на второй раз теряешь»): back at its station, offered there again.
   let stranded = null, returned = null;
-  if (world.ledger.active && world.sector.hidden) {
+  const lostAgain = !!world.ledger.active?.lostOnce;
+  if (world.ledger.active && (world.sector.hidden || lostAgain)) {
     returned = world.ledger.returnActive();
   } else if (world.ledger.active) {
     const from = world.cargo || ship;
@@ -67,7 +70,9 @@ export function wreckShip(world, cause = 'reset', obstacle = null) {
     strandedContract: stranded ? stranded.label : null,
     // The hidden sector's wreck: the cargo is back at its sending station.
     returnedContract: returned ? returned.label : null,
+    returnedId: returned ? returned.id : null,
     returnedTo: returned ? world.stationLabelOf(returned.from) : null,
+    lostAgain: !!returned && lostAgain,
   });
   // A fifth of the wallet goes with the cargo, at most 250 CR (CONFIG.economy.pirates;
   // it was every coin), after the wreck event so the loss is still shown. Once: a

@@ -30,7 +30,7 @@ export const EVENTS = Object.freeze({
   cloudSplash: E('cloudId sectorId x y'),
   shipBumped: E('sectorId x y speed what'),
   shipDamaged: E('sectorId x y amount cause hull landed'),
-  shipWrecked: E('sectorId cause strandedContract returnedContract returnedTo', 'wrecked'),
+  shipWrecked: E('sectorId cause strandedContract returnedContract returnedId returnedTo lostAgain', 'wrecked'),
   rescueCharged: E('cost paid hull fuel credits sectorId x y', 'rescue'),
   fuelLow: E('fuel'),
   fuelEmpty: E(''),

@@ -130,7 +130,8 @@ function runContract(id, pool = INITIAL_POOL) {
 // tight: OPENING_TARGET.times the par the same run would have, never under OPENING_TARGET.floor s (Codex's hypothesis
 // max(180 s, 3 x par); ALIGNMENT.md asks for it to be calculated on its own: RELAY 12 to YARD 3 is 3,507 u, par 35 s, target 3:00;
 // HALCYON to YARD 3 and RELAY 12 to HALCYON are shorter, 3:00 as well). Late still pays (the clock's own rule) and still counts.
-export const OPENING_TARGET = Object.freeze({ floor: 180, times: 3 });
+// The floor a quarter shorter with every par since 2026-10-17 (CONFIG.delivery.parShare): 2:15.
+export const OPENING_TARGET = Object.freeze({ floor: 135, times: 3 });
 const OPENING = /^opening:(station-[a-z0-9-]+):(station-[a-z0-9-]+)$/;
 export const openingJobId = (from, to) => `opening:${from}:${to}`;
 export const isOpeningJob = (id) => typeof id === 'string' && OPENING.test(id);
@@ -260,7 +261,7 @@ export function contractDistance(contract) {
 export function parTime(contract) {
   if (Number.isFinite(contract?.par) && contract.par > 0) return contract.par;
   const D = CONFIG.delivery;
-  const raw = (D.parBase + contractDistance(contract) / D.parPace) * cargoOf(contract).par;
+  const raw = (D.parBase + contractDistance(contract) / D.parPace) * cargoOf(contract).par * D.parShare;
   return Math.max(D.parRound, Math.round(raw / D.parRound) * D.parRound);
 }
 
@@ -362,7 +363,7 @@ function readStranded(s) {
 // `world.ledger`, and the save's `ledger` keeps its shape and keys (checks/save-migrations.mjs reads every fixture through it).
 export class Progress {
   constructor() {
-    this.active = null;          // { id, acceptedAt }: acceptedAt on this.clock
+    this.active = null;          // { id, acceptedAt, job, lostOnce? }: acceptedAt on this.clock; `lostOnce` a cargo taken back after a wreck
     this.clock = 0;              // seconds of flight, the pilot's own; saved
     this.completed = new Set();  // contract ids paid out, ever
     this.credits = 0;
@@ -536,9 +537,10 @@ export class Progress {
     if (this.active) return { ok: false, reason: 'ALREADY CARRYING CARGO' };
     // Its clock goes on from when it was first taken, not from now, and its job
     // is the one it was accepted with.
+    // It was lost once: the next wreck loses it (World wreckShip, SX, 2026-10-17: «один раз ты можешь его подобрать, на второй раз теряешь»).
     const { acceptedAt: kept, job } = this.stranded.get(contractId);
     this.stranded.delete(contractId);
-    this.active = { id: contractId, acceptedAt: Number.isFinite(kept) ? kept : atTime, job };
+    this.active = { id: contractId, acceptedAt: Number.isFinite(kept) ? kept : atTime, job, lostOnce: true };
     return { ok: true, alreadySettled: false, contract: job };
   }
 
@@ -605,7 +607,7 @@ function readRest(l, raw) {
   // is dropped rather than carried somewhere it was never bound.
   const activeJob = active && (readJob(active.job, active.id) || legacyJob(active.id));
   l.active = active && activeJob && !l.completed.has(active.id)
-    ? { id: active.id, acceptedAt: onClock(Number.isFinite(raw.clock) ? active.acceptedAt : NaN), job: activeJob } : null;
+    ? { id: active.id, acceptedAt: onClock(Number.isFinite(raw.clock) ? active.acceptedAt : NaN), job: activeJob, ...(active.lostOnce === true ? { lostOnce: true } : null) } : null;
   // Same rule for M4 records: only ids the catalogue still knows survive. (`claimed`, the authored
   // coins taken, is no longer read: the coins were cut on 2026-10-01.)
   // Signals heard, with what each taught. Unknown signals and words are

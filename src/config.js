@@ -20,12 +20,14 @@ import { MAP_PLACEMENT } from './mapContentConfig.js';
 
 // The camera's height over the world (src/zoom.js; SX, 2026-10-17: «нам надо не уменьшать, не изменять размер мира и элементов. Нам надо
 // просто как бы камеру чуть повыше взять, чтобы чуть-чуть побольше в экран помещался»; «в идеале было бы прикольно на плюс-минус дать
-// пользователю выбирать масштаб»; his pick the same day: three steps, 90 % unless the pilot chooses). `steps` the screen px a world unit is
+// пользователю выбирать масштаб»; his pick the same day: three steps, 90 % unless the pilot chooses; the highest, 83 %, a new browser's since
+// 2026-10-17: «по умолчанию сделать самый маленький размер ... на маленьких экранах это более-менее оптимально ... А на больших экранах нам как
+// раз нужна возможность дать людям прибавлять»). `steps` the screen px a world unit is
 // drawn at, from the lowest camera to the highest, chosen on − and = and in the pause's GRAPHICS; `start` a browser's with none kept.
 // How far from the ship the world is out of sight at the highest (UNSEEN): the widest window's half diagonal (2560 x 1600, 1,509 px) seen
 // from it, the camera's lead (CONFIG.camera.leadMax) and a big rock's 130 u; rocks laid or put back come no nearer (`sector.spawnClear`,
 // src/field.js refillClear). 1,300 and 1,900 until then, for the camera at 1.
-const ZOOM = Object.freeze({ steps: Object.freeze([1, 0.9, 5 / 6]), start: 0.9 });
+const ZOOM = Object.freeze({ steps: Object.freeze([1, 0.9, 5 / 6]), start: 5 / 6 });
 const UNSEEN = Math.ceil((Math.hypot(2560, 1600) / 2 / Math.min(...ZOOM.steps) + 220 + 130) / 100) * 100;
 
 export const CONFIG = {
@@ -582,8 +584,9 @@ export const CONFIG = {
     spin: 0.18,            // rad/s, a slow tumble where it lies
     // A lost cargo not taken back within `returnAfter` seconds of the pilot's clock goes
     // back to the station that sent it, and is offered there again (SX, 2026-10-01: «если
-    // ты потерял груз то через 5 минут если ты его не забрал он возвращается на станцию»).
-    returnAfter: 300,
+    // ты потерял груз то через 5 минут если ты его не забрал он возвращается на станцию»;
+    // 2 minutes since 2026-10-17: «таймеры ... слишком длинные», his pick «Потерянный груз ждёт 2 мин»).
+    returnAfter: 120,
     // Cargo lying within a station's menu drifts out of it (World.driftLostCargo, SX, 2026-10-01), so the cargo's own menu is met
     // first: at CONFIG.station.keepOut.ease u/s, out of the station's keep-out (src/keepOut.js) since 2026-10-07. Its own `drift`
     // (40 u/s, 200 u past the window's reach) until then.

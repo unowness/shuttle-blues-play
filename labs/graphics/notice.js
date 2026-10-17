@@ -286,7 +286,9 @@ export function noticeRect(r, notice) {
 // upper quarters, up in the lower ones (in the upper left the left end down, in the upper right the right one, in the lower left the right
 // one, in the lower right the left one). Torn, by a click or at the end of its time, its two pieces fly off away from the screen's middle,
 // toward its quarter's corner, as the sky does past the nose (rail.js giftOut, `away`), growing as they come nearer, the same light both.
-export const PAPER = Object.freeze({ tilt: Object.freeze([8, 30]), clear: 110, edge: 24, tries: 40 });
+// Torn while the ship stands, slower than `still` u/s, its pieces fall down out of the screen instead (SX, 2026-10-17: «Если корабль стоит на
+// месте, то они падают вниз»; rail.js PIECES).
+export const PAPER = Object.freeze({ tilt: Object.freeze([8, 30]), clear: 110, edge: 24, tries: 40, still: 60 });
 
 // Where a find's paper lands on a screen `r` (its middle `cx`, `cy`), how it is turned (`angle`, rad: positive turns its right end down),
 // and the way it flies off (`away`, a unit on the screen). `area` { x0, x1, y0, y1 } where it may stand (the flight's view under the
@@ -322,8 +324,11 @@ export function onPaper(p, x, y) {
   const u = dx * c + dy * s, v = -dx * s + dy * c;
   return Math.abs(u) <= p.w / 2 && Math.abs(v) <= p.h / 2;
 }
-// The way off in the paper's own turn (rail.js reads its pieces' flight in the paper's frame).
-export const paperAway = (p) => { const c = Math.cos(p.angle), s = Math.sin(p.angle); return { x: p.away.x * c + p.away.y * s, y: -p.away.x * s + p.away.y * c }; };
+// The way off in the paper's own turn (rail.js reads its pieces' flight in the paper's frame): toward its quarter's corner, or down (`fall`).
+export const paperAway = (p, fall = false) => {
+  const c = Math.cos(p.angle), s = Math.sin(p.angle), ax = fall ? 0 : p.away.x, ay = fall ? 1 : p.away.y;
+  return { x: ax * c + ay * s, y: -ax * s + ay * c };
+};
 
 // The motion a notice is drawn with now (rail.js drawRail's `m`), from its clock: the sweep in, the press of a click, the way out.
 export function noticeMotion(notice, { over = false, fold = 0, seed = 0 } = {}) {

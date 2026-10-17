@@ -66,7 +66,7 @@ export const RAIL_TIMES = Object.freeze({ press: 0.09, fold: 0.18, tear: 0.52, a
 export const railInTime = () => LORE_TIMES.sweep + LORE_TIMES.scatter + LORE_TIMES.cell;
 export const railOutTime = (family) => (family === 'gift' ? GIFT_TIMES.out : LORE_TIMES.sweep * 0.94 + LORE_TIMES.cell + LORE_TIMES.scatter);
 // A gift's (F1a): its coupon fed out of its stub, and torn off and fallen with the stub after it.
-export const GIFT_TIMES = Object.freeze({ in: 0.64, out: 0.92 });   // (out: the tear's 0.26 s and the pieces' 0.62)
+export const GIFT_TIMES = Object.freeze({ in: 0.64, out: 0.82 });   // (out: the tear's 0.26 s and the pieces' longest way off, PIECES.fall's 0.55)
 
 // ------------------------------------------------------------------------------------------------ the wash
 
@@ -366,22 +366,32 @@ export function drawRail(r, b, x, y, m = {}) {
 // потом 1 раз мигает как баг»): nothing of a piece is drawn once it has faded. Since 2026-10-16 (SX: «когда он разрывается, пусть по
 // яркости одинаковые две половинки будут»; «в ту сторону ... бумажка и улетает»): the two pieces go together, at one light, and a gift that
 // landed somewhere of its own (labs/graphics/notice.js placePaper: `m.away`, the way off in its own turn) flies off that way, the pieces
-// drawing apart, turning, growing as they come nearer (`PIECES`), instead of falling.
+// drawing apart, turning, growing as they come nearer (`PIECES`), instead of falling. Since 2026-10-17 (SX: «пусть они разрываться будут,
+// но без фейда уходить ... когда они разорвались, они уже быстрее слетают ... если корабль в этот момент двигается, то они слетают в
+// направление ... как мы распределили по квадратам. Если корабль стоит на месте, то они падают вниз»): a paper's pieces never fade, they
+// leave the screen, quicker; down out of it (`m.fall`) when the ship stood as it tore (labs/graphics/notices.js).
 const GIFT_IN = Object.freeze({ arms: 0.14, edge: [0.06, 0.12], picture: [0.08, 0.16], feed: [0.18, 0.32], settle: 0.4 });
 const GIFT_OUT = Object.freeze({ pull: 0.06, tear: [0.04, 0.22] });
-// The pieces' flight off: seconds, px along the way off (eased in: the wind takes them), px apart, rad each turns, how much larger at its end.
-const PIECES = Object.freeze({ fly: 0.62, reach: 520, apart: 40, turn: 0.35, grow: 0.6 });
+// The pieces' flight off, as far as the screen's diagonal (off it from anywhere): `fly` s the way off (eased in: the wind takes them), px
+// apart, rad each turns, how much larger at its end; or down in `fall` s, `fallApart` px apart, `fallTurn` rad each. (0.62 s, 520 px and
+// fading out until 2026-10-17.)
+const PIECES = Object.freeze({ fly: 0.4, apart: 40, turn: 0.35, grow: 0.6, fall: 0.55, fallApart: 12, fallTurn: 0.22 });
 const easeIn = (u) => clamp(u, 0, 1) ** 2;
 // How a piece goes once it is free, `s` s after the tear has run its length: { dx, dy } moved, `turn` (rad) about its middle, `k` its
-// scale, `alpha`, the same for both pieces; `side` 1 the coupon, -1 the stub; `away` the way off, or none: they fall.
-function pieceGoes(s, side, away) {
+// scale, `alpha`, the same for both pieces; `side` 1 the coupon, -1 the stub; `away` the way off in the paper's turn (`reach` px of it,
+// `fall` down rather than toward its quarter's corner), or none: a card that stood at the notices' place falls and fades, as it did.
+function pieceGoes(s, side, away, reach = 0, fall = false) {
   if (!away) {
     const u = clamp(s / 0.5, 0, 1);
     return side > 0 ? { dx: 12 * u, dy: 46 * u * u, turn: 0.16 * easeIn(u), k: 1, alpha: 1 - easeIn(u) }
       : { dx: -2 * u, dy: 30 * u * u, turn: -0.07 * easeIn(u), k: 1, alpha: 1 - easeIn(u) };
   }
-  const u = clamp(s / PIECES.fly, 0, 1), e = easeIn(u), d = PIECES.reach * e;
-  return { dx: away.x * d + side * PIECES.apart * u, dy: away.y * d, turn: side * PIECES.turn * u, k: 1 + PIECES.grow * e, alpha: 1 - e };
+  if (fall) {
+    const u = clamp(s / PIECES.fall, 0, 1), d = reach * easeIn(u);
+    return { dx: away.x * d + side * PIECES.fallApart * u, dy: away.y * d, turn: side * PIECES.fallTurn * u, k: 1, alpha: 1 };
+  }
+  const u = clamp(s / PIECES.fly, 0, 1), e = easeIn(u), d = reach * e;
+  return { dx: away.x * d + side * PIECES.apart * u, dy: away.y * d, turn: side * PIECES.turn * u, k: 1 + PIECES.grow * e, alpha: 1 };
 }
 // The coupon's three jerks out of the stub, each eased and held.
 const feed = (u) => { u = clamp(u, 0, 1); const j = Math.min(2, Math.floor(u * 3)), f = u * 3 - j; return (j + easeOut(Math.min(1, f / 0.55))) / 3; };
@@ -493,17 +503,18 @@ function giftOut(r, b, x, y, t, m) {
   const ctx = r.ctx, T = GIFT_OUT, W = RAIL.width, H = giftField(), FIELD = H, tearEnd = T.tear[0] + T.tear[1];
   const box = { x, y, w: W, h: H }, press = clamp(m.press ?? 0, 0, 1) * (1 - easeOut(t / 0.1));
   const f = easeIn((t - T.tear[0]) / T.tear[1]), front = Math.round(f * H), free = t >= tearEnd, s = Math.max(0, t - tearEnd);
+  const reach = Math.hypot(r.width, r.height) + W, fall = !!m.fall;
   // The tear: the coupon pulled 2 px, turned about its lower left corner (still held) as the tear runs down the perforation, faster and
   // faster; then the fall takes it from where the tear left it.
   const pX = x + FIELD + 1, pY = y + H;
   ctx.save();
   ctx.translate(pX + 2 * easeOut(t / T.pull), pY); ctx.rotate(0.035 * f); ctx.translate(-pX, -pY);
-  piece(r, pieceGoes(s, 1, m.away), x + (FIELD + 1 + W) / 2, y + H / 2, [x + FIELD + 1, y - 2, W - FIELD + 2, H + 4], () => {
+  piece(r, pieceGoes(s, 1, m.away, reach, fall), x + (FIELD + 1 + W) / 2, y + H / 2, [x + FIELD + 1, y - 2, W - FIELD + 2, H + 4], () => {
     pressed(ctx, box, press, () => giftCard(r, b, x, y, { age: m.age }));
     if (front > 0) stroke(r, zigzag(x + FIELD + 1, y, Math.min(front, H - 1), 1), ROLES.textPrimary, false);
   });
   ctx.restore();
-  piece(r, pieceGoes(s, -1, m.away), x + FIELD / 2, y + H / 2, [x - 2, y - 2, FIELD + 3, H + 4], () => {
+  piece(r, pieceGoes(s, -1, m.away, reach, fall), x + FIELD / 2, y + H / 2, [x - 2, y - 2, FIELD + 3, H + 4], () => {
     pressed(ctx, box, press, () => giftCard(r, b, x, y, { age: m.age }));
     perforation(r, x, y, free ? H : front);
   });

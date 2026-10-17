@@ -34,8 +34,11 @@ export const ECONOMY = {
     // Then 0.8 of 225 with the tops at 0.8 of W2's (SX, 2026-10-05: «скорость можно смело делать 800»): 191.25 until then. Then 0.9
     // of 225 with the tops at 0.9 (SX, 2026-10-06: «Скорость у корабля надо делать 900 все-таки»): 180 until then. Then 0.999 of 225
     // with the tops at 999 (SX, the same day: «Или 999 давай делать»): 202.5 until then.
+    // `parShare`: every par a quarter shorter (SX, 2026-10-17: «таймеры по доставке грузов ... слишком длинные»; his pick of «Доставка на
+    // 25 % короче»): 1:35 -> 1:10, 2:15 -> 1:40; the opening's first freight 3:00 -> 2:15 (src/contracts.js OPENING_TARGET).
     parBase: 25,          // s
     parPace: 224.775,     // u/s over the straight distance between the stations
+    parShare: 0.75,
     parRound: 5,          // s
     fastShare: 0.6,
     fastBonus: 0.25,

@@ -336,12 +336,12 @@ function tend(world, h) {
 // What the garage's crane will do for this hull and this wallet (SX's economy of 2026-10-04, proposal.json `hull`: free to 60 % of the
 // chassis' whole hull, the rest at 1 CR a point as far as the wallet goes; until then it mended all of it free): `free` points free,
 // `paid` points for `cost` CR, `points` in all. The DOCK row says it before the ship goes in, and the docking does no more.
-export function homeQuote(world) {
+export function homeQuote(world, credits = world.ledger.credits) {
   const H = CONFIG.home, max = world.hullMax, hull = world.hull;
   const line = Math.floor(max * H.freeShare);
   const free = Math.max(0, Math.ceil(line - hull - 1e-9));
   const room = Math.max(0, Math.ceil(max - Math.max(hull, line) - 1e-9));
-  const afford = H.repairPrice > 0 ? Math.floor(Math.max(0, world.ledger.credits) / H.repairPrice + 1e-9) : Infinity;
+  const afford = H.repairPrice > 0 ? Math.floor(Math.max(0, credits) / H.repairPrice + 1e-9) : Infinity;
   const paid = Math.min(room, afford);
   return { free, paid, points: free + paid, cost: Math.ceil(paid * H.repairPrice - 1e-9), price: H.repairPrice };
 }
@@ -422,13 +422,46 @@ export function berthPoint(station) {
   return boardToWorld(station, B.x, B.y);
 }
 
-// The garage's menu: DOCK from the bay and slow enough; while it has the ship, what it is doing (nothing to choose);
-// inside, the way out and the hangar. INFO is added by the caller.
+// The garage's service from outside, without docking (SX, 2026-10-17: «на цифру 1 в гараже заправка и восстановление здоровья. Не докаясь, а
+// 2 док»): the tank filled and the hull mended at once, at the docking's own prices: CONFIG.home.fuelPrice a unit as far as the wallet goes
+// (the docking's `fuel`), then the crane's quote out of what is left (homeQuote). `units` of fuel for `fuelCost` CR, the hull's quote `hull`.
+export function homeServiceQuote(world) {
+  const price = CONFIG.home.fuelPrice, missing = world.fuelTank - world.fuel;
+  const afford = price > 0 ? Math.floor(world.ledger.credits / price + 1e-9) : Infinity;
+  const units = missing >= 1 ? Math.max(0, Math.min(missing, afford)) : 0;
+  const fuelCost = units >= 1 && price > 0 ? Math.ceil(units * price - 1e-9) : 0;
+  return { units: units >= 1 ? units : 0, fuelCost, hull: homeQuote(world, world.ledger.credits - fuelCost) };
+}
+function homeService(world, station) {
+  const q = homeServiceQuote(world), at = { sectorId: world.sector.id, x: station.x, y: station.y };
+  if (q.units <= 0 && q.hull.points < 1) { world.emit('actionRefused', { reason: serviceNote(world, q) }); return; }
+  if (q.units > 0) {
+    world.ledger.credits -= q.fuelCost;
+    world.fuel = Math.min(world.fuelTank, world.fuel + q.units);
+    world.emit('refueled', { ...at, units: q.units, cost: q.fuelCost, fuel: world.fuel, credits: world.ledger.credits });
+  }
+  if (q.hull.points >= 1) {
+    world.ledger.credits -= q.hull.cost;
+    world.hull = Math.min(world.hullMax, world.hull + q.hull.points);
+    world.emit('hullRepaired', { ...at, points: q.hull.points, cost: q.hull.cost, hull: world.hull, credits: world.ledger.credits });
+  }
+}
+// The row's note, short enough for the window's note column (about twelve cells; the public build showed «TANK FULL /…»): what it costs,
+// or why it can do nothing.
+function serviceNote(world, q) {
+  if (q.units <= 0 && q.hull.points < 1) return world.fuelTank - world.fuel >= 1 || world.hull < world.hullMax ? 'NEED CR' : 'ALL FULL';
+  const cost = q.fuelCost + q.hull.cost;
+  return cost > 0 ? `${cost} CR` : 'FREE';
+}
+
+// The garage's menu: from outside, its service (REFUEL + REPAIR) and DOCK from the bay and slow enough; while it has the ship, what it is
+// doing (nothing to choose); inside, the way out and the hangar. INFO is added by the caller.
 export function homeActions(world, station) {
   const h = world.home && world.home.stationId === station.id ? world.home : null;
   if (!h) {
-    const why = dockRefusal(world, station);
-    return [{ label: 'DOCK', disabled: !!why, note: why ?? quoteNote(homeQuote(world)), run: () => world.dock(station) }];
+    const why = dockRefusal(world, station), q = homeServiceQuote(world);
+    return [{ label: 'REFUEL + REPAIR', disabled: q.units <= 0 && q.hull.points < 1, note: serviceNote(world, q), run: () => homeService(world, station) },
+      { label: 'DOCK', disabled: !!why, note: why ?? quoteNote(homeQuote(world)), run: () => world.dock(station) }];
   }
   if (h.phase === 'inside') {
     return [{ label: 'LEAVE', run: () => world.leaveHome() },

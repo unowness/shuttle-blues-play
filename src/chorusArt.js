@@ -81,9 +81,9 @@ export function drawRecorderLying(world, r, t) {
 }
 export function drawRecorderAboard(world, r, t) {
   if (!recorderAboard(world) || world.docked) return;
-  // Aboard: on the suitcase's short rope behind the hull, swinging as it does, its top toward the ship.
+  // Aboard: on a short rope behind the hull (the one the suitcase hung on until it went to the hull's side), swinging, its top toward the ship.
   const S = CONFIG.quests.errand.suitcase, ship = world.ship, a = ship.angle, sc = A().carried;
-  const crowded = !!world.cargo || (world.sideQuest?.kind === 'planet' && world.sideQuest.errand?.stage === 'return');
+  const crowded = !!world.cargo;
   const ra = a + S.swing[0] * Math.sin(t * S.swing[1] + 1.3) + S.swing[2] * Math.sin(t * S.swing[3] + 0.4) - (crowded ? S.side : 0);
   const p = world.project(r, ship.x, ship.y), rear = ship.drawnRear();
   const fx = p.x - Math.cos(a) * rear, fy = p.y - Math.sin(a) * rear;

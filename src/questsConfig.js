@@ -86,8 +86,11 @@ export const QUESTS = {
   // `errand.suitcase`, how the suitcase aboard is drawn (src/errands.js drawSuitcase; SX's L4C on labs/graphics/sketches/quest-objects.html,
   // 2026-10-15: «пусть он наверное тоже будет на короткой веревочке и из него должны вылетать иногда детальки как будто что то из него
   // сыпется», then «этот»): its glyphs at `scale` of the world's cell (the cargo container's 1.0, a cache's 1.15: SX, «рядом с кораблем
-  // не должно ощущаться резкое изменение масштаба»), `rope` px of rope from the hull's drawn rear to its handle, swinging by
-  // `swing` (two waves: [rad, rad/s, rad, rad/s]), turned `side` rad off the line behind while a cargo is towed (the two never cross);
+  // не должно ощущаться резкое изменение масштаба»). Since SX, 2026-10-17 («чтобы он сбоку пристегивался к кораблю и сбоку торчал, когда мы
+  // летим. Лучше так, наверное. Отличить его от обычного груза»): clamped to the hull's left side, `clamp` px of bar from the hull's drawn
+  // side to its handle, standing out from it, no rope. `rope`, `swing` and `side` are the voice recorder's (src/chorusArt.js), which hangs as
+  // the suitcase did: `rope` px of rope from the hull's drawn rear to its handle, swinging by `swing` (two waves: [rad, rad/s, rad, rad/s]),
+  // turned `side` rad off the line behind while a cargo is towed (the two never cross);
   // `spill`: a bit of what is packed comes out every `every` s plus up to `jitter` s, a `skip` share of the moments with none, lives
   // `life` s, flies `speed` px/s away from the ship within `spread` rad, turns by up to `spin` rad/s, drawn at `size`.
   // The money quests' pays since the economy SX chose (2026-10-04: «по экономике согласен»; Codex's study, proposal.json `quests`):
@@ -181,7 +184,7 @@ export const QUESTS = {
     errand: {
       pay: 450, reach: 460, minLeg: spread(2500), maxLeg: spread(9000),
       ambush: { after: 0.4, min: 900, max: 2600, minLeft: 1500, squad: [[2, 0.6], [3, 0.4]] },
-      suitcase: { scale: 1.05, rope: 26, swing: [0.28, 1.4, 0.08, 3.1], side: 0.6,
+      suitcase: { scale: 1.05, clamp: 7, rope: 26, swing: [0.28, 1.4, 0.08, 3.1], side: 0.6,
         spill: { every: 0.6, jitter: 0.4, skip: 0.25, life: [1.6, 2.5], speed: [34, 80], spread: 1.8, spin: 4, size: 1.15 } },
     },
     // `chorus`, COMMONS's chain THE CHORUS (src/chorus.js; SX, 2026-10-15: «Давай цепочку»): it begins when the pilot comes within `hear` u

@@ -15,6 +15,8 @@
 //          craft greeted (it was not written: its key lit was its say)
 //   NOTCH  (G4) the offer: SAY HI after the ship's name, one row, a hairline under the row. Each line said in a bubble over its ship: a
 //          black sheet in the windows' frame, its tail a notch cut down out of its own bottom line, one line with the frame
+// Since SX, 2026-10-17 («диалоги с NPC на палочках. Да, так же, как диалоги с планетами на палочках») the words of both stand on the hail's
+// slash, as a planet's (src/feedback.js drawHail): the style picks the offer alone.
 //
 // A ship's name stands over its words, in the quiet ink, the words white under it, both flush on one edge (SX, 2026-10-16: «Имена NPC
 // ... залезают на их рисунок и на их речь залезают. Имена NPC пусть появляются только когда вот я нажал поздороваться ... и пусть имя
@@ -22,17 +24,14 @@
 // name under a ship since (src/worldDraw.js), so NOTCH's offer stands centred under it (the sketch's G4 had slid it after the name).
 //
 // State is kept (one record a craft, made the first time it is seen); the frame draws through scratch objects and module-level painters.
-import { CONFIG } from '../../src/config.js';
 import { ROLES } from '../../src/roles.js';
 import { UI } from '../../src/uiGrid.js';
-import { clamp, easeOut } from '../../src/util.js';
+import { clamp } from '../../src/util.js';
 import { keyName } from '../../src/controls.js';
 import { GREET, GREET_WORDS, PILOT_HAIL_ID } from '../../src/greetings.js';
-import { paintById } from '../../src/paint.js';
-import { HAIL } from '../../src/feedback.js';
+import { drawHail } from '../../src/feedback.js';
 import { readGameplay, writeGameplay } from '../../src/prefs.js';
 import { hoverItem, withAlpha } from '../../src/hover.js';
-import { onPlate } from '../../src/textShadow.js';
 import { keycap, KEYCAP_PAD, KEYCAP_RISE } from './ui-parts.js';
 import { noteKeycap } from './clicks.js';
 
@@ -52,13 +51,12 @@ export function setGreeting(greeting, style, store) {
 }
 
 // The sketch's moments: the key lit `flash` s once pressed, the offer out in `fade` s (and back in as long once the craft may be greeted
-// again, GREET.again), WAVE's line grown in `grow` s, `width` px; the offer kept out while WAVE's answer stood there within `quiet` s.
-// `off` the cells between a ship's drawing and the offer or the words beside it (SX, 2026-10-08: «подальше от их центра»).
-export const GREETING = Object.freeze({ flash: 0.15, fade: 0.25, grow: 0.2, width: 2, quiet: 0.1, off: 4 });
+// again, GREET.again); the offer kept out while the ship's words stand within `quiet` s (WAVE).
+// `off` the cells between a ship's drawing and the offer beside it (SX, 2026-10-08: «подальше от их центра»).
+export const GREETING = Object.freeze({ flash: 0.15, fade: 0.25, quiet: 0.1, off: 4 });
 
 const W = ROLES.textPrimary, G = ROLES.textSecondary, QUIET = ROLES.textHint;
 const px = (v) => Math.round(v) + 0.5;
-const hullInk = (craft) => craft?.palette?.h ?? craft?.ink ?? CONFIG.hud.color;
 function colsOf(rows) {
   let n = 0;
   for (const row of rows) n = Math.max(n, row.length);
@@ -158,85 +156,13 @@ export function drawGreetOffer(r, world, target, presence, { live = true, far = 
 
 // ------------------------------------------------------------------------------------------------ the words said
 
-// NOTCH's bubble and what it reads: the words on a black sheet in the windows' frame, its tail a notch cut in its bottom line down to
-// the point (x, y) at the interface's 2:1 slant, one line with the frame. Its words stand on the sheet, not on the sky (onPlate).
-// `name` the ship's, a row of its own over the words in the quiet ink (none for the pilot's own).
-const B = { r: null, rows: null, name: null, x: 0, y: 0, ink: W, alpha: 1 };
-function paintBubbleWords() {
-  const r = B.r, top = B.name ? 1 : 0, at = (k) => B.y + UI.pad + k * UI.row + (UI.row - r.cellH) / 2;
-  if (B.name) r.text(B.name, B.x + r.cellW, at(0), G, B.alpha);
-  for (let k = 0; k < B.rows.length; k++) r.text(B.rows[k], B.x + r.cellW, at(k + top), B.ink, B.alpha);
-}
-function bubble(r, rows, x, y, ink, alpha, box, name = null) {
-  const lines = rows.length + (name ? 1 : 0), w = Math.max(colsOf(rows), name ? name.length : 0) * r.cellW + 2 * r.cellW, h = lines * UI.row + 2 * UI.pad;
-  const tail = UI.row / 2, bx = Math.round(x - 2 * r.cellW), by = Math.round(y - tail - h);
-  const c = r.ctx;
-  c.save(); c.globalAlpha = alpha;
-  c.beginPath();
-  c.moveTo(px(bx), px(by)); c.lineTo(px(bx + w), px(by)); c.lineTo(px(bx + w), px(by + h));
-  c.lineTo(px(x + tail / 2), px(by + h)); c.lineTo(px(x), px(by + h + tail)); c.lineTo(px(x), px(by + h)); c.lineTo(px(bx), px(by + h));
-  c.closePath();
-  c.fillStyle = ROLES.backing; c.fill();
-  c.strokeStyle = ROLES.frame; c.lineWidth = 1; c.stroke();
-  c.restore();
-  B.r = r; B.rows = rows; B.name = name; B.x = bx; B.y = by; B.ink = ink; B.alpha = alpha;
-  onPlate(paintBubbleWords);
-  box.x = bx; box.y = by; box.w = w; box.h = h + tail;
-  return box;
-}
-
-// A friendly ship's line or the pilot's greeting (`item`, src/feedback.js: a hail with `greet`) drawn in `style` where its ship is now.
-// Returns the box it takes (kept on the item), or null.
-export function drawGreetAnswer(r, world, item, style = DEFAULT_GREETING) {
+// A friendly ship's line or the pilot's greeting (`item`, src/feedback.js: a hail with `greet`) where its ship is now: on the hail's slash
+// up from its shoulder, as a planet's words and a quest's ship's stand (src/feedback.js drawHail; SX, 2026-10-17: «диалоги с NPC на
+// палочках. Да, так же, как диалоги с планетами на палочках»), whichever offer `style` draws. Until then WAVE wrote them behind a line in the
+// ship's hull ink beside it and NOTCH in a bubble over it. The ship's name a row over its words (none over the pilot's own), in the danger
+// ink for a curse or a rage; the offer keeps out while they stand (WAVE). Returns the box it takes, or null.
+export function drawGreetAnswer(r, world, item, style = DEFAULT_GREETING, occupied = []) {
   const id = item.hail.craftId, pilot = id === PILOT_HAIL_ID;
-  const alpha = clamp(Math.min(item.age / HAIL.fade, (item.life - item.age) / HAIL.fade), 0, 1);
-  if (alpha <= 0) return null;
-  const at = world.craftAt?.(id);
-  if (!at) return null;
-  const C = world.project(r, at.x, at.y), rows = item.hail.rows, box = item.box ?? (item.box = { x: 0, y: 0, w: 0, h: 0 });
-  // (The ships' sizes as the camera draws them: its zoom, src/zoom.js.)
-  const z = r.zoom ?? 1;
-  if (style === 'notch') {
-    if (pilot) {
-      const ship = world.ship, mt = ship.metrics || ship.measureDrawing(r.cellW, r.cellH);
-      return bubble(r, rows, C.x + ship.model.width * mt.w / 2 * 0.3 * z, C.y - ship.model.height * mt.h / 2 * z - UI.pad, G, alpha, box);
-    }
-    const craft = at.craft, scale = (craft.scale ?? 1) * z;
-    const hw = colsOf(craft.rows) * r.cellW * scale / 2, hh = craft.rows.length * r.cellH * scale / 2;
-    return bubble(r, rows, C.x - hw * 0.3, C.y - hh - UI.pad, W, alpha, box, craft.label ?? null);
-  }
-  // WAVE: in the offer's place, behind a line in the hull's ink, on the side toward the other ship (the pilot's, or for the pilot's own
-  // words the craft greeted), the words past the line, away from the ship that says them; the offer keeps out while it stands.
-  let hw, hh, ink, to, hull = null, name = null;
-  if (pilot) {
-    const ship = world.ship, mt = ship.metrics || ship.measureDrawing(r.cellW, r.cellH), other = world.craftAt?.(item.hail.to);
-    hw = ship.model.width * mt.w / 2 * z; hh = ship.model.height * mt.h / 2 * z;
-    ink = paintById(world.pilot?.paint)?.inks?.material ?? ROLES.structure;
-    to = other ? world.project(r, other.x, other.y) : { x: C.x + 1, y: C.y };
-  } else {
-    const craft = at.craft, scale = (craft.scale ?? 1) * z;
-    offerOf(id, world.time ?? 0).spoke = world.time ?? 0;
-    hw = colsOf(craft.rows) * r.cellW * scale / 2; hh = craft.rows.length * r.cellH * scale / 2;
-    ink = item.hail.angry ? ROLES.danger : hullInk(craft); hull = pilotHull(r, world);   // a ship's curse or rage: the line in the danger ink
-    to = { x: hull.x + hull.w / 2, y: hull.y + hull.h / 2 };
-    name = craft.label ?? null;
-  }
-  // Its name a row over its words, both flush to the line's side (the pilot's own words have none).
-  const head = name ? 1 : 0, textW = Math.max(colsOf(rows), name ? name.length : 0) * r.cellW;
-  const bw = GREETING.width + r.cellW + textW, bh = (rows.length + head - 1) * UI.row + r.cellH + 2 * UI.pad;
-  const p = besideToward(r, C.x, C.y, hw, hh, bw, bh, to, hull, PLACE);
-  // The line on the side by the ship, the words beyond it.
-  const x = p.side > 0 ? p.x + GREETING.width : p.x + bw - GREETING.width, top = p.y, y = top + UI.pad;
-  const grow = easeOut(clamp(item.age / GREETING.grow, 0, 1));
-  const c = r.ctx;
-  c.save(); c.globalAlpha = alpha; c.strokeStyle = ink; c.lineWidth = GREETING.width; c.lineJoin = 'miter';
-  c.beginPath(); c.moveTo(px(x), px(top)); c.lineTo(px(x), px(top + bh * grow)); c.stroke(); c.restore();
-  // Flush to the line: from it on its right, up to it on its left.
-  const flush = (s) => (p.side > 0 ? x + r.cellW : x - r.cellW - s.length * r.cellW);
-  if (grow >= 1) {
-    if (name) r.text(name, flush(name), y, item.hail.angry ? ROLES.danger : G, alpha);
-    for (let k = 0; k < rows.length; k++) r.text(rows[k], flush(rows[k]), y + (k + head) * UI.row, W, alpha);
-  }
-  box.x = p.x; box.y = top; box.w = bw; box.h = bh;
-  return box;
+  if (!pilot && style === 'wave') offerOf(id, world.time ?? 0).spoke = world.time ?? 0;
+  return drawHail(r, world, item, occupied, pilot ? null : item.hail.name ?? null, item.hail.angry ? ROLES.danger : G);
 }

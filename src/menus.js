@@ -13,7 +13,7 @@ import { captionOf, signBox } from './signs.js';
 import { sprite } from './sprites.js';
 import { workingKind, invested, formatCR } from './ruins.js';
 import { PAINT_TIN } from './paint.js';
-import { nextFindOf, findTitle, FREE_WORDS } from './rewards.js';
+import { findTitle, FREE_WORDS } from './rewards.js';
 import { postHeld } from './raids.js';
 import { drifterHere, helpDrifter, handInDrifter, drifterArt, currentQuests, questTone, QUEST_TONE } from './quests.js';
 import { NPC_ART } from './npcShips.js';
@@ -275,7 +275,7 @@ export function candidates(world) {
 }
 
 // A station's rows: a borrowed ship's, a broken station's, the home garage's; else the cargo to deliver or to take, the berth's way
-// out and its services, the hangar of a garage, DOCK and a mark from afar, and INFO.
+// out and its services, the hangar of a garage, DOCK, and INFO.
 export function stationActions(world, station) {
   // While a borrowed ship is flown: the quest's row if world is its stop, and INFO (src/specials.js).
   const quest = specialStationActions(world, station);
@@ -330,11 +330,8 @@ export function stationActions(world, station) {
       note: tooFast ? `BRAKE BELOW ${CONFIG.station.dockSpeed}` : null,
       run: () => world.dock(station),
     });
-    // A restored station points back to its finds not yet opened (src/rewards.js):
-    // the bearing leads to one, and pressing again to the other. Undocked only: a
-    // docked garage already lists the seven actions the keys can reach.
-    const mark = nextFindOf(station.id, world.ledger, world.ledger.marked);
-    if (mark) actions.push({ label: `MARK ${mark.kind === 'paint' ? 'PAINT' : 'SOUVENIR'} CACHE`, run: () => world.markFind(mark) });
+    // (A restored station offered MARK SOUVENIR CACHE and MARK PAINT CACHE here until SX, 2026-10-17: «подсветка не работает, но я бы ее не
+    // чинил, я бы просто вырезал это».)
   }
 
   // What the station is (src/stationInfo.js; SX, 2026-09-30: «напиши для каждой станции info с лорам»).

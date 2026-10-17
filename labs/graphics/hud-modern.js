@@ -78,14 +78,15 @@ export function setMapShape(ui, shape, store) {
 // `margin` the edge line from the screen's top and bottom (SX: «сделай отступ пожалуйста 28»); `side` the corners' blocks (the stations,
 // the locator, the radio, the quests, the charm's mount and their key rows) from the screen's sides, a level in from the gauges on the edge
 // line (SX, 2026-10-17: «у текста и локатора по бокам побольше отступы ... 36»); `wide` the bottom notch's floor wider than BRAKES needs,
-// each side, the gauges keeping the width the narrower notch gave them (SX: «Добавь ... по 28 по бокам нижней челки»); `s` and `c` the windows' air; a gauge's
+// each side, the gauges keeping the width the narrower notch gave them (SX: «Добавь ... по 28 по бокам нижней челки»; 20 since 2026-10-17: «вместо 28
+// добавим по 20 ... По минус 8 с каждой стороны у панели брейков»); `s` and `c` the windows' air; a gauge's
 // cube as tall as the notch's line, the windows' squares' gap between two; a wall's S `run` times its drop; the fade at the edges, as high as
 // the margin, black at the edge to none; the mount's box, its reel and holes; `cord` the charm's chain from the reel's edge to the charm's
 // ring at rest, in the game's hangs (charm.js HANG). It was twice the game's (SX: «на 50% длиннее цепочку», then lower again on his
 // picture), drawn as a straight run of beads, an eyelet and the game's chain under it; one chain off the reel, a third shorter, since SX,
 // 2026-10-16: «у сувенира какая-то двойная цепочка, ты ее укороти на 1/3 и сделай просто без дополнительного скрепления в середине».
 export const MODERN = Object.freeze({
-  margin: 28, side: 36, wide: 28, s: ORG.S, c: ORG.C, cube: BAR.outer, gap: ORG.squareGap, run: 1.5, samples: 24,
+  margin: 28, side: 36, wide: 20, s: ORG.S, c: ORG.C, cube: BAR.outer, gap: ORG.squareGap, run: 1.5, samples: 24,
   fade: Object.freeze([[0, 1], [0.3, 0.6], [0.65, 0.2], [1, 0]]),
   mount: Object.freeze({ w: 64, round: 8, reel: 7, hub: 1.5, holes: 2, hole: 2, holePitch: 4 }), cord: (2 * 2) / 3,
 });
@@ -93,16 +94,21 @@ export const MODERN = Object.freeze({
 export const MODERN_HOLD = Object.freeze({
   cord: MODERN.mount.reel + MODERN.cord * HANG - CHARM.pull / CHARM.stretch, from: MODERN.mount.reel, eyelet: false,
 });
-// The gauges' colour sections from their zero outward, as shares of their run (SX: «покрасить на цветовые секции ... в сторону ред ...
-// желтый и красный ... в самом конце. В сторону тяги ... белый и зеленый, потом ... зеленый»): RET amber, its last cubes red; THR white,
-// green, then the flame's orange at full; SPD white, amber, then red. The words' inks while their gauge works.
-const SECTIONS = Object.freeze({
-  ret: [[0.85, PALETTE.amber], [1, PALETTE.red]],
-  thr: [[0.4, PALETTE.white], [0.8, PALETTE.green], [1, PALETTE.orange]],
-  spd: [[0.6, PALETTE.white], [0.85, PALETTE.amber], [1, PALETTE.red]],
+// The gauges' colour sections from their zero outward, as shares of their run: white, then the gauge's own ink in the last quarter, RET
+// amber, THR and SPD green; no red, nothing at the top speed is a danger (SX's G2 GREEN TOP on labs/graphics/sketches/hotfix-1017.html,
+// 2026-10-17, after «тяга ... слишком некрасивый визуально разброс по цветам ... в скорости желтая не должна быть желтой ... он не
+// взрывается, когда мы на последней скорости летим»; RET amber then red, THR white, green, orange, SPD white, amber, red until then). The
+// words' inks while their gauge works, the gauge's own.
+export const GAUGE_SECTIONS = Object.freeze({
+  ret: [[0.75, PALETTE.white], [1, PALETTE.amber]],
+  thr: [[0.75, PALETTE.white], [1, PALETTE.green]],
+  spd: [[0.75, PALETTE.white], [1, PALETTE.green]],
 });
-const WORKING = Object.freeze({ thrust: PALETTE.orange, retro: PALETTE.amber });
+const WORKING = Object.freeze({ thrust: PALETTE.green, retro: PALETTE.amber });
 const inkAt = (sections, share) => sections.find(([to]) => share < to + 1e-9)?.[1] ?? sections.at(-1)[1];
+// THR and RET fill as the engine spools (SX, 2026-10-17: «тяга и задний ход, они должны постепенно набираться ... визуально хотя бы»): the
+// cubes lit follow the key held, up over `up` s from none to the whole half, down over `down` s; the world's push is as it was.
+export const GAUGE_FILL = Object.freeze({ up: 0.8, down: 0.3 });
 // The breaking: under `at` of the hull the charm tears off, above `mend` it hangs again; its fall: gravity (px/s²), its first hop, its throw
 // by the ship's turn (px/s for a rad/s) and its most. Under `dead` the gauges' cubes go out, up to `deadMost` of them at an empty hull, each
 // an out lamp (`deadInk`: the white at 5 %). A wall's breaks at each wear level (0-4).
@@ -194,11 +200,14 @@ const union = (a, b) => (!a ? b : !b ? a : { x: Math.min(a.x, b.x), y: Math.min(
 // ------------------------------------------------------------------------------------------------ the breaking
 
 // The page's state of what tore off, every field declared here: the charm's fall (`at` since when, null: hanging), the ship's last heading
-// and its turn (which throws the charm).
+// and its turn (which throws the charm); `thr` and `ret` the THR and RET gauges' fill, 0..1 (GAUGE_FILL).
 export function createModernFx() {
   return { charm: { at: null, x: 0, y: 0, vx: 0, vy: 0, a: 0, va: 0, id: null }, wheel: { at: null, x: 0, y: 0, vx: 0, vy: 0, a: 0, va: 0, R: 0 },
-    heading: null, turn: 0 };
+    heading: null, turn: 0, thr: 0, ret: 0 };
 }
+// A gauge's fill toward the control's `to` (0..1), at GAUGE_FILL's pace; at once for reduced motion.
+const fillToward = (from, to, step, reducedMotion) => (reducedMotion ? to
+  : to > from ? Math.min(to, from + step / GAUGE_FILL.up) : Math.max(to, from - step / GAUGE_FILL.down));
 // A piece torn off flying: gravity, its throw, its turn; gone off the screen for reduced motion.
 function fly(P, step, reducedMotion) {
   P.at += step;
@@ -208,9 +217,12 @@ function fly(P, step, reducedMotion) {
 // The wheel as it stands still, turned by its roll alone (radio.js wheelModern's state).
 const STILL_WHEEL = Object.freeze({ tune: 0 });
 // One frame of it: `share` the hull's (0 when wrecked), `angle` the ship's heading, `dt` the page's seconds, `charmAt` where the charm
-// hangs now (its picture's middle, when one hangs and is drawn), `wheelAt` where the radio's wheel stands (radio.js `wheel`).
-export function stepModernFx(fx, { share, angle, dt, charmAt = null, charmId = null, wheelAt = null, reducedMotion = false }) {
+// hangs now (its picture's middle, when one hangs and is drawn), `wheelAt` where the radio's wheel stands (radio.js `wheel`), `thrust` and
+// `retro` the controls the world was stepped with.
+export function stepModernFx(fx, { share, angle, dt, charmAt = null, charmId = null, wheelAt = null, thrust = 0, retro = 0, reducedMotion = false }) {
   const step = Math.min(0.05, Math.max(0, dt));
+  fx.thr = fillToward(fx.thr, clamp(thrust, 0, 1), step, reducedMotion);
+  fx.ret = fillToward(fx.ret, clamp(retro, 0, 1), step, reducedMotion);
   if (fx.heading != null && step > 0) {
     const d = Math.atan2(Math.sin(angle - fx.heading), Math.cos(angle - fx.heading));
     fx.turn += (d / step - fx.turn) * Math.min(1, step / 0.08);
@@ -319,17 +331,18 @@ export function drawModernHud(r, game, args) {
     word(at.hull, 'HULL', ROLES.textSecondary); word(at.hull, String(Math.max(0, Math.round(world.hull))), ROLES.textPrimary, true);
     cubes(at.fuel, (i) => (i < lit(fuelShare) ? fl.ink : fl.edge), 2);
     word(at.fuel, String(Math.ceil(world.fuel)), ROLES.textPrimary); word(at.fuel, 'FUEL', ROLES.textSecondary, true);
-    // RET and THR from a zero mark at the middle: retro's half lit from it toward RET's end, thrust's toward THR's by the notch.
-    const half = Math.floor(n / 2), thrN = n - half, thrLit = Math.round(clamp(input.thrust, 0, 1) * thrN), retLit = Math.round(clamp(input.retro, 0, 1) * half);
+    // RET and THR from a zero mark at the middle: retro's half lit from it toward RET's end, thrust's toward THR's by the notch, each as far
+    // as its fill has come (GAUGE_FILL).
+    const half = Math.floor(n / 2), thrN = n - half, thrLit = Math.ceil(fx.thr * thrN - 1e-6), retLit = Math.ceil(fx.ret * half - 1e-6);
     cubes(at.thr, (i) => {
-      const far = i < half ? half - 1 - i : i - half, each = i < half ? half : thrN, c = inkAt(i < half ? SECTIONS.ret : SECTIONS.thr, (far + 0.5) / each);
+      const far = i < half ? half - 1 - i : i - half, each = i < half ? half : thrN, c = inkAt(i < half ? GAUGE_SECTIONS.ret : GAUGE_SECTIONS.thr, (far + 0.5) / each);
       return far < (i < half ? retLit : thrLit) ? c : dark(c);
     }, 3);
     const zx = at.thr.x + half * L.pitch - MODERN.gap / 2, tip = Math.round(at.thr.y - L.cube / 2) - 2;
     ctx.fillStyle = ROLES.textPrimary; ctx.beginPath(); ctx.moveTo(zx, tip); ctx.lineTo(zx - UI.pad, tip - UI.pad - 1); ctx.lineTo(zx + UI.pad, tip - UI.pad - 1); ctx.closePath(); ctx.fill();
     word(at.thr, 'RET', input.retro > 0 ? WORKING.retro : ROLES.textSecondary); word(at.thr, 'THR', input.thrust > 0 ? WORKING.thrust : ROLES.textSecondary, true);
     const spdLit = lit(maxSpeed > 0 ? speed / maxSpeed : 0);
-    cubes(at.spd, (i) => { const c = inkAt(SECTIONS.spd, (i + 0.5) / n); return i < spdLit ? c : dark(c); }, 4);
+    cubes(at.spd, (i) => { const c = inkAt(GAUGE_SECTIONS.spd, (i + 0.5) / n); return i < spdLit ? c : dark(c); }, 4);
     word(at.spd, brake ? 'BRAKE' : 'SPD', brake ? ROLES.danger : ROLES.textSecondary); word(at.spd, String(Math.round(speed)), ROLES.textPrimary, true);
     ctx.restore();
     out.avoid.push({ x: at.hull.x, y: 0, w: at.fuel.x + gw - at.hull.x, h: L.capsT + L.capH + S }, { x: at.thr.x, y: L.capsB - L.capH - S, w: at.spd.x + gw - at.thr.x, h: H });
@@ -338,7 +351,7 @@ export function drawModernHud(r, game, args) {
   // The locator in the bottom left corner (round or square, the radio's width when square), N LEGEND (its key from the table) and the wallet under it.
   const locBox = { x: X, y: Math.round(L.keyRowB + ink.top - S - side), w: Math.round(side), h: Math.round(side) };
   if (given.column) {
-    drawModernScope(r, world, { ...scopeArgs, box: locBox, shape: sq ? 'square' : 'round', reducedMotion, level, seed: cockpitSeed() + 11, wreck: cockpitCrack() });
+    drawModernScope(r, world, { ...scopeArgs, box: locBox, shape: sq ? 'square' : 'round', reducedMotion, level, seed: cockpitSeed() + 11, wreck: cockpitCrack(), now });
     // The legend's button on the bottom line under the locator's edge; its rows over the locator while they show.
     const phase = Lc?.phase, open = !!phase?.open, key = keyName('legend'), wordL = open ? 'HIDE LEGEND' : 'LEGEND';
     const x0 = X + 1, edge = x0 + KEYCAP_PAD + (Array.from(key).length + 1 + wordL.length + 1) * cw + 2 * KEY_MARK_HALF + 1;
