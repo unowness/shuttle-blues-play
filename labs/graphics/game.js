@@ -207,7 +207,8 @@ export function createGame(env) {
   // the world derived from it (`world.rng(name)`, src/world.js), so a game is as varied as ever and `world.seed` says which one it was.
   // The secret hole into O-08 stands nowhere until it comes to a pilot alone in the void, ahead on the course, and goes again
   // (src/secretHole.js, H3 LURE, SX's pick of 2026-10-04), drawn on the world's own 'secret' stream. A review link keeps the fixed
-  // stream a check's World has, as it keeps its droids and visitors off.
+  // stream a check's World has, as it keeps its droids and visitors off. Its way is shut since SX's word of 2026-10-19
+  // (CONFIG.blackHole.secret.way): it comes nowhere, and K-05's ordinary hole stands in its place.
   const world = new World(normalizeModel(PLACEHOLDER, 'placeholder'), { seed: (env.random() * 4294967296) >>> 0, rollSecret: !REVIEW });
   // Pirates come by themselves (CONFIG.pirates.zones), in the game and in the lab; a review
   // link calls them with `?pirates=` or a drawer button, so a review of anything else is

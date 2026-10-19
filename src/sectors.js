@@ -147,7 +147,15 @@ export const SECTORS = [
       { x: 0.49, y: 0.48, radius: 520, pull: 330, ...hue('#D8B48E'), seed: 71, bands: 0, spin: 0.083, style: 'storm', tint2: '#B7A0C9', label: 'DAMASK' },
       { x: 0.76, y: 0.75, radius: 295, pull: 163, ...hue('#B9C2CC'), seed: 88, bands: 0, spin: 0.1, style: 'facets', label: 'TORTUGA' },
     ],
-    holes: [],
+    // In the pink secret hole's place (SX, 2026-10-19: «Просто вырежи ее и вместо нее помести черную дыру. Которая между секторами
+    // выкидывает»; «Да, строй кольцо с новой дырой в K-05»): an ordinary hole of the secret hole's size (SECRET_HOLE below), turning
+    // the one way every ordinary hole turns, so both sectors open at the start have a hole and the ring of passages
+    // (src/holePassage.js holeExit) leads somewhere from the first minute. In the quiet south-west, between the DEPOT 7 to WHARF 9
+    // line (y 0.72) and the dead south edge, 3,000 u and more from every cache, signal, sign and lost cargo of the sector and
+    // 7,300 from YARD 3, the opening's station; the north-east was taken by the freight lines and a ship-in-trouble area.
+    holes: [
+      { id: 'hole-k05', x: 0.2, y: 0.86, horizon: 46, disc: 256, mass: 2.5e7, spinDir: 1 },
+    ],
     stations: [
       { id: 'station-yard-k05', look: 'lattice', kind: 'garage', label: 'YARD 3', x: 0.3, y: 0.22 },
     ],
@@ -194,7 +202,7 @@ export const SECTORS = [
 ];
 
 // The secret hole, the way into the hidden sector, at both ends of its passage: the one that roams the open sectors
-// (src/secretHole.js) and the one in O-08 are the same size (SX, 2026-10-02: «сделай их размер одинаковым и снаружи и
+// (src/secretHole.js; its way shut since 2026-10-19, CONFIG.blackHole.secret.way) and the one in O-08 are the same size (SX, 2026-10-02: «сделай их размер одинаковым и снаружи и
 // внутри сектора я бы чуть увеличил размер снаружи»). 15 % over what O-08's hole was (40, 220, mass 2.0e7: now 46, 256,
 // 2.5e7, so between the ordinary K-06's 44 / 250 and J-04's 52 / 300), the mass in the ordinary holes' proportion to
 // the disc. It turns the other way from every ordinary hole (SX, 2026-10-01: «она, в отличие от других черных дыр,
@@ -204,7 +212,8 @@ export const SECRET_HOLE = Object.freeze({ horizon: 46, disc: 256, mass: 2.5e7, 
 // The hidden sector (SX, 2026-09-26: "нарисуй там инопланетян и планеты, где
 // стоят гуманоиды-инопланетяне"; PLANET EXPRESS among its planets). It sits off
 // the grid, so no seam leads here and every edge is a dead edge: the only way in
-// or out is a black hole passage (its hole is one of `otherHoles`). `hidden`
+// or out is a black hole passage (in by the secret hole, shut since 2026-10-19;
+// out by its own hole, to the ring's first, src/holePassage.js). `hidden`
 // tells navigation not to point across the grid from or into it.
 SECTORS.push({
   id: 'sector-hidden', label: 'O-08', name: 'BACKSTAGE', col: 7, row: 7, hidden: true,
@@ -326,21 +335,12 @@ export function networkStationIds() {
 }
 
 // Black holes are passages (SX, 2026-09-24): a ship that falls into one comes
-// out of another, chosen at random on every passage ("в рандомную дыру"),
-// never the one it fell into.
+// out of another, never the one it fell into. Which one is the ring's
+// (src/holePassage.js holeExit, SX's pick of 2026-10-19); until then it was
+// rolled at random on every passage ("в рандомную дыру").
 const holeIndex = new Map();
 for (const sec of SECTORS) {
   for (const h of sec.holes || []) if (h.id) holeIndex.set(h.id, { ...h, sectorId: sec.id, sectorLabel: sec.label });
-}
-
-// Every ordinary hole a passage from `id` can lead to: all the others of the open sectors, in catalogue order, so a
-// seeded roll picks the same one every time. The hole in O-08 is not one of them (SX, 2026-10-02: «когда ты
-// вылетаешь из секретного сектора, тебя выкидывает наружу из рандомной дыры которая не является секретной»; it
-// was one of the passages' exits from 2026-09-29, one in four): the way into O-08 is the secret hole alone, and a
-// pilot leaving it is thrown out of one of these. So from O-08's hole this is all four, from an ordinary one the
-// other three.
-export function otherHoles(id) {
-  return [...holeIndex.values()].filter((h) => h.id !== id && !h.secret);
 }
 
 // A hole of the catalogue by its id, with the sector it stands in; null when there is none (the roaming secret hole

@@ -272,6 +272,11 @@ export const BODIES = {
     // the palette (src/roles.js) has none, and the hidden sector's sky pink (world-art.js STAR_PINK, #C684A3 at
     // its middle) is too dusty to tell from the violet arms at a glance.
     secret: {
+      // Whether the way into O-08 is open: false since SX's word of 2026-10-19 («Убери, кстати, черную дыру вообще розовую с
+      // секреткой. Она только мешает сейчас ... Ты прям контент не удаляй розовой дыры, просто путь туда скрой»). Shut, the hole
+      // never comes nor stands anywhere (src/secretHole.js secretWayOpen), so no way leads into O-08; everything of it below, its
+      // drawing, its rules, its lure and the sector itself, is kept as it is for the day the way opens again.
+      way: false,
       tell: 'glyphs',
       ink: '#EC9AC8',
       // H1: glyph `s` of arm `a` along its strand is pink when (s + a * stagger) % every is 0, so the pink beads

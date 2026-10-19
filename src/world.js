@@ -11,7 +11,7 @@ import { Particles } from './particles.js';
 import { Ship } from './ship.js';
 import { makeTopology, WRAP } from './topology.js';
 import { SECTOR_SIZE, START_SECTOR, sectorById, addressOf, stationDefById } from './sectors.js';
-import { newSecretStream, setSecretHole, rollSecretHole, secretHoleSectors, newLure, stepSecretHole } from './secretHole.js';
+import { newSecretStream, setSecretHole, rollSecretHole, secretHoleSectors, newLure, stepSecretHole, secretWayOpen } from './secretHole.js';
 
 import { Progress } from './contracts.js';
 
@@ -413,7 +413,8 @@ export class World {
     this.egg = { held: 0, done: false }; // src/eggs.js's own
 
     if (quiet) this.quieten();
-    if (!secretLure) setSecretHole(this, rollSecretHole(this.rng('secret'), { sectors: secretHoleSectors(this.ledger) }), false);
+    // With the way into O-08 shut (src/secretHole.js secretWayOpen, 2026-10-19) no hole is rolled or put.
+    if (!secretLure && secretWayOpen()) setSecretHole(this, rollSecretHole(this.rng('secret'), { sectors: secretHoleSectors(this.ledger) }), false);
     this.loadSector(sectorById(START_SECTOR), { announce: false });
     // A new game starts at the home garage's berth (src/home.js): at rest in its bay, nose away from the mouth, not docked: the
     // DOCK row of its menu is the first thing there is to do. Without a home, near the first station.
@@ -431,7 +432,7 @@ export class World {
   // and a draw added to one moves no other's. Every caller asks for its stream here, by name: there is no other handle on one
   // (the `*Rng` fields that copied ten of them went on 2026-10-05, the roadmap's refactoring piece for chat W); a check that pins a
   // stream sets it in `streams` (checks/lib/world.mjs pinStreams). The secret hole's stream is a fixed one in a World not asked to
-  // roll it (the constructor's `rollSecret`, src/secretHole.js SECRET_SEED). Streams in use: visit, npc, paint, drop, hole, secret,
+  // roll it (the constructor's `rollSecret`, src/secretHole.js SECRET_SEED). Streams in use: visit, npc, paint, drop, secret,
   // cache, pirate, quest, droid, spawn (where the ship is placed), field (the rocks: their
   // number, place, size, heading and the splits of a broken one), sky:<sector> (the turn that sector's planets and holes start
   // at), word (which word a signal teaches), fx (sparks and debris, a look only); and the page's own: deal and startRuin (a new

@@ -606,7 +606,9 @@ export function mapWords(hit, world, map = null) {
           ...(garage ? [['GARAGE', 'HERE']] : [])] };
     }
     case 'planet': return { title: hit.def.label ?? 'PLANET', lines: ['Gravity pulls you in. Approach slowly.'] };
-    case 'hole': return { title: 'BLACK HOLE', ink: CONFIG.blackHole.color, lines: ['Transit to an open sector. The exit varies.'] };
+    // Where a hole leads is the ring's (src/holePassage.js holeExit, 2026-10-19), always the same one now; the map does not name it
+    // (SX: «пока меточку не делай»).
+    case 'hole': return { title: 'BLACK HOLE', ink: CONFIG.blackHole.color, lines: ['Transit to another open sector.'] };
     case 'station': {
       const st = hit.def, kind = liveStation(st, L).kind;
       if (kind === 'home') return { title: 'HOME', ink: PALETTE.green, lines: homeTerms() };

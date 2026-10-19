@@ -4,17 +4,39 @@
 import { CONFIG } from './config.js';
 import { TAU } from './util.js';
 import { PLANE } from './topology.js';
-import { sectorById, sectorTitle, otherHoles, holeDef } from './sectors.js';
+import { sectorById, sectorTitle, holeDef } from './sectors.js';
 import { SECRET_HOLE_ID, SECRET_EXIT_ID, moveSecretHole } from './secretHole.js';
 import { sectorOpen } from './frontier.js';
 import { towBehind } from './tow.js';
 
+// Where each hole leads: the ring (SX, 2026-10-19: «в черных дырах черные дыры все выкидывают в другие сектора ... Придумай
+// распределение кто куда кидает»; his pick, «Да, строй кольцо с новой дырой в K-05»). The grid's holes stand in a ring in the
+// order their sectors open (CONFIG.frontier.order, a sector's own holes in catalogue order), and a hole throws the ship out of the
+// next open one; the last open one throws it home, out of the first (J-05's, HOME's sector). With the whole grid open:
+//   J-05 -> K-05 -> K-04 -> J-04 -> K-06 -> J-05   (J-06 has no hole, so the ring passes it by)
+// A hole in a closed sector is not on the ring and no passage leads into one: each sector opened changes one exit, the last
+// one's, from home to the new sector. A hole off the ring (O-08's) leads to the ring's first, home. Before 2026-10-19 the exit
+// was rolled at random among the other open holes on every passage.
+
+// The open holes of the ring, in its order, each with its sector (sectors.js holeDef).
+export function holeRing(ledger) {
+  return CONFIG.frontier.order.filter((id) => sectorOpen(ledger, id))
+    .flatMap((id) => (sectorById(id)?.holes ?? []).map((h) => holeDef(h.id)));
+}
+
+// The hole a passage from `holeId` comes out of, or null when the ring holds that hole alone (the start's J-05 before K-05 had
+// one): the ship is then thrown back out of the hole it fell into.
+export function holeExit(holeId, ledger) {
+  const ring = holeRing(ledger), at = ring.findIndex((h) => h.id === holeId);
+  const next = at < 0 ? ring[0] : ring[(at + 1) % ring.length];
+  return next && next.id !== holeId ? next : null;
+}
+
 // A black hole is a passage, not a death (SX, 2026-09-24). The ship comes out
-// of another hole, rolled at random on every passage and never the one it
-// fell into, on the heading it fell in with, just outside the exit's strong
-// pull and fast enough to leave it, and that hole cannot take it again for a
-// moment. Cargo, camera and follower keep their offsets from the ship. The
-// trace starts again: a ghost never slides across the map.
+// of another hole, the ring's next (holeExit), on the heading it fell in with,
+// just outside the exit's strong pull and fast enough to leave it, and that
+// hole cannot take it again for a moment. Cargo, camera and follower keep their
+// offsets from the ship. The trace starts again: a ghost never slides across the map.
 export function transitHole(world, hole) {
   const ship = world.ship;
   const B = CONFIG.blackHole;
@@ -24,14 +46,9 @@ export function transitHole(world, hole) {
   // held back until the ship is out, because arriving in a sector wipes the
   // feedback lines and this one is meant to be read there.
   const ended = world.endEncounter('hole', { deferEvent: true });
-  // The secret hole leads to O-08's own, the only way in; every other hole, O-08's among them, to an ordinary one
-  // (SX, 2026-10-02: «выкидывает наружу из рандомной дыры которая не является секретной»).
-  // Only into a sector open to the pilot (src/frontier.js): with none (the start's J-05 has the one hole of its two sectors), the
-  // hole throws the ship back out of itself.
-  const others = hole.id === SECRET_HOLE_ID ? [holeDef(SECRET_EXIT_ID)] : otherHoles(hole.id).filter((h) => sectorOpen(world.ledger, h.sectorId));
-  const exitDef = others.length
-    ? others[Math.min(others.length - 1, Math.floor(world.rng('hole')() * others.length))]
-    : null;
+  // The secret hole (its way shut since 2026-10-19, src/secretHole.js) leads to O-08's own, the only way in; every other hole,
+  // O-08's among them, to the ring's next (holeExit), never into a closed sector, or back out of itself when there is none.
+  const exitDef = hole.id === SECRET_HOLE_ID ? holeDef(SECRET_EXIT_ID) : holeExit(hole.id, world.ledger);
   const to = exitDef ? sectorById(exitDef.sectorId) : from;
   const oldX = ship.x, oldY = ship.y;
 

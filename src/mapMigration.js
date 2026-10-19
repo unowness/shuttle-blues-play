@@ -11,7 +11,9 @@ import { FLAG } from './flags.js';
 import { sanitizeObstacle } from './trace.js';
 
 // Spatial revision, independent of payload shape. A current snapshot must never relocate an accepted task again.
-export const MAP_REVISION = 1;
+// 1: Map X (2026-10-10). 2: the black hole put in K-05 in the secret hole's place (2026-10-19, src/sectors.js `hole-k05`): what a
+// pilot left where its pull now stands is moved once to the nearest clear point, as Map X moved it; a legal point stays exact.
+export const MAP_REVISION = 2;
 const W = SECTOR_SIZE.width, H = SECTOR_SIZE.height, EPS = 1e-5;
 const circle = (p, r) => ({ x: p.x * W, y: p.y * H, r });
 
@@ -102,7 +104,9 @@ function historicalObstacle(rec) {
 }
 
 // Called only after Progress/SignBoard/flags readers and frontier settlement. Every record here has already been validated.
-export function migrateMapLedger(ledger, signs, flags, secret = null) {
+// `from`: the save's own revision. A lost cargo's historical obstacle (the pre-X map's body it hit) is looked up only for a save
+// from before Map X: a later save's loss was made on today's map.
+export function migrateMapLedger(ledger, signs, flags, secret = null, from = 0) {
   const roaming = (sectorId, radius = SECRET_HOLE.disc * 2) => secret?.sectorId === sectorId ? [circle(secret, radius)] : [];
   for (const [id, p] of ledger.placed) {
     if (ledger.found.has(id)) continue;
@@ -120,7 +124,7 @@ export function migrateMapLedger(ledger, signs, flags, secret = null) {
   }
   for (const rec of ledger.stranded.values()) {
     const oldX = rec.x, oldY = rec.y;
-    const obstacle = historicalObstacle(rec);
+    const obstacle = from >= 1 ? rec.obstacle : historicalObstacle(rec);
     const extra = [...STRANGERS.filter((s) => s.sector === rec.sectorId).map((s) => circle(s, 2 * CONFIG.stranded.interactRadius)),
       ...roaming(rec.sectorId, SECRET_HOLE.disc * 2 + CONFIG.stranded.wellMargin)];
     if (movePoint(rec, rec.sectorId, 'cargo', { clear: CONFIG.stranded.wellMargin, extra })) {

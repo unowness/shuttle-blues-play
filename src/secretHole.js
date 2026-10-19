@@ -9,7 +9,7 @@
 // So there is one secret hole in the six sectors of the grid, at a clear spot rolled at random (not in the catalogue:
 // src/sectors.js lists only the holes that stand still, and the map, the map editor and every check of the catalogue
 // read that list, so this hole is on none of them; the locator reads the world's bodies and shows it like any hole).
-// Falling into it leads to O-08's own hole (`hole-hidden`); no ordinary hole leads there (`otherHoles`); leaving O-08
+// Falling into it leads to O-08's own hole (`hole-hidden`); no ordinary hole leads there (the ring, src/holePassage.js); leaving O-08
 // through its hole comes out of an ordinary one, and the secret hole moves to a new place (World.transitHole). The
 // place is saved (`secretHole` in the save, v12) and a save without one is given a fresh place.
 //
@@ -21,6 +21,10 @@
 // квеста с персонажем отсылкой в космосе») the hole does not stand: it comes to a pilot alone in the void and goes again (the lure,
 // below; CONFIG.blackHole.secret.lure), about once in 23 minutes of flight. A World built with `secretLure: false` keeps the hole
 // as it was before (always standing, moved on leaving O-08): the checks of its place and its passages.
+//
+// Shut since SX's word of 2026-10-19 (CONFIG.blackHole.secret.way, «просто путь туда скрой»): with the way shut the hole is put
+// nowhere (`setSecretHole` puts none, the lure does not step), so nothing leads into O-08. The rules and the drawing stay whole,
+// and checks/hidden-sector.mjs opens the way for itself to keep them working.
 
 import { CONFIG } from './config.js';
 import { CHASSIS, DEFAULT_CHASSIS } from './chassis.js';
@@ -38,6 +42,9 @@ import { sectorOpen } from './frontier.js';
 // The roaming hole's id (a catalogue hole's is `hole-<sector>`), and the id of O-08's hole it leads to.
 export const SECRET_HOLE_ID = 'hole-secret';
 export const SECRET_EXIT_ID = 'hole-hidden';
+
+// Whether the way into O-08 is open (CONFIG.blackHole.secret.way): shut, the hole stands nowhere and never comes.
+export const secretWayOpen = () => CONFIG.blackHole.secret.way !== false;
 
 // The seed of the stream for rolling the hole's place in a World not asked to roll it (`rollSecret`, src/world.js: a check's or a
 // tool's; PLAN D1, 2026-10-03: the game's page asks for it, and the place is rolled from the world's own seed): such a World puts it
@@ -170,8 +177,9 @@ export const secretHoleBodies = (world, sector) => (world.secretBody && world.se
 // Puts the hole at `place` (null takes it away); `announce` false (a world's own constructor) leaves what spots.js is told
 // alone. The sectors' bodies are built once and kept, so the old body leaves its
 // sector's list and the new one joins its sector's, in place: the world's `holes` of the sector the pilot is in is that
-// very list, and what is drawn across a seam reads the same ones.
+// very list, and what is drawn across a seam reads the same ones. With the way shut (secretWayOpen) it puts none.
 export function setSecretHole(world, place, announce = true) {
+  if (!secretWayOpen()) place = null;
   if (world.secretBody) for (const b of world.bodyCache.values()) {
     const i = b.holes.indexOf(world.secretBody);
     if (i >= 0) b.holes.splice(i, 1);
@@ -283,9 +291,10 @@ export function lureAhead(rng, { x, y, heading }, { ledger = null, extra = [], t
 }
 
 // The world's lure, a step of `dt` s (World.step): the ship's point in the grid, whether it is alone in the void, how far the open
-// hole is; the hole opened ahead of it or taken away as the rule says. A World with `secretLure` off keeps its hole as it is.
+// hole is; the hole opened ahead of it or taken away as the rule says. A World with `secretLure` off keeps its hole as it is; with
+// the way shut the lure stands still, its saved timers as they were.
 export function stepSecretHole(world, dt) {
-  if (!world.secretLure) return;
+  if (!world.secretLure || !secretWayOpen()) return;
   const L = LURE(), ship = world.ship, clock = world.ledger.clock, sector = world.sector;
   const at = sector && !sector.hidden && ship.alive ? { x: sector.col * W + ship.x, y: sector.row * H + ship.y } : null;
   const p = world.secretHole, hs = p && SECTORS.find((s) => s.id === p.sectorId);

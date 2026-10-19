@@ -12,8 +12,9 @@ import { SECTORS, sectorById, stationDefById } from './sectors.js';
 //
 // A closed sector is a dead edge, with the rope and the fog (src/world.js openNeighbour), and nothing points the pilot
 // into one: freight (src/ruins.js reachableStationIds), the quests, raids, places for ships in trouble (src/spots.js),
-// the black holes' exits, the secret hole (src/secretHole.js), the bearings (src/navigation.js). O-08 is off the grid
-// and not part of this (its way in is the secret hole); a grid sector the order does not list is not gated.
+// the black holes' exits (the ring, src/holePassage.js holeExit, runs in this order), the secret hole (src/secretHole.js), the
+// bearings (src/navigation.js). O-08 is off the grid and not part of this (its way in is the secret hole, shut since 2026-10-19);
+// a grid sector the order does not list is not gated.
 //
 // What an older save had in closed sectors goes back to it on load (settleFrontier, World.restore).
 

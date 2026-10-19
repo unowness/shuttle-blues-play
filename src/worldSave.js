@@ -14,7 +14,7 @@ import { Hangar, shipById } from './hangar.js';
 import { reconcileFinds } from './rewards.js';
 import { reconcileLooks } from './looks.js';
 import { sectorOpen, settleFrontier } from './frontier.js';
-import { lureSave, readLure, setSecretHole, readSecretHole, rollSecretHole, secretExtras, secretHoleSectors } from './secretHole.js';
+import { lureSave, readLure, setSecretHole, readSecretHole, rollSecretHole, secretExtras, secretHoleSectors, secretWayOpen } from './secretHole.js';
 import { readFlags, flagsToJSON } from './flags.js';
 import { questsToJSON, restoreQuests } from './questSave.js';
 import { openingToJSON, restoreOpening } from './opening.js';
@@ -128,8 +128,10 @@ export function restoreWorld(world, data) {
   // A save of this build has nothing to settle, so it is said once, by the load that moved it.
   const frontier = settleFrontier(ledger);
   const migrateMap = data.mapRevision !== MAP_REVISION;
-  const saved = readSecretHole(data.secretHole, ledger);
-  if (migrateMap) migrateMapLedger(ledger, signs, flags, saved);
+  // With the way into O-08 shut (src/secretHole.js secretWayOpen, 2026-10-19) a saved place is read as none: the hole stands
+  // nowhere, and nothing is moved off it.
+  const saved = secretWayOpen() ? readSecretHole(data.secretHole, ledger) : null;
+  if (migrateMap) migrateMapLedger(ledger, signs, flags, saved, data.mapRevision);
   world.ledger = ledger;
   world.collection = collection;
   world.pilot = pilot;
@@ -151,7 +153,7 @@ export function restoreWorld(world, data) {
     world.lure = readLure(data.lure, ledger.clock);
     setSecretHole(world, saved && world.lure.openedAt !== null ? saved : null);
     if (!world.secretHole) world.lure.openedAt = null;
-  } else {
+  } else if (secretWayOpen()) {
     const at = !movedHome && data.ship && Number.isFinite(data.ship.x) && Number.isFinite(data.ship.y) ? { sectorId: data.sectorId, x: data.ship.x, y: data.ship.y } : null;
     const secret = saved || rollSecretHole(world.rng('secret'), { sectors: secretHoleSectors(ledger), extra: secretExtras(world), away: at && { ...at, by: CONFIG.blackHole.secret.place.away } });
     if (secret) setSecretHole(world, secret);
