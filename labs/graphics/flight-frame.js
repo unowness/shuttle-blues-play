@@ -19,9 +19,9 @@ import { stepCharm } from './charm.js';
 import { stepTracker } from './tracker.js';
 import { COCKPIT_FX, damageLevel, wearCockpit, shakeOffset, drawPieces, steerLight, mendCockpit, crackShape, drawCracked } from './cockpit-fx.js';
 import { keepFrame, startRespawn, respawning, handsOff, drawReboot, drawRisingShip, scrambleOf } from './respawn-fx.js';
-import { drawContextPlates, shipOverPlate, PLATE } from './context.js';
+import { drawContextPlates, shipOverPlate } from './context.js';
 import { selectedTask, markedQuests, boardQuests } from '../../src/tasks.js';
-import { menuOpen, standShare } from '../../src/interaction.js';
+import { menuOpen } from '../../src/interaction.js';
 import { GUIDE_PLATE, noticeRect } from './notice.js';
 import { ROLES } from '../../src/roles.js';
 import { STAR_ROLES, STAR_PINK } from './world-art.js';
@@ -31,7 +31,7 @@ import { courseOf } from '../../src/course.js';
 import { stepScale, brakeShade } from '../../src/visualScale.js';
 import { jumpSpeedHeld } from '../../src/trick.js';
 import { surfing } from '../../src/drift.js';
-import { guideOf, drawObjectFocus } from '../../src/interface.js';
+import { guideOf } from '../../src/interface.js';
 import { viewArea } from '../../src/rim.js';
 import { drawRimMarks, playArea } from './rim-marks.js';
 import { noteVisit, drawWorldFlags, FLAGS } from './map-screen.js';
@@ -156,8 +156,6 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
   // `area`: the play area the marks' ellipse is inset in (rim-marks.js playArea).
   function drawInteraction(r, avoid = [], area = viewArea(r.view)) {
     const target = world.selected;
-    const near = standShare(world, PLATE.fadeIn, feedback.reducedMotion);
-    drawObjectFocus(r, world, target, feedback, near);
     const occupied = [...avoid];
     // Under P's pause the screen is the layout's and the settings' (labs/graphics/hud-place.js, volume-panel.js): no object's menu.
     const open = menuOpen(target, menu.closed, world.docked) && !pause.pauseShown();

@@ -646,7 +646,7 @@ export class World {
     if (this.greetings.length) {
       for (const g of this.greetings.filter((q) => this.time >= q.at)) {
         const at = this.craftAt(g.craftId);
-        if (at) this.emit('trafficHail', { craftId: g.craftId, label: g.label, line: g.line, x: at.x, y: at.y, sectorId: this.sector.id, greet: true });
+        if (at) this.emit('trafficHail', { craftId: g.craftId, label: g.label, line: g.line, x: at.x, y: at.y, sectorId: this.sector.id, greet: true, angry: !!g.angry });
       }
       this.greetings = this.greetings.filter((q) => this.time < q.at);
     }

@@ -19,8 +19,11 @@ export const SPAWN_FOLDS = Object.freeze({
   "#7B848E": ["#6F7780", "#737F83", "#7A7C7F", "#7A7D86", "#757D86", "#7D838A", "#788897"],
   // #C1C6CC: #B9C2CC (planet), #BAC6CE (boss), #C6C2CF (sprite)
   "#C1C6CC": ["#B9C2CC", "#BAC6CE", "#C6C2CF"],
-  // #003722: #1F330D (interface), #223214 (station greenhouse)
-  "#003722": ["#1F330D", "#223214"],
+  // #003722: #223214 (station greenhouse), as it was folded with the green's old wash (SX, 2026-10-20: «не трогай ... станции»)
+  "#003722": ["#223214"],
+  // The green's wash, its backing (src/palette.js green, labs/graphics/rail.js washOf; SX, 2026-10-20: «подложка должна быть в тон этого
+  // цвета»): #1F330D (interface: the wash of HALCYON's bar in the ruins' tracker, folded with the old green's until then)
+  "#20330D": ["#1F330D"],
   // PALETTE.gray: #999CAC (station lattice), #919FAE (station array)
   "#929CA8": ["#999CAC", "#919FAE"],
   // PALETTE.depth: #092F4C (interface), #112E4D (interface)
@@ -29,8 +32,8 @@ export const SPAWN_FOLDS = Object.freeze({
   "#8CA8BF": ["#8BABC5", "#80A4BC"],
   // ROLES.textFaint: #616467 (interface)
   "#5C626A": ["#616467"],
-  // PALETTE.green: #7EAA93 (interface)
-  "#79A78F": ["#7EAA93"],
+  // PALETTE.green: #72A843 (station greenhouse, the HALCYON green it was taken from: painted as it was), #7BAD43 (interface: its paleInk)
+  "#68A228": ["#72A843", "#7BAD43"],
   // #4E667C: #4C677A (interface)
   "#4E667C": ["#4C677A"],
   // #C79BC8: #C79BB5 (craft NPC N01)

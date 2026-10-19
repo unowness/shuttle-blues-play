@@ -193,6 +193,11 @@ function add(out, c, x, y, role, a, ang, ring) {
   out.push(g);
 }
 
+// How much larger the words spelt in stars are drawn than the 5 px pitch they were made on: their pitch, the space and the gap between
+// letters (SX, 2026-10-19: «Тексты, звездами ... Подписи оставь. А сам рисунок звездами надо увеличить на 20-25%, потому что он слишком
+// маленький»). The stars themselves stay the font's dots.
+export const STAR_SIZE = 1.25;
+
 // A 3 x 5 dot font for STARS: five rows of three, '#' a star.
 const DOTS = {
   A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'], C: ['.##', '#..', '#..', '#..', '.##'],
@@ -247,22 +252,23 @@ const DRAW = {
     }));
     glyphList(author || '').forEach((c, i) => add(out, c, (i - (count(author) - 1) / 2) * cw, 2.2 * ch, 'author'));
   },
-  // The words spelt in stars, a 3 x 5 dot letter on a 5 px pitch, one star in a dozen a brighter
-  // cross; every star twinkles at its own rate, never below half, so the words hold.
+  // The words spelt in stars, a 3 x 5 dot letter on a 5 px pitch times STAR_SIZE, one star in a dozen a brighter
+  // cross; every star twinkles at its own rate, never below half, so the words hold. The author under them in the font, the
+  // same gap under the stars whatever their size.
   stars(out, cw, ch, text, author, t) {
-    const space = 15;
+    const K = STAR_SIZE, space = 15 * K;
     const letters = glyphList(text).map((c) => {
       const japanese = JAPANESE_DOTS[c];
       const rows = japanese || dotRows(c);
-      const pitch = japanese ? 2 : 5;
+      const pitch = (japanese ? 2 : 5) * K;
       const width = (rows[0].length - 1) * pitch;
-      return { c, rows, pitch, width, advance: c === ' ' ? space : width + 10 };
+      return { c, rows, pitch, japanese: !!japanese, width, advance: c === ' ' ? space : width + 10 * K };
     });
     const last = letters.at(-1);
     const width = letters.reduce((w, l) => w + l.advance, 0) - (last ? last.advance - last.width : 0);
     const height = Math.max(20, ...letters.map((l) => (l.rows.length - 1) * l.pitch));
     let lx = -width / 2;
-    letters.forEach(({ c, rows, pitch, advance }, li) => {
+    letters.forEach(({ c, rows, pitch, japanese, advance }, li) => {
       if (c !== ' ') {
         // Centre the denser Japanese glyphs on the same line as the Latin dots.
         const top = -1.5 * ch + 10 - (rows.length - 1) * pitch / 2;
@@ -271,7 +277,7 @@ const DRAW = {
           const h = hash(li, rr * rows[0].length + cc, 5);
           const a = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(t * (1.4 + 2 * h) + h * TAU));
           // Crosses would obscure the denser Japanese strokes; use stars of one size.
-          add(out, pitch === 5 && h > 0.92 ? '+' : '·', lx + cc * pitch, top + rr * pitch, 'text', a);
+          add(out, !japanese && h > 0.92 ? '+' : '·', lx + cc * pitch, top + rr * pitch, 'text', a);
         }));
       }
       lx += advance;

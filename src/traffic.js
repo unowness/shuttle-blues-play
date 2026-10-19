@@ -132,7 +132,7 @@ export function craftPose(craft, t, W, H) {
   // A walker of the fleet (src/npcFleet.js): its place on the grid, in this sector's own units.
   if (P.kind === 'walk') {
     const p = P.walker.pose(t);
-    return { x: p.x - P.ox, y: p.y - P.oy, angle: p.angle };
+    return { x: p.x - P.ox, y: p.y - P.oy, angle: p.angle, bank: p.bank ?? 0 };
   }
   if (P.kind === 'orbit') {
     const a = P.phase + (P.dir || 1) * TAU * (t / P.period);
@@ -161,18 +161,24 @@ export const craftReach = (r, craft) =>
 // Half its drawing's longer side, px: the disc a hull up in a jump passes over (src/trick.js underShip).
 export const craftSize = (r, craft) => Math.max(craft.rows[0].length * r.cellW, craft.rows.length * r.cellH) * craft.scale / 2;
 
-// One craft, turned to its heading; `alpha` for fading at the screen's edge.
-export function drawCraft(r, craft, sx, sy, angle, alpha = 1) {
+// One craft, turned to its heading; `alpha` for fading at the screen's edge. `bank` (-1 .. 1, a flown NPC's lean into its turn,
+// src/npcFlight.js): the outermost glyph of each row on that side drawn the darker by CONFIG.traffic.flight.bank.dark of it.
+export function drawCraft(r, craft, sx, sy, angle, alpha = 1, bank = 0) {
   const turn = angle + Math.PI / 2;
   const c = Math.cos(turn), s = Math.sin(turn);
   const w = r.cellW * craft.scale, h = r.cellH * craft.scale;
-  const rows = craft.rows;
-  rows.forEach((row, j) => Array.from(row).forEach((ch, i) => {
-    if (ch === ' ') return;
-    const lx = (i - (row.length - 1) / 2) * w, ly = (j - (rows.length - 1) / 2) * h;
-    const ink = craft.colors ? craft.palette[craft.colors[j][i]] : (craft.inks[ch] || craft.ink);
-    r.glyphRot(ch, sx + lx * c - ly * s, sy + lx * s + ly * c, turn, ink, alpha, craft.scale);
-  }));
+  const rows = craft.rows, dark = Math.abs(bank) > 0.02 ? 1 - CONFIG.traffic.flight.bank.dark * Math.min(1, Math.abs(bank)) : 1;
+  rows.forEach((row, j) => {
+    const cells = Array.from(row);
+    let edge = -1;
+    if (dark < 1) for (let k = 0; k < cells.length; k++) { const i = bank > 0 ? cells.length - 1 - k : k; if (cells[i] !== ' ') { edge = i; break; } }
+    cells.forEach((ch, i) => {
+      if (ch === ' ') return;
+      const lx = (i - (row.length - 1) / 2) * w, ly = (j - (rows.length - 1) / 2) * h;
+      const ink = craft.colors ? craft.palette[craft.colors[j][i]] : (craft.inks[ch] || craft.ink);
+      r.glyphRot(ch, sx + lx * c - ly * s, sy + lx * s + ly * c, turn, ink, i === edge ? alpha * dark : alpha, craft.scale);
+    });
+  });
 }
 
 // A rare visitor (SX, 2026-10-01: «сделай так что персонажи с отсылками всегда находятся в секретной локации, но

@@ -34,7 +34,7 @@ import { Layer } from './station-art.js';
 import { TANK_OIL, createTankOil, splitTankOil, stepTankOil, drawTankOil } from '../../src/tankOil.js';
 
 const A = 0.6;                                           // a cell's width over its height, as the sketch's boards are
-const MAT = ROLES.material, STR = ROLES.structure, HI = ROLES.highlight, DIM = ROLES.textHint, GO = ROLES.interactionActive;
+const MAT = ROLES.material, STR = ROLES.structure, HI = ROLES.highlight, DIM = ROLES.textHint, GO = ROLES.stationLit;   // the berth lit while docked: the green it had (SX, 2026-10-20, kept the stations)
 const OIL = ROLES.structure;                             // the oil on the hose (src/oil.js)
 const OIL_DEEP = '#2C5290';
 const HUE = ROLES.brakeActive;                           // amber: the garage's warm light

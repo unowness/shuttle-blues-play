@@ -87,6 +87,8 @@ export function worldToJSON(world) {
     quests: questsToJSON(world),
     // The opening chapter's record (src/opening.js), v17: null for a world with none.
     opening: openingToJSON(world),
+    // The friendly ships as persons (src/npcFleet.js Fleet.toJSON), v27: what each remembers of the pilot, and where each one out is.
+    fleet: world.fleet.toJSON(world),
   };
 }
 
@@ -220,5 +222,7 @@ export function restoreWorld(world, data) {
   // The quests that were open when it was saved, the ones that can still be had (src/questSave.js); pirate squads are met anew.
   restoreQuests(world, data.quests);
   if (migrateMap) migrateMapQuests(world);
+  // The friendly ships as the save left them (v27; a save from before keeps the fleet a new world has).
+  world.fleet.restore(data.fleet, world);
   return { ok: true, positionRestored: valid, sectorId: sector.id, frontier: { ...frontier, movedHome }, refund: readRefund(data.refund, ledger) };
 }

@@ -83,6 +83,9 @@ export const ROLE_INKS = Object.freeze({
   secondary: { ink: PALETTE.gray, layer: 'chrome', says: 'secondary text, materials' },
   primary: { ink: PALETTE.white, layer: 'chrome', says: 'primary text, focus' },
   route: { ink: PALETTE.green, layer: 'signal', says: 'the route, interaction, the drive, the plate' },
+  // The green until 2026-10-20 (src/palette.js sage), kept where SX kept it («не трогай только нпс и станции»): each look's `sage` is the
+  // `route` it had until that day, so what is written in it is painted in every look as it was.
+  sage: { ink: PALETTE.sage, layer: 'signal', says: 'the old green: the stations\' lights, the friendly ships\' rule' },
   caution: { ink: PALETTE.orange, layer: 'signal', says: 'caution, pirate guns' },
   danger: { ink: PALETTE.red, layer: 'signal', says: 'danger' },
   brake: { ink: PALETTE.amber, layer: 'signal', says: 'the brake, the route closing' },
@@ -314,16 +317,19 @@ function tidied(base, { folds = null, greys = null, kept = null, frames = null, 
 // interface's palette has, as a grade, which the signals and the art take in part. `logic` says it in a line.
 // SPAWN's and SUNSET's interfaces are SX's own tuning of round three, to the digit; `tune` is where SX set each look's
 // sliders in round four (interface-looks-2026-10-02(1).json), the look as it stands, which RESET goes back to.
+// The routes since 2026-10-20 (src/palette.js, HALCYON's green): the green as written in every look, no push, so each look grades it its own
+// way and the colours round it keep their paint (a push of the route moved the far stars' dust by ΔE 4 under SPAWN; measured on every ink of
+// the game, 2026-10-20). SPAWN SOFT paints it #71A24B, as it paints HALCYON's restore bar. `sage` is each one's route until then.
 export const NOW = Object.freeze({ code: 'G0', name: 'NOW', palette: null, mood: null,
   film: "The game today: SX's grade of 2026-10-01, under SX's sliders",
-  logic: 'A cool blue machine, a sage route, warm signals; a touch warmer and turned.',
+  logic: 'A cool blue machine, a green route, warm signals; a touch warmer and turned.',
   tune: { strength: 120, light: -0.1, warmth: 2, contrast: 0, saturation: 100, hue: 15, signals: 60, art: 60 } });
 
 export const LOOKS = Object.freeze([
   {
     code: 'G1', name: 'SPAWN', film: 'Spawn, 1997: comic-book colour over a cold night (SX\'s tuning)',
     logic: 'A night-indigo machine, cold and a little dark; the signals keep their colours under the same cold light.',
-    palette: { depth: '#0A1645', structure: '#3961A9', secondary: '#7185A0', primary: '#AEC4E0', route: '#5EAC8A',
+    palette: { depth: '#0A1645', structure: '#3961A9', secondary: '#7185A0', primary: '#AEC4E0', route: '#68A228', sage: '#5EAC8A',
       caution: '#F79043', danger: '#E5484A', brake: '#FDD383', credits: '#FDE7AA', creditsLabel: '#D5A23E' },
     mood: { light: -0.3, warmth: -4.5, saturation: 80 },
     // SPAWN SOFT (SX, 2026-10-17: «берем софт»): the colours one notch quieter, saturation 85 where SX's tune had 120, and tidied (above):
@@ -335,15 +341,15 @@ export const LOOKS = Object.freeze([
   {
     code: 'G2', name: 'SUNSET', film: 'The sky just after the sun: steel and lavender over the last warm light (SX\'s tuning)',
     logic: 'A steel-lavender machine, soft and cool; the signals stay warm, the sun still in them.',
-    palette: { depth: '#1D343F', structure: '#4E7695', secondary: '#96A8C5', primary: '#CFDAF4', route: '#6FB592',
+    palette: { depth: '#1D343F', structure: '#4E7695', secondary: '#96A8C5', primary: '#CFDAF4', route: '#68A228', sage: '#6FB592',
       caution: '#FF9A4C', danger: '#E5543C', brake: '#FFD07E', credits: '#FFE6A8', creditsLabel: '#E29E45' },
     mood: { warmth: 2, contrast: -2, saturation: 95 },
     tune: { strength: 135, light: -0.1, warmth: -4, contrast: -1, saturation: 90, hue: 10, signals: 60, art: 65 },
   },
   {
     code: 'G3', name: 'TYRELL', film: 'Blade Runner, 1982: brass rooms in smoke',
-    logic: 'A warm brass machine and cream text in a soft haze; the signals keep their colours, the route a little teal.',
-    palette: { depth: '#2A2014', structure: '#B18A52', secondary: '#B9A991', primary: '#F5EBD9', route: '#55C2A2',
+    logic: 'A warm brass machine and cream text in a soft haze; the signals keep their colours, the route green.',
+    palette: { depth: '#2A2014', structure: '#B18A52', secondary: '#B9A991', primary: '#F5EBD9', route: '#68A228', sage: '#55C2A2',
       caution: '#F0874A', danger: '#DE473E', brake: '#F5D58E', credits: '#F7E8C8', creditsLabel: '#C9A160' },
     mood: { warmth: 1, contrast: -3, saturation: 88 },
     tune: { strength: 100, light: -1.2, warmth: -4, contrast: 1, saturation: 100, hue: -120, signals: 80, art: 55 },

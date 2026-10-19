@@ -219,6 +219,9 @@ export function createGame(env) {
   // Its squads are drawn as a pilot who has restored every ruin meets them, so the hulls that replace the old four come too
   // (SX, 2026-10-17: «ни одного пирата, который кодекс рисовал, мне не встретилось»).
   if (!GAME && PIRATE_STYLE_IDS.includes(pageParams.get('pirateStyle'))) { world.pirateStyle = pageParams.get('pirateStyle'); world.rosterOpen = true; }
+  // `?npcFlight=new` (the lab): the NPC ships flown as ships, giving way, slowing into corners (src/npcFlight.js; SX's N1 FLIGHT, 2026-10-19);
+  // `?npcFlight=old` the clock. The game's is CONFIG.traffic.flight.mode.
+  if (!GAME && pageParams.has('npcFlight')) world.fleet.flight = pageParams.get('npcFlight') === 'old' ? 'path' : 'step';
   // The drift G1 GLIDE and the jump J2, the game's (chat F1: src/drift.js, src/trick.js, FLIGHT's presets in src/flightConfig.js); the lab
   // may put the pilot's NORMAL or PRO aside (labs/graphics/stunt-fx.js readStuntSwitches). NORMAL or PRO is kept in this browser; nothing
   // else of it is saved.

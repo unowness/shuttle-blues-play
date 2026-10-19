@@ -1,13 +1,16 @@
 import { CONFIG } from './config.js';
-import { SECTORS, SECTOR_SIZE, sectorById } from './sectors.js';
-import { NPC_ROUTES, RARE_SHIPS, npcShip, npcCraftDef, resolveRoute } from './npcShips.js';
+import { SECTORS, SECTOR_SIZE, sectorById, stationDefById } from './sectors.js';
+import { NPC_ROUTES, NPC_SHIPS, RARE_SHIPS, npcShip, npcCraftDef, npcHome, resolveRoute } from './npcShips.js';
 import { KEEP_OUT } from './keepOut.js';
 import { makeCraft } from './traffic.js';
 import { shipContact, counterweight, noteRecent, newRecent } from './pacing.js';
 import { OWN, npcPalette, paintKeysFor, paintWeights, paintNote } from './npcPaint.js';
 import { openSectorIds } from './frontier.js';
 import { rageConfig, rageChance, rageTop, grazeSpeed, lineFrom, startRage, chase } from './npcRage.js';
+import { flightConfig, bodyOf, cornerPace, giveWay, steerBody, holdApart } from './npcFlight.js';
 import { GROUND } from './groundConfig.js';
+import { hailFor, sayAtPilot, TALK_LINES } from './npcTalk.js';
+import { clamp } from './util.js';
 
 // The friendly NPC ships of the grid, going where they like (SX, 2026-10-02: «нпс корабли должны иметь разные рандомные пути и
 // не летать кругами, у них должен быть спектр гораздо шире радиус полета, и я думаю нам надо их по умному перемешивать в
@@ -48,6 +51,19 @@ import { GROUND } from './groundConfig.js';
 // then it starts a path afresh from where it stands, going the way its nose points (Walker.restart), and is a roaming ship again.
 // In memory only, like the rest: a reload calms every ship. Its chance and its words come from the stream `rage`, so the paths' own
 // stream ('npc') is not moved by a ram.
+//
+// Flown (SX, 2026-10-19, N1 FLIGHT: CONFIG.traffic.flight.mode 'step', the lab's `?npcFlight=new`; src/npcFlight.js). The path is laid as
+// before, but no clock reads it: each ship is a body that follows it (Walker.body, `s` how far along it is), slowing into its corners,
+// giving way to the pilot and to the others, held apart from them, knocked by a blow as a body is (Fleet.stepFlight). A swap, a ship sent
+// out of a closed sector or born again keep working as they did: a new walker is boarded at its first step. The mode 'path' is the clock.
+//
+// Persons (SX, 2026-10-19, N3 PERSONS: «давай знакомых», and «давай в эту сторону» to keeping them in the save; CONFIG.traffic.persons).
+// Each ship is itself for good: it is never exchanged for another (no mixing), it wears one paint, drawn once and never two ships alike
+// (Fleet.fixPaints), it has a home (src/npcShips.js npcHome) whose sector must be open for it to be out (a new pilot meets the few of the
+// first sectors, each sector restored brings its own: Fleet.keepHomes), its journeys go home and out to the stations of its sector and the
+// ones next to it and home again (Walker.choose), a ship broken comes back at home, and it remembers the pilot: how often met, helped,
+// rammed, and a grudge after a ram (`people`, by code). Where each ship out is and what it remembers are in the save (Fleet.toJSON,
+// Fleet.restore; save v27). With `persons` off the fleet is as it was: the mixing, the paints drawn anew, the open sectors only.
 
 const W = SECTOR_SIZE.width, H = SECTOR_SIZE.height;
 const TAU = 2 * Math.PI;
@@ -181,6 +197,45 @@ class Walker {
     this.knocks = [];                            // blows that knocked it off its path (Fleet.knock): { t, vx, vy, spin }
     this.rage = null;                            // enraged: its simulated state (src/npcRage.js startRage), off its path; or null
     this.destination = null;                     // the station's free place its journey leans toward (choose; CONFIG.ground.traffic)
+    this.home = npcHome(code);                   // its home station and sector (src/npcShips.js), or null
+    this.homing = false;                         // its journeys go from its home and back (Fleet.persons)
+    this.body = null;                            // flown (Fleet.flight 'step'): its body (src/npcFlight.js), or null on the clock
+    this.s = 0;                                  // flown: how far along its path it is (the clock's `travelled` while on the clock)
+    this.stops = [];                             // a person's stops at stations ahead on its path: { s, station } (N2 ROUTES)
+    this.stopAtVertex = null;                    // the station the corner at `vertex` is a stop by (Walker.push)
+    this.nextStop = null;                        // the station the corner `choose` gives now is a stop by
+    this.waiting = null;                         // flown, standing at a stop: { until, station }
+  }
+
+  // Flown from here (src/npcFlight.js): a body where the clock has it now, going at the clock's pace.
+  board(t) {
+    const s = this.travelled(t), p = this.pose(t), v = this.speedAt(t);
+    this.s = s;
+    this.body = bodyOf(p, v);
+    this.knocks = [];
+    this.memo = { t: NaN, pose: null };
+  }
+  // Back on the clock (the mode 'path' again, the lab's switch): a path begun where its body is, the way it goes, its pace easing from the
+  // body's to its own (Walker.restart), so nothing jumps; the next step lays the path on.
+  unboard(t) {
+    const b = this.body, v = Math.hypot(b.vx, b.vy);
+    this.body = null;
+    this.restart([b.x, b.y], v > 20 ? Math.atan2(b.vy, b.vx) : b.angle, v, t);
+  }
+  // Its own pace at time `t` (LEARNER's swinging), what a flown ship cruises at.
+  cruise(t) {
+    const u = unevenOf(this.code);
+    if (!u) return this.speed;
+    let swing = 0;
+    for (const [a, T] of u) swing += a * Math.sin((TAU * t) / T);
+    return this.speed * (1 + swing);
+  }
+  // The index of the piece of path holding distance `s` (0 before the first).
+  pieceAt(s) {
+    const P = this.pieces;
+    let lo = 0, hi = P.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (P[mid].s0 <= s) lo = mid; else hi = mid - 1; }
+    return Math.max(0, lo);
   }
 
   // How far the blows have knocked it off its path at time `t`, and its turn and velocity off it: each a kick of velocity
@@ -200,6 +255,7 @@ class Walker {
   // Its pace at time `t`, u/s (the profile's: a swap changes it).
   speedAt(t) {
     if (this.rage) return Math.hypot(this.rage.vx, this.rage.vy);
+    if (this.body) return Math.hypot(this.body.vx, this.body.vy);
     const P = this.profile;
     let k = P.length - 1;
     while (k > 0 && P[k].t > t) k--;
@@ -212,6 +268,7 @@ class Walker {
 
   // The distance travelled by time `t`.
   travelled(t) {
+    if (this.body) return this.s;
     const P = this.profile;
     let k = P.length - 1;
     while (k > 0 && P[k].t > t) k--;
@@ -242,6 +299,8 @@ class Walker {
     if (t === this.memo.t) return this.memo.pose;
     // Enraged: where its simulation has put it (Fleet.stepRage), whatever the clock the path was read by.
     if (this.rage) return (this.memo = { t, pose: { x: this.rage.x, y: this.rage.y, angle: this.rage.angle } }).pose;
+    // Flown: where its body is, leaning into its turn.
+    if (this.body) { const b = this.body; return (this.memo = { t, pose: { x: b.x, y: b.y, angle: b.angle, bank: b.bank } }).pose; }
     const s = this.travelled(t), L = K().smooth, here = this.place(s), ahead = this.place(s + L), behind = this.place(Math.max(0, s - L));
     const dx = ahead[0] - behind[0], dy = ahead[1] - behind[1];
     const way = dx || dy ? Math.atan2(dy, dx) : (this.memo.pose?.angle ?? 0);
@@ -254,8 +313,11 @@ class Walker {
   // The ship becomes another (a swap): from now on it is `code`, at that ship's pace, down the same path.
   retype(code, speed, t) {
     this.profile.push({ t, s: this.travelled(t), v: speed, u: unevenOf(code) });
+    // Flown, it is the other ship at that ship's pace from now (a swap is never where the pilot could see it).
+    if (this.body && this.speed > 0) { const k = speed / this.speed; this.body.vx *= k; this.body.vy *= k; }
     this.code = code;
     this.speed = speed;
+    this.home = npcHome(code);
     this.changedAt = t;
     this.memo = { t: NaN, pose: null };
     if (this.profile.length > 40) this.profile.splice(0, this.profile.length - 40);
@@ -267,6 +329,7 @@ class Walker {
   // npcRage.chase.ease s, in twelve steps of the profile (a path reads where the ship is from the clock alone).
   restart(at, heading, now, t) {
     this.pieces = []; this.length = 0; this.knocks = [];
+    this.stops = []; this.stopAtVertex = null; this.nextStop = null; this.waiting = null;
     this.at = [at[0], at[1]]; this.start = this.at;
     this.vertex = null; this.last = null; this.back = 0;
     const c = Math.cos(heading), s = Math.sin(heading), edge = K().edge;
@@ -301,12 +364,39 @@ class Walker {
     const { spots: free } = grid(), C = K(), from = this.vertex ?? this.at;
     const prior = this.vertex ? [this.vertex[0] - this.last[0], this.vertex[1] - this.last[1]] : null;
     const T = GROUND.traffic;
-    if (!this.destination || (open && !open.has(this.destination.sector)) || Math.hypot(from[0] - this.destination.at[0], from[1] - this.destination.at[1]) < T.gateArrival) {
-      const choices = routeGates().filter((g) => (!open || open.has(g.sector)) && g.station !== this.destination?.station);
+    // Arrived: within `gateArrival` of the place; a person also once its next leg could only overshoot it (closer than most of a leg).
+    const arrival = this.homing && this.home ? Math.max(T.gateArrival, C.minLeg * CONFIG.traffic.persons.arrive) : T.gateArrival;
+    // A person arriving (N2 ROUTES): its next corner is the station's approach place itself, where it will stand a while (Fleet.stepFlight),
+    // if the way there is clear; the journey's next place is drawn after it.
+    const arriving = this.homing && this.home && this.vertex && this.destination && (!open || open.has(this.destination.sector)) &&
+      Math.hypot(from[0] - this.destination.at[0], from[1] - this.destination.at[1]) < arrival;
+    if (arriving && !this.stopAtVertex) {
+      const g = this.destination.at, len = Math.hypot(g[0] - from[0], g[1] - from[1]);
+      if (len > CONFIG.traffic.stops.least && segmentClear(from[0], from[1], g[0], g[1]) && this.cornerClear(g)) {
+        this.nextStop = this.destination.station;
+        this.lastStation = this.destination.station;
+        this.destination = null;
+        return [g[0], g[1]];
+      }
+    }
+    if (!this.destination || (open && !open.has(this.destination.sector)) || Math.hypot(from[0] - this.destination.at[0], from[1] - this.destination.at[1]) < arrival) {
+      let choices = routeGates().filter((g) => (!open || open.has(g.sector)) && g.station !== this.destination?.station && g.station !== this.lastStation);
+      // A person's journeys (Fleet.persons): home, then one of the stations of its sector or the ones next to it (never the pilot's
+      // garage HOME), then home again.
+      if (this.homing && this.home) {
+        choices = choices.filter((g) => !g.station.startsWith('station-home'));
+        // Home next once it has been (or was bound) somewhere else; out once it has been home.
+        const was = this.destination?.station ?? this.lastStation ?? null, back = was !== null && was !== this.home.station;
+        const hs = sectorById(this.home.sector), reach = CONFIG.traffic.persons.reach;
+        const mine = choices.filter((g) => back ? g.station === this.home.station : (() => { const q = sectorById(g.sector); return Math.abs(q.col - hs.col) <= reach && Math.abs(q.row - hs.row) <= reach; })());
+        if (mine.length) choices = mine;
+      }
       const gate = choices[Math.floor(rng() * choices.length)];
       this.destination = gate ? { station: gate.station, sector: gate.sector, at: gate.points[Math.floor(rng() * gate.points.length)] } : null;
     }
-    const goal = this.destination && rng() < T.routeChance ? this.destination.at : null;
+    // A person keeps to its journey more (CONFIG.traffic.persons `lean`, `progress`): it is going somewhere.
+    const P = this.homing && this.home ? CONFIG.traffic.persons : null, progress = P ? P.progress : T.gateProgress;
+    const goal = this.destination && rng() < (P ? P.lean : T.routeChance) ? this.destination.at : null;
     const distance = goal ? Math.hypot(from[0] - goal[0], from[1] - goal[1]) : 0;
     const toward = me && chance > 0 && Math.hypot(from[0] - me[0], from[1] - me[1]) < C.zone && rng() < chance ? me : null;
     for (let pass = toward ? -1 : 0; pass < 4; pass++) {
@@ -316,7 +406,7 @@ class Walker {
       for (let i = 0; i < tries; i++) {
         const at = round >= 2 ? (first + i) % free.length : Math.min(free.length - 1, Math.floor(rng() * free.length)), q = free[at];
         if (open && !open.has(spotSector[at])) continue;
-        if (pass === 0 && goal && Math.hypot(q[0] - goal[0], q[1] - goal[1]) > Math.max(T.gateArrival, distance * T.gateProgress)) continue;
+        if (pass === 0 && goal && Math.hypot(q[0] - goal[0], q[1] - goal[1]) > Math.max(T.gateArrival, distance * progress)) continue;
         if (near && Math.hypot(q[0] - near[0], q[1] - near[1]) > C.pass) continue;
         const dx = q[0] - from[0], dy = q[1] - from[1], len = Math.hypot(dx, dy);
         if (len < C.minLeg * (round ? 0.4 : 1) || len > C.maxLeg * (1 + round)) continue;
@@ -349,10 +439,15 @@ class Walker {
   // Takes `q` as the next corner: the run to the last corner and its rounding are laid down as pieces. The first corner is the
   // ship's own start, so there is nothing to lay until the second is chosen.
   push(q) {
-    if (!this.vertex) { this.vertex = q; this.last = this.at; this.back = Math.hypot(q[0] - this.at[0], q[1] - this.at[1]); return; }
+    if (!this.vertex) { this.vertex = q; this.last = this.at; this.back = Math.hypot(q[0] - this.at[0], q[1] - this.at[1]); this.stopAtVertex = this.nextStop; this.nextStop = null; return; }
     const v = this.vertex, k = this.corner(q) ?? this.corner(q, true);
     this.lay(this.at, k.b, null, Math.hypot(k.b[0] - this.at[0], k.b[1] - this.at[1]));
+    const cornerFrom = this.length;
     this.lay(k.b, k.c, v, null);
+    // The corner at a stop's place: the ship stands at its middle (N2 ROUTES).
+    if (this.stopAtVertex) this.stops.push({ s: (cornerFrom + this.length) / 2, station: this.stopAtVertex });
+    this.stopAtVertex = this.nextStop;
+    this.nextStop = null;
     this.at = k.c;
     this.last = v;
     this.vertex = q;
@@ -374,10 +469,11 @@ class Walker {
 
   // Lays pieces until the path is `ahead` u past the ship at time `t`; old pieces are dropped, a long session keeping a short list.
   extend(rng, t, open = null, me = null, toward = 0) {
-    const here = this.travelled(t);
+    const here = this.travelled(t), ahead = this.body || this.homing ? flightConfig().ahead : K().ahead;
     // At most `batch` corners a step, so the first step of a world does not lay all thirteen paths in one frame (it was 50 ms): they
-    // fill over the next few steps, and a ship has seconds of path in front of it from the first.
-    for (let laid = 0; this.length < here + K().ahead && laid < K().batch; laid++) {
+    // fill over the next few steps, and a ship has seconds of path in front of it from the first. A flown ship's path is laid less far
+    // ahead (CONFIG.traffic.flight.ahead), so what leans it (the pilot, a journey) is minutes fresher; so is a person's (Fleet.persons).
+    for (let laid = 0; this.length < here + ahead && laid < K().batch; laid++) {
       const q = this.choose(rng, open, me, toward);
       if (q) this.push(q); else this.stepOn();
     }
@@ -439,6 +535,15 @@ export class Fleet {
     this.raging = [];                // the walkers enraged now (Walker.rage), in the order they turned on the pilot
     this.spoke = new Map();          // ship code -> when it last said a line at the pilot (a curse, a rage's words)
     this.said = new Map();           // pool ('curse', 'turn', 'ram', 'calm') -> the line it gave last, so none is said twice running
+    this.flight = flightConfig().mode;   // 'path' on the clock, 'step' flown (src/npcFlight.js; the lab's `?npcFlight=new`)
+    this.persons = CONFIG.traffic.persons.on;   // each ship itself, at home, remembering (N3 PERSONS); off: the mixing of before
+    // What each ship of the list remembers, by code (saved): its paint (a key of src/npcPaint.js, null until drawn), how often the pilot
+    // met it, helped it (a quest about it done), rammed it, until when on the pilot's clock it holds a ram against the pilot (`grudge`), when
+    // it was last met (`seen`).
+    this.people = new Map(NPC_SHIPS.map((s) => [s.code, freshPerson()]));
+    this.resting = [];               // the codes of the ships at home, not out: their sector is closed
+    this.settled = false;            // the first look has put the ships of closed sectors to rest at once (they stand in the fog)
+    this.restarts = 0;               // flown: how often a ship knocked far off its path began a new one from where it was
   }
 
   // Keeps every path ahead of the ship on it, notes the ships the pilot meets, and now and then exchanges two ships out of sight.
@@ -448,21 +553,35 @@ export class Fleet {
     const rng = world.rng('npc'), recent = (world.recent ??= newRecent()), open = this.openOf(world), here = pilotAt(world);
     // A ship comes by the pilot the less the more it was met lately (src/pacing.js counterweights, as the mixing leans). An enraged
     // one has no path to keep ahead of it.
-    for (const w of this.walkers) if (!w.rage) w.extend(rng, t, open, here, here ? C.toward * counterweight(shipContact(recent, w.code, world.ledger.clock)) : 0);
+    for (const w of this.walkers) {
+      w.homing = this.persons;
+      if (!w.rage) w.extend(rng, t, open, here, here ? C.toward * counterweight(shipContact(recent, w.code, world.ledger.clock)) : 0);
+    }
+    if (this.flight === 'step') this.stepFlight(world, dt);
+    else for (const w of this.walkers) if (w.body) w.unboard(t);
     this.lookIn -= dt;
     if (this.lookIn > 0) return;
     this.lookIn = C.look;
     const me = pilotAt(world);
-    this.keepOpen(world, t, me, open);
+    if (this.persons) { this.reconcileQuests(world); this.keepHomes(world, t, me, open); } else this.keepOpen(world, t, me, open);
     if (this.rare.length) this.rareLook(world, t, me, open);
+    if (this.persons) this.fixPaints(world);
     if (!me) { this.near.clear(); this.lastMe = null; return; }
     const clock = world.ledger.clock;
-    this.paintLook(world, t, me);
+    if (!this.persons) this.paintLook(world, t, me);
     if (world.ship.alive) {
       for (const w of this.walkers) {
         const p = w.pose(t), d = Math.hypot(p.x - me[0], p.y - me[1]);
         if (d < C.sight && !this.near.has(w.code)) {
           this.near.add(w.code);
+          const rec = this.people.get(w.code);
+          if (rec && this.persons) {
+            rec.met++; rec.seen = clock;
+            if (rec.knew < 0) rec.knew = world.ledger.restored?.size ?? 0;
+            // It may speak first (src/npcTalk.js hailFor): a grudge, a thanks, a station back, pirates near.
+            const said = !w.rage && hailFor(world, w.code);
+            if (said) sayAtPilot(world, w.code, said);
+          }
           noteRecent(recent, 'ship', w.code, clock, CONFIG.quests.mix.met);
           // and the paint it was met in, which the next paints drawn lean away from
           noteRecent(recent, 'paint', paintNote(w.code, this.keyOf(w.code)), clock, CONFIG.quests.mix.met);
@@ -470,9 +589,163 @@ export class Fleet {
       }
     } else this.near.clear();
     this.mixIn -= C.look;
-    if (this.mixIn > 0) return;
+    if (this.mixIn > 0 || this.persons) return;
     this.mixIn = C.mixEvery;
     this.mix(t, me, rng, recent, clock, world);
+  }
+
+  // Every ship flown a step (the mode 'step', src/npcFlight.js): each not raging aims `look` ahead on its path (its body's own way along it,
+  // `s`, kept by where the body is), at its cruise taken down for the corners ahead and for what it gives way to (the others, a raging
+  // one among them, and the pilot's ship while it flies), and swings, pushes or brakes toward that; then every two are held apart. A ship
+  // knocked or pushed more than `offTrack` u off its path begins a new one from where it is, going the way it goes (Walker.restart).
+  stepFlight(world, dt) {
+    const F = flightConfig(), t = world.time, me = pilotAt(world), ship = world.ship, blocks = grid().blocks;
+    const edge = K().edge * F.edge, lo = [edge, edge], hi = [GRID_W - edge, GRID_H - edge];
+    const ships = (this.flying ??= []);
+    ships.length = 0;
+    for (const w of this.walkers) {
+      const reach = boxOf(w.code)?.reach ?? 80;
+      if (w.rage) {
+        const g = w.rage, q = (w.rageSeen ??= { fixed: true });
+        q.x = g.x; q.y = g.y; q.vx = g.vx; q.vy = g.vy; q.angle = g.angle; q.reach = reach;
+        ships.push(q);
+        continue;
+      }
+      if (!w.body) w.board(t);
+      w.body.reach = reach;
+      ships.push(w.body);
+    }
+    const flying = me && ship.alive && !world.docked;
+    const pilot = flying ? (this.pilotSeen ??= {}) : null;
+    if (pilot) { pilot.x = me[0]; pilot.y = me[1]; pilot.vx = ship.vx ?? 0; pilot.vy = ship.vy ?? 0; pilot.radius = ship.radius ?? 0; }
+    const foes = this.foesOf(world);
+    for (let i = 0; i < this.walkers.length; i++) {
+      const w = this.walkers[i], b = w.body;
+      if (w.rage) continue;
+      const cruise = w.cruise(t);
+      if (w.pieces.length) {
+        // How far along its path the body has got: its place on the path's tangent, never back, never more than a few steps' way.
+        const at = w.place(w.s), ahead = w.place(w.s + 8), back = w.place(Math.max(0, w.s - 8));
+        let tx = ahead[0] - back[0], ty = ahead[1] - back[1];
+        const tl = Math.hypot(tx, ty) || 1;
+        tx /= tl; ty /= tl;
+        w.s += clamp((b.x - at[0]) * tx + (b.y - at[1]) * ty, 0, Math.max(60, Math.hypot(b.vx, b.vy) * dt * 4));
+        const now = w.place(w.s);
+        if (Math.hypot(b.x - now[0], b.y - now[1]) > F.offTrack) {
+          w.restart([b.x, b.y], Math.hypot(b.vx, b.vy) > 20 ? Math.atan2(b.vy, b.vx) : b.angle, Math.hypot(b.vx, b.vy), t);
+          w.s = 0;
+          w.extend(world.rng('npc'), t, this.openOf(world), me, 0);
+          this.restarts++;
+        }
+      }
+      let dx = Math.cos(b.angle), dy = Math.sin(b.angle), want = cruise;
+      if (w.pieces.length) {
+        const look = clamp(Math.hypot(b.vx, b.vy) * F.lookTime, F.look[0], F.look[1]), c = w.place(w.s + look);
+        const cx = c[0] - b.x, cy = c[1] - b.y, cl = Math.hypot(cx, cy);
+        if (cl > 1e-6) { dx = cx / cl; dy = cy / cl; }
+        want = Math.min(cruise, cornerPace(w.pieces, w.pieceAt(w.s), w.s, cruise));
+      }
+      // A stop at a station (N2 ROUTES): it brakes to stand at the stop's place, its nose to the station, `time` s, and goes on.
+      const stop = w.stops[0];
+      if (stop && w.s >= stop.s - CONFIG.traffic.stops.lead && !w.waiting) w.waiting = { until: t + this.stopTime(world, w), station: stop.station };
+      if (w.waiting) {
+        if (t >= w.waiting.until || !w.stops.length) { w.waiting = null; w.stops.shift(); }
+        else {
+          const st = stationDefById(w.waiting.station), sec = st && sectorById(st.sectorId);
+          if (sec) { const sx = sec.col * W + st.x * W - b.x, sy = sec.row * H + st.y * H - b.y, sl = Math.hypot(sx, sy) || 1; dx = sx / sl; dy = sy / sl; }
+          b.faceX = dx; b.faceY = dy;
+          want = 0;
+        }
+      } else if (stop) want = Math.min(want, Math.sqrt(2 * Math.max(1, cruise * F.brake) * Math.max(0, stop.s - w.s)));
+      b.wx = dx * want; b.wy = dy * want; b.cruise = cruise;
+      if (foes.length || w.fight) this.fightStep(world, w, b, cruise, foes, t);
+    }
+    // What each gives way to turns the velocity it wants (src/npcFlight.js giveWay), and each swings, pushes or brakes toward that.
+    giveWay(ships, pilot, t);
+    for (const w of this.walkers) {
+      if (w.rage) continue;
+      const b = w.body, want = Math.hypot(b.wx, b.wy);
+      // A ship standing at a stop turns its nose to the station (its way's direction kept in `wx`, `wy` at no pace) and may stand still.
+      const still = !!w.waiting, ux = want > 1e-6 ? b.wx / want : still ? b.faceX ?? Math.cos(b.angle) : Math.cos(b.angle), uy = want > 1e-6 ? b.wy / want : still ? b.faceY ?? Math.sin(b.angle) : Math.sin(b.angle);
+      steerBody(b, ux, uy, still ? want : Math.max(F.minPace, want), b.cruise, blocks, lo, hi, dt);
+    }
+    holdApart(ships);
+    if (foes.length) this.fightContacts(world, foes, t);
+    for (const w of this.walkers) w.memo = { t: NaN, pose: null };
+    this.bucketAt = NaN;
+  }
+
+  // ------------------------------------------------------------------------------------------------------- pirates (N5 FIGHTS)
+
+  // The pirates of the pilot's sector, alive, in the fleet's grid units: [{ p, x, y, radius }] (a list kept on the fleet).
+  foesOf(world) {
+    const out = (this.foes ??= []);
+    out.length = 0;
+    if (world.sector.hidden || !world.pirates?.length) return out;
+    const ox = world.sector.col * W, oy = world.sector.row * H;
+    for (const p of world.pirates) if (p.hp > 0) out.push({ p, x: p.x + ox, y: p.y + oy, radius: p.radius ?? 30 });
+    return out;
+  }
+
+  // A flown ship and the pirates (SX, 2026-10-19, N5 FIGHTS; CONFIG.traffic.fights): within `see` u of one, a brave ship (`brave`) may join
+  // the pilot's fight, once a fight, with the chance `chance` (the stream 'npcFight'): for `time` s it goes at the nearest pirate at `boost`
+  // of its cruise and rams it (Fleet.fightContacts). Any other ship within `flee.reach` u of a pirate gets clear of it, away from it at
+  // `flee.boost` of its cruise. Each says so once a fight. Sets the velocity it wants (`wx`, `wy`) and the pace it may go (`cruise`).
+  fightStep(world, w, b, cruise, foes, t) {
+    const C = CONFIG.traffic.fights;
+    let near = null, d = Infinity;
+    for (const f of foes) { const e = Math.hypot(f.x - b.x, f.y - b.y); if (e < d) { d = e; near = f; } }
+    if (!near || d > C.see) { w.fight = null; return; }
+    const enc = world.encounter;
+    if (!w.fight && enc && C.brave.includes(w.code) && w.fightRolled !== enc) {
+      w.fightRolled = enc;
+      if (world.rng('npcFight')() < C.chance) { w.fight = { until: t + C.time, hitAt: -Infinity }; this.fightSay(world, w, 'join'); }
+    }
+    if (w.fight && t < w.fight.until) {
+      const k = cruise * C.boost, dx = near.x - b.x, dy = near.y - b.y;
+      b.wx = (dx / d) * k; b.wy = (dy / d) * k; b.cruise = k;
+      return;
+    }
+    w.fight = null;
+    if (d > C.flee.reach) return;
+    const k = cruise * C.flee.boost, m = Math.hypot(b.wx, b.wy) || 1;
+    let ax = b.wx / m + ((b.x - near.x) / d) * 2, ay = b.wy / m + ((b.y - near.y) / d) * 2;
+    const n = Math.hypot(ax, ay) || 1;
+    b.wx = (ax / n) * k; b.wy = (ay / n) * k; b.cruise = k;
+    if (enc && w.fleeSaid !== enc) { w.fleeSaid = enc; this.fightSay(world, w, 'flee'); }
+  }
+
+  // A ship joining the fight that touches a pirate rams it: `blow` of its hull (src/encounters.js hurtPirate, cause 'npc'), not again within
+  // `again` s, and bounces off it with its grip let go.
+  fightContacts(world, foes, t) {
+    const C = CONFIG.traffic.fights;
+    for (const w of this.walkers) {
+      const b = w.body;
+      if (!w.fight || !b || t - w.fight.hitAt < C.again) continue;
+      for (const f of foes) {
+        const dx = f.x - b.x, dy = f.y - b.y, d = Math.hypot(dx, dy);
+        if (d > b.reach + f.radius || f.p.hp <= 0) continue;
+        w.fight.hitAt = t;
+        world.hurtPirate(f.p, 'npc', { amount: C.blow, aim: Math.atan2(dy, dx) });
+        const nx = dx / (d || 1), ny = dy / (d || 1), into = b.vx * nx + b.vy * ny;
+        if (into > 0) { b.vx -= 1.5 * into * nx; b.vy -= 1.5 * into * ny; }
+        b.skid = flightConfig().skid.time;
+        if (world.rng('npcFight')() < 0.5) this.fightSay(world, w, 'hit');
+        break;
+      }
+    }
+  }
+
+  // How long ship `w` stands at a stop (N2 ROUTES): CONFIG.traffic.stops.time s, drawn from the paths' stream (a stop is its journey's).
+  stopTime(world, w) {
+    const [a, b] = CONFIG.traffic.stops.time;
+    return a + world.rng('npc')() * (b - a);
+  }
+
+  // Ship `w`'s line in a fight (src/npcTalk.js TALK_LINES.fight), over it, in the greeting's style.
+  fightSay(world, w, pool) {
+    const lines = TALK_LINES.fight[pool], line = lines[Math.floor(world.rng('npcFight')() * lines.length)], p = w.pose(world.time);
+    sayAtPilot(world, w.code, { line, x: p.x - world.sector.col * W, y: p.y - world.sector.row * H, angry: false });
   }
 
   // The sectors open to the pilot (src/frontier.js), as a set, made again when a restoration opens one; null when the world has no
@@ -521,6 +794,188 @@ export class Fleet {
       this.near.delete(w.code);
       this.bucketAt = NaN;
     }
+  }
+
+  // The persons' look (Fleet.persons), in place of keepOpen: a ship whose home sector is closed rests at home (the first look of a world puts
+  // them to rest at once: they stand in the fog; later, only out of the pilot's sight); one out that has wandered into a closed sector, out
+  // of sight, is back at home; a ship resting whose home sector has opened comes out there, out of sight.
+  keepHomes(world, t, me, open) {
+    if (!open) { this.settled = true; return; }
+    const hidden = (x, y) => !me || Math.hypot(x - me[0], y - me[1]) > K().hide;
+    for (let i = this.walkers.length - 1; i >= 0; i--) {
+      const w = this.walkers[i];
+      if (this.rareOf(w.code) || w.rage || !w.home || open.has(w.home.sector)) continue;
+      const p = w.pose(t);
+      if (this.settled && !hidden(p.x, p.y)) continue;
+      this.walkers.splice(i, 1);
+      this.byCode.delete(w.code);
+      this.resting.push(w.code);
+      this.near.delete(w.code);
+      this.bucketAt = NaN;
+    }
+    this.settled = true;
+    for (let i = 0; i < this.walkers.length; i++) {
+      const w = this.walkers[i];
+      if (this.rareOf(w.code) || w.rage) continue;
+      const p = w.pose(t), z = sectorAt(p.x, p.y);
+      if ((z && open.has(z.id)) || !hidden(p.x, p.y)) continue;
+      const at = this.homeSpot(world, w.code, me);
+      if (at) this.walkers[i] = this.placeWalker(world, w.code, at, t, w.changedAt);
+    }
+    for (const code of this.resting.slice()) {
+      const home = npcHome(code);
+      if (!home || !open.has(home.sector)) continue;
+      const at = this.homeSpot(world, code, me);
+      if (!at) continue;
+      this.resting.splice(this.resting.indexOf(code), 1);
+      this.walkers.push(this.placeWalker(world, code, at, t, t));
+    }
+  }
+
+  // A free place in ship `code`'s home sector out of the pilot's sight (`hide` u off): of the `spread` nearest its home station, the one
+  // farthest from the other ships. Null when there is none.
+  homeSpot(world, code, me) {
+    const home = npcHome(code), st = home && stationDefById(home.station), hs = home && sectorById(home.sector);
+    if (!st || !hs) return null;
+    const sx = hs.col * W + st.x * W, sy = hs.row * H + st.y * H, { spots } = grid();
+    const pool = [];
+    spots.forEach((q, k) => { if (spotSector[k] === home.sector && (!me || Math.hypot(q[0] - me[0], q[1] - me[1]) > K().hide)) pool.push(q); });
+    if (!pool.length) return null;
+    pool.sort((a, b) => Math.hypot(a[0] - sx, a[1] - sy) - Math.hypot(b[0] - sx, b[1] - sy));
+    const near = pool.slice(0, K().spread), t = world.time;
+    const others = this.walkers.filter((o) => o.code !== code).map((o) => o.pose(t));
+    let best = near[0], far = -1;
+    for (const q of near) {
+      let d = Infinity;
+      for (const o of others) d = Math.min(d, Math.hypot(q[0] - o.x, q[1] - o.y));
+      if (d > far) { far = d; best = q; }
+    }
+    return [best[0], best[1]];
+  }
+
+  // A new walker for ship `code` at `at` (grid units), its path begun, in the fleet's lists; `changed` its changedAt. Facing `angle` if
+  // given (a saved ship goes on the way it was going).
+  placeWalker(world, code, at, t, changed = t, angle = null) {
+    const fresh = new Walker(code, npcShip(code)?.speed ?? 100, [at[0], at[1]], t);
+    fresh.changedAt = changed;
+    fresh.homing = this.persons;
+    if (angle !== null) fresh.restart([at[0], at[1]], angle, fresh.speed, t);
+    this.byCode.set(code, fresh);
+    fresh.extend(world.rng('npc'), t, this.openOf(world));
+    this.near.delete(code);
+    this.bucketAt = NaN;
+    return fresh;
+  }
+
+  // Every ship of the list wears a paint of its own for good (Fleet.persons): one without (a new world, a save from before) is given one,
+  // drawn by the counterweights as before (Fleet.weigh), never one another ship of the fleet wears.
+  fixPaints(world) {
+    for (const s of NPC_SHIPS) {
+      const rec = this.people.get(s.code), keys = paintKeysFor(s.code);
+      if (rec.paint != null && keys.includes(rec.paint)) { if (this.keyOf(s.code) !== rec.paint) this.wear(s.code, rec.paint, world.time); continue; }
+      const taken = new Set();
+      for (const [code, r] of this.people) if (code !== s.code && r.paint != null) taken.add(paintId(code, r.paint));
+      const cands = keys.filter((k) => !taken.has(paintId(s.code, k)));
+      const pool = cands.length ? cands : keys, recent = (world.recent ??= newRecent()), rng = world.rng('paint');
+      const weights = this.weigh(s.code, pool, recent, world.ledger?.clock ?? 0);
+      let u = rng() * weights.reduce((n, x) => n + x, 0), key = pool[pool.length - 1];
+      for (let i = 0; i < pool.length; i++) { u -= weights[i]; if (u < 0) { key = pool[i]; break; } }
+      rec.paint = key;
+      this.wear(s.code, key, world.time);
+    }
+  }
+  wear(code, key, t) {
+    this.paints.set(code, { key, at: t });
+    Object.assign(this.palettes.get(code), npcPalette(code, key));
+  }
+
+  // What ship `code` remembers (Fleet.people), or null for a ship not of the list.
+  personOf(code) { return this.people.get(code) ?? null; }
+  // The ship a quest is about (a pilot out of fuel, a wreck, a ship pestered; N6 QUESTS, SX 2026-10-19): a person of the fleet out now, not
+  // raging, not another quest's, out of the pilot's sight (it goes from its journey to the quest's place unseen), of `allowed` codes if
+  // given; the ones the pilot has met likelier, by how often (a ship it knows calls for help). Null without persons or with none to take
+  // (the quest draws as before). Fleet.reconcileQuests takes it off its journey while the quest stands.
+  questShip(world, rng, allowed = null) {
+    if (!this.persons) return null;
+    const me = pilotAt(world), t = world.time, busy = new Set(questShips(world).map((q) => q.code));
+    const pool = this.walkers.filter((w) => {
+      if (!w.home || w.rage || busy.has(w.code) || (allowed && !allowed.includes(w.code))) return false;
+      const p = w.pose(t);
+      return !me || Math.hypot(p.x - me[0], p.y - me[1]) > K().hide;
+    });
+    if (!pool.length) return null;
+    const weight = (w) => 1 + Math.min(5, this.people.get(w.code)?.met ?? 0);
+    let u = rng() * pool.reduce((n, w) => n + weight(w), 0);
+    for (const w of pool) { u -= weight(w); if (u < 0) return w.code; }
+    return pool[pool.length - 1].code;
+  }
+
+  // The quests' ships taken off their journeys and given back (Fleet.persons, every look): a ship a quest is about (src/quests.js,
+  // src/wrecked.js, src/pester.js, standing or going away) is not out with the fleet, so it is never in two places; once its quest is
+  // over and it has gone, it is at home again, to come out there out of sight (Fleet.keepHomes).
+  reconcileQuests(world) {
+    const busy = new Set(questShips(world).map((q) => q.code)), taken = (this.taken ??= new Set());
+    for (let i = this.walkers.length - 1; i >= 0; i--) {
+      const w = this.walkers[i];
+      if (!busy.has(w.code) || !w.home) continue;
+      if (w.rage) this.unrage(w);
+      this.walkers.splice(i, 1);
+      this.byCode.delete(w.code);
+      this.near.delete(w.code);
+      taken.add(w.code);
+      this.bucketAt = NaN;
+    }
+    for (const code of [...taken]) {
+      if (busy.has(code)) continue;
+      taken.delete(code);
+      if (!this.resting.includes(code)) this.resting.push(code);
+    }
+    // A ship resting at home that a quest is about stays out of the fleet too (a quest restored from a save).
+    for (const code of busy) { const i = this.resting.indexOf(code); if (i >= 0) { this.resting.splice(i, 1); taken.add(code); } }
+  }
+
+  // The pilot helped ship `code` (a quest about it done: N6 QUESTS): it remembers, and owes the pilot a favor (src/npcTalk.js giveFavor).
+  helped(code) {
+    const rec = this.people.get(code);
+    if (rec) { rec.helped++; rec.favors++; }
+  }
+
+  // What the save keeps of the fleet (save v27): each ship of the list, what it remembers and, out, where it is and which way it points
+  // (grid units). Nothing of its path, its pace or a rage: a reload sets it going from there.
+  toJSON(world) {
+    const t = world.time, num = (v) => (Number.isFinite(v) ? v : null);
+    return { ships: NPC_SHIPS.map((s) => {
+      const r = this.people.get(s.code), w = this.byCode.get(s.code), p = w && this.walkers.includes(w) ? w.pose(t) : null;
+      return [s.code, { paint: r.paint, met: r.met, helped: r.helped, rammed: r.rammed, grudge: num(r.grudge), seen: num(r.seen), knew: r.knew, favors: r.favors,
+        at: p ? [Math.round(p.x), Math.round(p.y), Math.round(p.angle * 1000) / 1000] : null }];
+    }) };
+  }
+
+  // A save's fleet put back (World.restore): what each ship remembers, and the ships out where they were, going the way they pointed. A
+  // save is untrusted: a ship not of the list, a count that is not a whole number, a paint the ship cannot wear, a place off the grid or
+  // in a block is dropped (the ship keeps what a new world gives it). A save without a fleet (before v27) leaves the fleet as it is.
+  restore(raw, world) {
+    if (!raw || typeof raw !== 'object' || !Array.isArray(raw.ships)) return;
+    const t = world.time, count = (v) => (Number.isInteger(v) && v >= 0 ? v : 0), time = (v) => (Number.isFinite(v) ? v : -Infinity);
+    for (const entry of raw.ships) {
+      if (!Array.isArray(entry) || typeof entry[0] !== 'string' || !entry[1] || typeof entry[1] !== 'object') continue;
+      const [code, r] = entry, rec = this.people.get(code);
+      if (!rec) continue;
+      Object.assign(rec, { paint: typeof r.paint === 'string' && paintKeysFor(code).includes(r.paint) ? r.paint : null,
+        met: count(r.met), helped: count(r.helped), rammed: count(r.rammed), grudge: time(r.grudge), seen: time(r.seen),
+        knew: Number.isInteger(r.knew) && r.knew >= -1 ? r.knew : -1, favors: count(r.favors) });
+      if (rec.paint != null) this.wear(code, rec.paint, t);
+      const at = r.at;
+      if (!Array.isArray(at) || !at.slice(0, 3).every(Number.isFinite)) continue;
+      const [x, y, angle] = at, edge = K().edge * 0.5;
+      if (x < edge || y < edge || x > GRID_W - edge || y > GRID_H - edge || grid().blocks.some(([bx, by, br]) => Math.hypot(x - bx, y - by) < br)) continue;
+      const old = this.byCode.get(code), i = old ? this.walkers.indexOf(old) : -1, rest = this.resting.indexOf(code);
+      const fresh = this.placeWalker(world, code, [x, y], t, t, angle);
+      if (i >= 0) this.walkers[i] = fresh; else this.walkers.push(fresh);
+      if (rest >= 0) this.resting.splice(rest, 1);
+    }
+    this.settled = false;
+    this.bucketAt = NaN;
   }
 
   // A rare ship is not out with the others: from its record's `rare` (src/eggs.js), the first time after `first` s and then `every` s
@@ -681,7 +1136,9 @@ export class Fleet {
   // A paint for a quest's ship (a pilot out of fuel, a wreck, a ship pestered: src/quests.js, src/wrecked.js, src/pester.js), drawn
   // as a fleet ship's is, and noted as met (the quest is about it).
   questPaint(world, code) {
-    const key = this.drawPaint(world, code), recent = (world.recent ??= newRecent());
+    // A person wears its own paint, in a quest too.
+    const own = this.persons ? this.people.get(code)?.paint : null;
+    const key = own ?? this.drawPaint(world, code), recent = (world.recent ??= newRecent());
     noteRecent(recent, 'paint', paintNote(code, key), world.ledger.clock, CONFIG.quests.mix.met);
     return key;
   }
@@ -740,10 +1197,10 @@ export class Fleet {
         const pu = box.half - Math.abs(u), pv = box.side - Math.abs(v);
         if (pu < pv) { nu = u < 0 ? -1 : 1; nv = 0; depth = pu + R; } else { nu = 0; nv = v < 0 ? -1 : 1; depth = pv + R; }
       }
-      const pace = w.speedAt(t), off = w.knocks.length ? w.knocked(t) : null;
+      const pace = w.speedAt(t), off = w.knocks.length ? w.knocked(t) : null, own = w.rage ?? w.body;
       (out ??= []).push({ walker: w, code: w.code, label: box.label, nx: nu * c - nv * s, ny: nu * s + nv * c, depth,
         x: p.x - ox, y: p.y - oy, angle: p.angle,
-        vx: w.rage ? w.rage.vx : Math.cos(p.angle) * pace + (off?.vx ?? 0), vy: w.rage ? w.rage.vy : Math.sin(p.angle) * pace + (off?.vy ?? 0) });
+        vx: own ? own.vx : Math.cos(p.angle) * pace + (off?.vx ?? 0), vy: own ? own.vy : Math.sin(p.angle) * pace + (off?.vy ?? 0) });
     }
     return out ?? NONE;
   }
@@ -763,9 +1220,9 @@ export class Fleet {
       const p = w.pose(t), radius = box.reach, x = p.x - ox, y = p.y - oy;
       if (x < -radius || y < -radius || x > world.width + radius || y > world.height + radius) continue;
       const b = w.groundProxy ??= { x: 0, y: 0, vx: 0, vy: 0, radius: 0 };
-      const pace = w.rage ? 0 : w.speedAt(t);
+      const own = w.rage ?? w.body, pace = own ? 0 : w.speedAt(t);
       b.x = x; b.y = y; b.radius = radius;
-      b.vx = w.rage ? w.rage.vx : Math.cos(p.angle) * pace; b.vy = w.rage ? w.rage.vy : Math.sin(p.angle) * pace;
+      b.vx = own ? own.vx : Math.cos(p.angle) * pace; b.vy = own ? own.vy : Math.sin(p.angle) * pace;
       out.push(b);
     }
     return out;
@@ -779,6 +1236,13 @@ export class Fleet {
     // An enraged ship has no path to come back on: the blow is its own velocity and turn.
     if (w.rage) {
       w.rage.vx += vx; w.rage.vy += vy; w.rage.spin = Math.max(-K.maxSpin, Math.min(K.maxSpin, w.rage.spin + spin));
+      w.memo = { t: NaN, pose: null };
+      return;
+    }
+    // A flown ship takes it as a body does: the velocity and the turn, its grip let go while it slides (CONFIG.traffic.flight.skid).
+    if (w.body) {
+      const b = w.body;
+      b.vx += vx; b.vy += vy; b.spin = Math.max(-K.maxSpin, Math.min(K.maxSpin, b.spin + spin)); b.skid = flightConfig().skid.time;
       w.memo = { t: NaN, pose: null };
       return;
     }
@@ -800,7 +1264,8 @@ export class Fleet {
     if (rare) { this.takeIn(world, rare, t); return pieces; }
     const me = pilotAt(world), rng = world.rng('npc'), spots = grid().spots, open = this.openOf(world);
     const far = spots.filter((q, k) => (!open || open.has(spotSector[k])) && (!me || Math.hypot(q[0] - me[0], q[1] - me[1]) > K().zone));
-    const at = far.length ? far[Math.min(far.length - 1, Math.floor(rng() * far.length))] : freeNear(w.start);
+    // A person comes back at home, out of sight.
+    const at = (this.persons && this.homeSpot(world, w.code, me)) || (far.length ? far[Math.min(far.length - 1, Math.floor(rng() * far.length))] : freeNear(w.start));
     const ship = npcShip(w.code);
     const fresh = new Walker(w.code, ship?.speed ?? w.speedAt(t), [at[0], at[1]], t);
     fresh.changedAt = t;
@@ -822,7 +1287,9 @@ export class Fleet {
   rammed(world, hit, closing) {
     const R = rageConfig(), w = hit.walker, t = world.time;
     if (closing < grazeSpeed() || w.hull <= 0 || this.byCode.get(w.code) !== w || this.rareOf(w.code)) return;
-    const since = t - (this.spoke.get(w.code) ?? -Infinity);
+    const since = t - (this.spoke.get(w.code) ?? -Infinity), rec = this.people.get(w.code);
+    // Remembered (Fleet.persons): one more ram, and a grudge for CONFIG.traffic.persons.grudge s of the pilot's clock.
+    if (rec && !w.rage) { rec.rammed++; rec.grudge = (world.ledger?.clock ?? t) + CONFIG.traffic.persons.grudge; }
     if (w.rage) {
       w.rage.rams++;
       if (since >= R.say.again && world.rng('rage')() < R.say.ram) this.say(world, w, 'ram');
@@ -837,6 +1304,7 @@ export class Fleet {
   enrage(world, w, hit) {
     const t = world.time, p = w.pose(t);
     w.knocks = [];
+    w.body = null;                     // flown, its body is its rage's state until it calms (Fleet.calm boards it again)
     w.rage = startRage(p.x, p.y, hit.vx, hit.vy, p.angle, t);
     w.memo = { t: NaN, pose: null };
     this.raging.push(w);
@@ -900,6 +1368,8 @@ export class Fleet {
     if (speaks) this.say(world, w, 'calm');
     this.unrage(w);
     w.restart([g.x, g.y], g.angle, Math.hypot(g.vx, g.vy), t);
+    // Flown, it goes on as the body it was: where it is, at its speed, its nose as it was.
+    if (this.flight === 'step') { w.s = 0; w.body = bodyOf({ x: g.x, y: g.y, angle: g.angle }, 0); w.body.vx = g.vx; w.body.vy = g.vy; }
     w.extend(world.rng('npc'), t, this.openOf(world), me, 0);
     this.bucketAt = NaN;
   }
@@ -947,6 +1417,11 @@ export class Fleet {
 }
 const NONE = Object.freeze([]);
 export { GRID_W, GRID_H, grid };
+
+// What a ship remembers of the pilot at first (Fleet.people).
+// `knew`: how many stations were restored when it last spoke of them (-1 until it first meets the pilot); `favors`: favors it owes the
+// pilot for help (src/npcTalk.js giveFavor).
+const freshPerson = () => ({ paint: null, met: 0, helped: 0, rammed: 0, grudge: -Infinity, seen: -Infinity, knew: -1, favors: 0 });
 
 // A ship's box (Fleet.contacts): half its length along its heading (`half`, its rows) and half its width across (`side`, its
 // columns), `fill` of its drawing in the game's cells at its scale; `reach`, the box's half diagonal; its cells, for its pieces.

@@ -80,7 +80,8 @@ function hintLine(hint, ledger) {
 
 // The tip given, in the world: a cache marked (the ledger's `marked`, saved), a signal offered as the next side quest, a
 // word added. The events are the ones these already have, so the notices, labels and sounds are theirs.
-function giveHint(world, hint, at) {
+// A friendly ship's favor gives one the same way (src/npcTalk.js).
+export function giveHint(world, hint, at) {
   const L = world.ledger;
   if (hint.kind === 'cache') {
     const f = findDef(hint.findId, L);
@@ -111,7 +112,7 @@ export function placeWreck(world, rng, { here = false } = {}) {
   const areas = here ? [] : contentAreas('wreck-help', world.ledger, { sectorId: sector.id });
   const spot = clearSpot(sector.id, rng, { clear: C.clear, avoid: world.questPlaces(), areas });
   if (!spot) return null;
-  const code = pickShip(WRECK_CODES, rng, (world.recent ??= newRecent()), world.ledger.clock);
+  const code = world.fleet?.questShip?.(world, rng) ?? pickShip(WRECK_CODES, rng, (world.recent ??= newRecent()), world.ledger.clock);
   // In a paint drawn by the counterweights, as the fleet's ships are (src/npcFleet.js questPaint): what it lights up in when it is
   // helped (wrecked, it is the dead grey of wreckCraft).
   return { sectorId: sector.id, ...spot, angle: rng() * TAU, code, ask: pickOf(asks, rng), hint, paint: world.fleet?.questPaint(world, code) ?? null };
@@ -161,6 +162,7 @@ export function handInWreck(world) {
   world.wreckLeaving = { x: here.x, y: here.y, angle: here.angle, code: here.code, paint: here.paint, name: here.name, sectorId: world.sector.id, t: 0 };
   world.emit('wreckHelped', { ask, hint: hint?.kind ?? null, credits: world.ledger.credits, name: here.name, x: here.x, y: here.y, sectorId: world.sector.id });
   if (hint) giveHint(world, hint, here);
+  world.fleet?.helped?.(here.code);     // it remembers, and owes the pilot a favor (src/npcTalk.js)
   return true;
 }
 

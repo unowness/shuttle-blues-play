@@ -3,7 +3,6 @@ import { clamp, fitText } from './util.js';
 import { UI, uiMetrics, uiPanel, centredWindow, frameInk } from './uiGrid.js';
 import { deliveryNavigation } from './navigation.js';
 import { courseOf } from './course.js';
-import { sprite } from './sprites.js';
 import { DISTANCE_MARK } from './distanceMark.js';
 import { clockText } from './contracts.js';
 import { questPointerLabel, questTone } from './quests.js';
@@ -11,7 +10,6 @@ import { keepBegin, keepEnd } from './grade.js';
 import { QUEST_INKS } from './roles.js';
 import { helpColumns, helpIntro, keyName, SCHEMES, SCHEME_NAMES, DEFAULT_SCHEME } from './controls.js';
 import { rimOf, viewArea, rimPoint, insideRim } from './rim.js';
-import { withAlpha } from './hover.js';
 
 // Presentation only. Cell-positioned line art uses the renderer's measured
 // metrics; UI leading never changes the world/Blockmode cell ratio.
@@ -116,20 +114,16 @@ export function drawTargetBrackets(r, box, color = accent(), spread = 0, avoid =
   }
 }
 
-// The four corner marks round the chosen object stand this far outside its
-// drawing, on every side: a rule's air (a line to what it encloses).
+// The box round the chosen object, its drawing grown by FOCUS_GAP on every side: a rule's air. Its menu stands clear of it by `inset`
+// (labs/graphics/context.js). Four corner marks stood at its corners, and at the cargo's on its tether, until SX, 2026-10-19 («нам надо
+// вырезать вот эти метки. И у грузов, и у станции, и у NPC. Они только мешают»): drawObjectFocus went with them.
 export const FOCUS_GAP = UI.air.rule;
-// While they come in or go (drawObjectFocus `lock`): `spread` px further out at nothing, a row (the sketch's B1), and under `gone` they are
-// not drawn at all (a 255th of the ink, nothing to see).
-export const FOCUS_LOCK = Object.freeze({ spread: UI.row, gone: 0.004 });
 
-// The box the marks are at the corners of, in screen px: the object's drawing grown
-// by FOCUS_GAP. The object's menu reads the same box, so its text stands clear of
-// the marks by `inset` (labs/graphics/context.js) instead of repeating the number.
+// The box in screen px: the object's drawing grown by FOCUS_GAP.
 export function focusBox(r, world, target) {
   const anchor = world.projectTarget ? world.projectTarget(r, target) : world.project(r, target.x, target.y);
   // Art drawn off its anchor (a sign stands above its diamond) says by how
-  // many cells, so the marks frame the drawing rather than the anchor. (Its cells as the camera draws them: `zoom`, src/zoom.js.)
+  // many cells, so the box frames the drawing rather than the anchor. (Its cells as the camera draws them: `zoom`, src/zoom.js.)
   const z = r.zoom ?? 1;
   const p = { x: anchor.x + (target.art?.dx || 0) * r.cellW * z, y: anchor.y + (target.art?.dy || 0) * r.cellH * z };
   let w = (target.art?.model?.width || 4) * r.cellW * (target.art?.scale || 1) * z;
@@ -137,27 +131,6 @@ export function focusBox(r, world, target) {
   // Art that turns in place needs the square that holds it at any angle.
   if (target.art?.turns) w = h = Math.hypot(w, h);
   return { x: p.x - w / 2 - FOCUS_GAP, y: p.y - h / 2 - FOCUS_GAP, w: w + 2 * FOCUS_GAP, h: h + 2 * FOCUS_GAP };
-}
-
-// `lock` (0 to 1): how far the marks on the chosen object have come in; under 1 they stand a row out at 0 and close in on it as they
-// fade in (SX's B1 LOCK WHEN SLOW, 2026-10-07: they show only while the ship stands, src/interaction.js standShare, labs/graphics/main.js);
-// whole by default. The cargo's are whole whatever `lock` says.
-export function drawObjectFocus(r, world, target, { cargoAcknowledged = false } = {}, lock = 1) {
-  if (target && lock >= 1) drawTargetBrackets(r, focusBox(r, world, target));
-  else if (target && lock > FOCUS_LOCK.gone) {
-    withAlpha(r.ctx, lock, () => drawTargetBrackets(r, focusBox(r, world, target), accent(), (1 - lock) * FOCUS_LOCK.spread));
-  }
-  // As faint as the container is drawn while the hull dives into a station's dock and rises (src/worldDraw.js, `cargoShade`).
-  const shade = world.cargo ? (world.cargoShade?.() ?? 1) : 0;
-  if (shade > 0.01) {
-    const p = world.project(r, world.cargo.x, world.cargo.y);
-    const model = sprite('cargo-container');
-    // A square envelope accommodates the rotating container in every heading.
-    const side = Math.hypot((model?.width || 7) * r.cellW,
-      (model?.height || 7) * r.cellH) * CONFIG.cargo.spriteScale * (r.zoom ?? 1) + 12;
-    const box = { x: p.x - side / 2, y: p.y - side / 2, w: side, h: side }, tone = cargoAcknowledged ? ink() : accent();
-    if (shade < 1) withAlpha(r.ctx, shade, () => drawTargetBrackets(r, box, tone)); else drawTargetBrackets(r, box, tone);
-  }
 }
 
 const BEARINGS = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'];

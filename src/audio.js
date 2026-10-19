@@ -420,6 +420,8 @@ export const EVENT_SOUNDS = {
   stationWorn: () => ({ name: 'loss', gain: 0.5, pitch: FOURTH }),
   stationRepaired: () => 'repair',
   droidServed: (e) => (e.kind === 'fuel' ? 'refuel' : 'repair'),
+  // A friendly ship's favor (src/npcTalk.js giveFavor): fuel or hull sound as a droid's service does; a tip as the find marked or the word.
+  npcFavor: (e) => (e.kind === 'fuel' ? 'refuel' : e.kind === 'hull' ? 'repair' : 'blip'),
   orbitContact: () => 'orbitBrush',
   // The drift and the trick (src/drift.js, src/trick.js), on sounds the game has until SX hears them: the push out of a drift the
   // undock's lift, higher by tier; a jump the same, low and soft; a clean contact a light tap (the M0 page: «чисто — мягкий щелчок»),

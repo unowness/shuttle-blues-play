@@ -17,7 +17,7 @@
 
 // The payload version. The key keeps its `v1`: it names the local namespace,
 // not the schema, and renaming it would orphan every existing save.
-export const SAVE_VERSION = 26;
+export const SAVE_VERSION = 27;
 const PRIMARY = 'spaser.local.v1';
 const BACKUP = 'spaser.local.v1.previous';
 // The id of the Storage (one per tab) that loaded the save last, and so may write it.
@@ -276,6 +276,9 @@ const MIGRATIONS = {
   // v26: Map X moves bodies but keeps their identities. World.restore reconciles only unsafe saved places once,
   // after the usual readers validate them. The raw pre-map save is kept by the standard before-v26 backup.
   25: (data) => ({ ...data, mapRevision: 0, version: 26 }),
+  // v27: the friendly ships as persons (src/npcFleet.js Fleet.toJSON; SX, 2026-10-19, N3 PERSONS): what each remembers of the pilot and
+  // where each one out is. An older save has none: its ships start as a new world's, remembering nothing.
+  26: (data) => ({ ...data, fleet: null, version: 27 }),
 };
 
 // The v24 step's literal (a migration is a fact about the past): what the radio's old line paid for the three acts the chapter now asks

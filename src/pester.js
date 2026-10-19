@@ -65,7 +65,7 @@ export function startPester(world, { here = false } = {}) {
   const spot = clearSpot(sector.id, rng, { clear: C.clear, edge: C.edge, away, avoid: world.questPlaces(), areas });
   if (!spot) return null;
   // Which of the small ships leans away from the ones the pilot met or was asked about lately (src/pacing.js).
-  const recent = (world.recent ??= newRecent()), code = pickShip(C.ships, rng, recent, L.clock);
+  const recent = (world.recent ??= newRecent()), code = world.fleet?.questShip?.(world, rng, C.ships) ?? pickShip(C.ships, rng, recent, L.clock);
   noteRecent(recent, 'ship', code, L.clock, CONFIG.quests.mix.asked);
   world.pesterSerial += 1;
   world.pester = {
@@ -212,6 +212,7 @@ function free(world, p) {
   world.pester = null;
   world.pesterNext = L.clock + pesterGap(L.restored.size, world.rng('quest'));
   world.emit('pesterFreed', { questId: p.id, name: p.name, pay, credits: L.credits, x: p.x, y: p.y, sectorId: p.sectorId });
+  world.fleet?.helped?.(p.code);        // it remembers, and owes the pilot a favor (src/npcTalk.js)
 }
 
 // Late: the ship is lost, and limps away (nothing worse is said: no wreck, no payment either way); the squad round it

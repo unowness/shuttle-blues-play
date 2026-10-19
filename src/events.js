@@ -173,6 +173,8 @@ export const EVENTS = Object.freeze({
   visitorArrived: E('craftId label sectorId'),
   trafficHail: E('craftId label line rows x y sectorId visitor greet to angry'),
   npcDown: E('code label x y sectorId speed'),
+  // A friendly ship's favor to a pilot who helped it (src/npcTalk.js giveFavor; N6 QUESTS): fuel or hull given, a cache, a signal or a word.
+  npcFavor: E('code kind amount sectorId x y', 'favor'),
 });
 
 // The save an event calls for (EVENTS[type].saves), or null for a type that saves nothing or is not listed.

@@ -15,6 +15,9 @@ export const ROLES = Object.freeze({
   textSecondary: PALETTE.gray, material: PALETTE.gray, iconStatic: PALETTE.gray,
   textPrimary: PALETTE.white, focus: PALETTE.white, highlight: PALETTE.white,
   interactionActive: PALETTE.green, routeActive: PALETTE.green, driveActive: PALETTE.green,
+  // A station's and HOME's cells lit while docked or selected: the green they had before the game's became HALCYON's (src/palette.js sage;
+  // SX, 2026-10-20: «не трогай только нпс и станции»).
+  stationLit: PALETTE.sage,
   caution: PALETTE.orange, danger: PALETTE.red, brakeActive: PALETTE.amber,
   // The route's middle state (src/interface.js routeState, SX 2026-10-01): the same amber.
   routeClosing: PALETTE.amber,

@@ -635,7 +635,7 @@ class WorldDrawing {
     // Its traffic too (the NPC ships, src/npcShips.js), so none pops in at the seam.
     for (const craft of this.trafficHere(n.sector.id, t)) {
       const pose = craftPose(craft, t, W, H), s = at(pose.x, pose.y);
-      if (r.onScreen(s.x, s.y, craftReach(r, craft))) drawCraft(r, craft, s.x, s.y, pose.angle, underShip(this, r, craft, s.x, s.y, craftSize(r, craft)));
+      if (r.onScreen(s.x, s.y, craftReach(r, craft))) drawCraft(r, craft, s.x, s.y, pose.angle, underShip(this, r, craft, s.x, s.y, craftSize(r, craft)), pose.bank);
     }
     const cacheArt = sprite('cache-sealed');
     for (const def of availableIn(n.sector.id, this.ledger)) {
@@ -811,7 +811,7 @@ class WorldDrawing {
       if (!r.onScreen(s.x, s.y, craftReach(r, craft))) continue;
       // Under the pointer it stays its size: the pointer shows its window instead (SX, 2026-10-04; labs/graphics/world-pointer.js).
       // Darker a moment while the ship is up over it in a jump (src/trick.js underShip).
-      drawCraft(r, craft, s.x, s.y, pose.angle, underShip(this, r, craft, s.x, s.y, craftSize(r, craft)));
+      drawCraft(r, craft, s.x, s.y, pose.angle, underShip(this, r, craft, s.x, s.y, craftSize(r, craft)), pose.bank);
     }
     this.drawFogTraffic(r, t);
 

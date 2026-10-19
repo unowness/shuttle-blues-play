@@ -4,6 +4,7 @@
 // one of CRAFT_REPLIES over it, each in GAMEPLAY's GREETING style (`greet` on the event: labs/graphics/greeting.js), never the line said last. The same craft is not greeted
 // again within `GREET.again` s. The words are product copy: Codex may change them in place (AGENTS.md).
 import { isEnraged } from './traffic.js';
+import { replyFor } from './npcTalk.js';
 
 export const GREET = Object.freeze({ reply: 0.8, again: 6 });
 export const PILOT_HAIL_ID = 'pilot';
@@ -40,9 +41,11 @@ export function greetCraft(world, craftId) {
   world.greeted.set(craftId, world.time);
   const rng = world.rng('quest');
   world.lastHello = pickGreeting(PILOT_HELLOS, world.lastHello, rng);
-  world.lastReply = pickGreeting(at.craft?.replies ?? CRAFT_REPLIES, world.lastReply, rng);
+  // A ship of the fleet answers as a person (src/npcTalk.js replyFor: what is near, what was, a favor owed); any other craft as before.
+  const person = at.craft?.code && world.fleet?.persons ? replyFor(world, at.craft.code, at.craft.replies ?? CRAFT_REPLIES) : null;
+  world.lastReply = person ? person.line : pickGreeting(at.craft?.replies ?? CRAFT_REPLIES, world.lastReply, rng);
   // `to`: the craft greeted, so the pilot's words stand on its side (labs/graphics/greeting.js).
   world.emit('trafficHail', { craftId: PILOT_HAIL_ID, label: 'YOU', line: world.lastHello, x: ship.x, y: ship.y, sectorId: world.sector.id, greet: true, to: craftId });
-  world.greetings.push({ at: world.time + GREET.reply, craftId, label: at.craft?.label ?? '', line: world.lastReply });
+  world.greetings.push({ at: world.time + GREET.reply, craftId, label: at.craft?.label ?? '', line: world.lastReply, angry: !!person?.angry });
   return true;
 }

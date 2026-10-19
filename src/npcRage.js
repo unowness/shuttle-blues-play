@@ -49,8 +49,8 @@ export const startRage = (x, y, vx, vy, angle, t) => ({ x, y, vx, vy, angle, spi
 
 // The direction (dx, dy), a unit vector, turned round the blocks ahead of a ship at (x, y): [cx, cy, r] each, a station's keep-out,
 // a planet's cushion, a hole's disc. A block within `range` u of its edge that the way leads into is gone round, on the side the
-// way already leans to, and a little out; the nearer, the more.
-function around(x, y, dx, dy, blocks, range) {
+// way already leans to, and a little out; the nearer, the more. A flown ship steers by it too (src/npcFlight.js steerBody).
+export function around(x, y, dx, dy, blocks, range) {
   let ax = 0, ay = 0;
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i], ox = x - b[0], oy = y - b[1], d = Math.hypot(ox, oy), edge = d - b[2];

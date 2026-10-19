@@ -294,7 +294,9 @@ export function offerSideQuest(world, kind = null, { here = false } = {}) {
     if (!spot) return null;
     // One of the thirteen friendly ships SX picked (SX, 2026-10-02: «это всегда был челнок такой же как мой только серый, это
     // должны быть разные корабли нпс которых мы придумали»), leaning away from the ones the pilot met or was asked about lately.
-    pick.drifter = { sectorId: sector.id, ...spot, angle: rng() * Math.PI * 2, code: pickShip(QUEST_SHIPS, rng, recent, now) };
+    // A person of the fleet out now, out of sight, the ones the pilot knows likelier (src/npcFleet.js Fleet.questShip; N6 QUESTS, 2026-10-19):
+    // the very ship, taken off its journey while the quest stands.
+    pick.drifter = { sectorId: sector.id, ...spot, angle: rng() * Math.PI * 2, code: world.fleet?.questShip?.(world, rng) ?? pickShip(QUEST_SHIPS, rng, recent, now) };
     // In a paint drawn by the counterweights, as the fleet's ships are (src/npcFleet.js questPaint).
     pick.drifter.paint = world.fleet?.questPaint(world, pick.drifter.code) ?? null;
   }
@@ -358,6 +360,7 @@ export function handInDrifter(world) {
   world.selectedId = null;
   world.drifterLeaving = { x: here.x, y: here.y, angle: here.angle, t: 0, code: here.code, paint: here.paint };
   world.emit('drifterHelped', { fuel: C.fuel, pay, credits: world.ledger.credits, x: here.x, y: here.y, sectorId: world.sector.id });
+  world.fleet?.helped?.(here.code);     // it remembers, and owes the pilot a favor (src/npcTalk.js)
   return true;
 }
 

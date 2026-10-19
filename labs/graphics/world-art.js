@@ -198,7 +198,7 @@ export function drawStation(r, sx, sy, station, active = false, rebuilt = 1, t =
       continue;
     }
     if (cell.ch === 'o' && broken) { r.glyph('·', px, py, ROLES.structure, 1, scale); continue; }   // no light in a ruin
-    const ink = n < loose ? ROLES.structure : cell.ch === 'o' && active ? ROLES.interactionActive : ROLES[cell.role];
+    const ink = n < loose ? ROLES.structure : cell.ch === 'o' && active ? ROLES.stationLit : ROLES[cell.role];
     r.glyph(cell.ch, px, py, ink, 1, scale);
   }
 }
@@ -207,7 +207,7 @@ export function drawStation(r, sx, sy, station, active = false, rebuilt = 1, t =
 // boards above: a ruin keeps `rebuilt` of its cells, the rest gone (some of them
 // drifting beside it) or hanging loose in the quiet ink, and nothing in it moves
 // or lights until it is whole. Docked or selected, its lights are the
-// interaction's green. Drawn about its own middle (station-art.js lookOrigin): the
+// green the interaction had until 2026-10-20 (ROLES.stationLit: SX kept the stations as they were). Drawn about its own middle (station-art.js lookOrigin): the
 // board holds its external dock and a docked ship beside it. `dock`: its docks'
 // steps (src/docking.js stationDockState), idle without.
 function drawLook(r, sx, sy, st, active, rebuilt, t, sc, angle = 0, dock = null) {
@@ -234,7 +234,7 @@ function drawLook(r, sx, sy, st, active, rebuilt, t, sc, angle = 0, dock = null)
       }
       if (ink === ROLES.highlight) { r.glyph('·', px, py, ROLES.structure, 1, sc); return; }   // no light in a ruin
       if (n < loose) ink = ROLES.structure;
-    } else if (active && ink === ROLES.highlight) ink = ROLES.interactionActive;
+    } else if (active && ink === ROLES.highlight) ink = ROLES.stationLit;
     r.glyph(ch, px, py, ink, alpha, sc);
   });
   st.S.dockState = null;

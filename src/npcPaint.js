@@ -43,8 +43,9 @@ const hueBanned = (H) => HUE_BANS.some(([a, b]) => H >= a && H <= b);
 const hueDistance = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
 
 // The pilot's ship in STANDARD, every ink it is drawn in at rest and burning (world-art.js shipInk: material, highlight, the
-// engine at rest in the structure's blue, burning in the drive's green).
-const REFERENCE = Object.freeze([ROLES.material, ROLES.highlight, ROLES.structure, ROLES.driveActive]);
+// engine at rest in the structure's blue, burning in the drive's green). The green it was measured on, sage, stays since the drive's
+// became HALCYON's (src/palette.js; SX, 2026-10-20: «не трогай только нпс»): the friendly ships' rule and paints are what they were.
+const REFERENCE = Object.freeze([ROLES.material, ROLES.highlight, ROLES.structure, PALETTE.sage]);
 function deriveRule() {
   const lch = [...new Set(REFERENCE.map((h) => h.toUpperCase()))].map((h) => oklch(h));
   const refC = Math.max(...lch.map((x) => x[1])), refL = Math.max(...lch.map((x) => x[0]));
@@ -66,13 +67,13 @@ function labOf(h) {
 }
 export const colourDistance = (a, b) => { const A = labOf(a), B = labOf(b); return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]); };
 
-// The interface's reserved inks (route green, caution orange, danger red, the brake's amber, the coin's golds) and every pirate
+// The interface's reserved inks (route green as it was, sage, caution orange, danger red, the brake's amber, the coin's golds) and every pirate
 // colour with colour in it. Made on first use (src/pirates.js is read then, not while the modules load). `pirates` false: the
 // interface's alone, to tell what a pirate's colour takes from the NPCs (takenByPirates below).
 const reserves = new Map();
 function reservedInks(pirates = true) {
   if (!reserves.has(pirates)) {
-    reserves.set(pirates, [PALETTE.green, PALETTE.orange, PALETTE.red, PALETTE.amber, ROLES.credits, ROLES.creditsLabel,
+    reserves.set(pirates, [PALETTE.sage, PALETTE.orange, PALETTE.red, PALETTE.amber, ROLES.credits, ROLES.creditsLabel,
       ...(pirates ? [...PIRATE_INKS].filter((hex) => /^#[0-9a-f]{6}$/i.test(hex) && oklch(hex)[1] >= 0.05) : [])].map((h) => h.toUpperCase()));
   }
   return reserves.get(pirates);

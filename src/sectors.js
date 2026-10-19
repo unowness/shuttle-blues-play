@@ -220,7 +220,9 @@ SECTORS.push({
   planets: [
     // The aliens' worlds stay in the green family of the accepted sketch, but
     // one hue each, told apart and clear of the interface's route green: a
-    // yellower one (CAMEO) and a bluer emerald (GREEN ROOM).
+    // yellower one (CAMEO) and a bluer emerald (GREEN ROOM). GREEN ROOM's hue, and
+    // PLANET EXPRESS's, is HALCYON's green, the route's since 2026-10-20
+    // (src/palette.js); SX kept them as they are, the exceptions of checks/art.mjs's rule.
     { x: 0.28, y: 0.24, radius: 320, pull: 190, ...hue('#B8D6EC'), seed: 11621, bands: 0.4, spin: -0.114, style: 'blocks', tint2: '#C98A5E', label: 'CAMEO',
       aliens: { at: [-Math.PI / 2 - 0.5, -Math.PI / 2, -Math.PI / 2 + 0.5], waving: 1 } },
     { x: 0.80, y: 0.72, radius: 425, pull: 265, ...hue('#72A843'), seed: 9366, bands: 0, spin: -0.05, style: 'cratered', tint2: '#3F6427', label: 'GREEN ROOM',

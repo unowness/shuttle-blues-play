@@ -121,8 +121,9 @@ function squareShown(notice, c, sq) {
 const paleCache = new Map();
 const onWash = (text, wash) => contrastOnBlack(text) / contrastOnBlack(wash);
 // The praise's green on its wash, as written, and a margin: the pointers stand in the kept layer, whose grade paints a wash a shade
-// lighter than the praise's (measured under NOW: 5.57 to 5.65 : 1 painted for 5.70 without it).
-export const PRAISE_READ = onWash(PALETTE.green, washOf(PALETTE.green)) * 1.04;
+// lighter than the praise's (measured under NOW: 5.57 to 5.65 : 1 painted for 5.70 without it). The green it was measured on, sage: the
+// green became HALCYON's on 2026-10-20 (src/palette.js), darker on its wash, and the other kinds' pointers keep the paleness they had.
+export const PRAISE_READ = onWash(PALETTE.sage, washOf(PALETTE.sage)) * 1.04;
 export function paleInk(ink) {
   if (!/^#[0-9a-f]{6}$/i.test(ink)) return ink;
   if (paleCache.has(ink)) return paleCache.get(ink);

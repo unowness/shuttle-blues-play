@@ -35,6 +35,54 @@ export const TRAFFIC = {
       // A ship sent out of a closed sector comes out at the farthest from the other ships of `spread` free places drawn (Fleet.keepOpen;
       // SX, 2026-10-07: «все скапливается в одном месте»).
       toward: 0.85, pass: 2000, spread: 12 },
+    // The NPC ships as persons (src/npcFleet.js; SX, 2026-10-19, N3 PERSONS: «давай знакомых», «давай в эту сторону»): `on`, each ship itself
+    // for good, at home, out only while its home sector is open, its one paint, remembering the pilot, all of it in the save; off, the fleet
+    // of before (the mixing, the paints drawn anew). Its journeys go `reach` sectors from its home at most, `lean` of its legs bound for where
+    // it is going, each closing at least to `progress` of the way left (the walk's journeys: CONFIG.ground.traffic), there once its next
+    // corner is within `arrive` of the walk's least leg of it (a leg could only overshoot it); a ram is held against
+    // the pilot for `grudge` s of the pilot's clock.
+    persons: { on: true, reach: 1, lean: 0.85, progress: 0.6, arrive: 0.6, grudge: 900 },
+    // What a person says (src/npcTalk.js; SX, 2026-10-19, N4 TALK): its answer to a greeting is about what matters most of now `context` of
+    // the times (else its own answers); it speaks first as it comes by only for a grudge, a thanks, a station back or pirates, the fleet's
+    // ships not more often than `every` s together. Pirates are near within `pirates` u of the pilot, its home within `homeReach` u; the pilot
+    // is fast past `fast` of its top speed; a ship met `regular` times knows the pilot. A favor (N6) gives `favor.fuel` of the tank, or
+    // `favor.hull` of the hull.
+    talk: { context: 0.75, every: 25, pirates: 3000, homeReach: 2500, fast: 0.7, regular: 5, favor: { fuel: 0.4, hull: 0.25 } },
+    // A person's stops (src/npcFleet.js Walker.choose, Fleet.stepFlight; SX, 2026-10-19, N2 ROUTES, «как предлагаешь» to keeping clear of the
+    // stations, his rule of 2026-10-07): arrived at a station on its journey, a ship's next corner is the station's approach place (a free
+    // place by it, outside its keep-out: src/npcFleet.js routeGates), at least `least` u on; flown, it brakes to stand at that corner's middle
+    // (from `lead` u before it), its nose to the station, `time` s, and goes on. On the clock it passes the place without standing.
+    stops: { time: [8, 20], lead: 0, least: 300 },
+    // A flown ship and the pirates (src/npcFleet.js fightStep; SX, 2026-10-19, N5 FIGHTS): within `see` u of a pirate of the pilot's sector,
+    // a brave ship (`brave`: the heavy ones) joins the pilot's fight with the chance `chance`, once a fight: for `time` s it goes at the
+    // nearest pirate at `boost` of its cruise and rams it for `blow` of its hull (not again within `again` s); any other within `flee.reach`
+    // u gets clear of it at `flee.boost` of its cruise. Only flown (CONFIG.traffic.flight.mode 'step'): on the clock a ship cannot turn aside.
+    fights: { see: 2200, brave: ['N01', 'N06', 'N21', 'N23', 'N43'], chance: 0.5, time: 25, boost: 1.4, blow: 2, again: 1.2, flee: { reach: 1600, boost: 1.3 } },
+    // The NPC ships flown as ships (src/npcFlight.js, src/npcFleet.js stepFlight; SX, 2026-10-19, N1 FLIGHT: «давай так как предлагаешь»,
+    // and they give way: «да»). `mode` 'path' is the clock (the walk above), 'step' the flight; the lab flies 'step' on `?npcFlight=new`.
+    //   look      a ship aims at the point of its path `lookTime` s of its speed ahead, between `look` u
+    //   accel     it gains its cruise's `accel` a second, sheds `brake` of it a second, swings its nose at `turn` rad/s and loses `grip` a
+    //             second of what goes sideways of it; never under `minPace` u/s while it flies
+    //   corner    in a corner turning by theta it goes at 1 - `slow` theta / pi of its cruise, never under `floor` of it, and no faster than
+    //             its nose turns round `radius` of the corner's mean radius; it looks `ahead` u along its path for them
+    //   giveWay   what it sees coming within `see` u and `horizon` s: another ship it would pass under their reaches and `gap` u, the
+    //             pilot's ship under its reach, the hull's and `pilotGap`: it turns its way to that disc's edge and `margin` rad past, and,
+    //             giving way (the other on its right, or the pilot), sheds up to `slow` of its pace; the side it took it keeps `keep` s
+    //   skid      a blow lets go of its grip to `grip` of it for `time` s, so it slides and turns
+    //   bank      it leans into a turn, full at `at` rad/s of turning, easing in at `ease` a second; the glyph on that side of each row
+    //             drawn `dark` the darker at full lean (src/traffic.js drawCraft)
+    //   offTrack  knocked or pushed this far off its path, it lays a new one from where it is; `ahead` u of path laid past it (the walk's
+    //             `ahead` is the clock's); `range` u out it steers round a block, `edge` the walk's `edge` inside the grid's edge
+    flight: {
+      mode: 'path',
+      look: [160, 520], lookTime: 1.1,
+      accel: 0.55, brake: 0.5, turn: 0.75, grip: 2.4, minPace: 40,
+      corner: { slow: 0.55, floor: 0.45, radius: 0.85, ahead: 2400 },
+      giveWay: { see: 1800, horizon: 3.5, gap: 60, pilotGap: 90, margin: 0.08, slow: 0.6, keep: 1.5 },
+      skid: { time: 1.4, grip: 0.05 },
+      bank: { at: 0.45, ease: 4, dark: 0.55 },
+      offTrack: 900, ahead: spread(8000), range: 400, edge: 0.5,
+    },
     // The NPC ships in the pilot's paints (src/npcPaint.js, src/npcFleet.js; SX, 2026-10-02: «По системе весов перекрашивай
     // корабли нпс в разные цвета, ну примерно в наших палитрах»). A paint's hue up to `shift` degrees inside a colour the NPC rule
     // forbids is moved `margin` degrees past its edge; its accent is `turn` degrees or more round from its main; two paints look
