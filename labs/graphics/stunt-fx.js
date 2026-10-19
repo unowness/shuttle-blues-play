@@ -81,9 +81,6 @@ export function createStuntFx() {
 // always did); a FLIP and a ROLL, folds that read the same either way from above, carry the hull `shift` of its radius out to that side
 // and back over the figure (most at its middle), so it is seen going over to the left or the right. With no side they are as before.
 export const FIGURE_SIDE = Object.freeze({ shift: 0.5 });
-// A FLIP grows the hull drawn to `flip` of its size at its middle, back at its ends on the same arc (SX, 2026-10-17: «все еще странно флип
-// работает ... хочется, чтобы он красивее. Ну, заметнее, как бы флипался»; his «Крупнее ×1.25»). Drawn only.
-export const FIGURE_GROW = Object.freeze({ flip: 1.25 });
 
 // The hull's look this frame: its height drawn (with the top's bob), where the lift puts it (and a figure's side), its scale along and
 // across (the push-off and the impact squash, a figure's fold), its turn (a spin, a grab, the tail's swing, the soft abort's swing,
@@ -93,7 +90,7 @@ export const FIGURE_GROW = Object.freeze({ flip: 1.25 });
 export function airLook(world, { reducedMotion = false } = {}) {
   const ship = world.ship, air = world.air, L = world.landing, nudge = world.trickAbort ? abortTurn(world) : 0;
   if (!ship.alive || (!air && !(L && L.t < M.impact.hold + M.impact.back) && !nudge)) return null;
-  let h = air ? ship.air : 0, across = 1, along = 1, rot = nudge, aside = 0, grow = 1;
+  let h = air ? ship.air : 0, across = 1, along = 1, rot = nudge, aside = 0;
   if (air) {
     // At the top, alive and not frozen: a bob of the brief's ±1.2 % at about 1.1 Hz (until the fall begins: after a let-go while a
     // figure turns, the figure's end less the fall).
@@ -104,7 +101,7 @@ export function airLook(world, { reducedMotion = false } = {}) {
       // The turn's share done, and its arc (none at either end, most at the middle) on the same curve, so the side's carry and a
       // PLAIN's tip move with the turn.
       const p = figureTurn(f.u), side = f.side ?? 0, turn = side || 1, arc = Math.sin(p * Math.PI);
-      if (f.kind === 'FLIP') { along *= Math.cos(p * TAU); grow = 1 + (FIGURE_GROW.flip - 1) * arc; }
+      if (f.kind === 'FLIP') along *= Math.cos(p * TAU);
       if (f.kind === 'ROLL') across *= Math.cos(p * TAU);
       if (f.kind === 'SPIN') rot += turn * p * TAU;
       if (f.kind === 'PLAIN') rot += turn * arc * FLIGHT.trick.figures.tip;
@@ -118,7 +115,7 @@ export function airLook(world, { reducedMotion = false } = {}) {
   }
   // The side across the nose on the screen (y down): the nose's right is (-sin, cos) of its angle.
   const lift = liftOffset(h, ship.radius), off = aside * ship.radius;
-  return { h, dx: lift.dx - Math.sin(ship.angle) * off, dy: lift.dy + Math.cos(ship.angle) * off, grow: lift.grow * grow, across, along, rot,
+  return { h, dx: lift.dx - Math.sin(ship.angle) * off, dy: lift.dy + Math.cos(ship.angle) * off, grow: lift.grow, across, along, rot,
     under: across < 0 || along < 0 };
 }
 

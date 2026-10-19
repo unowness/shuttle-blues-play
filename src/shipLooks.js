@@ -32,11 +32,13 @@ import { openingStage, REST } from './opening.js';
 //            struts, which on MODERN are its shoulders: its nose's jets left from mid-body over the sides and wings. MODERN's (X1
 //            PLACED): the nose's front corners (the outer ends of ◟ ◞), the wing tips (the outer ends of the flats ▔), the point of the
 //            inner struts \/.
-//   figures  how a jump's FLIP and ROLL turn it over (labs/graphics/stunt-fx.js drawAirShip): 'coin' (Y2 COIN), the glyphs mirrored with
-//            the cells past the fold's edge and the belly shown; none (CLIPPER, SCOOTY JR.), the cells fold and the glyphs stay.
+//   figures  how a jump's FLIP and ROLL turn it over (labs/graphics/stunt-fx.js drawAirShip): 'coin' (Y2 COIN, MODERN's from 2026-10-16
+//            until 2026-10-19), the glyphs mirrored with the cells past the fold's edge and the belly shown; none, every look's since SX's
+//            F5 on labs/graphics/sketches/figure-glyphs.html («раньше было секциями ... Как на CLIPPER»): the cells close up to the middle
+//            and the glyphs stay whole.
 // The drift's smoke is every look's (Z0, SX: «такой же, как сейчас оставляем»).
 export const SHIP_LOOKS = Object.freeze([
-  Object.freeze({ id: 'modern', label: 'MODERN', model: 'ships/modern.json', figures: 'coin',
+  Object.freeze({ id: 'modern', label: 'MODERN', model: 'ships/modern.json',
     nozzles: Object.freeze({ frontL: [1.72, 1.08], frontR: [5.28, 1.08], sideL: [0.44, 3.58], sideR: [6.56, 3.58], rearL: [3.34, 4.36], rearR: [3.66, 4.36] }) }),
   Object.freeze({ id: 'clipper', label: 'CLIPPER', model: 'ships/spaceship.json', garage: 'opening' }),
   Object.freeze({ id: 'scooty', label: 'SCOOTY JR.', model: 'ships/scooty-jr.json', after: 'opening' }),

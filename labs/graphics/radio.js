@@ -446,7 +446,7 @@ export function drawRadioModern(r, radio, place, now, { reducedMotion = false, o
       ctx.save(); ctx.lineWidth = 1; ctx.strokeStyle = ROLES.structure; ctx.setLineDash([1, 3]); ctx.beginPath(); ctx.arc(wx, wy, R - 0.5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
       disc(ctx, wx, wy, Math.max(2, UI.pad / 2), { fill: ROLES.structure });
     }
-    radio.wheel.on = true; radio.wheel.x = wx; radio.wheel.y = wy; radio.wheel.R = R; radio.wheel.dir = place.mirror ? 1 : -1;
+    radio.wheel.on = true; radio.wheel.x = wx; radio.wheel.y = wy; radio.wheel.R = R; radio.wheel.dir = wx < r.width / 2 ? 1 : -1;   // toward the screen's middle
     lamp(ctx, lx, wy, wreck ? DEAD : s);
     // Its line broken: black over it in places along its long sides, a piece of it knocked a little out of line.
     for (let i = 0; i < (wreck ? M.wreck.breaks : M.breaks[level] ?? 0); i++) {

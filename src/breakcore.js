@@ -331,12 +331,13 @@ export class Breakcore {
     if (room) this.toRoom.connect(room);
     // The pads and the stars: the ambient's voice (a Music of its own whose chords this lays).
     this.pads = new Music(ctx, this.mix, { rng, room: room ? this.toRoom : null, stars: KEY.stars });
-    // The sub, under its lowpass.
+    // The sub, under its lowpass, at the level LEAVE takes down with the drums'.
     this.sub = ctx.createBiquadFilter();
     this.sub.type = 'lowpass';
     this.sub.frequency.value = f.subTop;
     this.sub.Q.value = f.subQ;
-    this.sub.connect(this.mix);
+    this.subLevel = ctx.createGain();
+    this.sub.connect(this.subLevel); this.subLevel.connect(this.mix);
     // The drums: a high-pass under the kick, the lowpass ARRIVE opens and LEAVE closes, their level; dry and a share to the room.
     this.drums = ctx.createBiquadFilter();
     this.drums.type = 'highpass';
@@ -440,9 +441,12 @@ export class Breakcore {
   }
 
   // The drums' filter and level over this bar: a ramp a bar, so that a phrase cut short (a fight back on the way out) leaves nothing
-  // scheduled behind it. ARRIVE opens the filter over its bar, LEAVE closes it and lets the level fall.
+  // scheduled behind it. ARRIVE opens the filter over its bar. LEAVE closes it and takes the drums and the sub down together, evenly in
+  // dB, to `leaveLevel` at its end. A closing lowpass keeps the bass: with the drums falling 9 dB and the sub not at all (it never went
+  // through the drums' level), the way out was four bars of the break's bass going round at the fight's level, its top gone (SX,
+  // 2026-10-19: «когда выходим из битвы начинается длинный репетативный гул баса»).
   shapeDrums(t0) {
-    const f = F(), freq = this.drumTone.frequency, g = this.drumLevel.gain, end = t0 + this.bar;
+    const f = F(), freq = this.drumTone.frequency, end = t0 + this.bar;
     const a = this.phraseBar / this.phraseLength, b = (this.phraseBar + 1) / this.phraseLength;
     const sweep = (from, to) => {
       freq.setValueAtTime(from * (to / from) ** a, t0);
@@ -451,10 +455,13 @@ export class Breakcore {
     if (this.section === 'arrive') sweep(f.tone.arrive, f.tone.open);
     else if (this.section === 'leave') sweep(f.tone.open, f.tone.closed);
     else freq.setValueAtTime(f.tone.open, t0);
-    if (this.section === 'leave') {
-      g.setValueAtTime(f.drums * (1 - (1 - f.leaveLevel) * a), t0);
-      g.linearRampToValueAtTime(f.drums * (1 - (1 - f.leaveLevel) * b), end);
-    } else g.setValueAtTime(f.drums, t0);
+    const low = Math.max(1e-4, f.leaveLevel);
+    for (const [level, full] of [[this.drumLevel.gain, f.drums], [this.subLevel.gain, 1]]) {
+      if (this.section === 'leave') {
+        level.setValueAtTime(full * low ** a, t0);
+        level.exponentialRampToValueAtTime(full * low ** b, end);
+      } else level.setValueAtTime(full, t0);
+    }
   }
 
   // ------------------------------------------------------------------ harmony ---

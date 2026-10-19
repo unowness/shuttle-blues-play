@@ -14,15 +14,17 @@
 //     no line of their own: HULL and FUEL beside the top notch, RET and THR (from a zero mark at its middle) and SPD beside the bottom one;
 //     each its word at its outer end and its number by the notch (THR and SPD by it); in colour sections.
 //   The stations being built (tracker.js, its rows hanging down: each its bar, S, its words, C to the next) in the top left corner under
-//     their B row, as wide as the locator; the locator (locator.js drawModernScope, round or square) in the bottom left corner, its M row and
-//     the wallet under it, its legend's rows over it while shown; the radio (radio.js drawRadioModern) in the bottom right corner, its T row
-//     under it, the quests over it under their R row; the charm on a reel in a small mount on the edge line at the right column's axis.
+//     their B row, as wide as the radio, down to C over the quests; the radio (radio.js drawRadioModern) in the bottom left corner, its T
+//     row under it, the quests over it under their R row, both flush left; the locator (locator.js drawModernScope, round or square) in the
+//     bottom right corner, its M row and the wallet under it, its legend's rows over it while shown; the charm on a reel in a small mount
+//     on the edge line at the right column's axis. (The bottom's corners the other way round, the locator left and the radio and the
+//     quests right and flush right, until SX, 2026-10-19: «отзеркалил интерфейс в нижней части».)
 //
 // It breaks as the deck did (SX: «новый интерфейс тоже как бы ломаться должен ... Вниз отрывается брелок, падает под квесты. Куда-то в бок
 // экрана улетает, в зависимости от того, поворачиваем мы или нет ... локатор тоже внешний край ломается с внутренним ... при столкновениях
 // весь интерфейс трясется»; then «радио не падает ... радио на месте остается, у него просто контур ломается ... лампочки пропадают»;
 // «учелок изгибы тоже сломать»; «на последних 30% из шкал пропадают квадратики рандомные ... как будто ... погасшие»): under BREAK.at of the
-// hull the charm tears off its cord and falls (under the quests), thrown aside by the ship's turn, whole again above BREAK.mend or back from a
+// hull the charm tears off its cord and falls (past the locator), thrown aside by the ship's turn, whole again above BREAK.mend or back from a
 // wreck; the radio's holes go dark and its line breaks where it stands (radio.js), the locator's rings break, the notches wear and their
 // walls break too, under BREAK.dead the gauges' cubes go out here and there; the page shakes all of it. Since 2026-10-16 (SX: «локатор во
 // время аварии разрушался побольше. Ну и радио в целом тоже. Например, вот этот диск может отвалиться да, в какой-то момент на 10%»): the
@@ -300,8 +302,9 @@ export function drawModernHud(r, game, args) {
   const sq = ui.map === 'square', Lc = columnLayout(r), R0 = Lc ? Lc.radius : 119;
   const side = sq ? radioSize(r).w : 2 * (R0 + MODERN_SCOPE.apart + 0.5), Wm = radioSize(r).w;
   // The gauges: as wide as the bottom notch fitted to BRAKES at their capitals' middle (`fit`, before it was widened), S past the notches' line,
-  // and no nearer the bottom corners' blocks than C (a narrow screen: the widened notch pushes the bottom ones out toward them).
-  const room = Math.min(bottom.shoulders[0] - S - (X + Math.round(side) + C), W - X - Wm - C - (bottom.shoulders[1] + S));
+  // and no nearer the bottom corners' blocks than C (a narrow screen: the widened notch pushes the bottom ones out toward them): the radio's
+  // on the left, the locator's on the right.
+  const room = Math.min(bottom.shoulders[0] - S - (X + Wm + C), W - X - Math.round(side) - C - (bottom.shoulders[1] + S));
   const wx = wallAt(fit, L.capsB - L.capH / 2), n = Math.max(4, Math.min(Math.floor((2 * (mid - wx) + MODERN.gap) / L.pitch), Math.floor((room - L.cube) / L.pitch) + 1));
   const gw = (n - 1) * L.pitch + L.cube;
   const at = {
@@ -348,33 +351,58 @@ export function drawModernHud(r, game, args) {
     out.avoid.push({ x: at.hull.x, y: 0, w: at.fuel.x + gw - at.hull.x, h: L.capsT + L.capH + S }, { x: at.thr.x, y: L.capsB - L.capH - S, w: at.spd.x + gw - at.thr.x, h: H });
   }
 
-  // The locator in the bottom left corner (round or square, the radio's width when square), N LEGEND (its key from the table) and the wallet under it.
-  const locBox = { x: X, y: Math.round(L.keyRowB + ink.top - S - side), w: Math.round(side), h: Math.round(side) };
+  // The locator in the bottom right corner (round or square, the radio's width when square), N LEGEND (its key from the table) under its left
+  // edge and the wallet under its right one. The bottom's corners mirrored (SX, 2026-10-19: «отзеркалил интерфейс в нижней части, локатор
+  // справа квесты слева выровненные по левому краю (радио тоже)»); the locator stood in the bottom left until then.
+  const locBox = { x: Math.round(W - X - side), y: Math.round(L.keyRowB + ink.top - S - side), w: Math.round(side), h: Math.round(side) };
   if (given.column) {
     drawModernScope(r, world, { ...scopeArgs, box: locBox, shape: sq ? 'square' : 'round', reducedMotion, level, seed: cockpitSeed() + 11, wreck: cockpitCrack(), now });
     // The legend's button on the bottom line under the locator's edge; its rows over the locator while they show.
     const phase = Lc?.phase, open = !!phase?.open, key = keyName('legend'), wordL = open ? 'HIDE LEGEND' : 'LEGEND';
-    const x0 = X + 1, edge = x0 + KEYCAP_PAD + (Array.from(key).length + 1 + wordL.length + 1) * cw + 2 * KEY_MARK_HALF + 1;
+    const x0 = locBox.x + 1, edge = x0 + KEYCAP_PAD + (Array.from(key).length + 1 + wordL.length + 1) * cw + 2 * KEY_MARK_HALF + 1;
     const legendRow = drawColumnButton(r, { x0, edge, rowTop: L.keyRowB, key, word: wordL, turn: phase ? 1 - phase.turn : 0, name: 'locator:legend', note: (box) => noteKey(key, box, r) });
     let column = union(locBox, legendRow);
     if (Lc && phase?.rows) {
       const listTop = locBox.y - C - LEGEND_ROW_COUNT * UI.row;
-      drawLegendRowsAt(r, { ...Lc, legendX: X, listTop, colW: locBox.w - (Lc.right - Lc.x0 - Lc.colW) }, phase.lore);
-      column = union(column, { x: X, y: listTop, w: locBox.w, h: LEGEND_ROW_COUNT * UI.row });
+      drawLegendRowsAt(r, { ...Lc, legendX: locBox.x, listTop, colW: locBox.w - (Lc.right - Lc.x0 - Lc.colW) }, phase.lore);
+      column = union(column, { x: locBox.x, y: listTop, w: locBox.w, h: LEGEND_ROW_COUNT * UI.row });
     }
     out.column = column;
   }
   drawWallet(r, { wallet: { x: locBox.x + locBox.w + m.capLeft - 240, y: L.keyRowB, w: 240, h: UI.row, alone: false } }, world.ledger.credits ?? 0);
 
-  // The stations in the top left corner under their B row, as wide as the locator.
-  const place = { x0: X, x1: X + locBox.w, rowTop: L.keyRowT, ink, capH: L.capH, down: true, under: S,
-    rowsTop: Math.round(L.keyRowT + ink.bottom + C), pitch: Math.round(UI.pad + S + L.capH + C), floor: (given.column ? locBox.y : H - L.M) - C,
+  // The radio in the bottom left corner, its T row on the bottom line, broken where it stands as the hull goes (radio.js), and the quests
+  // over it, both flush left (the quests' and the radio's places of the locator's right side, sidePlaces 'right': not mirrored).
+  const sides = sidePlaces(r, 'right'), q = sides.quests, left = X, dx = left - q.left;
+  let radioArea = null;
+  if (given.radio) {
+    const box = { x: left, y: L.keyRowB + ink.top - S - RADIO_MODERN.h, w: Wm, h: RADIO_MODERN.h };
+    radioArea = drawRadioModern(r, radio, { box, rowTop: L.keyRowB, x0: q.x0 + dx, edge: q.edge + dx, mirror: q.mirror }, now,
+      { reducedMotion, wear: { level, seed: cockpitSeed() + 53, wreck: !!cockpitCrack() }, torn: fx.wheel.at != null });
+  }
+  out.radioArea = radioArea;
+  out.wheelAt = given.radio ? radio.wheel : null;
+  // The wheel torn off, hopping off its socket and falling, rolling.
+  const D = fx.wheel;
+  if (D.at != null && D.y < H + D.R) {
+    ctx.save(); ctx.translate(D.x, D.y); ctx.rotate(D.a); wheelModern(ctx, 0, 0, D.R, STILL_WHEEL, false); ctx.restore();
+  }
+  // Where the quests stand: their R row C over the radio's top (or on the bottom line with none), the plates S over the row.
+  const qx = q.x + dx, qRow = Math.round((radioArea ? radioArea.y : L.keyRowB + ink.top + C) - C - ink.bottom);
+  const qGeo = questGeometry(r, q.width), qCount = questBoard.plates.length, qListH = qCount ? qCount * (qGeo.height + QUEST_FRAME.gap) - QUEST_FRAME.gap : 0;
+  const qListTop = Math.round(qRow + ink.top - S - qListH);
+
+  // The stations in the top left corner under their B row, as wide as the radio, down to C over the quests (over the locator, C, until the
+  // bottom's corners were mirrored).
+  const leftTop = given.quests ? Math.min(qListTop, qRow + ink.top) : radioArea ? radioArea.y : H - L.M;
+  const place = { x0: X, x1: X + Wm, rowTop: L.keyRowT, ink, capH: L.capH, down: true, under: S,
+    rowsTop: Math.round(L.keyRowT + ink.bottom + C), pitch: Math.round(UI.pad + S + L.capH + C), floor: leftTop - C,
     rowsBottom: 0, wallet: null, foot: null };
   const stations = drawTracker(r, tracker, place);
   if (stations) out.avoid.push(stations);
 
   // The charm's mount on the edge line at the right column's axis (the charm's right edge on the quests'), the charm on its reel's cord;
-  // torn off, it falls (under the quests: drawn before them).
+  // torn off, it falls past the locator.
   const right = W - X, charmId = given.shelf ? hungCharm(world) : null, art = charmId ? charmPlace(r).inks.get(charmId) : null;
   const hx = Math.round(right - (art ? (art.x1 - art.x0) / 2 : CHARM.size / 2)) + 0.5;
   const mount = { x: Math.round(hx - MODERN.mount.w / 2), y: L.M, w: MODERN.mount.w, h: Math.round(L.capsT + L.capH - L.M) };
@@ -409,27 +437,9 @@ export function drawModernHud(r, game, args) {
     ctx.restore();
   }
 
-  // The radio in the bottom right corner, its T row on the bottom line, broken where it stands as the hull goes (radio.js).
-  const sides = sidePlaces(r, 'left'), q = sides.quests, left = W - X - Wm, dx = left - q.left;
-  let radioArea = null;
-  if (given.radio) {
-    const box = { x: left, y: L.keyRowB + ink.top - S - RADIO_MODERN.h, w: Wm, h: RADIO_MODERN.h };
-    radioArea = drawRadioModern(r, radio, { box, rowTop: L.keyRowB, x0: q.x0 + dx, edge: q.edge + dx, mirror: q.mirror }, now,
-      { reducedMotion, wear: { level, seed: cockpitSeed() + 53, wreck: !!cockpitCrack() }, torn: fx.wheel.at != null });
-  }
-  out.radioArea = radioArea;
-  out.wheelAt = given.radio ? radio.wheel : null;
-  // The wheel torn off, hopping off its socket and falling, rolling.
-  const D = fx.wheel;
-  if (D.at != null && D.y < H + D.R) {
-    ctx.save(); ctx.translate(D.x, D.y); ctx.rotate(D.a); wheelModern(ctx, 0, 0, D.R, STILL_WHEEL, false); ctx.restore();
-  }
-  // The quests over it under their R row: the row C over the radio's top (or on the bottom line with none), the plates S over the row.
+  // The quests over the radio under their R row.
   if (given.quests) {
-    const qx = q.x + dx, qRow = Math.round((radioArea ? radioArea.y : L.keyRowB + ink.top + C) - C - ink.bottom);
-    const g = questGeometry(r, q.width), count = questBoard.plates.length, listH = count ? count * (g.height + QUEST_FRAME.gap) - QUEST_FRAME.gap : 0;
-    const listTop = Math.round(qRow + ink.top - S - listH);
-    drawQuestBoard(r, questBoard, qx, listTop, now, world.ledger.clock, { reducedMotion, button: null, attached: args.attached, width: q.width,
+    drawQuestBoard(r, questBoard, qx, qListTop, now, world.ledger.clock, { reducedMotion, button: null, attached: args.attached, width: q.width,
       focusId: args.focusId, markedIds: args.markedIds, mirror: q.mirror, bearingOf: args.bearingOf, pointer: args.pointer });
     const head = drawColumnButton(r, { x0: qx + q.button.inset, edge: qx + q.button.edge, rowTop: qRow, key: keyName('nextQuest'), word: 'QUESTS', turn: 1,
       name: 'quests:button', over: args.attached ? true : null, axis: q.mirror ? 2 * qx + Math.round(q.width) : null });
@@ -438,9 +448,11 @@ export function drawModernHud(r, game, args) {
     out.quests = union(questBoard.box ?? head, radioArea);
   } else out.quests = radioArea;
 
-  // The marks on the rim keep inside what the corners and the notches leave.
-  const leftCol = Math.max(stations ? stations.x + stations.w : 0, given.column ? locBox.x + locBox.w : 0);
-  out.area = { x0: leftCol + UI.vector.space, x1: left - L.M, y0: h.y + BAR.outer / 2 + UI.vector.group, y1: floorB - BAR.outer / 2 - UI.vector.group };
+  // The marks on the rim keep inside what the corners and the notches leave: the stations, the quests and the radio on the left, the
+  // locator and the charm's mount on the right.
+  const leftCol = Math.max(stations ? stations.x + stations.w : 0, out.quests ? out.quests.x + out.quests.w : 0);
+  const rightCol = Math.min(given.column ? locBox.x : W - X - Math.round(side), out.charm ? out.charm.x : W, charmId ? mount.x : W);
+  out.area = { x0: leftCol + UI.vector.space, x1: rightCol - L.M, y0: h.y + BAR.outer / 2 + UI.vector.group, y1: floorB - BAR.outer / 2 - UI.vector.group };
   out.locator = given.column ? locBox : null;
   out.stations = stations;
   return out;
