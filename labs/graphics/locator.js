@@ -411,6 +411,22 @@ function drawMark(ctx, x, y, kind, color, radius = 4, heading = -Math.PI / 2) {
   }
 }
 
+// How far a mark's ink reaches from its place, px: its drawing's farthest point and half its line, read once from drawMark itself at a few
+// places within a pixel (a flag stands on whole pixels; a turned mark, a pirate's or the boss's, reaches as far at any heading), so a mark
+// held on the MODERN scope's rim stands whole inside it.
+const reaches = new Map();
+function markReach(kind) {
+  if (!reaches.has(kind)) {
+    let far = 0, o = 0;
+    const to = (x, y) => { far = Math.max(far, Math.hypot(x - o, y - o)); };
+    const probe = { beginPath() {}, closePath() {}, stroke() {}, fill() {}, moveTo: to, lineTo: to,
+      arc(x, y, radius) { far = Math.max(far, Math.hypot(x - o, y - o) + radius); } };
+    for (o of [0, 0.25, 0.5, 0.75]) drawMark(probe, o, o, kind, ROLES.textPrimary);
+    reaches.set(kind, far + 0.5);
+  }
+  return reaches.get(kind);
+}
+
 // Colours come only from ROLES: white for the neutral structures a pilot can
 // walk up to, green for what is actively pointed at or broadcasting, orange
 // for cargo that is lost, and the same muted grey the physical bodies already used.
@@ -824,6 +840,10 @@ export const MODERN_SCOPE = Object.freeze({ apart: 5, round: 8, shade: 22, dark:
     // `count` pieces, each out `delay` s after the crack (from the first to the last), falling at `fall` px/s², `drift` px/s away from the
     // impact, turning `spin` rad/s, gone after `life` s (off the screen by then); a hole where each was. None fall under reduced motion.
     shards: Object.freeze({ count: 3, delay: [0.08, 0.7], fall: 1100, drift: 60, spin: 2.2, life: 1.6 }),
+    // The cracks see-through and broken as the other frames break at a wreck (SX, 2026-10-19: «Сделай еще у него трещины прозрачными и
+    // поломанными как остальные рамки во время трещин»): no black cut under them, their line at `see` of its light, in pieces `piece` px
+    // long with `gap` px between (each [least, most], by the seed). Until then a black cut 3 px wide under a whole line.
+    see: 0.55, piece: Object.freeze([7, 18]), gap: Object.freeze([3, 7]),
   }) });
 function discToSquare(u, v) {
   const u2 = u * u, v2 = v * v, t = 2 * Math.SQRT2;
@@ -863,14 +883,17 @@ export function drawModernScope(r, world, { box, shape = 'square', reducedMotion
       drawMark(ctx, x, y, body.kind, ROLES.textSecondary, Math.max(2, body.radius / LOCATOR_RANGE * inner));
     }
     for (const rock of projectLocatorContacts(locatorRocks(world), inner)) { const [x, y] = at(rock.x, rock.y); drawMark(ctx, x, y, 'rock', ROLES.textSecondary); }
-    const contacts = projectLocatorContacts(radarContacts(world, { flags, quests, task }), inner);
-    for (const contact of [...contacts].sort((a, b) => Number(a.priority) - Number(b.priority))) {
-      const [x, y] = at(contact.x, contact.y);
-      const color = contact.blink ? CONFIG.cache.sparkColor : contact.color ?? MARK_COLOR[contact.kind] ?? ROLES.textSecondary;
+    const contacts = projectLocatorContacts(radarContacts(world, { flags, quests, task }), inner).sort((a, b) => Number(a.priority) - Number(b.priority));
+    const contactInk = (contact) => (contact.blink ? CONFIG.cache.sparkColor : contact.color ?? MARK_COLOR[contact.kind] ?? ROLES.textSecondary);
+    const markAt = (contact, x, y) => {
       if (contact.blink) ctx.globalAlpha = markBlinkAlpha(world.time, reducedMotion);
-      drawMark(ctx, x, y, contact.kind, color, 4, contact.heading);
+      drawMark(ctx, x, y, contact.kind, contactInk(contact), 4, contact.heading);
       ctx.globalAlpha = 1;
-    }
+    };
+    // The marks the scope holds on its rim when they are far (radarContacts' priority ones, held as the route is, and a pirate up to
+    // PIRATE_RANGE) are drawn over the shade (below); the rest, each within its range, roll under the rim as they near it.
+    const holds = (contact) => contact.priority || contact.kind === 'pirate';
+    for (const contact of contacts) if (!holds(contact)) { const [x, y] = at(contact.x, contact.y); markAt(contact, x, y); }
     const triangle = locatorShipTriangle(world.ship.angle);
     ctx.fillStyle = ROLES.backing; ctx.strokeStyle = ROLES.textPrimary; ctx.beginPath();
     triangle.forEach((point, index) => ctx[index ? 'lineTo' : 'moveTo'](cx + point.x, cy + point.y));
@@ -897,6 +920,23 @@ export function drawModernScope(r, world, { box, shape = 'square', reducedMotion
       ctx.moveTo(cx + c * reach, cy + sn * reach); ctx.lineTo(cx + c * (reach - len), cy + sn * (reach - len));
     }
     ctx.stroke();
+    // A mark the scope holds on its rim when far (`holds`: the route, a quest's ring, a flag, the boss, the marked find, a pirate) over the
+    // shade and the rim, in its full ink, whole inside the rim: past the range at its bearing's place on the rim, pulled in by its own reach;
+    // nearer, where it is, never farther out than that. Under the shade with the rest it went out past the range (measured 2026-10-19 in
+    // Chrome: a far flag kept 0-10 % of its light, a pirate 18-25 %; SX: «кажется, что не все активности отображаются на локаторе вообще
+    // далеко»); the rest still roll under the rim as they near the range's edge, as SX asked of the ball («иконки ... заходили под него
+    // ... чтобы они закатывались под него»), and no mark stands out past the rim.
+    ctx.save();
+    for (const contact of contacts) {
+      if (!holds(contact)) continue;
+      const [x, y] = at(contact.x, contact.y), keep = inner - 0.5 - markReach(contact.kind);
+      if (square) markAt(contact, cx + clamp(x - cx, -keep, keep), cy + clamp(y - cy, -keep, keep));
+      else {
+        const out = Math.min(Math.hypot(x - cx, y - cy), keep);
+        markAt(contact, cx + Math.cos(contact.angle) * out, cy + Math.sin(contact.angle) * out);
+      }
+    }
+    ctx.restore();
     // The contour.
     if (square) roundedRect(ctx, box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1, S.round); else { ctx.beginPath(); ctx.arc(cx, cy, inner + S.apart, 0, Math.PI * 2); }
     ctx.stroke();
@@ -1017,17 +1057,31 @@ export function scopeCrack(g, wreck, seed, look = MODERN_SCOPE.wreck) {
 }
 const tracePoly = (ctx, points, dx = 0, dy = 0) => { ctx.beginPath(); points.forEach(([x, y], k) => ctx[k ? 'lineTo' : 'moveTo'](x + dx, y + dy)); ctx.closePath(); };
 // The crack on the glass, drawn inside the rim before its shade (the caller's clip): a hole where a shard has fallen out (all of them
-// at once under reduced motion), then the cracks, a black cut under a line of `look.ink`. `now` the page's seconds, as `wreck.at`.
+// at once under reduced motion), then the cracks: a line of `look.ink` at `look.see` of its light, broken in pieces (`look.piece`,
+// `look.gap`), the glass seen through it; a look without `piece` (a sketch's) has them whole over a black cut. `now` the page's seconds,
+// as `wreck.at`.
 export function drawGlassCrack(ctx, g, wreck, seed, { now = 0, reducedMotion = false, look = MODERN_SCOPE.wreck } = {}) {
   const made = scopeCrack(g, wreck, seed, look), age = now - (wreck.at ?? now);
   ctx.save();
   ctx.fillStyle = ROLES.backing;
   for (const sh of made.shards) if (reducedMotion || age >= sh.delay) { tracePoly(ctx, sh.cell.points); ctx.fill(); }
   ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
-  for (const [w, ink] of [[3, ROLES.backing], [1, look.ink]]) {
-    ctx.strokeStyle = ink; ctx.lineWidth = w; ctx.beginPath();
-    for (const line of made.lines) line.forEach(([x, y], k) => ctx[k ? 'lineTo' : 'moveTo'](x, y));
-    ctx.stroke();
+  const trace = (line) => line.forEach(([x, y], k) => ctx[k ? 'lineTo' : 'moveTo'](x, y));
+  if (look.piece) {
+    const sd = seed + (wreck.seed % 997), span = (range, n) => range[0] + noise3(sd, n, 141) * (range[1] - range[0]);
+    ctx.globalAlpha *= look.see ?? 1; ctx.strokeStyle = look.ink; ctx.lineWidth = 1;
+    made.lines.forEach((line, k) => {
+      ctx.setLineDash([0, 1, 2].flatMap((j) => [span(look.piece, k * 7 + 2 * j), span(look.gap, k * 7 + 2 * j + 1)]));
+      ctx.lineDashOffset = noise3(sd, k, 143) * look.piece[1];
+      ctx.beginPath(); trace(line); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  } else {
+    for (const [w, ink] of [[3, ROLES.backing], [1, look.ink]]) {
+      ctx.strokeStyle = ink; ctx.lineWidth = w; ctx.beginPath();
+      for (const line of made.lines) trace(line);
+      ctx.stroke();
+    }
   }
   ctx.restore();
 }
