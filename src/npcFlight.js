@@ -55,8 +55,10 @@ export function cornerPace(pieces, from, s, cruise) {
 // ship gives way to the pilot's ship. Already inside the disc, it goes straight out of it. A side once taken is kept while the meeting
 // lasts and `keep` s after (`sides`, on the ship, by what it meets): a ship off its path aims back across the line to the other and would
 // take the other side at every step, zig-zagging into it. `ships`: [{ x, y, vx, vy, reach, angle, fixed, wx, wy }] (`fixed`: a raging
-// ship, seen, steering for itself); `pilot`: { x, y, vx, vy, radius } or null; `now` the world's clock. `wx`, `wy` are changed in place.
-export function giveWay(ships, pilot, now = 0) {
+// ship, seen, steering for itself); `pilot`: { x, y, vx, vy, radius } or null; `now` the world's clock; `walls` ([x, y, r], the ships'
+// walls, or none): a side whose passing place lies inside one is not taken when the other is free (a pilot standing by a station's
+// keep-out is passed on its open side). `wx`, `wy` are changed in place.
+export function giveWay(ships, pilot, now = 0, walls = null) {
   const G = flightConfig().giveWay, H = G.horizon;
   for (let i = 0; i < ships.length; i++) {
     const a = ships[i];
@@ -80,7 +82,13 @@ export function giveWay(ships, pilot, now = 0) {
       if (u < 1e-6 || u * H < dist - r) return;
       const axis = Math.atan2(ry, rx), half = Math.asin(r / dist), off = wrapPi(Math.atan2(uy, ux) - axis);
       if (Math.abs(off) >= half + G.margin) return;
-      const held = sides.get(key), side = held?.side ?? (Math.abs(off) < 0.02 ? 1 : Math.sign(off)), edge = axis + side * (half + G.margin);
+      const held = sides.get(key);
+      let side = held?.side ?? (Math.abs(off) < 0.02 ? 1 : Math.sign(off));
+      if (!held && walls) {
+        const shut = (s) => { const px = ox + Math.cos(axis + s * Math.PI / 2) * r, py = oy + Math.sin(axis + s * Math.PI / 2) * r; return walls.some((k) => Math.hypot(px - k[0], py - k[1]) < k[2]); };
+        if (shut(side) && !shut(-side)) side = -side;
+      }
+      const edge = axis + side * (half + G.margin);
       if (held) held.at = now; else sides.set(key, { side, at: now });
       wx = Math.cos(edge) * u + ovx; wy = Math.sin(edge) * u + ovy;
       if (yields) slow = Math.min(slow, 1 - G.slow * clamp(1 - (dist - r) / (u * H), 0, 1));
@@ -125,9 +133,9 @@ export function steerBody(b, dx, dy, want, cruise, blocks, lo, hi, dt) {
   const keep = Math.exp(-F.grip * (b.skid > 0 ? F.skid.grip : 1) * dt);
   b.vx = along * hx + (b.vx - along * hx) * keep;
   b.vy = along * hy + (b.vy - along * hy) * keep;
-  // Never over its cruise but in a blow's slide (a sideways drift adds to the pace along its nose).
+  // Over its cruise (a rage's pace, a push, a sideways drift) but in a blow's slide, it sheds the rest at its braking rate: eased, never cut.
   const pace = Math.hypot(b.vx, b.vy);
-  if (b.skid <= 0 && pace > cruise) { b.vx *= cruise / pace; b.vy *= cruise / pace; }
+  if (b.skid <= 0 && pace > cruise) { const k = Math.max(cruise / pace, 1 - (Math.max(1, cruise * F.brake) * dt) / pace); b.vx *= k; b.vy *= k; }
   b.skid = Math.max(0, b.skid - dt);
   b.x += b.vx * dt; b.y += b.vy * dt;
   for (let i = 0; i < blocks.length; i++) {

@@ -1,7 +1,5 @@
 import { CONFIG } from './config.js';
-import { prepareReverb } from './music.js';
-import { prepareBreak } from './breakcore.js';
-import { Score } from './score.js';
+import { Music, prepareReverb } from './music.js';
 import { readSound, writeSound } from './prefs.js';
 import { mulberry32, clamp, lerp, smoothstep } from './util.js';
 import { resolveChassis } from './chassis.js';
@@ -40,10 +38,10 @@ import { surfing, driftPreset } from './drift.js';
 // ------------------------------------------------------------------ sounds ---
 
 // Notes the chimes are made of: one major pentatonic, so any two of them heard
-// together agree. It is the key of both pieces of the score as well (SX, 2026-10-16: «надо проверить, что все сейчас с
-// саундтреком вместе в одной гамме было»; labs/graphics/sketches/sound-edit.html): the ambient is in D minor, the breakcore in A
-// minor, and C D E G A rub against no chord of either. Every tone a sound holds, and every slide where it lands, is on one of
-// them, and so is every pitch an event plays a sound at (EVENT_SOUNDS); a sweep over an octave in under a quarter second (a shot,
+// together agree. It is the score's key as well (SX, 2026-10-16: «надо проверить, что все сейчас с саундтреком вместе в одной
+// гамме было»; labs/graphics/sketches/sound-edit.html): the ambient is in D minor, and C D E G A rub against none of its chords
+// (the fight's breakcore in A minor, which they fitted too, was taken out on 2026-10-20). Every tone a sound holds, and every
+// slide where it lands, is on one of them, and so is every pitch an event plays a sound at (EVENT_SOUNDS); a sweep over an octave in under a quarter second (a shot,
 // an explosion, a click) is a gesture, not a pitch. checks/audio.mjs holds it.
 const N = { E1: 41.2, A1: 55, C2: 65.41, D2: 73.42, E2: 82.41, A2: 110, C3: 130.81, D3: 146.83, A3: 220, C4: 261.63, D4: 293.66,
   E4: 329.63, A4: 440, G4: 392, C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880, C6: 1046.5, D6: 1174.66,
@@ -626,7 +624,8 @@ export function soundsFor(event, world, r) {
   return out;
 }
 
-// Whether a fight is on, for the score (src/score.js): a squad's or a raid's encounter, or the boss awake and not yet beaten.
+// Whether a fight is on (the skills' hints wait for peace, src/skillHints.js): a squad's or a raid's encounter, or the boss awake and
+// not yet beaten.
 export const inFight = (world) => !!world?.encounter || !!(world?.boss && !world.boss.dormant && !world.boss.defeated);
 
 // ------------------------------------------------------------- preference ---
@@ -657,12 +656,10 @@ export function noiseData() {
 // of the first frames of the flight, and made these then (20 ms of it the reverb's
 // 308 thousand exponentials); the plan behind the title (labs/graphics/boot.js)
 // runs this a piece a frame instead. Yields the share done.
-// The fight's break (src/breakcore.js) is made here too, a half bar a piece: 235 ms of work in all on an M1.
 export function* prepareSound() {
   noiseData();
   yield 0.1;
-  for (const share of prepareReverb()) yield 0.1 + 0.4 * share;
-  for (const share of prepareBreak()) yield 0.5 + 0.5 * share;
+  for (const share of prepareReverb()) yield 0.1 + 0.9 * share;
 }
 
 // ------------------------------------------------------------------ voices ---
@@ -781,9 +778,7 @@ export class Sound {
     this.noise.getChannelData(0).set(noise);
     this.noiseSpan = (0.75 * noise.length) / ctx.sampleRate;      // where a voice may start in it
     this.buildVoices();
-    // The score: the ambient in peace, the breakcore in a fight (src/score.js); `music` the ambient, as it always was.
-    this.score = new Score(ctx, this.buses.music);
-    this.music = this.score.ambient;
+    this.music = new Music(ctx, this.buses.music);
     if (ctx.state === 'suspended' && this.awake) ctx.resume?.();
     else if (!this.awake) ctx.suspend?.();
     return this.ready;
@@ -894,10 +889,7 @@ export class Sound {
       this.slide.filter.frequency.setTargetAtTime(SL.cutoff[0] * (SL.cutoff[1] / SL.cutoff[0]) ** wide, t, SL.attack);
       follow(this.slide.gain.gain, SL.level * lerp(SL.angle[0], SL.angle[1], wide) * lerp(SL.speed[0], SL.speed[1], share), SL.attack, t);
     } else follow(this.slide.gain.gain, 0, SL.release, t);
-    if (this.enabled && this.musicOn && this.score) {
-      this.score.setFight(inFight(world));
-      this.score.update(t);
-    }
+    if (this.enabled && this.musicOn) this.music?.update(t);
 
     // A hull down to a quarter beeps now and then, while flying.
     const low = live && world.hull <= Math.floor((world.hullMax ?? CONFIG.hull.max) / 4);

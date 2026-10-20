@@ -176,7 +176,8 @@ export const ECONOMY = {
   // clock, no loss, and the station no refuge while it stands.
   raids: {
     restored: 1, notBefore: 1200, begunQuiet: 300, gap: [[1, 1080, 1680], [8, 1500, 2400]], thanks: 350, quiet: 900, time: 300,
-    squad: [[5, 0.3], [6, 0.3], [7, 0.25], [8, 0.15]], spacing: 620,
+    // 6-9 ships since SX, 2026-10-20 («Рейды 5–8 → 6–9»), the shares as they were.
+    squad: [[6, 0.3], [7, 0.3], [8, 0.25], [9, 0.15]], spacing: 620,
     regather: { after: 600, size: [3, 6], grow: 300 },
     ruinWeight: 1.5, clear: 2600,
     ruinShare: 0.5, stationValue: 2000, stationShare: 0.25,
@@ -190,7 +191,8 @@ export const ECONOMY = {
     // [a ruin's price up to, ships] (SX, 2026-10-08, flying the game: «около разбитых станций нет пиратов даже в квестах, должно быть от
     // 4 до 8 всегда»): the cheapest ruin has 4 ships round it, the dearest 8, five steps between (the eight ruins' prices run from 1,900 to
     // 4,700; the start ruin, 1,900, has 4). It was [[2200, 2], [4400, 3], [Infinity, 4]], and the start ruin's own `startGuards.size` 3.
-    guards: [[2200, 4], [2800, 5], [3600, 6], [4400, 7], [Infinity, 8]],
+    // One more each since SX, 2026-10-20 («Стража руин 4–8 → 5–9»): 5 round the cheapest, 9 round the dearest.
+    guards: [[2200, 5], [2800, 6], [3600, 7], [4400, 8], [Infinity, 9]],
     // How long a ruin's guards stay away once they are beaten whole (or run), on the pilot's clock, before they are round it again, until it is
     // restored (SX, 2026-10-06, of the start ruin: «раз в 15 минут респавнятся там, пока станцию не починят»; every ruin's since 2026-10-08).
     // A squad met in part and left is whole again once as long has passed since it was made. Money already in a ruin stays in; no more goes in

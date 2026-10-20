@@ -4,7 +4,10 @@ export const PIRATE_ROLE_DONORS = { needle: 'warlord', weaver: 'brute', jackal: 
 export const BASE_PIRATE_TYPES = LEGACY_PIRATE_TYPES;
 
 export const PIRATE_ROLES = {
-  roster: { chance: 0.5, unlocks: { needle: 1, weaver: 3, jackal: 5, tender: 5 } },
+  // The stations restored before each kind may take a slot (`chance` each time): NEEDLE and WEAVER after the first, JACKAL and TENDER after
+  // the third since SX, 2026-10-20 (he had met none: «ни одного пирата, который кодекс рисовал, мне не встретилось»; asked, «Раньше»);
+  // 1, 3, 5 and 5 until then.
+  roster: { chance: 0.5, unlocks: { needle: 1, weaver: 1, jackal: 3, tender: 3 } },
   needle: { aim: 0.35, lock: 0.14, release: 0.55, reload: 2.2, obstacleAbort: 0.65, standoff: [620, 800] },
   weaver: { windup: 0.35, lay: 2.3, reload: 2, interval: 0.5, spacing: 180, minSpeed: 70,
     obstacleAbort: 0.65, laySpeed: 0.72, standoff: [400, 620],

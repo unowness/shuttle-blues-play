@@ -775,32 +775,6 @@ export const CONFIG = {
       reverb: { seconds: 3.5, decay: 3.2, chords: [0.55, 0.6], stars: [0.3, 0.9] },
       lookahead: 2,
     },
-    // The conductor (src/score.js) and the fight's breakcore (src/breakcore.js), SX's S1 of 2026-10-16 (labs/graphics/sketches/
-    // breakcore.html, six rounds: «Dust Life неплохой», «надо отмастерить трек», «пэды ... как ... в оригинальном фоновом»; «Вносим в игру
-    // брейк с дирижёром»). `calm` s with no fight before the way out; `fadeAmbient` the time constant of the ambient fading under a
-    // fight; `roomTop` the lowpass on the one room's return (both pieces'; Butterworth). `fight`: the breakcore. `bpm`; `chordBars`
-    // bars a chord; `shuffle` the share of bars cut and reordered, `cut` the lengths they are cut into (sixteenths, by weight),
-    // `stutter` the share of cuts stuttered; `fills` the end of a phrase's choices, `fill4` the chance of a small one in its fourth
-    // bar, `fill8` of one at its end; `roll` hits a sixteenth in a roll, `rollPitch` its last hit's rate; `drums` the break's
-    // level, `wet` its share of the room, `sat` the soft curve's drive, `top` the hats', ride's and crash's level in the kit,
-    // `tone` the drums' lowpass open, where ARRIVE starts it (`arrive`) and LEAVE ends it (`closed`); `leaveLevel` the
-    // drums' and the sub's level at LEAVE's end, a share of their own reached evenly in dB (above 0; 0.35 of the drums alone, on a
-    // straight line, until 2026-10-19: the bass went round at the fight's level, SX: «длинный репетативный гул баса»); `arriveCrash`
-    // the crash on a fight's first downbeat; `sub` the sub's peak and `subTop`,
-    // `subQ` its lowpass (Q in dB, as Web Audio counts a lowpass's: -6 is soft, no bump); `jitter` how far a slice's level wanders;
-    // `master` the piece's level (a fight 1 LU over the ambient's peace, K-weighted). Scheduled `lookahead` s ahead.
-    score: {
-      calm: 4,
-      fadeAmbient: 3,
-      roomTop: 3000,
-      fight: {
-        bpm: 160, chordBars: 8,
-        shuffle: 0.25, cut: { 4: 3, 2: 2 }, stutter: 0.06,
-        fills: { roll: 1, stop: 1, reverse: 1, gap: 2, stutter: 0.5 }, fill4: 0.15, fill8: 0.75, roll: 2, rollPitch: 1.25,
-        drums: 0.075, wet: 0.07, sat: 1, top: 0.55, tone: { open: 6500, closed: 260, arrive: 700 }, leaveLevel: 0.1, arriveCrash: 0.22,
-        sub: 0.03, subTop: 140, subQ: -6, jitter: 0.2, master: 0.89, lookahead: 2.5,
-      },
-    },
     panWidth: 0.75,
     hearing: 900,
     hullAlarmEvery: 2.4,

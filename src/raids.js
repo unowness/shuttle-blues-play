@@ -13,7 +13,7 @@ import { contentLinks } from './mapContent.js';
 // when the pilot is there and its post has none, and its tally (`size`, `down`) says how many are still to beat, so a
 // pilot who leaves and comes back meets the rest of it, not a fresh one.
 //
-//   GUARDS  a ruin not yet restored has a squad round it (CONFIG.raids.guards, 4 to 8 by its price; SX, 2026-10-08: «около разбитых
+//   GUARDS  a ruin not yet restored has a squad round it (CONFIG.raids.guards, 5 to 9 by its price, 4 to 8 until 2026-10-20; SX, 2026-10-08: «около разбитых
 //           станций нет пиратов даже в квестах, должно быть от 4 до 8 всегда»), funded or not. No money goes in while it flies there;
 //           once every one of it is down (or has run), the ruin is clear (the ledger's `cleared`, which the quests count once) and its
 //           guards are back `guardsEvery` s later on the pilot's clock (the ledger's `guardsAt`), until it is restored. The tally is
@@ -174,7 +174,7 @@ function guardTally(world, s) {
 // says its own `radius` and `wake`, and `label`, what it is called when the squad turns on the pilot.
 // A raid's or a gathering's squad is of every hull in one paint (`mixed`; a ruin's guards and a pestering squad stay one
 // hull, as before) and can be more than a zone's four, so its ring grows with its size to keep `raids.spacing` u between
-// neighbours; so does a ruin's, whose guards are 4 to 8 (the ring is the hull's and the guard gap while that is wider: up to six). `size` is
+// neighbours; so does a ruin's, whose guards are 5 to 9 (the ring is the hull's and the guard gap while that is wider: up to six). `size` is
 // what the squad was made with (the ring is the same when the rest of it is met again), `types` the hulls still to beat and `paint`
 // its colour, when they are known.
 export function spawnPost(world, station, kind, count, { radius = null, wake = CONFIG.pirates.guard.wake, label = null, size = count, types = null, paint = null, record = null } = {}) {

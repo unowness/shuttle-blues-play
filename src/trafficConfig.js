@@ -59,7 +59,8 @@ export const TRAFFIC = {
     // u gets clear of it at `flee.boost` of its cruise. Only flown (CONFIG.traffic.flight.mode 'step'): on the clock a ship cannot turn aside.
     fights: { see: 2200, brave: ['N01', 'N06', 'N21', 'N23', 'N43'], chance: 0.5, time: 25, boost: 1.4, blow: 2, again: 1.2, flee: { reach: 1600, boost: 1.3 } },
     // The NPC ships flown as ships (src/npcFlight.js, src/npcFleet.js stepFlight; SX, 2026-10-19, N1 FLIGHT: «давай так как предлагаешь»,
-    // and they give way: «да»). `mode` 'path' is the clock (the walk above), 'step' the flight; the lab flies 'step' on `?npcFlight=new`.
+    // and they give way: «да»). `mode` 'step' is the flight, the game's since SX's «Включай новый полёт NPC в игре, старый оставь в лабе»
+    // (2026-10-20); 'path' is the clock (the walk above) of before, flown only in the lab on `?npcFlight=old`.
     //   look      a ship aims at the point of its path `lookTime` s of its speed ahead, between `look` u
     //   accel     it gains its cruise's `accel` a second, sheds `brake` of it a second, swings its nose at `turn` rad/s and loses `grip` a
     //             second of what goes sideways of it; never under `minPace` u/s while it flies
@@ -74,7 +75,7 @@ export const TRAFFIC = {
     //   offTrack  knocked or pushed this far off its path, it lays a new one from where it is; `ahead` u of path laid past it (the walk's
     //             `ahead` is the clock's); `range` u out it steers round a block, `edge` the walk's `edge` inside the grid's edge
     flight: {
-      mode: 'path',
+      mode: 'step',
       look: [160, 520], lookTime: 1.1,
       accel: 0.55, brake: 0.5, turn: 0.75, grip: 2.4, minPace: 40,
       corner: { slow: 0.55, floor: 0.45, radius: 0.85, ahead: 2400 },

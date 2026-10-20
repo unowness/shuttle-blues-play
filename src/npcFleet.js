@@ -599,7 +599,10 @@ export class Fleet {
   // one among them, and the pilot's ship while it flies), and swings, pushes or brakes toward that; then every two are held apart. A ship
   // knocked or pushed more than `offTrack` u off its path begins a new one from where it is, going the way it goes (Walker.restart).
   stepFlight(world, dt) {
-    const F = flightConfig(), t = world.time, me = pilotAt(world), ship = world.ship, blocks = grid().blocks;
+    // Its walls are the paths' own clearance (a block and the walk's `air`): a flown ship keeps a station's keep-out as a path does (SX,
+    // 2026-10-07: «не будут сильно близко к станциям подлетать»), a planet's cushion and a hole's disc with their margins.
+    const blocks = (this.walls ??= grid().blocks.map(([x, y, r]) => [x, y, r + K().air]));
+    const F = flightConfig(), t = world.time, me = pilotAt(world), ship = world.ship;
     const edge = K().edge * F.edge, lo = [edge, edge], hi = [GRID_W - edge, GRID_H - edge];
     const ships = (this.flying ??= []);
     ships.length = 0;
@@ -661,7 +664,7 @@ export class Fleet {
       if (foes.length || w.fight) this.fightStep(world, w, b, cruise, foes, t);
     }
     // What each gives way to turns the velocity it wants (src/npcFlight.js giveWay), and each swings, pushes or brakes toward that.
-    giveWay(ships, pilot, t);
+    giveWay(ships, pilot, t, blocks);
     for (const w of this.walkers) {
       if (w.rage) continue;
       const b = w.body, want = Math.hypot(b.wx, b.wy);
