@@ -17,6 +17,7 @@ import { lookFindsIn } from './looks.js';
 import { availableIn } from './rewards.js';
 import { fogHash } from './worldDraw.js';
 import { wakePuff, stepWake, enginePower, jetPuff } from './fogCells.js';
+import { shiftVanishing } from './vanish.js';
 
 // The four sides of the boss's smoke square as dead edges (edgeDepths): an axis and the way out.
 const ARENA_EDGES = Object.freeze([['x', -1], ['x', 1], ['y', -1], ['y', 1]].map(([axis, dir]) => Object.freeze({ axis, dir, arena: true })));
@@ -43,6 +44,7 @@ export function loadSector(world, sector, { announce = true } = {}) {
   world.drops = [];
   suspendPirateCombat(world);
   world.pirates = [];
+  world.vanishing = [];
   // A boss's fight is the sector's: loading another ends it (it waits whole for the next visit: src/boss.js).
   world.boss = null;
   world.bossArena = null;
@@ -329,7 +331,7 @@ export function enterSector(world, next, dx, dy) {
   const near = CONFIG.sector.carryRange;
   const carried = world.asteroids.filter((a) => !a.moored &&
     Math.hypot(a.x - ship.x, a.y - ship.y) < near);
-  const drops = world.drops;
+  const drops = world.drops, vanishing = world.vanishing;
   // Recovery cargo belongs to its NPC's sector; its squad returns there when the pilot crosses a seam.
   const pirates = world.pirates.filter((p) => p.post?.kind !== 'pester'), encounter = world.encounter;
   const roleSystems = world.pirateRoleSystems;
@@ -343,6 +345,7 @@ export function enterSector(world, next, dx, dy) {
   for (const b of world.bullets) { b.x += shiftX; b.y += shiftY; }
   for (const p of world.particles.items) { p.x += shiftX; p.y += shiftY; }
   for (const d of drops) { d.x += shiftX; d.y += shiftY; }
+  shiftVanishing(world, shiftX, shiftY);
   // Pirates follow across a seam, or it would be a way out of the fight:
   // they move with everything else, and so does what they last saw of the ship.
   for (const p of pirates) {
@@ -356,6 +359,7 @@ export function enterSector(world, next, dx, dy) {
 
   world.loadSector(next);
   world.drops = drops;
+  world.vanishing = vanishing;
   // Carry hunting squads' depleted resources across the seam, but leave mines in the departed sector.
   world.pirateRoleSystems = new Map([...roleSystems].filter(([id]) => pirates.some((p) => p.mode !== 'guard' && p.roleSystemId === id)));
   for (const sys of world.pirateRoleSystems.values()) { sys.closed = false; sys.reason = null; sys.sectorId = next.id; }

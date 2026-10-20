@@ -806,6 +806,13 @@ export const CONFIG = {
     unseen: UNSEEN,        // u from the ship that no window shows at any step (above)
   },
 
+  // A pirate or a friendly ship a rule takes out of the world, beamed out where it was (src/vanish.js; SX, 2026-10-20, G3 BEAM of
+  // labs/graphics/sketches/vanish-fx.html: «мне нравится только beam»): `time` s. For the first `glitch` of it its cells show the code's
+  // `glyphs` (a turn every `tick` s), the drawing shaken across by up to `jitter` u; it is squeezed into a column of `column` over the
+  // `squeeze` share, the column into a point over `collapse`, then a dot in `ink`; what is left drifts on, slowing at `drag` a second.
+  vanish: { time: 0.8, glitch: 0.3, squeeze: [0.3, 0.7], collapse: [0.7, 0.92], tick: 0.05, jitter: 4, drag: 3, ink: '#ffffff',
+    glyphs: '01/:·_|+=*<>', column: '│' },
+
   // sim: src/flightConfig.js, the flight's numbers in a file of their own (chat F1, 2026-10-04).
   sim: FLIGHT.sim,
 

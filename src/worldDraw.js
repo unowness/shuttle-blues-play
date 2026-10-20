@@ -33,6 +33,7 @@ import { fogHash, FOG_EDGE, wakeHoles, stampHoles } from './fogCells.js';
 import { drawClouds } from './cloudDraw.js';
 import { lap } from './frameProfile.js';
 import { drawPirateCues, drawPirateFields } from './pirateCombatDraw.js';
+import { drawVanishing } from './vanish.js';
 
 // The ink of a planet's name, worked out once per tint (World.planetLabelInk).
 const labelInks = new Map();
@@ -898,6 +899,8 @@ class WorldDrawing {
       drawPirateCues(this, r, p, s);
       p.draw(r, s.x, s.y);
     }
+    // What rules took out of the world, beamed out where it was (src/vanish.js).
+    drawVanishing(this, r);
 
     lap('shots');
     const bc = CONFIG.bullet;

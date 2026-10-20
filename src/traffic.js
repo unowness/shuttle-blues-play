@@ -33,6 +33,8 @@ import { CRAFT_ART } from './trafficArt.js';
 import { NPC_CRAFTS } from './npcShips.js';
 import { TAU } from './util.js';
 import { keepOutOf } from './keepOut.js';
+import { noteVanish } from './vanish.js';
+import { sectorById } from './sectors.js';
 
 // A craft as a frozen record, with `scale` worked out from the knob each time it is read. O-08's unless it says.
 export const makeCraft = (def) => Object.freeze({
@@ -245,7 +247,17 @@ export function stepVisitor(world, dt) {
   const v = world.visitor;
   if (v) {
     v.t += dt;
-    if (v.t >= v.duration || world.sector.id !== v.sectorId) { world.visitor = null; return; }
+    // At the end of its pass, or the pilot gone over a seam, it is beamed out where it is (src/vanish.js): the sector it was in is a
+    // neighbour now, its place moved by the seam as everything else was.
+    if (v.t >= v.duration || world.sector.id !== v.sectorId) {
+      const p = visitorPose(v), was = sectorById(v.sectorId), now = world.sector;
+      const dx = (was?.col - now.col) * world.width, dy = (was?.row - now.row) * world.height;
+      if (Number.isFinite(dx) && Number.isFinite(dy)) {
+        noteVanish(world, 'craft', v.craft, { x: p.x + dx, y: p.y + dy, vx: (v.to.x - v.from.x) / v.duration, vy: (v.to.y - v.from.y) / v.duration, angle: p.angle });
+      }
+      world.visitor = null;
+      return;
+    }
     const p = visitorPose(v);
     if (!v.hailed && ship.alive && Math.hypot(p.x - ship.x, p.y - ship.y) < HAIL_REACH) {
       v.hailed = true;

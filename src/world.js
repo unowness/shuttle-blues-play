@@ -69,6 +69,7 @@ import { transitHole, exitHeading, coastsClear } from './holePassage.js';
 import { signsIn, signIssue, signCheck, leaveSign, removeSign } from './signWork.js';
 import { hangarStation, buyShip, flyShip } from './hangarWork.js';
 import { dealNew, rollStartRuin, recastStations } from './pilotDeal.js';
+import { stepVanishing } from './vanish.js';
 
 // The most events the queue holds before the oldest go (World.emit).
 const EVENT_QUEUE_MAX = 512;
@@ -259,6 +260,10 @@ export class World {
     suspendPirateCombat(this);
     this.pirates = [];
     this.shoutAt = -Infinity;
+    // What rules took out of the world without its coming apart, beamed out where it was (src/vanish.js): in memory only, never saved;
+    // `vanishSerial` numbers them for their glyphs.
+    this.vanishing = [];
+    this.vanishSerial = 0;
     // The boss TOLLKEEPER (src/boss.js) while its fight is on, or null: in memory only, never saved. Its quest (src/bossQuest.js): where it
     // waits ({ sectorId, x, y, from, stage }, in the save as a quest), and the smoke's square round its fight ({ x, y, half }) or null.
     this.boss = null;
@@ -694,6 +699,7 @@ export class World {
     easeCaches(this, dt);
     settleGround(this, dt);
     this.particles.update(dt);
+    stepVanishing(this);
     // A broken body's hanging pieces turned back off the stations' bodies as they come to them (src/field.js; SX, 2026-10-07): only
     // within `CONFIG.debris.held` u of a body's face and closing on it, so a station's own pieces flung out from inside go their way.
     holdOutOfStations(this, this.particles.items, (p) => (p.hang ? CONFIG.debris.size : -1), CONFIG.asteroid.drops.body.bounce, CONFIG.debris.held);

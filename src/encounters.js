@@ -21,6 +21,7 @@ import { landedNow } from './trick.js';
 import { applyPirateStyle, styleIdOf, temperTraits, hitMoves, scheduleReinforcement, stepReinforcement } from './pirateStyles.js';
 import { cancelAttack } from './pirateAttacks.js';
 import { contentAreas } from './mapContent.js';
+import { noteVanish } from './vanish.js';
 
 // How many restorations the lab's arena counts as made, for the hulls that replace the old four (src/pirateRoster.js): all of them.
 const ROSTER_OPEN = 99;
@@ -250,12 +251,14 @@ export function killPirate(world, p, cause) {
 }
 
 // A pirate leaves without dying: it broke off and flew away, or it went past
-// the limits of the map. The last one to go ends the fight.
+// the limits of the map. It is beamed out where it is (src/vanish.js; `quiet` is a pirate destroyed, which comes apart instead).
+// The last one to go ends the fight.
 export function removePirate(world, p, { quiet = false } = {}) {
   const i = world.pirates.indexOf(p);
   if (i < 0) return false;
   onNewPirateRemoved(world, p, quiet ? 'destroyed' : 'removed');
   world.pirates.splice(i, 1);
+  if (!quiet) noteVanish(world, 'pirate', p);
   if (!quiet && world.encounter && !world.pirates.some((q) => q.mode !== 'leave' && q.mode !== 'guard')) world.endEncounter('lost');
   return true;
 }
@@ -287,6 +290,8 @@ export function endEncounter(world, cause, { leave = false, deferEvent = false, 
       p.leaveTimer = CONFIG.pirates.leave.time;
     }
   } else {
+    // The rest are taken out, each beamed out where it is (src/vanish.js): the runners still flying, most of all.
+    for (const p of world.pirates) if (!home(p) || p.mode === 'leave') noteVanish(world, 'pirate', p);
     world.pirates = world.pirates.filter((p) => home(p) && p.mode !== 'leave');
     for (const p of world.pirates) { p.mode = 'guard'; p.coin = null; }
   }

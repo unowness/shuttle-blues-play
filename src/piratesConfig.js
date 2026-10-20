@@ -415,8 +415,11 @@ export const PIRATES = {
     // Pirates lose a ship that stays further than `range` u from all of them
     // for `time` seconds (a pilot who outruns them).
     lose: { range: 3800, time: 5 },
-    // Pirates that break off fly away for this long, then are gone.
-    leave: { time: 8 },
+    // Pirates that break off fly away for this long, then are gone, beamed out (src/vanish.js) (30 s since 2026-10-20, 8 until then; SX:
+    // «гонюсь за пиратом, я не успеваю его поймать, потому что он тоже пропадает на глазах ... надо возможность гнаться за пиратом сделать
+    // подлиннее. Раза в два», then «Да, удвой leave.time до 16 с» and «leave time давай до 30 сек»: a runner chased at its own pace stood
+    // at the screen's rim when it was taken out).
+    leave: { time: 30 },
 
     // Characters (SX, 2026-10-02, PIRATE_PERSONAS_HANDOFF.md: «Жадность — быстрее всех бросается собирать монеты и
     // пренебрегает защитой / Авантюризм — ловко летает вокруг и прячется и стреляет, сложно угнаться / Агрессия — много
