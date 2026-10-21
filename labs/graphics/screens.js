@@ -9,7 +9,7 @@
 // screen's panel is drawn by its own module; the pause is its own (labs/graphics/pause.js). `game` is the page's (main.js); the
 // long-lived parts it holds are read once here.
 import { WORDS_PER_ROW } from '../../src/signPanel.js';
-import { FLEET, fleetOf, fleetIndexOf, fleetAction } from '../../src/hangarPanel.js';
+import { fleetOf, fleetIndexOf, fleetAction } from '../../src/hangarPanel.js';
 import { COLLECTIBLES, WORDS, collectibleDef } from '../../src/progression.js';
 import { SIGN_WORDS_MAX, SIGN_TYPES, DEFAULT_SIGN_TYPE, signTypeLabel } from '../../src/signs.js';
 import { nicknameChars, CHARM_NONE } from '../../src/pilot.js';
@@ -302,7 +302,7 @@ export function createScreens(game) {
   // The hangar (E4, src/hangar.js): HANGAR at a garage opens it, and in the home garage's room CHANGE STARSHIP or a click on the shuttle
   // (labs/graphics/garage-room.js; SX, 2026-10-13: «делаем в комнате кнопку change starship и выход, а клик по кораблю ведет на выбор корабля»).
   // The flight goes on underneath it like under the pilot card; it owns the keyboard while open: the arrows choose one of the ships on its two
-  // shelves (src/hangarPanel.js FLEET: ← → one, ↑ ↓ a shelf), 1 or Enter takes it, 0 or Escape closes.
+  // two rows (src/hangarPanel.js fleetOf: ← → one, ↑ ↓ a row), 1 or Enter takes it, 0 or Escape closes.
   const hangarUI = { selected: 0, message: null, messageLife: 0, bought: null };
   // The look the STANDARD wears (src/shipLooks.js, the page's: kept in this browser).
   const worn = () => game.shipLook?.worn;
@@ -326,18 +326,22 @@ export function createScreens(game) {
   }
 
   function hangarKeys() {
-    const n = FLEET.length, step = (by) => { hangarUI.selected = (hangarUI.selected + by + n) % n; sound.play('menu'); };
-    // ↑ ↓ the square in the same column of the other shelf, or its last when that shelf is shorter (the first holds five since 2026-10-16).
+    // The squares shown (src/hangarPanel.js fleetOf: the default, CLIPPER, the crews' ships had), the empty ones never chosen.
+    const fleet = fleetOf(world, worn()), n = fleet.length;
+    hangarUI.selected = Math.min(hangarUI.selected, n - 1);
+    const step = (by) => { hangarUI.selected = (hangarUI.selected + by + n) % n; sound.play('menu'); };
+    // ↑ ↓ the square in the same column of the other row, or its last when that row is shorter; nothing while the other row is empty.
     const shelfOver = () => {
-      const e = FLEET[hangarUI.selected], col = FLEET.filter((x) => x.shelf === e.shelf).indexOf(e);
-      const other = FLEET.filter((x) => x.shelf !== e.shelf);
-      hangarUI.selected = FLEET.indexOf(other[Math.min(col, other.length - 1)]);
+      const e = fleet[hangarUI.selected], col = fleet.filter((x) => x.shelf === e.shelf).indexOf(e);
+      const other = fleet.filter((x) => x.shelf !== e.shelf);
+      if (!other.length) return;
+      hangarUI.selected = other[Math.min(col, other.length - 1)].i;
       sound.play('menu');
     };
     if (key('left')) step(-1);
     if (key('right')) step(1);
     if (key('up') || key('down')) shelfOver();
-    if (key('choose')) chooseShip(fleetOf(world, worn())[hangarUI.selected]);
+    if (key('choose')) chooseShip(fleet[hangarUI.selected]);
     if (key('close') || key('back')) closeHangar();
   }
   // One of the shelves' ships taken: a ship had is flown (World.flyShip), one on sale bought (World.buyShip), a crew's not had yet says why; a look of the

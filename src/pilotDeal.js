@@ -4,6 +4,7 @@
 import { sectorById, START_STATIONS, startRuinOf } from './sectors.js';
 import { buildStations } from './stations.js';
 import { rollDeal } from './rewards.js';
+import { dealSpecialOrder } from './pacing.js';
 
 // A new pilot's own deal of the finds (src/rewards.js; SX, 2026-10-02: «сувениры и цвета доступные на старте для каждого
 // юзера рандомно генерировались»): which souvenirs and paints the start, the sectors and the ruins hold, kept in the save.
@@ -35,6 +36,13 @@ export function rollStartRuin(world, rng, { force = null } = {}) {
   world.recastStations();
   world.buildFinds();
   return L.startRuin;
+}
+
+// A pilot's own order of the reference ships' round (src/pacing.js nextSpecial; SX, 2026-10-21: «а давай перемешаем порядок, чтобы у
+// всех юзеров было в разном порядке»): dealt once, to a new pilot or to a save from before it, and kept in the save (src/pilot.js).
+export function dealSpecials(world, rng) {
+  world.pilot.specialOrder ??= dealSpecialOrder(rng);
+  return world.pilot.specialOrder;
 }
 
 // The stations of every sector built so far, built again under the pilot's start ruin: after it changed (a load, a new pilot's

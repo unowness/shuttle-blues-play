@@ -201,6 +201,15 @@ export const SOUNDS = {
     { wave: 'square', f: N.A5, a: 0.001, d: 0.05, g: 0.045, filter: { type: 'lowpass', f: 5000 } },
     { wave: 'square', f: N.D6, at: 0.05, a: 0.001, d: 0.13, g: 0.045, filter: { type: 'lowpass', f: 5000 } },
   ] },
+  // A Scooby snack taken (src/specialQuests.js scooby; SX, 2026-10-21: «звук такой хрустящий, типа хрк, не как у монет»): no note, a
+  // crunch: a rasp of noise falling from high to low through a narrow band, two cracks in it, a dull break at the end; the jitter makes no
+  // two alike. Rendered offline (Firefox, 2026-10-21): 0.09 s, its energy a little under the coin's, its peak at the cargo link's.
+  crunch: { max: 6, jitter: 120, layers: [
+    { wave: 'noise', filter: { type: 'bandpass', f: [3600, 1500], q: 2.5 }, a: 0.001, d: 0.06, g: 0.14 },
+    { wave: 'noise', filter: { type: 'highpass', f: 4300 }, at: 0.022, a: 0.001, d: 0.018, g: 0.09 },
+    { wave: 'noise', filter: { type: 'bandpass', f: 2300, q: 4 }, at: 0.04, a: 0.001, d: 0.03, g: 0.11 },
+    { wave: 'noise', filter: { type: 'bandpass', f: [1300, 600], q: 2 }, at: 0.068, a: 0.001, d: 0.07, g: 0.1 },
+  ] },
   coins: { max: 2, layers: [N.A5, N.D6, N.G6].map((f, i) => (
     { wave: 'square', f, at: i * 0.05, a: 0.001, d: i === 2 ? 0.2 : 0.06, g: 0.045, filter: { type: 'lowpass', f: 5200 } })) },
   spill: { max: 1, layers: [N.E6, N.D6, N.C6, N.A5, N.G5].map((f, i) => (
@@ -453,6 +462,7 @@ export const EVENT_SOUNDS = {
   encounterEnded: (e) => (e.cause === 'wrecked' ? null : 'allClear'),
   creditsSeized: () => 'loss',
   pickupClaimed: (e) => (e.drop ? 'coin' : 'coins'),
+  snackTaken: () => 'crunch',
   coinsSpilled: () => 'spill',
   fuelClaimed: () => 'fuel',
   // A pirate's part mends the hull (World.collectPickups): the repair's own sound.

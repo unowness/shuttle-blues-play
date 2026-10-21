@@ -114,6 +114,8 @@ export class Feedback {
       case 'signRemoved': label = 'SIGN REMOVED'; break;
       case 'flagRemoved': label = `${event.colour} FLAG REMOVED`; break;
       case 'pickupClaimed': label = `+${event.reward} CR`; break;
+      // A Scooby snack (src/specialQuests.js scooby): the count is the plate's, here the one taken.
+      case 'snackTaken': label = '+1'; break;
       case 'fuelClaimed': label = `+${fuelAmount(event.gained ?? event.units)} FUEL`; break;
       case 'partClaimed': label = `+${event.gained} HULL`; break;
       case 'tankFull': label = 'TANK FULL'; break;
@@ -238,8 +240,8 @@ export class Feedback {
       const objectBox = { x: p.x - 36, y: p.y - 36, w: 72, h: 72 };
       // A coin picked up shows no burst: its six marks were the gains' green round it, the green SX had taken off the coins' labels
       // (2026-10-02: «надписи от них не должны быть зеленые»; 2026-10-06: «при сборе монеток снова показываются зеленые тексты»). Its
-      // dim gold «+1 CR» stays.
-      if (!this.reducedMotion && t < 1 && item.type !== 'pickupClaimed') {
+      // dim gold «+1 CR» stays. A Scooby snack is taken as a coin is: its «+1» alone (its crunch is its crumbs, src/scoobySnacks.js).
+      if (!this.reducedMotion && t < 1 && item.type !== 'pickupClaimed' && item.type !== 'snackTaken') {
         if (item.type === 'fuelClaimed' || item.type === 'partClaimed') {
           const radius = 9 + 26 * (1 - t) ** 2;
           for (let i = 0; i < 6; i++) {

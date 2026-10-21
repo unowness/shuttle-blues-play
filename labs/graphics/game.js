@@ -270,6 +270,9 @@ export function createGame(env) {
   // рандомно достается первая сломанная»), one in three; a save keeps its own (an older one HALCYON), a review link the catalogue's.
   if (START_RUIN) world.rollStartRuin(world.rng('startRuin'), { force: START_RUIN });
   else if (game.labFresh && !REVIEW) world.rollStartRuin(world.rng('startRuin'));
+  // And his own order of the reference ships' round (SX, 2026-10-21: «чтобы у всех юзеров было в разном порядке»): a new pilot's, or a save's
+  // from before it, dealt now and kept; a review link keeps the config's.
+  if (!REVIEW) world.dealSpecials(world.rng('specials'));
   world.settleCaches();
   // A new pilot's opening chapter (src/opening.js; codex/start-and-narrative/, SX's answers 7A and 8A): HOME in SCOOTY JR., their own
   // shuttle collected at the first station, the radio, the locator and the map, the first freight, fuel, the first cache. Not on the

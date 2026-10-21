@@ -29,7 +29,7 @@ const STARTER_SHIP = 'standard';
 // hangar's words: SWORDFISH II's TWIN GUN and the FALCON's QUICK GUN stay in their quests.
 const CREW_NOTES = Object.freeze({
   delorean: 'FAST / FRAGILE', swordfish: 'NIMBLE / FIGHTER', express: "SLOW / TOUGH",
-  falcon: 'TOUGH / SLOW TURN', serenity: 'BIG / THIN HULL', xwing: 'AGILE / SMALL',
+  falcon: 'TOUGH / SLOW TURN', serenity: 'BIG / THIN HULL', xwing: 'AGILE / SMALL', scooby: 'SMALL / NIMBLE',
 });
 export const CREW_SHIPS = Object.freeze(SPECIALS.map((sp) => Object.freeze({
   id: sp.id, label: sp.label, chassis: `crew-${sp.id}`, note: CREW_NOTES[sp.id], who: sp.who, crew: true,

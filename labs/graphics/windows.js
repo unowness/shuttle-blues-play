@@ -21,7 +21,7 @@ import { lookById } from '../../src/looks.js';
 import { specialById, specialModel } from '../../src/specialShips.js';
 import { formatCR, workingKind, rebuiltShare } from '../../src/ruins.js';
 import { wrap } from '../../src/pilotPanel.js';
-import { shipStats, fleetOf, fleetAction } from '../../src/hangarPanel.js';
+import { shipStats, fleetOf, fleetAction, FLEET, HANGAR_SQUARES } from '../../src/hangarPanel.js';
 import { stationStatus, stationOffers } from '../../src/stationPanel.js';
 import { stationInfo, stationLoreNow } from '../../src/stationInfo.js';
 import { draftCaption, WORDS_PER_ROW } from '../../src/signPanel.js';
@@ -270,10 +270,11 @@ export function drawStationInfo(r, world, ui) {
 //   the chosen ship: its picture in a square as tall as its eight rows of words, frameless, flying there; beside it its name, what it is to the
 //   pilot flush right (ACTIVE in the blue, OWNED, its price in gold, NOT MET), its class, and its five figures, each its label, its share of the
 //   best of the twelve as a row of squares, its number flush right;
-//   SPACESHIPS (the STANDARD in its four looks, the COURIER, the HAULER) and ALLIES (the six crews' ships), each its name and how many are had
-//   over its six squares, `S` apart: the chosen one a whole white line, the others dashes (SX: «в ангаре не заполненные не должны быть
-//   заключенными в квадраты ... пунктир ... приглушить надо сильно ... такой же пунктир в ангаре сделай»); a ship not had in the label's gray at
-//   `notHad` of its light.
+//   SPACESHIPS and how many are had over twelve squares in two rows (src/hangarPanel.js HANGAR_SQUARES; SX, 2026-10-21: the default first,
+//   CLIPPER, the reference ships' as they are won, the rest empty; until then SPACESHIPS, the STANDARD's looks, the COURIER and the HAULER, and
+//   ALLIES, the crews' six, a shelf each), `S` apart: the chosen one a whole white line, the others dashes (SX: «в ангаре не заполненные не
+//   должны быть заключенными в квадраты ... пунктир ... приглушить надо сильно ... такой же пунктир в ангаре сделай»); a ship not had (CLIPPER
+//   in the opening) in the label's gray at `notHad` of its light.
 // The foot: ESC CLOSE first; what the chosen ship's key does (USE, BUY), then the arrows' SHIP; why it cannot be had, or what the last key said,
 // between.
 export const HANGAR = Object.freeze({
@@ -281,12 +282,11 @@ export const HANGAR = Object.freeze({
   showRows: 8,                                         // the chosen ship's rows of words, and its picture as tall
   barFrom: 8, barTo: 6,                                // a figure's squares: columns past its label's start, and short of the right axis
   notHad: 0.45,                                        // a ship not had: its drawing's light, in the label's ink
-  shelf: 6,                                            // squares a shelf
 });
-// Every ship of a shelf at one scale, its size in the game (SX, 2026-10-14: «классический корабль должен быть меньше, ты видишь он совсем с
+// Every ship shown at one scale, its size in the game (SX, 2026-10-14: «классический корабль должен быть меньше, ты видишь он совсем с
 // другими не совпадает в масштабах»; each was fitted to its square alone, and CLASSIC, 4 x 3 cells against THUNDER's 7 x 6, came out at twice
-// its glyphs): the largest of the shelf as large as the square's safe zone holds (CARD.inner of its side), the others smaller by as much as
-// they are in the game (src/shipAvatar.js sharedScale). The chosen ship's picture the same, at its shelf's scale in the picture's box.
+// its glyphs): the largest as large as the square's safe zone holds (CARD.inner of its side), the others smaller by as much as they are in the
+// game (src/shipAvatar.js sharedScale); a shelf each at its own until the two rows of 2026-10-21. The chosen ship's picture the same in its box.
 //
 // The chosen ship flies (SX, 2026-10-14: «в верхнее окно крупное добавь анимацию как этот корабль летит, то есть звезды на фоне и он летит и
 // подпрыгивает иногда, летит снизу вверх»): nose up, the stars streaming down past it on three layers (the world's star inks, far to near
@@ -308,7 +308,7 @@ function fleetModel(world, e) {
   return model ?? (e.flying ? world.ship.model : null);
 }
 
-// The chosen ship flying in its picture `box` (SHOWCASE) at `time` s: the stars, then the ship at `scale` of its model's own (its shelf's,
+// The chosen ship flying in its picture `box` (SHOWCASE) at `time` s: the stars, then the ship at `scale` of its model's own (the squares',
 // sharedScale), grown as a jump grows it. `look` its paint, or the ink and light of a ship not had.
 function drawFlying(r, box, model, scale, look, time) {
   const { ctx } = r, S = SHOWCASE;
@@ -331,7 +331,8 @@ export function drawHangar(r, world, ui) {
   const win = new Win(r, { size: HANGAR.size, id: 'hangar' }).place().sheet(), p = win.p, { cw } = win;
   const fleet = fleetOf(world, ui.worn), n = fleet.length;
   const selected = Math.max(0, Math.min(n - 1, ui.selected ?? 0)), e = fleet[selected], action = fleetAction(world, e);
-  const stats = fleet.map((x) => shipStats(x.ship)), best = stats[0].map((_, k) => Math.max(...stats.map((l) => l[k].value)));
+  // The figures' bars against the best of every ship the hangar may hold (FLEET), shown or not yet: a bar does not move as one comes.
+  const stats = fleet.map((x) => shipStats(x.ship)), all = FLEET.map((x) => shipStats(x.ship)), best = all[0].map((_, k) => Math.max(...all.map((l) => l[k].value)));
   const station = world.stations.find((s) => s.id === world.docked);
   win.head([['HANGAR', INK.text]], { meta: [...(station ? [[station.label, INK.label]] : []), money(`${formatCR(world.ledger.credits)} CR`)] });
   const look = (x) => ({ paint: x.crew ? null : world.pilot.paint, ink: x.owned ? null : INK.label, alpha: x.owned ? 1 : HANGAR.notHad });
@@ -339,10 +340,9 @@ export function drawHangar(r, world, ui) {
   // The chosen ship: its picture in a square as tall as its words, flying there; its words beside it.
   const top = Math.round(p.y(0)), side = Math.round(p.yb(HANGAR.showRows - 1)) - top;
   const pic = { x: Math.round(p.cx), y: top, w: side, h: side };
-  const shelfOf = (k) => fleet.filter((x) => x.shelf === k);
-  const shelfModels = (k) => shelfOf(k).map((x) => fleetModel(world, x));
+  const models = fleet.map((x) => fleetModel(world, x));
   const room = { x: pic.x + side * (1 - CARD.inner) / 2, y: pic.y + side * (1 - CARD.inner) / 2, w: side * CARD.inner, h: side * CARD.inner };
-  drawFlying(r, pic, fleetModel(world, e), sharedScale(r, shelfModels(e.shelf), room), look(e), ui.still ? 0 : ui.time ?? 0);
+  drawFlying(r, pic, fleetModel(world, e), sharedScale(r, models, room), look(e), ui.still ? 0 : ui.time ?? 0);
   const tx = pic.x + side + ORG.C, status = e.flying ? ['ACTIVE', INK.blue] : e.owned ? ['OWNED', INK.label] : e.crew || e.locked ? ["LOCKED", INK.faint] : money(`${formatCR(e.price)} CR`);
   win.text(fitText(e.label, Math.floor((p.cxr - tx) / cw) - partLen(status) - 2), tx, p.y(0), INK.text);
   win.part(status, p.cxr, p.y(0), { right: true });
@@ -355,29 +355,27 @@ export function drawHangar(r, world, ui) {
     win.squares(Y + win.cap / 2 - ORG.square / 2, Math.min(1, s.value / best[i]), { x0: m0, x1: m1 });
   });
 
-  // The shelves: each its name and how many are had, its squares under it.
+  // The squares (SX, 2026-10-21): SPACESHIPS and how many are had, then two rows of HANGAR_SQUARES.row, `S` apart, the ships shown first and the
+  // rest empty: a slot for a ship to come (SX, 2026-10-16: «можешь там просто оставить слот добавим корабль»), and a crew's ship not had yet,
+  // which shows nothing (2026-10-21: «не стоит спойлерить корабли в гараже которые не открыты»). Not buttons. Every ship at one scale, its size
+  // in the game (src/shipAvatar.js sharedScale), as the chosen one's picture is.
   const ships = [];
-  const shelf = (k, name, list) => {
-    p.label(k, name, `${list.filter((x) => x.owned).length}/${list.length}`);
-    const boxes = p.cells(HANGAR.shelf, p.yb(k) + ORG.C), scale = sharedScale(r, list.map((x) => fleetModel(world, x)), {
-      w: Math.floor(boxes[0].w * CARD.inner), h: Math.floor(boxes[0].w * CARD.inner) });
-    list.forEach((x, j) => {
-      const sq = boxes[j];
-      if (!sq) return;
-      ships.push({ index: x.i, box: sq });
-      win.item(`ship:${x.key}`, sq, (on) => {
-        win.cell(sq, { chosen: on || x.i === selected });
-        const model = fleetModel(world, x);
-        drawShipIn(r, model, sq, { ...look(x), scale: scale * modelScale(model) });
-      });
+  const k = p.next(p.yb(HANGAR.showRows - 1));
+  p.label(k, 'SPACESHIPS', `${fleet.filter((x) => x.owned).length}`);
+  const row0 = p.cells(HANGAR_SQUARES.row, p.yb(k) + ORG.C);
+  const boxes = [...row0, ...p.cells(HANGAR_SQUARES.row, row0[0].y + row0[0].h + ORG.S)];
+  const scale = sharedScale(r, models, { w: Math.floor(boxes[0].w * CARD.inner), h: Math.floor(boxes[0].w * CARD.inner) });
+  fleet.forEach((x, j) => {
+    const sq = boxes[j];
+    if (!sq) return;
+    ships.push({ index: x.i, box: sq });
+    win.item(`ship:${x.key}`, sq, (on) => {
+      win.cell(sq, { chosen: on || x.i === selected });
+      const model = models[j];
+      drawShipIn(r, model, sq, { ...look(x), scale: scale * modelScale(model) });
     });
-    // A shelf's squares past its ships stand empty, a slot for a ship to come (SX, 2026-10-16: «можешь там просто оставить слот добавим
-    // корабль»): the first shelf's sixth since THUNDER, EDGES and BLACKBIRD went. Not a button.
-    for (const sq of boxes.slice(list.length)) win.cell(sq);
-    return boxes[0].y + boxes[0].h;
-  };
-  const end1 = shelf(p.next(p.yb(HANGAR.showRows - 1)), 'SPACESHIPS', shelfOf(0));
-  shelf(p.next(end1), 'ALLIES', shelfOf(1));
+  });
+  for (const sq of boxes.slice(fleet.length)) win.cell(sq);
 
   // The foot: ESC CLOSE first; the chosen ship's key and the arrows at the right; why it cannot be had (the world's words, the amounts in
   // gold) or what the last key said between. A crew's ship not had has no key: its crew's run first.

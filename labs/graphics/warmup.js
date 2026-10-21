@@ -43,6 +43,7 @@ export const WARM_EXTRA = [
   '‹',                                   // the pause menu's BACK (pause-menu.js, 2026-10-02)
   '⊂∩',                                  // the repair droid SPANNER's wrench, open and turned (src/droidArt.js, 2026-10-04)
   'Ψψ¥☘⚘',                               // the home garage's greenhouse plants (garage-art.js, chat G, 2026-10-04)
+  '‖∘',                                  // the MYSTERY MACHINE's rails and its smoke (src/trafficArt.js, src/scoobySnacks.js, 2026-10-21)
   '俺の名はキャプテン・ウソップ！',              // Usopp's caption, including non-star sign previews (2026-10-03)
 ].join('');
 

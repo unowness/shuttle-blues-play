@@ -47,6 +47,7 @@ const ASK = {
   falcon: (p) => `BATTLE AT ${p.dest.name}`,
   serenity: (p) => `REACH ${p.dest.name} BEFORE BREAKUP`,
   xwing: (p) => `RUN TO ${p.dest.name}`,
+  scooby: (p) => `GRAB ${p.need} OF ${p.total} SNACKS`,
 };
 
 // ---- who is met, where, when ----------------------------------------------------------------------------------------------
@@ -80,7 +81,7 @@ function findSite(world, near, { areas = [], fallback = true } = {}) {
 export function offerSpecial(world, { id = null, near = false } = {}) {
   if (world.special || world.sector.hidden) return null;
   const rng = world.rng('quest'), C = S();
-  const next = id ? null : nextSpecial(world.pilot.notes, world.pilot.lastSpecial);
+  const next = id ? null : nextSpecial(world.pilot.notes, world.pilot.lastSpecial, { restored: factsOfWorld(world).restored, order: world.pilot.specialOrder });
   const pool = SPECIALS.filter((sp) => (id ? sp.id === id && !world.pilot.notes.has(sp.id) : sp.id === next?.id));
   for (const sp of pool) {
     let site = null, plan = null;
@@ -130,7 +131,7 @@ export function stepSpecial(world, dt) {
     // дополнительные активности».)
     const blocked = !world.ship.alive || !!world.docked || !!world.home || !!world.encounter || !!L.raid || !!world.pester || world.sector.hidden
       || !radioFitted(world);
-    if (specialDue(world.specialClock, factsOfWorld(world), world.pilot.notes, world.rng('quest'), C.checkEvery, blocked, world.pilot.lastSpecial)) offerSpecial(world);
+    if (specialDue(world.specialClock, factsOfWorld(world), world.pilot.notes, world.rng('quest'), C.checkEvery, blocked, world.pilot.lastSpecial, world.pilot.specialOrder)) offerSpecial(world);
     return;
   }
   if (s.boarded) {
@@ -343,9 +344,10 @@ export function drawSpecial(world, r, t) {
 }
 
 // The ship the pilot flies, in place of Ship.draw while a borrowed one is: the broken drawing for SERENITY's failing hull.
+// The MYSTERY MACHINE has no drive's flame: it smokes out of its pipes (src/scoobySnacks.js, drawn with its quest).
 export function drawFlownShip(world, r, sx, sy, t) {
   const s = world.special, share = s.id === 'serenity' ? brokenShare(world.hull / world.hullMax) : 0;
-  drawFlown(r, world.ship, sx, sy, { share, time: t });
+  drawFlown(r, world.ship, sx, sy, { share, time: t, flame: s.id !== 'scooby' });
 }
 
 // Whether a borrowed ship is flown now, and which: the cockpit takes its colours (the page).

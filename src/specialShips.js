@@ -3,7 +3,7 @@ import { CRAFT_ART } from './trafficArt.js';
 import { normalizeModel } from './asciiModel.js';
 import { clamp } from './util.js';
 
-// The six reference ships of the rare quests (QUESTS_V2_HANDOFF.md, round three; SX, 2026-10-02: «Специальные квесты
+// The reference ships of the rare quests (six, and the MYSTERY MACHINE since 2026-10-21) (QUESTS_V2_HANDOFF.md, round three; SX, 2026-10-02: «Специальные квесты
 // награждаются каким-то цветом, или, возможностью применить этот корабль на себя ... они должны цветовую схему давать,
 // как бы в стиле их корабля для штурвала, нижней части. Плюс подарить краску в для твоего кораблика в стиле их
 // корабля, памятную записку какую-то оставлять, которая в гараже можно читать и смотреть об этой истории рассказывать
@@ -50,6 +50,14 @@ export const SPECIALS = Object.freeze([
     id: 'xwing', craft: 'x-wing', label: 'X-WING', who: 'RED FIVE', scale: 1.2,
     paint: 'sp-xwing', cockpit: { label: 'X-WING', line: '#CD7063', accent: '#789CB4', grip: '#D5D3C7' },
     note: { title: 'FROM RED FIVE', text: note(`Rendezvous reached. Flight logged. You held the course. That's what we needed. Red Five out. - R5`) },
+  },
+  // The seventh (SX, 2026-10-21: «давай добавим нового отсылочного NPC. Это фургончик Скуби-Ду. Квест у него будет. Ты садишься в
+  // тачку»): the Mystery Machine, its drawing SX's V11 at the friendly ships' 1.5, its quest the Scooby snacks laid as trails
+  // (src/specialQuests.js scooby, src/scoobySnacks.js).
+  {
+    id: 'scooby', craft: 'mystery-machine', label: 'MYSTERY MACHINE', who: 'THE GANG', scale: 1.5,
+    paint: 'sp-scooby', cockpit: { label: 'MYSTERY', line: '#4FB3C2', accent: '#8BB33F', grip: '#F0913A' },
+    note: { title: 'FROM THE GANG', text: note(`Like, thanks for driving! Scoob says every snack was worth it. Mystery solved, and the paint's in your kit. - Shaggy`) },
   },
 ]);
 
@@ -117,14 +125,14 @@ export function goneCells(model, share) {
 }
 
 // The flown ship: its cells in their colours (those gone left out, the rest flickering a little more the worse it is), the
-// drive's flame behind it while the engine burns, the respawn's blink. `share` is the broken share (brokenShare).
-export function drawFlown(r, ship, sx, sy, { share = 0, time = 0 } = {}) {
+// drive's flame behind it while the engine burns (unless `flame` is false: the MYSTERY MACHINE smokes instead), the respawn's blink. `share` is the broken share (brokenShare).
+export function drawFlown(r, ship, sx, sy, { share = 0, time = 0, flame = true } = {}) {
   if (!ship.alive) return;
   const model = ship.model, m = ship.metrics || ship.measureDrawing(r.cellW, r.cellH);
   const blink = ship.invuln > 0 && (Math.floor(ship.invuln * 12) & 1) === 0;
   const alpha = blink ? 0.32 : 1;
   const a = ship.facing, ca = Math.cos(a), sa = Math.sin(a);
-  if (ship.thrusting) {
+  if (flame && ship.thrusting) {
     let rear = 0;
     for (const c of ship.frameCells) if (c.y > rear) rear = c.y;
     const pal = CONFIG.ship.colors.flame, flicker = 0.55 + 0.45 * Math.sin(ship.flamePhase);

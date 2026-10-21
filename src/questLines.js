@@ -213,7 +213,7 @@ export const QUEST_LINES = Object.freeze({
     doneSub: line(1, ['cr'], (cr) => `+${cr} CR FUNDED`),
     none: line(1, [], () => "NO SUPPORT NEEDED"),
   }),
-  // The six reference ships' quests (src/specialQuests.js; src/specials.js gives the done row its pay).
+  // The reference ships' quests (src/specialQuests.js; src/specials.js gives the done row its pay).
   // The boss TOLLKEEPER's quest (src/bossQuest.js): story purple, its mark EXPLORE; in its fight its own name; the banners at its waking,
   // after a wreck and when it is beaten.
   // COMMONS's chain THE CHORUS (src/chorus.js): the story's purple; a voice's recorder found, then played back at COMMONS; its banners.
@@ -275,6 +275,12 @@ export const QUEST_LINES = Object.freeze({
     run: line(0, ['place'], (place) => `RUN: ${place}`),
     tail: line(1, [], () => 'ON YOUR TAIL', { timed: true }),
     shaken: line(0, [], () => 'PIRATES SHAKEN OFF'),
+    // The MYSTERY MACHINE's run: the count taken of the count it needs in its title, which the helmet's notch says with the clock (SX's
+    // «Строка задачи + плашка», 2026-10-21); what to do after the clock.
+    snacks: line(0, ['count', 'count'], (taken, need) => `SCOOBY SNACKS ${taken}/${need}`),
+    snacksSub: line(1, [], () => 'GRAB SNACKS', { timed: true, act: true }),
+    solved: line(0, [], () => 'MYSTERY SOLVED'),
+    hungry: line(1, [], () => 'SCOOBY STILL HUNGRY'),
     paid: line(1, ['cr'], (cr) => `+${cr} CR / GIFTS`),
   }),
   // The cargo carried, or lying in space, as a plate of the list, the last (src/tasks.js cargoQuests; SX, 2026-10-16: «о доставке груза

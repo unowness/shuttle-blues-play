@@ -169,7 +169,7 @@ export const QUESTS = {
       // the map really makes): EXPRESS three working stations in reach of a planet, so one restored (the start has two); SERENITY
       // a station two sectors off, so three (J-06 opens with the third); until then they were 0 and 1, and the ship that was due
       // could not be met at all (its plan found nothing) while the clock that paces them ran as if it could.
-      order: [['delorean', 0, 300], ['express', 1, 300], ['serenity', 3, 350], ['swordfish', 2, 400], ['falcon', 3, 450], ['xwing', 4, 500]],
+      order: [['delorean', 0, 300], ['scooby', 1, 300], ['express', 1, 300], ['serenity', 3, 350], ['swordfish', 2, 400], ['falcon', 3, 450], ['xwing', 4, 500]],
       invuln: 2.4,
       // The timed runs' paces (`speed`) and the X-WING's `time` follow the ships' tops: 380 and 260 until the world and the ships slowed (W2),
       // 285 and 195 and 160 s until the tops went to 0.85 of that, and 242, 166 and 188 s until 0.8 of it (2026-10-05), and 228, 156 and
@@ -180,6 +180,20 @@ export const QUESTS = {
       falcon: { waves: [4, 4, 4, 4], arrive: 1400, ring: 1500, overlap: 2 },
       serenity: { speed: 195, slack: 20, hullEnd: 0.05 },
       xwing: { time: 160, minLeg: spread(9000), maxLeg: spread(20000), spawnEvery: [6, 10], squad: 2, cap: 6 },
+      // The MYSTERY MACHINE's run (src/specialQuests.js scooby, src/scoobySnacks.js; SX, 2026-10-21: «давай надо собрать 75 минимум из 100,
+      // надо еще таймер подобрать удобный», «Таймер на весь квест»): `trails` trails of `per` snacks, `gap` u apart along each, laid in the
+      // sector where the van stands (each a walk of `legs` legs `leg` u long, bending up to `turn` rad, its snacks `clear` u off every
+      // planet, hole and station, `edge` of the sector in from its sides, `apart` u from the other trails and the van; `tries` walks a
+      // trail); `need` of them taken within the clock wins. The clock: the way through the trails a win needs (src/scoobySnacks.js
+      // trailWay: the nearest first, as many as hold `need`) at `speed` u/s and `slack` s over. Measured 2026-10-21 (a bot on the van's
+      // chassis steering its velocity at up to 500 u/s, 18 plans: 6 sectors x 3 seeds): the 75 taken in 39-51 s; the clock 1:24-1:48,
+      // 1.9 to 2.4 times that, for a pilot's hands («надо еще таймер подобрать удобный»). A snack is taken within the coin's reach (CONFIG.pickup.collectRadius) and the hull's, `nose` u
+      // more for the drawing's nose. `smoke`: the pipes' puffs (src/scoobySnacks.js stepSmoke). `art`: the snack drawn (SX's K1 LINE).
+      scooby: { trails: 4, per: 25, need: 75, gap: 70, legs: 6, leg: 380, turn: 0.75, clear: 520, edge: 0.08, apart: 650, tries: 60,
+        speed: 270, slack: 45, nose: 18,
+        smoke: { every: 0.045, life: 1.1, speed: 80, carry: 0.15, drag: 2.4, scatter: 0.55, moving: 140, max: 120, grow: 1.1,
+          ink: '#B7BEC6', alpha: 0.85, glyphs: ['·', '∘', 'o', 'O', 'O'] },
+        art: { scale: 0.5, spin: 1.1, body: '#C47A45', knob: '#EDD3A2' } },
     },
     errand: {
       pay: 450, reach: 460, minLeg: spread(2500), maxLeg: spread(9000),

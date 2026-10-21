@@ -85,9 +85,12 @@ export const PAINTS = Object.freeze([
     engine: '#B07E3E', engineActive: '#F0C070', smoke: '#D8B070', jets: '#D6DCE3', glassDark: '#6F7F8C' }),
   paint('sp-xwing', 'X-WING', { material: '#EEF1F4', structure: '#E8503A', highlight: '#7A8A9A',
     engine: '#A0A8B0', engineActive: '#FF7A5A', smoke: '#FFB8A0', jets: '#FFFFFF', glassDark: '#5A6670' }),
+  // The MYSTERY MACHINE's (2026-10-21): its turquoise, its lime wave, its orange flowers.
+  paint('sp-scooby', 'MYSTERY', { material: '#4FB3C2', structure: '#8BB33F', highlight: '#F0913A',
+    engine: '#3E8C98', engineActive: '#F0B05A', smoke: '#C9E07A', jets: '#E8F4F2', glassDark: '#5C6B78' }),
 ]);
 
-// The six paints the reference ships leave (found in no cache): the pilot card's PAINTS count and the caches' twelve are the others.
+// The seven paints the reference ships leave (found in no cache): the pilot card's PAINTS count and the caches' twelve are the others.
 export const SPECIAL_PAINTS = Object.freeze(PAINTS.filter((p) => p.id.startsWith('sp-')).map((p) => p.id));
 
 // Paints of an older save, by what they became (2026-09-30): SUNSET's place went to

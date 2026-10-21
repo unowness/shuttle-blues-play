@@ -174,6 +174,7 @@ CHASSIS.hauler = {
 //   MILLENNIUM FALCON  tough: much hull, a fast gun, a sulky turn
 //   SERENITY         fragile: a big drawing and a thin hull (it is going down, besides: src/specialQuests.js)
 //   X-WING           agile: the quickest turn there is, a quick gun, a small body
+//   MYSTERY MACHINE  small: quick to answer and to turn, slower at the top, a soft hull
 CHASSIS['special-delorean'] = {
   ...CHASSIS.standard, id: 'special-delorean', label: 'DELOREAN',
   thrust: 1050, retro: 780, turnRate: 3.6, turnAccel: 18, maxSpeed: 1270, colliderRadius: 36,
@@ -204,15 +205,23 @@ CHASSIS['special-xwing'] = {
   thrust: 980, retro: 750, turnRate: 4.8, turnAccel: 24, maxSpeed: 1200, colliderRadius: 34,
   fireInterval: 0.09, hull: 90, tank: 100, burn: 0.5,
 };
-// All six are reference ships: whatever the dock has, one docks outside (src/docking.js), and so does a crew's ship below.
-for (const id of ['delorean', 'swordfish', 'express', 'falcon', 'serenity', 'xwing']) CHASSIS[`special-${id}`].reference = true;
+// The MYSTERY MACHINE (SX, 2026-10-21): a small van on a trail of snacks, quick to answer and to turn so it keeps to the trail's bends,
+// slower at the top than the standard, a soft hull, no gun of its own.
+CHASSIS['special-scooby'] = {
+  ...CHASSIS.standard, id: 'special-scooby', label: 'MYSTERY MACHINE',
+  thrust: 900, retro: 760, turnRate: 4.2, turnAccel: 22, maxSpeed: 880, colliderRadius: 34,
+  hull: 80, tank: 100, burn: 0.5,
+};
+// All seven are reference ships: whatever the dock has, one docks outside (src/docking.js), and so does a crew's ship below.
+const REFERENCE_IDS = ['delorean', 'swordfish', 'express', 'falcon', 'serenity', 'xwing', 'scooby'];
+for (const id of REFERENCE_IDS) CHASSIS[`special-${id}`].reference = true;
 
 // The crews' ships in the pilot's hangar once their run is won (src/hangar.js CREW_SHIPS): each its quest's chassis (its top, its turn,
 // its body, its hull), with the STANDARD's tank and gun (SX's W6 «B», 2026-10-15, labs/graphics/sketches/firefox-checks.html: the
 // quest's tank and burn gave twice the STANDARD's range, 11:07 to 5:33, and SWORDFISH II's gun four times its fire). In its quest the
 // ship is borrowed and keeps all of its own (`special-<id>`).
 const STANDARD_TANK_AND_GUN = ['tank', 'burn', 'fireInterval', 'muzzleSpeed', 'gun'];
-for (const id of ['delorean', 'swordfish', 'express', 'falcon', 'serenity', 'xwing']) {
+for (const id of REFERENCE_IDS) {
   const own = { ...CHASSIS[`special-${id}`], id: `crew-${id}` };
   for (const key of STANDARD_TANK_AND_GUN) if (key in CHASSIS.standard) own[key] = CHASSIS.standard[key]; else delete own[key];
   CHASSIS[`crew-${id}`] = own;

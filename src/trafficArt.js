@@ -1,5 +1,8 @@
 // The drawings of the hidden sector's character ships: PLANET EXPRESS, SERENITY,
-// X-WING, MILLENNIUM FALCON and DELOREAN (src/traffic.js), and SWORDFISH II since 2026-10-01 (its own note below).
+// X-WING, MILLENNIUM FALCON and DELOREAN (src/traffic.js), and SWORDFISH II since 2026-10-01 (its own note below); and the
+// MYSTERY MACHINE since 2026-10-21, a reference ship only (src/specialShips.js), not one of O-08's (its own note below).
+import { PALETTE } from './palette.js';
+
 //
 // Codex's sheet (labs/graphics/sketches/iconic-ships.html), the `top` pose of each entry
 // of SHIP_SPRITES in labs/graphics/sketches/iconic-ships.js, copied here verbatim on
@@ -216,6 +219,32 @@ export const CRAFT_ART = Object.freeze({
       "          aaa          ",
       "        baaaaab        ",
       "        bbbbbbb        ",
+    ],
+  },
+  // The Mystery Machine: 7 x 7 cells. Not Codex's: drawn on labs/graphics/sketches/scooby-van.html, SX's V11 MINI II (2026-10-21: «берем
+  // V11 Mini 2 и цветочек только перенеси на серединку»), in BOKS's manner at the friendly ships' size, worn as the die-cast toy he sent
+  // wears it: the lime spare wheel with its orange flower on the chrome bumper, the yellow lamps, the windscreen, the turquoise sides,
+  // the lime wave in them with the wheels hidden under them, a flower in the middle of the roof, the two exhaust pipes (its smoke,
+  // src/scoobySnacks.js). The lamps are the palette's amber, the rest the van's own.
+  "mystery-machine": {
+    palette: {"b": "#4FB3C2", "g": "#8BB33F", "o": "#F0913A", "w": "#BFD9E0", "l": PALETTE.amber, "c": "#C3CCD3", "k": "#4E545B"},
+    glyphs: [
+      " -(✿)- ",
+      "/o   o\\",
+      "[=====]",
+      "{‖   ‖}",
+      "{‖ ✿ ‖}",
+      "[\\___/]",
+      " \"   \" ",
+    ],
+    colors: [
+      " cgogc ",
+      "bl   lb",
+      "kwwwwwk",
+      "gb   bg",
+      "gb o bg",
+      "kbbbbbk",
+      " c   c ",
     ],
   },
 });

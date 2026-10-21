@@ -5,10 +5,11 @@ import { sectorOpen } from './frontier.js';
 import { clearSpot, questSectors, pickOf } from './spots.js';
 import { makeTrain, stepTrain, drawTrain } from './train.js';
 import { goneCells, brokenShare, specialModel } from './specialShips.js';
+import { layTrails, snacksOf, trailWay, drawSnack, snackSpin, snackBits, pipesOf, stepSmoke, drawSmoke } from './scoobySnacks.js';
 import { lerp, clamp } from './util.js';
 import { QUEST_LINES as QL } from './questLines.js';
 
-// The six reference ships' quests (QUESTS_V2_HANDOFF.md, round three; SX, 2026-10-02, each in his words: «Это с Марти
+// The reference ships' quests (the six of QUESTS_V2_HANDOFF.md, round three, and the MYSTERY MACHINE's of 2026-10-21, below; SX, 2026-10-02, each in his words: «Это с Марти
 // Макфлаем скорее на скорость надо долететь. Если со спайком, то победить где-то большое количество пиратов. На
 // планет-экспресс ... паровозик грузов из трех грузов ... по трем разным станциям. Корабль Хана Соло точно битва в
 // космосе с пиратами. У какой-нибудь разбитой станции. Сиренити ... долететь до какой-то станции через два сектора ...
@@ -99,6 +100,14 @@ export function readPlan(world, id, raw) {
     case 'swordfish': {
       const ground = readDest(world, raw.ground, ['point']);
       return ground ? { ground, waves: c.waves.slice(), total: sum(c.waves) } : null;
+    }
+    case 'scooby': {
+      // The trails by their points (fractions of the sector, a little past its sides where a walk went on), their snacks worked out again.
+      const sector = sectorById(raw.sectorId), point = (p) => Array.isArray(p) && p.length === 2 && p.every((v) => Number.isFinite(v) && v > -1 && v < 2);
+      if (!sector || !openTo(world, sector.id) || !seconds || !Array.isArray(raw.trails) || raw.trails.length !== c.trails) return null;
+      if (!raw.trails.every((t) => Array.isArray(t) && t.length === c.legs + 1 && t.every(point))) return null;
+      const trails = raw.trails.map((t) => t.map(([x, y]) => [x, y])), total = snacksOf(trails, W, H).length;
+      return total >= c.need ? { sectorId: sector.id, trails, total, need: c.need, distance, time: seconds } : null;
     }
     case 'express': {
       const planet = readDest(world, raw.planet, ['planet']);
@@ -393,4 +402,67 @@ const xwing = {
       target: target(d), win: QL.special.shaken(), lose: [QL.special.runFailed(), QL.special.missed()] };
   },
 };
-export const HANDLERS = Object.freeze({ delorean, swordfish, express, falcon, serenity, xwing });
+// The MYSTERY MACHINE (SX, 2026-10-21: «Ты садишься в тачку. И появляются ... скуби-снеки. И появляется счетчик, сколько ты собрал. И квест
+// надо собрать какое-то определенное количество»; «давай надо собрать 75 минимум из 100»; «Таймер на весь квест»): Scooby snacks laid
+// as trails in the sector where it stands (src/scoobySnacks.js), `need` of them taken before the clock; the count in its title (the plate's
+// and the helmet's notch's), a +1 where each is taken, its crunch (src/audio.js), the smoke out of its pipes while it moves.
+const scooby = {
+  plan(world, site) {
+    const c = C().scooby, trails = layTrails(world, site, world.rng('quest'));
+    if (!trails) return null;
+    const way = Math.round(trailWay(site, snacksOf(trails, W, H), c.need));
+    return { sectorId: site.sectorId, trails, total: c.trails * c.per, need: c.need, distance: way, time: Math.round(way / c.speed + c.slack) };
+  },
+  rows: (p) => ['LIKE, ZOINKS, PILOT!', `GRAB ${p.need} SCOOBY SNACKS`, 'BEFORE SCOOB STARVES.'],
+  start(world, s) {
+    s.q = { ends: world.ledger.clock + s.plan.time, snacks: snacksOf(s.plan.trails, W, H), taken: 0, smoke: { puffs: [], due: 0, n: 0, sectorId: null } };
+  },
+  step(world, s, dt, end) {
+    const c = C().scooby, q = s.q, ship = world.ship;
+    // The smoke, in the sector's own units: puffs of a sector left behind are dropped.
+    if (q.smoke.sectorId !== world.sector.id) { q.smoke.puffs = []; q.smoke.sectorId = world.sector.id; }
+    const scale = ship.model?.scale ?? 1;
+    stepSmoke(q.smoke, ship, pipesOf(ship.model), ship.metrics ?? { w: 9 * scale, h: 15 * scale }, dt);
+    // Taken by touching, as a coin is (src/pickups.js), and passed over in a jump.
+    if (world.sector.id === s.plan.sectorId && ship.alive && !ship.airborne) {
+      const reach = CONFIG.pickup.collectRadius + ship.radius + c.nose;
+      for (const p of q.snacks) {
+        if (p.taken) continue;
+        const d = world.delta(ship.x, ship.y, p.x, p.y);
+        if (Math.hypot(d.x, d.y) > reach) continue;
+        p.taken = true;
+        q.taken += 1;
+        world.particles.burst(p.x, p.y, snackBits(), { vx: ship.vx * 0.5, vy: ship.vy * 0.5, speed: [40, 150], life: [0.25, 0.6] });
+        world.emit('snackTaken', { count: q.taken, need: s.plan.need, x: p.x, y: p.y, sectorId: world.sector.id });
+      }
+    }
+    if (q.taken >= s.plan.need) end.win(world);
+    else if (world.ledger.clock >= q.ends) end.lose(world, 'TIME');
+  },
+  // The pointer leads to the nearest snack left (in the trails' sector, from the ship; elsewhere the first left).
+  words(world, s) {
+    const q = s.q, here = world.sector.id === s.plan.sectorId, ship = world.ship;
+    let near = null, best = Infinity;
+    for (const p of q.snacks) {
+      if (p.taken) continue;
+      const d = here ? Math.hypot(p.x - ship.x, p.y - ship.y) : 0;
+      if (d < best) { best = d; near = p; }
+      if (!here) break;
+    }
+    const sector = sectorById(s.plan.sectorId), spot = near ? { x: near.x / W, y: near.y / H } : { x: 0.5, y: 0.5 };
+    return { title: QL.special.snacks(q.taken, s.plan.need), sub: QL.special.snacksSub(), pointer: 'SNACKS', ends: q.ends, time: s.plan.time,
+      target: target(pointDest(sector.id, spot, CONFIG.pickup.collectRadius + 40, sector.label)),
+      win: QL.special.solved(), lose: [QL.special.runFailed(), QL.special.hungry()] };
+  },
+  draw(world, s, r, t) {
+    const q = s.q;
+    drawSmoke(r, q.smoke, (x, y) => world.project(r, x, y));
+    if (world.sector.id !== s.plan.sectorId) return;
+    q.snacks.forEach((p, i) => {
+      if (p.taken) return;
+      const at = world.project(r, p.x, p.y);
+      if (r.onScreen(at.x, at.y, 40)) drawSnack(r, at.x, at.y, snackSpin(t, i));
+    });
+  },
+};
+export const HANDLERS = Object.freeze({ delorean, swordfish, express, falcon, serenity, xwing, scooby });

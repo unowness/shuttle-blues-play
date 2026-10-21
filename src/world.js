@@ -68,7 +68,7 @@ import { loadSector, layEdges, openNeighbour, sectorBodies, neighbourSectors, be
 import { transitHole, exitHeading, coastsClear } from './holePassage.js';
 import { signsIn, signIssue, signCheck, leaveSign, removeSign } from './signWork.js';
 import { hangarStation, buyShip, flyShip } from './hangarWork.js';
-import { dealNew, rollStartRuin, recastStations } from './pilotDeal.js';
+import { dealNew, rollStartRuin, recastStations, dealSpecials } from './pilotDeal.js';
 import { stepVanishing } from './vanish.js';
 
 // The most events the queue holds before the oldest go (World.emit).
@@ -1125,6 +1125,7 @@ export class World {
   // A new pilot's deal (src/pilotDeal.js): the finds dealt, the start ruin rolled, the stations built again under it.
   dealNew(rng) { return dealNew(this, rng); }
   rollStartRuin(rng, options) { return rollStartRuin(this, rng, options); }
+  dealSpecials(rng) { return dealSpecials(this, rng); }
   recastStations() { return recastStations(this); }
 
   // Lays every find the rule has opened and that lies nowhere yet (src/cachePlaces.js), and builds this sector's caches

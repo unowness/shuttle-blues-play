@@ -163,6 +163,8 @@ export const EVENTS = Object.freeze({
   specialSeen: E('id label sectorId'),
   specialBoarded: E('id label x y sectorId'),
   specialStage: E('id stage x y sectorId left'),
+  // A Scooby snack taken on the MYSTERY MACHINE's run (src/specialQuests.js scooby): the count taken, the count it needs.
+  snackTaken: E('count need x y sectorId'),
   specialDone: E('id label x y sectorId paint cockpit note pay credits', 'special'),
   specialFailed: E('id label x y sectorId why'),
   specialGone: E('id sectorId'),

@@ -87,7 +87,7 @@ export function applyReviewLinks(game) {
     world.pirateReadyAt = Infinity;
     startRaid(world, launch.get('raid') || null);
   }
-  // `?special=<ship>` (delorean, swordfish, express, falcon, serenity, xwing): that reference ship standing near the ship at once
+  // `?special=<ship>` (delorean, swordfish, express, falcon, serenity, xwing, scooby): that reference ship standing near the ship at once
   // (src/specials.js), its note forgotten if the save holds it.
   if (!GAME && launch.has('special')) {
     const id = launch.get('special');
