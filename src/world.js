@@ -418,6 +418,9 @@ export class World {
     // CLIPPER drawn as its crew flies it, lent by the page (labs/graphics/clipper-art.js): { draw(r, x, y, angle, o), craft() }; null in a
     // check's world (nothing drawn, no beam: src/clipper.js).
     this.clipperArt = null;
+    // A talk the world calls the pilot to, whatever the ship is next to (src/clipper.js: the crew left a screen behind): { n, menu }, its
+    // window standing by itself (labs/graphics/talk-beat.js), or null. Never saved.
+    this.talkCall = null;
     this.egg = { held: 0, done: false }; // src/eggs.js's own
 
     if (quiet) this.quieten();

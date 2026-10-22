@@ -4,6 +4,7 @@ import { TERRA, terraOf, terraSpot, placeTerra } from './terra.js';
 import { noteVanish } from './vanish.js';
 import { QUEST_LINES as QL } from './questLines.js';
 import { clamp, TAU } from './util.js';
+import { ROLES } from './roles.js';
 
 // CLIPPER, the eighth reference ship: SX (ROUXEE) and his friend Pasha (KWLSK), who tested the game, on their way to a beta test (SX,
 // 2026-10-21, labs/graphics/sketches/clipper-beta.html: «встречаешь этот корабль ... две полосочки, с текстом, один от меня, другой от Паши
@@ -15,12 +16,13 @@ import { clamp, TAU } from './util.js';
 // CLIPPER is led, never flown (`escort` in src/specialShips.js): the pilot stays in their own ship.
 //
 //   seen     it stands (its nose any way, fidgeting); a pilot who comes near hears KWLSK, then ROUXEE, over it in strips; up close its window
-//            is the talk (KWLSK, ROUXEE, YOU, RADIO, KWLSK: a script, labs/graphics/talk-beat.js) and LEAD THEM
+//            offers TALK, and the talk (the meeting's two, KWLSK, ROUXEE, YOU, RADIO, KWLSK: a script, labs/graphics/talk-beat.js) LEAD THEM
 //   follow   TERRA comes to stand (src/terra.js), out of sight a sector or two off; the crew follows the pilot, slower, backwards as often
-//            as not (R4 FIDGET); left a screen behind they stop, the quest says to go back for them, and back in sight KWLSK calls; on the
-//            way three exchanges, each said only in sight; partway, two DARTs come at them, and the crew shoots with the pilot
-//   round    at TERRA: KWLSK's thanks, a turn round it, slowing to a stop
-//   still    ROUXEE's last word, and once it has stood its time the beam takes them (src/vanish.js, SX's G3 BEAM): the quest won
+//            as not (R4 FIDGET); left a screen behind they stop and call in their window, the quest says to go back for them; on the way
+//            three exchanges, one line at a time, each said only near the pilot; partway, two DARTs come at them, and the crew flies round
+//            them shooting; whatever they said stands in their window, TALK up close
+//   still    at TERRA they stop beside the pilot: KWLSK's thanks, ROUXEE's last word, and once it has stood its time the beam takes them
+//            (src/vanish.js, SX's G3 BEAM): the quest won
 //
 // The crew's place is the grid's (world units of the whole grid, `q.x`, `q.y`), so it crosses the seams with the pilot; drawn and spoken
 // where it falls in the sector the pilot is in. Nothing of the escort is saved: a game loaded during it has CLIPPER standing where it was
@@ -33,13 +35,15 @@ export const CLIPPER_ID = 'clipper';
 // Who is aboard, by their handles (SX, 2026-10-21: «паша пусть будет KWLSK»; «Давай мой ник будет Рокси с двумя И»).
 export const CREW = Object.freeze({ sx: 'ROUXEE', pasha: 'KWLSK' });
 const YOU = 'YOU', RADIO = 'RADIO';
-// Each of the two speaks as a craft of its own, so both strips stand at once (src/feedback.js keeps one hail a craft): CLIPPER's place.
+// Each of the two speaks as a craft of its own (src/feedback.js keeps one hail a craft): CLIPPER's place.
 export const CREW_HAILS = Object.freeze({ [CREW.sx]: 'clipper-rouxee', [CREW.pasha]: 'clipper-kwlsk' });
 export const isCrewHail = (id) => id === CREW_HAILS[CREW.sx] || id === CREW_HAILS[CREW.pasha];
 
 // SX's own lines (2026-10-21, his table of «Где / Кто / Текст»; labs/graphics/sketches/clipper-beta.js LINES), word for word: met (strips),
-// the talk (the window), the way's three exchanges (strips), the call when the pilot comes back for them, after the pirates, at TERRA, and
-// ROUXEE's last before the beam (after Furious 7's «One last ride»). TERRA's name is a placeholder.
+// the talk (the window), the way's three exchanges (strips), after the pirates, at TERRA, and ROUXEE's last before the beam (after Furious
+// 7's «One last ride»). `calls`: what they say, one in turn, when the pilot has left them a screen behind, in their window (SX, 2026-10-22:
+// «чувак, давай без спидранов, можешь за нами вернуться, мы тут плохо ориентируемся. Ну и надо предусмотреть там 4 фразочки таких»: the
+// first two his, the other two drafts, product copy). TERRA's name is a placeholder.
 export const LINES = Object.freeze({
   meet: [[CREW.pasha, 'PSST! DUDE! KNOW WHERE THE BETA TEST IS?'], [CREW.sx, 'WE WERE SUPPOSED TO BE THERE YESTERDAY.']],
   talk: [
@@ -54,20 +58,22 @@ export const LINES = Object.freeze({
     [[CREW.pasha, 'JUST CHECKING THE REAR VIEW.'], [CREW.sx, 'WITH THE FRONT OF THE SHIP.']],
     [[CREW.pasha, "THINK WE'LL MAKE THE CREDITS?"], [CREW.sx, 'AT LEAST THE PATCH NOTES.']],
   ],
-  wait: [[CREW.pasha, 'NO SPEEDRUNS, DUDE!']],
+  calls: [[CREW.pasha, 'DUDE, NO SPEEDRUNS! COME BACK FOR US.'], [CREW.sx, "WE'RE REALLY BAD AT DIRECTIONS, DUDE."],
+    [CREW.pasha, "WAIT UP! OUR LOCATOR'S STILL IN BETA."], [CREW.sx, "HELLO? WE'RE LOST WITHOUT YOU, DUDE."]],
   fight: [[CREW.sx, 'THAT WAS EASY.'], [CREW.pasha, 'SSS RANK. DMC5 TAUGHT ME WELL.']],
   bye: [[CREW.pasha, "THANKS, DUDE. WE'LL TAKE IT FROM HERE."]],
   last: [[CREW.sx, 'I SWEAR. THAT WAS OUR LAST RIDE.']],
 });
-// What the window says, as the script's lines (src/specials.js specialCandidates): each its speaker; the two strips of the meeting said
-// before it, so the script begins with them (SX, 2026-10-22: «И начинаться все должно быть дюд»).
-export const talkOf = () => LINES.talk.map(([who, line]) => ({ who, line }));
+// What the window says, as the script's lines (src/specials.js specialCandidates): each its speaker, RADIO's name in the radio's blue (SX,
+// 2026-10-22: «И радио там фиолетовым подсвечено ... синим, наверное. Как радио»); the two strips of the meeting said before it, so the
+// script begins with them (SX: «И начинаться все должно быть дюд»).
+export const talkOf = () => LINES.talk.map(([who, line]) => ({ who, line, ...(who === RADIO ? { nick: ROLES.structure } : null) }));
 export const meetOf = () => LINES.meet.map(([who, line]) => ({ who, line }));
 
-// How long a line stands: long enough to read while flying (SX: «чтобы фразочки ... довольно долго на экране висели»). And how long before
-// the next of a pair is said: the time to read the first (SX's P1, «фразочки слишком быстро»; 1.3 s till then).
+// How long a line stands: long enough to read while flying (SX: «чтобы фразочки ... довольно долго на экране висели»).
 export const readLife = (line) => Math.max(C().read.least, C().read.base + line.length / C().read.chars);
-const readTime = (line) => C().pace.base + line.length / C().pace.cps;
+// The id a reference ship's menu goes by (src/specials.js SPECIAL_ID; not imported: src/specials.js imports this file).
+const MENU_ID = 'special-ship';
 
 // ---- places ------------------------------------------------------------------------------------------------------------------
 
@@ -123,18 +129,29 @@ function keepOff(world, at) {
 
 // ---- what they say -----------------------------------------------------------------------------------------------------------
 
-// Lines to be said from `due` (world time), a pair's second once its first has been read (`readTime`).
-function queue(list, lines, due) { lines.forEach(([who, line], i) => list.push({ due, who, line, pair: i > 0 })); }
-// The lines due, said while `at` (the pilot's sector's units) is in sight; returns the lines said.
-function sayDue(world, list, at) {
-  const said = [];
-  while (list.length && world.time >= list[0].due && inSight(world, at)) {
-    const e = list.shift();
-    world.emit('trafficHail', { craftId: CREW_HAILS[e.who], label: e.who, line: e.line, life: readLife(e.line), x: at.x, y: at.y, sectorId: world.sector.id });
-    said.push(e);
-    if (list[0]?.pair) list[0].due = Math.max(list[0].due, world.time + readTime(e.line));
-  }
-  return said;
+// Lines to be said from `due` (world time), one after another.
+function queue(list, lines, due) { for (const [who, line] of lines) list.push({ due, who, line }); }
+// The first line due, said while `at` (the pilot's sector's units) is in sight and near the pilot (`near` u), and only once the line before
+// it has stood its time and `gap` s more (`gate.freeAt`): never two at once (SX, 2026-10-22: «пусть прям сразу фразы не появляются
+// одновременно и одного, и другого персонажа. Они должны как бы по очереди появляться»; «фразы активировались, когда они в непосредственной
+// близости»). Said, it goes into `log` too, the crew's window's (`talkMenu`). Returns the line said, or null.
+function sayDue(world, list, at, gate, log = null) {
+  const e = list[0], ship = world.ship;
+  if (!e || world.time < e.due || world.time < (gate.freeAt ?? -Infinity) || !inSight(world, at) || Math.hypot(at.x - ship.x, at.y - ship.y) > C().near) return null;
+  list.shift();
+  world.emit('trafficHail', { craftId: CREW_HAILS[e.who], label: e.who, line: e.line, life: readLife(e.line), x: at.x, y: at.y, sectorId: world.sector.id });
+  gate.freeAt = world.time + readLife(e.line) + C().gap;
+  log?.push([e.who, e.line]);
+  return e;
+}
+
+// The crew's window: its script, what they said in the window and on the way (`q.log`), each line once; the call standing among it.
+function talkMenu(world, s, at) {
+  const sp = { name: 'CLIPPER', place: 'CLIPPER' }, log = s.q?.log ?? [];
+  return { id: MENU_ID, title: sp.name, subtitle: `${CREW.sx} / ${CREW.pasha}`, x: at.x, y: at.y, interactRadius: CONFIG.quests.special.reach,
+    art: { model: { width: 8, height: 6 }, scale: 1.5, turns: true },
+    talk: { ...sp, before: meetOf(), lines: [...talkOf(), ...log.map(([who, line], i) => ({ who, line, key: `${s.questId}:${i}` }))], thread: s.questId },
+    actions: [] };
 }
 
 // ---- the handler (src/specials.js) -----------------------------------------------------------------------------------------------
@@ -156,7 +173,7 @@ export function readClipperPlan(world, raw, open) {
 
 // Met: KWLSK, then ROUXEE, over it (its strips while it stands, `s.greet`).
 function meet(world, s) { s.greet = []; queue(s.greet, LINES.meet, world.time); }
-function standing(world, s) { if (s.greet?.length) sayDue(world, s.greet, { x: s.site.x, y: s.site.y }); }
+function standing(world, s) { if (s.greet?.length) sayDue(world, s.greet, { x: s.site.x, y: s.site.y }, s); }
 
 // LEAD THEM: TERRA comes to stand; the crew starts from where it stood, backwards, the way's lines on their times.
 function start(world, s) {
@@ -164,17 +181,21 @@ function start(world, s) {
   const from = gridOf(s.site.sectorId, s.site.x / W, s.site.y / H), to = terraAt(world);
   s.q = { stage: 'follow', x: from.x, y: from.y, vx: 0, vy: 0, course: s.site.angle, nose: s.site.angle + P, engine: false, t0: world.time,
     d0: Math.max(1, Math.hypot(to.x - from.x, to.y - from.y)), lag: false, say: [], fight: 'ahead', shotIn: 0, aim: 0, aimAt: -Infinity,
-    round: null, beamAt: null };
+    beamAt: null, log: [], freeAt: -Infinity, calls: 0 };
   C().road.forEach((t, i) => queue(s.q.say, LINES.road[i], world.time + t));
   world.emit('specialStage', { id: CLIPPER_ID, stage: 'led', x: world.ship.x, y: world.ship.y, sectorId: world.sector.id });
 }
 
-// The crew after the pilot: `follow` u behind, slower; past `lag` u they stop until the pilot is back in sight.
-function follow(world, q, dt) {
-  const c = C(), o = origin(world), ship = world.ship, f = fidget(world.time - q.t0);
+// The crew after the pilot: `follow` u behind, slower; past `lag` u (a screen) they stop and call, one of their `calls` in turn, in their
+// window standing by itself (`world.talkCall`, labs/graphics/talk-beat.js; SX's W1), until the pilot is back in sight.
+function follow(world, s, dt) {
+  const q = s.q, c = C(), o = origin(world), ship = world.ship, f = fidget(world.time - q.t0);
   const dx = o.x + ship.x - q.x, dy = o.y + ship.y - q.y, d = Math.hypot(dx, dy) || 1;
-  if (d > c.lag) q.lag = true;
-  else if (q.lag && inSight(world, localOf(world, q))) { q.lag = false; q.say.unshift(...LINES.wait.map(([who, line]) => ({ due: world.time, who, line, pair: false }))); }
+  if (d > c.lag && !q.lag) {
+    q.lag = true;
+    q.log.push(LINES.calls[q.calls++ % LINES.calls.length]);
+    world.talkCall = { n: `${s.questId}:${q.calls}`, menu: talkMenu(world, s, localOf(world, q)) };
+  } else if (q.lag && inSight(world, localOf(world, q))) { q.lag = false; world.talkCall = null; }
   const want = !q.lag && ship.alive ? clamp((d - c.follow) / c.ramp, 0, 1) * c.speed * f.share : 0, push = keepOff(world, localOf(world, q));
   steer(q, (dx / d) * want + push.x, (dy / d) * want + push.y, dt);
   q.nose = world.time - q.aimAt < 0.6 ? q.aim + 0.05 * Math.sin(world.time * 9.1) : q.course + f.turn;
@@ -241,27 +262,17 @@ function shoot(world, q, dt) {
   world.emit('shotFired', { owner: 'clipper', x: at.x, y: at.y, sectorId: world.sector.id });
 }
 
-// At TERRA: KWLSK's thanks, one turn round it close over its rim (`orbit` u; SX, 2026-10-22: «кружит вокруг планеты, но очень далеко от
-// планеты, и ты не видишь фразы»: 520 u off it and a stop wherever the time ran out until then), easing to a stop over the last `stop` s
-// where it began, on the side it came from, where the pilot led it; then ROUXEE's last word.
-function beginRound(world, q) {
-  const to = terraAt(world), dx = q.x - to.x, dy = q.y - to.y;
-  q.stage = 'round';
+// At TERRA: they come to a stop beside the pilot and say their last two, KWLSK's thanks, then ROUXEE's last word (SX, 2026-10-22: «около
+// терры не должен корабль кружить. Пусть мы просто подлетаем вместе и финальные фразы говорят»; one turn round it until then).
+function arrive(world, q) {
+  q.stage = 'still';
   q.say = [];
-  queue(q.say, LINES.bye, world.time);
-  q.round = { a: Math.atan2(dy, dx), r: Math.hypot(dx, dy), done: 0, dir: dx * q.vy - dy * q.vx < 0 ? -1 : 1 };
+  queue(q.say, [...LINES.bye, ...LINES.last], world.time);
 }
-function round(world, q, dt) {
-  const c = C(), to = terraAt(world), R = q.round;
-  const k = clamp((TAU - R.done) / (c.spin * c.stop), 0.06, 1), turn = Math.min(TAU - R.done, c.spin * k * dt);
-  R.done += turn; R.a += R.dir * turn;
-  R.r += (rim() + c.orbit - R.r) * Math.min(1, dt * 1.5);
-  const x = to.x + Math.cos(R.a) * R.r, y = to.y + Math.sin(R.a) * R.r;
-  q.vx = (x - q.x) / dt; q.vy = (y - q.y) / dt; q.x = x; q.y = y;
-  if (k > 0.2) q.course = Math.atan2(q.vy, q.vx);
-  q.nose = q.course + 0.04 * Math.sin(world.time * 4.7);
-  q.engine = k > 0.35;
-  if (R.done >= TAU - 1e-6) { q.stage = 'still'; q.vx = 0; q.vy = 0; queue(q.say, LINES.last, world.time); }
+function still(world, q, dt) {
+  steer(q, 0, 0, dt);
+  q.nose = q.course + 0.12 * Math.sin(world.time * 4.7) + 0.05 * Math.sin(world.time * 9.1);
+  q.engine = false;
 }
 
 function step(world, s, dt, end) {
@@ -269,19 +280,20 @@ function step(world, s, dt, end) {
   if (q.stage === 'gone') return;
   if (q.stage === 'follow') {
     const foe = nearestPirate(world, localOf(world, q), C().fight.engage);
-    if (foe) engage(world, q, foe, dt); else { q.circle = null; follow(world, q, dt); }
+    if (foe) engage(world, q, foe, dt); else { q.circle = null; follow(world, s, dt); }
     fight(world, q);
     const to = terraAt(world);
-    if (to && Math.hypot(to.x - q.x, to.y - q.y) <= rim() + C().arrive) beginRound(world, q);
-  } else if (q.stage === 'round') round(world, q, dt);
+    if (to && !q.lag && Math.hypot(to.x - q.x, to.y - q.y) <= rim() + C().arrive) arrive(world, q);
+  } else still(world, q, dt);
   if (q.stage !== 'still') shoot(world, q, dt);
-  const at = localOf(world, q);
-  for (const e of sayDue(world, q.say, at)) if (e.line === LINES.last[0][1]) q.beamAt = world.time + readLife(e.line);
+  const at = localOf(world, q), said = sayDue(world, q.say, at, q, q.log);
+  if (said?.line === LINES.last[0][1]) q.beamAt = world.time + readLife(said.line);
   // ROUXEE's last word has stood its time: the beam takes them (the look where they are, the page's drawing lent: world.clipperArt).
   if (q.beamAt != null && world.time >= q.beamAt) {
     const craft = world.clipperArt?.craft();
     if (craft && nearSector(at)) noteVanish(world, 'craft', craft, { x: at.x, y: at.y, vx: 0, vy: 0, angle: q.nose });
     q.stage = 'gone';
+    world.talkCall = null;
     end.win(world);
   }
 }
@@ -308,7 +320,14 @@ function draw(world, s, r, t) {
 }
 function drawStanding(world, s, r, t, p) { world.clipperArt?.draw(r, p.x, p.y, standingNose(s, t), { t }); }
 
-export const clipper = Object.freeze({ plan, rows: () => LINES.meet.map(([, line]) => line), meet, standing, start, step, words, draw, drawStanding });
+// Its window while it is led: within reach and not calling, everything said so far, to read again (`talkMenu`; SX, 2026-10-22: «надо как-то
+// дать игроку возможность читать всю переписку с ними»).
+function candidates(world, s) {
+  const at = clipperPose(world);
+  return at && s.q?.stage !== 'gone' ? [talkMenu(world, s, at)] : [];
+}
+
+export const clipper = Object.freeze({ plan, rows: () => LINES.meet.map(([, line]) => line), meet, standing, start, step, words, draw, drawStanding, candidates });
 
 // ---- for the page ----------------------------------------------------------------------------------------------------------------
 

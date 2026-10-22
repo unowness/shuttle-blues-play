@@ -15,8 +15,10 @@
 // The talk is written as a script (SX, 2026-10-22, on D2 SCRIPT of labs/graphics/sketches/clipper-beta.html: «диалог в виде скрипта вообще
 // отличный вариант. Наверное, я бы и другие диалоги хотел так»; the game's dialogs on labs/graphics/sketches/talk-script.html): who speaks in a
 // column at the left, the line beside it wrapped under itself; the whole conversation in one window, kept from its first line (a quest's plea,
-// the pilot's answer, the thanks), the lines coming one at a time at a reading pace (SX's P1, «фразочки слишком быстро ... их не успеваешь
-// прочитать»: a second and a second a dozen letters, 2.5 s and 0.03 s a letter till then) and the window as tall as all of them from the first; the
+// the pilot's answer, the thanks), the lines coming one at a time at a reading pace (SX, 2026-10-22: «фразочки слишком быстро ... их не
+// успеваешь прочитать», then of his P1, a second and a second a dozen letters, «очень медленно появляются строчки. Надо все-таки быстрее»: 0.8 s
+// and a second each 18 letters, 2.9 s a line of 38; 1.4 s and 0.03 s a letter at first) and the window as tall as all of them from the first;
+// its answers once all of it is said (SX: «сначала разговор должен быть»; a press before then says the rest at once); the
 // pilot's pressed answer written into it as YOU's, an action between asterisks, YOU and the action in gray (SX: «писать строки you серым.
 // Писать действия»); whoever speaks to the pilot in the ink of the talk's quest (src/roles.js QUEST_INKS by its rows' tone, the story's purple
 // where none: «зеленый квест ... зеленый ники. Фиолетовый квест ... фиолетовые ники»), and only a quest's answer framed in that ink («рамочка
@@ -27,9 +29,13 @@
 //
 // A talk's data (`target.talk`): { name, lines, before?, thread?, place?, live? }. `lines` strings are said by the one `name` names, together
 // as one line (old saves and quest data read as before: "RELAY 12 MECHANIC" is the station's desk, "SCOOTY / MECHANIC" a person and a role,
-// anything else one name), or { who, line, ink, key } a line of its own speaker's; `before` what was said earlier in the same conversation (a plea a
+// anything else one name), or { who, line, ink, nick, key } a line of its own speaker's (`nick` its name's own ink: CLIPPER's RADIO the
+// radio's blue); `before` what was said earlier in the same conversation (a plea a
 // hail said), written first where the script does not hold it yet; `place` the head's right where the target is no station; `live` the world not
 // slowed (COMMONS's recordings play on the world's clock).
+//
+// A call (`world.talkCall` { n, menu }: CLIPPER's crew left a screen behind, src/clipper.js) stands by itself, whatever the ship is next to,
+// until LATER or the world takes it back (SX's W1, 2026-10-22: «давай появляется диалоговое окно, и они говорят, чувак, давай без спидранов»).
 //
 // The page's (no world state, nothing saved): the world's pace is the page's to give (labs/graphics/flight-frame.js runs `steps` of the world's
 // steps a frame), as the opening's slow beat does (labs/graphics/opening-focus.js F3).
@@ -61,7 +67,7 @@ import { Win, ORG, INK, SIZES, partLen, len } from './organism.js';
 // over `fresh` s; a line wraps to `wrap` rows at most; a conversation is kept `keep` s of page time after its last word, `threads` of them at
 // most. `talk` the row the object's window offers to begin it.
 export const BEAT = Object.freeze({ pace: 0.2, in: 0.3, out: 0.3, veil: 0.72, width: SIZES.S[0], shot: 200, shotLeast: 120, show: 0.35, drop: 12, under: 48, floor: 8,
-  read: 1, cps: 12, act: 0.6, fresh: 0.25, wrap: 8, keep: 900, threads: 24, talk: 'TALK' });
+  read: 0.8, cps: 18, act: 0.6, fresh: 0.25, wrap: 8, keep: 900, threads: 24, talk: 'TALK' });
 
 // The pilot's name in the script.
 export const YOU = 'YOU';
@@ -90,6 +96,9 @@ function floatingCraft(r, box, id, { craft, angle }, now) {
 const KIND = Object.freeze({ done: 'QUEST DONE', story: 'STORY', offer: 'NEW QUEST' });
 // The rows that tell about a thing rather than answer it (src/menus.js rowTones' TELLS): pressed, nothing is written into the script.
 const TELLS = new Set(['INFO', 'REPLAY FLIGHT']);
+// What the object's window keeps beside TALK before a talk is begun: the way in and out and what tells about it; everything else is the
+// talk's to offer (SX, 2026-10-22, of CLIPPER's window with LEAD THEM under TALK: «сначала разговор должен быть, не надо сразу давать лид»).
+const KEEP = new Set(['DOCK', 'UNDOCK', ...TELLS]);
 
 // Who speaks a talk's plain lines, by its name: "SCOOTY / MECHANIC" a person and a role (the role speaks); "RELAY 12 MECHANIC" the station's
 // name and its desk (the desk speaks); anything else one name. And the head's right: the station, or the talk's `place`, or the name.
@@ -120,7 +129,7 @@ export function talkLines(world, t) {
       if (typeof l === 'string') { if (l.trim()) run.push(l.trim()); continue; }
       if (l?.line == null || !String(l.line).trim()) continue;
       flush();
-      out.push({ who: l.who ?? who, text: String(l.line).trim(), ink: l.ink ?? null, key: l.key ?? null });
+      out.push({ who: l.who ?? who, text: String(l.line).trim(), ink: l.ink ?? null, nick: l.nick ?? null, key: l.key ?? null });
     }
     flush();
   };
@@ -131,7 +140,7 @@ export function talkLines(world, t) {
 
 // What is said, as one string: the beat stands again when it changes.
 const saidKey = (world, t) => (t?.talk ? `${t.id}|${t.talk.name}|${talkLines(world, t).map((l) => `${l.who}:${l.text}`).join(' ')}|${t.actions.map((a) => a.label).join(',')}` : null);
-const threadOf = (t) => String(t.talk.thread ?? t.id);
+const threadOf = (t) => (t?.talk ? String(t.talk.thread ?? t.id) : null);
 // How long an entry stands before the next comes.
 export const readOf = (e) => (e.you ? BEAT.act : BEAT.read + len(e.text) / BEAT.cps);
 
@@ -142,8 +151,10 @@ export function createTalkBeat(game) {
   // `shot`: where the speaker's picture takes its fragment of a station, new each time a beat stands (a look-only choice: Math.random).
   // `scripts`: each conversation's script by its thread, { entries: [{ who, text, ink, you, at }], seen, tone, touched } (`at` the page time an
   // entry comes; `seen` what the talk said that is in it already; `tone` its quest's, the first a row of it had).
-  // `opened`: the conversation the pilot began (TALK) by the object the ship is at, until the ship leaves it or LATER puts it away.
-  const S = { key: null, target: null, dismissed: null, level: 0, carry: 0, last: null, forId: null, shot: null, scripts: new Map(), opened: null };
+  // `opened`: the conversation the pilot began (TALK) by the object the ship is at, until the ship leaves it or LATER puts it away; `call`
+  // the world's call standing, `callDone` the last one LATER put away.
+  const S = { key: null, target: null, dismissed: null, level: 0, carry: 0, last: null, forId: null, shot: null, scripts: new Map(), opened: null,
+    call: null, callDone: null };
   const pageTime = () => performance.now() / 1000;
 
   // A conversation's script, made the first time it is met (and the oldest let go past `threads`, or past `keep` s unheard).
@@ -177,11 +188,15 @@ export function createTalkBeat(game) {
   function step(now = pageTime()) {
     const dt = S.last === null ? 0 : clamp(now - S.last, 0, 0.1);
     S.last = now;
-    const t = world.selected;
-    if ((t?.id ?? null) !== S.forId) { S.forId = t?.id ?? null; S.dismissed = null; S.opened = null; }
+    const sel = world.selected;
+    if ((sel?.id ?? null) !== S.forId) { S.forId = sel?.id ?? null; S.dismissed = null; S.opened = null; }
+    // A call stands over whatever the ship is next to; else the menu the ship is next to, once its talk is begun.
+    const call = world.talkCall && world.talkCall.n !== S.callDone ? world.talkCall : null, t = call ? call.menu : sel;
+    S.call = call?.n ?? null;
     const k = saidKey(world, t);
-    if (S.key && game.menu.closed) S.dismissed = S.key;
-    const stands = !!k && S.opened === threadOf(t) && !game.menu.closed && !world.paused && k !== S.dismissed && world.ship?.alive !== false;
+    if (!call && S.key && game.menu.closed) S.dismissed = S.key;
+    const begun = call ? true : S.opened === threadOf(t) && !game.menu.closed;
+    const stands = !!k && begun && !world.paused && k !== S.dismissed && world.ship?.alive !== false;
     if (stands) { if (S.key !== k && !S.level) S.shot = { u: Math.random(), v: Math.random() }; S.key = k; S.target = t; absorb(t, now); } else S.key = null;
     const goal = S.key ? 1 : 0, rate = 1 / (goal ? BEAT.in : BEAT.out);
     S.level = goal > S.level ? Math.min(goal, S.level + dt * rate) : Math.max(goal, S.level - dt * rate);
@@ -203,17 +218,26 @@ export function createTalkBeat(game) {
 
   // Whether the menu `t` talks and its conversation waits for the pilot's TALK.
   const asks = (t) => !!t?.talk && S.opened !== threadOf(t);
-  // The object's window of a menu that asks (labs/graphics/context.js): TALK first, then its own rows, no words (their numbers one on).
-  const plate = (t) => (asks(t) ? { ...t, talk: null, actions: [{ label: BEAT.talk, run: () => {} }, ...t.actions] } : t);
+  // The rows of a menu that asks its window keeps beside TALK, each with its place among the menu's own.
+  const kept = (t) => t.actions.map((a, i) => ({ a, i })).filter(({ a }) => KEEP.has(a.label));
+  // The object's window of a menu that asks (labs/graphics/context.js): TALK first, then the rows it keeps, no words.
+  const plate = (t) => (asks(t) ? { ...t, talk: null, actions: [{ label: BEAT.talk, run: () => {} }, ...kept(t).map(({ a }) => a)] } : t);
   // TALK: the conversation begun, its window standing at once (wherever the ship is in the menu's reach).
   function open(t) { S.opened = threadOf(t); S.dismissed = null; }
-  // Row `i` of the window the pilot sees, pressed (the router's keys and clicks): TALK on a menu that asks, else that menu's own row
-  // (`run`; on a menu that asks, the row one before).
+  // Whatever of a conversation is still to come, said now.
+  function sayAll(s, now) { for (const e of s.entries) if (e.at > now) e.at = now; }
+  // Row `i` of the window the pilot sees, pressed (the router's keys and clicks): TALK on a menu that asks, or a row it keeps; in a talk begun
+  // whose words are still coming, the rest of them said at once (its answers stand only then); else the menu's own row (`run`).
   function press(i, now = pageTime()) {
     const t = world.selected;
-    if (!asks(t)) return run(i, now);
-    if (i === 0) { open(t); return true; }
-    return run(i - 1, now);
+    if (asks(t)) {
+      if (i === 0) { open(t); return true; }
+      const row = kept(t)[i - 1];
+      return row ? run(row.i, now) : false;
+    }
+    const s = t?.talk && S.key ? S.scripts.get(threadOf(t)) : null;
+    if (s?.entries.some((e) => e.at > now)) { sayAll(s, now); return true; }
+    return run(i, now);
   }
   // Row `i` of the menu the ship is next to, run: the world runs it (World.runAction), and where the menu talks the answer is written into its
   // script as YOU's action, whatever of the talk was still to come said first. Returns whether it ran.
@@ -222,7 +246,7 @@ export function createTalkBeat(game) {
     const ran = world.runAction(i);
     if (ran && t?.talk && row && !TELLS.has(row.label)) {
       const s = scriptOf(t, now);
-      for (const e of s.entries) if (e.at > now) e.at = now;
+      sayAll(s, now);
       s.entries.push({ who: YOU, text: `*${row.label}*`, ink: null, you: true, at: now });
     }
     return ran;
@@ -304,13 +328,15 @@ export function createTalkBeat(game) {
       lines.forEach((l, i) => {
         if (l.e.at > now) return;
         const put = () => {
-          if (l.first && l.e.who) win.text(l.e.who, p.cx, p.y(i), l.e.you || l.e.who === YOU ? INK.label : nick);
+          if (l.first && l.e.who) win.text(l.e.who, p.cx, p.y(i), l.e.you || l.e.who === YOU ? INK.label : l.e.nick ?? nick);
           win.text(l.text, p.x(nameCols), p.y(i), l.e.you || l.e.who === YOU ? INK.label : l.e.ink ?? INK.text);
         };
         const fresh = clamp((now - l.e.at) / BEAT.fresh, 0, 1);
         if (fresh < 1) withAlpha(r.ctx, easeOut(fresh), put); else put();
       });
       // The answers: each its keycap and its words (money in gold, one that cannot be taken faint), a cargo's note under it; each row a button.
+      // (Only once all the talk is said: «сначала разговор должен быть».)
+      if (entries.some((e) => e.at > now)) rows.length = 0;
       rows.forEach((row, i) => {
         const Y = p.y(kRows + i), words = row.disabled ? [[row.label, INK.faint]] : moneyRuns(row.label, row.key ? INK.text : INK.label);
         const wx = p.cx + win.keyWidth(row.key || '1', null) + (ORG.keyWord * cw - KEYCAP_PAD) + m.capLeft;
@@ -331,7 +357,7 @@ export function createTalkBeat(game) {
 
   // LATER: the beat standing goes until TALK is pressed again (Escape and 0, labs/graphics/input-router.js; its menu, a berth's among them,
   // is left as it is).
-  function later() { if (S.key) S.dismissed = S.key; S.opened = null; }
+  function later() { if (S.key) S.dismissed = S.key; S.opened = null; if (S.call != null) S.callDone = S.call; }
 
   return { state: S, step, shown, standing, pace, steps, asks, plate, open, press, run, draw, later };
 }
