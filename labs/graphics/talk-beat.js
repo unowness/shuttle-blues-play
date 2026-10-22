@@ -59,6 +59,7 @@ import { glyphsNow } from './world-art.js';
 import { noteKey, unnoted } from './clicks.js';
 import { KEYCAP_PAD } from './ui-parts.js';
 import { Win, ORG, INK, SIZES, partLen, len } from './organism.js';
+import { tr } from '../../src/lang.js';
 
 // `pace` the world's speed while the line stands, reached in `in` s and left in `out` s (page time); `veil` the black over the frame at its
 // darkest; `under` px from the ship's middle (the camera's, r.cy) to the window's top; `floor` px kept clear over the cockpit.
@@ -316,8 +317,9 @@ export function createTalkBeat(game) {
     const lines = entries.flatMap((e) => wrap(e.text, cols - nameCols, BEAT.wrap).filter(Boolean).map((text, j) => ({ e, text, first: j === 0 })));
     const rows = [];
     t.actions.forEach((a, i) => {
-      rows.push({ key: String(i + 1), label: a.label, disabled: a.disabled, tone: tones[i] ?? null });
-      if (a.cargo && a.note) rows.push({ key: '', label: a.note });
+      // (Its words in the pilot's language, src/lang.js tr, whole before the money in them is told apart.)
+      rows.push({ key: String(i + 1), label: tr(a.label), disabled: a.disabled, tone: tones[i] ?? null });
+      if (a.cargo && a.note) rows.push({ key: '', label: tr(a.note) });
     });
     // The answers at the body's foot, the last one's keycap `C` over the foot's rule as any content stands off a line (the picture's foot on that
     // line too where it is the taller), never nearer the words than two `C`; the window as tall as that asks, or as the picture (SX, 2026-10-21, on

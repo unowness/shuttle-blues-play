@@ -40,6 +40,7 @@ import { px, glyphs, fitText } from '../../src/util.js';
 import { keycap, KEYCAP_PAD, KEYCAP_RISE } from './ui-parts.js';
 import { noteKey, noteAction, unnoted, keyCodeOf } from './clicks.js';
 import { swiss, SWISS, drawSlider } from './swiss.js';
+import { tr } from '../../src/lang.js';
 
 export const ORG = Object.freeze({
   S: SWISS.air,                      // px, a line to the service's ink: the head's band, the foot's keys
@@ -73,7 +74,10 @@ export function selectMark(ui, box, off = ui.MARK) {
   ctx.restore();
 }
 
-export const len = (s) => glyphs(String(s ?? '')).length;
+// A string's cells as the window draws it: in the pilot's language (src/lang.js tr: the kit puts every word it measures and draws into it, so
+// what is measured is what is drawn; in English the same string). A key's letters are never translated: `keyLen`.
+export const len = (s) => glyphs(tr(String(s ?? ''))).length;
+const keyLen = (k) => glyphs(String(k ?? '')).length;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 // A part of a head or a row: [text, ink], { runs: [[text, ink], ...] }, or a string (white). Its cells.
 const runsOf = (p) => (typeof p === 'string' ? [[p, INK.text]] : Array.isArray(p) ? [p] : p?.runs ?? []);
@@ -202,10 +206,11 @@ export class Win {
 
   // ---- text ------------------------------------------------------------------------------------------------------------------
 
-  // Text whose ink starts at `ix` (or, `right`, ends there), its capitals' top at `Y`; `plate`: on a bar or in a box, so no shadow. Returns
-  // the far edge of its ink (its right; with `right`, its left).
-  text(s, ix, Y, ink = INK.text, { right = false, plate = false } = {}) {
-    const str = String(s ?? ''), n = len(str), { m, cw, r } = this;
+  // Text whose ink starts at `ix` (or, `right`, ends there), its capitals' top at `Y`; `plate`: on a bar or in a box, so no shadow; `raw`: as
+  // it is in every language (a sign's words, which the sign in the world shows so). Returns the far edge of its ink (its right; with `right`,
+  // its left).
+  text(s, ix, Y, ink = INK.text, { right = false, plate = false, raw = false } = {}) {
+    const str = raw ? String(s ?? '') : tr(String(s ?? '')), n = glyphs(str).length, { m, cw, r } = this;
     const x = right ? ix + m.capLeft - n * cw : ix - m.capLeft;
     if (str.trim()) { const draw = () => r.text(str, x, Y - m.capTop, ink); if (plate) onPlate(draw); else draw(); }
     return right ? x + m.capLeft : x + n * cw - m.capLeft;
@@ -244,7 +249,7 @@ export class Win {
   // letters' capitals' top at `Y`, its words `ORG.keyWord` cells after its letters in `wordsInk` (a part). Returns { cap (its line's box),
   // end (its words' ink right, or where they would start), words (their ink left) }.
   key(lx, Y, key, { words = null, wordsInk = INK.text, tier = 'key', plate = false } = {}) {
-    const { r, m, cw } = this, n = len(key), x = lx + KEYCAP_PAD, y = Y - m.capTop;
+    const { r, m, cw } = this, n = keyLen(key), x = lx + KEYCAP_PAD, y = Y - m.capTop;
     keycap(r, key, x, y, { ink: INK.text, cap: tierInk(tier), reach: 0 });
     const cap = { x: Math.round(lx), y: Math.round(y - KEYCAP_RISE), w: n * cw + 2 * KEYCAP_PAD, h: this.keyH };
     const wx = x + (n + ORG.keyWord) * cw + m.capLeft;
@@ -253,14 +258,14 @@ export class Win {
   }
   // A keycap and its words, measured: px from its line's left edge to its words' ink right.
   keyWidth(key, words) {
-    const n = len(key), w = words == null ? 0 : partLen(typeof words === 'string' ? [words] : words);
+    const n = keyLen(key), w = words == null ? 0 : partLen(typeof words === 'string' ? [words] : words);
     return n * this.cw + 2 * KEYCAP_PAD + (w ? (ORG.keyWord * this.cw - KEYCAP_PAD) + w * this.cw - this.m.capLeft : 0);
   }
   // Keycaps side by side (the controls list's legends), their letters a cell apart, the last one's line ending at `rx`: not buttons.
-  keysWidth(keys) { return keys.reduce((n, k) => n + len(k) * this.cw + 2 * KEYCAP_PAD, 0) + (keys.length - 1) * (this.cw - 2 * KEYCAP_PAD); }
+  keysWidth(keys) { return keys.reduce((n, k) => n + keyLen(k) * this.cw + 2 * KEYCAP_PAD, 0) + (keys.length - 1) * (this.cw - 2 * KEYCAP_PAD); }
   keysEndingAt(rx, Y, keys, { tier = 'key' } = {}) {
     let x = rx - this.keysWidth(keys);
-    unnoted(() => { for (const k of keys) { this.key(x, Y, k, { tier }); x += len(k) * this.cw + this.cw; } });
+    unnoted(() => { for (const k of keys) { this.key(x, Y, k, { tier }); x += keyLen(k) * this.cw + this.cw; } });
   }
 
   // ---- what answers --------------------------------------------------------------------------------------------------------
@@ -313,7 +318,7 @@ export class Win {
         // Several keys in one cap: each answers on its own characters, the words for the first.
         const tokens = String(it.key).split(' '), origin = x + KEYCAP_PAD - m.capLeft;
         let at = 0;
-        for (const t of tokens) { noteKey(t, { x: origin + at * cw, y: box.y, w: len(t) * cw, h: box.h }, this.r); at += len(t) + 1; }
+        for (const t of tokens) { noteKey(t, { x: origin + at * cw, y: box.y, w: keyLen(t) * cw, h: box.h }, this.r); at += keyLen(t) + 1; }
         const head = tokens.find((t) => keyCodeOf(t)), wx = x + this.keyWidth(it.key, null);
         if (head) noteKey(head, { x: wx, y: box.y, w: Math.max(1, box.x + box.w - wx), h: box.h }, this.r);
       }
@@ -329,7 +334,7 @@ export class Win {
     if (message?.text) {
       const room = Math.floor(((right.length ? edge - gap * cw : last.sxr) - lx) / cw);
       if (room >= 4) {
-        const text = fitText(message.text, room), runs = message.money ? moneyRuns(text, message.ink ?? INK.label) : [[text, message.ink ?? INK.label]];
+        const text = fitText(tr(message.text), room), runs = message.money ? moneyRuns(text, message.ink ?? INK.label) : [[text, message.ink ?? INK.label]];
         if (message.side === 'left') this.part({ runs }, lx, Y); else this.part({ runs }, (right.length ? edge - gap * cw : last.sxr), Y, { right: true });
       }
     }

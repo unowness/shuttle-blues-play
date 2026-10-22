@@ -34,6 +34,7 @@ import { readGameplay, writeGameplay } from '../../src/prefs.js';
 import { hoverItem, withAlpha } from '../../src/hover.js';
 import { keycap, KEYCAP_PAD, KEYCAP_RISE } from './ui-parts.js';
 import { noteKeycap } from './clicks.js';
+import { tr } from '../../src/lang.js';
 
 export const GREETINGS = Object.freeze(['wave', 'notch']);
 export const GREETING_NAMES = Object.freeze({ wave: 'WAVE', notch: 'NOTCH' });
@@ -130,8 +131,8 @@ export function drawGreetOffer(r, world, target, presence, { live = true, far = 
   if (alpha <= 0.01) return null;
   // (`scale` the craft's drawing as the camera draws it: its zoom, src/zoom.js.)
   const C = world.project(r, target.x, target.y), rows = craft.rows, scale = (craft.scale ?? 1) * (r.zoom ?? 1);
-  const word = GREET_WORDS[style] ?? GREET_WORDS.wave, key = keyName('choices') || '1';
-  const wide = KEYCAP_PAD * 2 + key.length * r.cellW + r.cellW + word.length * r.cellW;
+  const word = tr(GREET_WORDS[style] ?? GREET_WORDS.wave), key = keyName('choices') || '1';
+  const wide = KEYCAP_PAD * 2 + key.length * r.cellW + r.cellW + Array.from(word).length * r.cellW;
   O.r = r; O.key = key; O.word = word; O.lit = lit; O.ink = far ? QUIET : G; O.live = live; O.hover = s.hover;
   if (style === 'notch') {
     // Centred under the ship, a row down.

@@ -1,11 +1,14 @@
+import { tr } from './lang.js';
+
 export const TAU = Math.PI * 2;
 
 export const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 // `text` cut to `cells` characters with an ellipsis (src/interface.js re-exports
-// it: the windows and src/uiGrid.js both fit their lines).
+// it: the windows and src/uiGrid.js both fit their lines). In the pilot's language: a line is fitted where it is laid out for the screen, so
+// it is put into that language first (src/lang.js tr; in English the same string).
 export const fitText = (text, cells) => {
-  const chars = Array.from(String(text));
+  const chars = Array.from(String(tr(text)));
   return chars.length <= cells ? chars.join('') : chars.slice(0, Math.max(0, cells - 1)).join('') + '…';
 };
 export const lerp = (a, b, t) => a + (b - a) * t;

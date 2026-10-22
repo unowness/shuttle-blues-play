@@ -20,7 +20,7 @@
 //              src/textShadow.js, and that one is not chosen); COCKPIT: SIDES, which side the locator stands on (the quests
 //              and the radio take the other: SX, 2026-10-08, the mirror switch of «HUD PLACE: S3 + MIRROR SWITCH»)
 //   audio      SOUND (as O), then VOLUME: MASTER over the three it scales; DEFAULTS in the foot
-//   gameplay   CONTROLS (KEYS + CLICKS or MOUSE + HOTKEYS), STEERING (TANK or SCREEN; quiet where the mouse flies); FLIGHT: HOME BEARING,
+//   gameplay   LANGUAGE (ENGLISH or РУССКИЙ, src/lang.js), CONTROLS (KEYS + CLICKS or MOUSE + HOTKEYS), STEERING (TANK or SCREEN; quiet where the mouse flies); FLIGHT: HOME BEARING,
 //              DRIFT where the lab flies it, GREETING, TURN RATE (quiet where the keys fly); PARALLAX's three; DEFAULTS in the foot
 //   leave      a step back before the title: STAY, LEAVE TO TITLE (the flight is saved first)
 //   layout     where the interface's groups stand (labs/graphics/hud-place.js), moved under the pause
@@ -52,6 +52,7 @@ import { codesOf, SCHEMES, SCHEME_NAMES, DEFAULT_SCHEME } from '../../src/contro
 import { radioFitted, interfaceGiven } from '../../src/opening.js';
 import { STEERINGS, STEERING_NAMES, DEFAULT_STEERING, setSteering } from '../../src/steering.js';
 import { GREETINGS, GREETING_NAMES, DEFAULT_GREETING, setGreeting } from './greeting.js';
+import { language, LANGUAGES, LANGUAGE_NAMES, trIn } from '../../src/lang.js';
 
 // How long ago, in the save row's words.
 function agoText(s) {
@@ -213,7 +214,11 @@ export function createPause(game) {
   // (labs/graphics/depth.js), 100% as CONFIG.depth has them: ten steps each, kept in this browser (gameplay-settings.js).
   function gameplayRows() {
     const { world, mouseFlight, lean } = game, schemes = game.schemes;
-    const rows = [back('GAMEPLAY'), { kind: 'heading', title: 'CONTROLS' }];
+    // The language the game's words are shown in (src/lang.js; SX, 2026-10-22: «русской версии игры в настройках или в паузе, прям можно
+    // сменить»): each named in its own words; kept in this browser, shown from the next frame.
+    const rows = [back('GAMEPLAY'), { kind: 'heading', title: 'LANGUAGE' },
+      choice('LANGUAGE', LANGUAGES.map((id) => ({ label: LANGUAGE_NAMES[id], worn: language.id === id, run: () => game.changeLanguage(id) })), { count: false }),
+      blank, { kind: 'heading', title: 'CONTROLS' }];
     // The mode (SX, 2026-10-07: «давай переключать управление в меню паузы два варианта»; labs/graphics/schemes.js). The right
     // button's FIRE or BRAKE (RIGHT BTN) was the layout from before chat C's, and went with it on 2026-10-08.
     if (schemes) {
@@ -223,7 +228,7 @@ export function createPause(game) {
     // default, or SCREEN, each direction key toward its own side of the screen; kept in this browser. Quiet where the mouse alone
     // flies (a setting that does nothing looks so).
     if (game.steering) {
-      rows.push(choice('STEERING', STEERINGS.map((id) => ({ label: STEERING_NAMES[id], worn: game.steering.mode === id,
+      rows.push(choice('STEERING', STEERINGS.map((id) => ({ label: trIn('steering', STEERING_NAMES[id]), worn: game.steering.mode === id,
         run: () => setSteering(game.steering, id, saveBackend) })), { dim: !!schemes && !schemes.keysFly() }));
     }
     // (REBIND KEYS ›, C0's R1, comes here once its page is built: src/controls.js is the seam it writes into.)

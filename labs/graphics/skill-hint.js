@@ -25,6 +25,7 @@ import { HINTS, HINT, hintWords, partShown, partDone } from '../../src/skillHint
 import { keycap, KEYCAP_PAD, KEYCAP_RISE } from './ui-parts.js';
 import { unnoted } from './clicks.js';
 import { keyTokens } from './swiss.js';
+import { tr } from '../../src/lang.js';
 
 const W = ROLES.textPrimary;
 // A cap on the sky is a legend, not a button: it answers no click (clicks.js unnoted), and its letter stands in its cap (no shadow).
@@ -101,7 +102,9 @@ export function drawSkillHint(r, world, s, { scheme, reducedMotion = false } = {
     if (!partShown(s, i)) continue;
     const p = line.parts[i];
     P.r = r; P.x = left; P.y = top + row * UI.row; row++;
-    P.cell = words.cells[i]; P.tokens = keyTokens(P.cell); P.verb = p.verb; P.join = p.join;
+    // (Its words in the pilot's language, src/lang.js tr; a key's letters as they are.)
+    P.cell = words.cells[i]; P.tokens = keyTokens(P.cell); P.verb = tr(p.verb); P.join = p.join;
+    if (!P.tokens) P.cell = tr(P.cell);
     withAlpha(r.ctx, alpha * partAlpha(s, i, reducedMotion), paintUnnoted);
     BOX.w = Math.max(BOX.w, P.x - left);
   }

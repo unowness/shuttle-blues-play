@@ -16,6 +16,7 @@ import { keycap, haloText, KEYCAP_PAD, KEYCAP_RISE } from './ui-parts.js';
 import { unnoted } from './clicks.js';
 import { keyTokens } from './swiss.js';
 import { modernLines, MODERN } from './hud-modern.js';
+import { tr } from '../../src/lang.js';
 
 export const starterKeysShown = (world, tracker = null) => beforeFirstMoney(world) && !tracker?.rows.length;
 // How many rows the list has for the mode, the hull and the steering (hud-modern.js hangs the stations being built under them).
@@ -34,7 +35,8 @@ const cellWidth = (r, cell) => { const t = keyTokens(cell); return t ? capsWidth
 
 // The list for `scheme` (src/controls.js SCHEMES), the hull's `can` and the keys' `steering`. Returns the box it takes.
 export function drawStarterKeys(r, { scheme, can = null, steering = 'tank' }) {
-  const rows = starterRows(scheme, can, steering);
+  // (Their words in the pilot's language, src/lang.js tr; a key's letters as they are.)
+  const rows = starterRows(scheme, can, steering).map(([cell, words]) => [keyTokens(cell) ? cell : tr(String(cell)), tr(words)]);
   if (!rows.length) return null;
   const { textY } = uiMetrics(r), L = modernLines(r), top = L.keyRowT;
   const axis = MODERN.side + Math.max(...rows.map(([cell]) => cellWidth(r, cell)));

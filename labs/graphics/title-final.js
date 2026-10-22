@@ -35,6 +35,7 @@ import { titleMotion, loreLineFrame } from './title-motion.js';
 import { FLAP, FLAP_BUILD, washOf } from './notice.js';
 import { TUBE, tubeMark, rollScheme, uiInks, RULES } from './sketches/title-styles-marks.js';
 import { noise3 as noise } from '../../src/util.js';
+import { tr } from '../../src/lang.js';
 
 export const TITLE_FINAL = Object.freeze({
   seed: 853762588,                                  // DUSK, hue 277: the lettering's colours, rolled on the study
@@ -107,7 +108,7 @@ function titleFinalLayout(r) {
 
   const T = loreType(r, TITLE_FINAL.lore.size);
   const cols = Math.min(TITLE_FINAL.lore.cols, Math.floor((W - edge * 2) / T.cw));
-  const paras = TITLE_LORE.map((p) => wrapCopy(p, cols));
+  const paras = TITLE_LORE.map((p) => wrapCopy(tr(p), cols));
   const lines = paras.reduce((n, p) => n + p.length, 0);
   const loreH = (lines - 1) * T.row + (paras.length - 1) * T.para + T.capH;
   const step = TITLE_FINAL.menu.step, menuH = (items().length - 1) * step + ink.capH;
@@ -134,7 +135,7 @@ function titleFinalLayout(r) {
     lore: { top: loreInk - T.capTop, T, paras, cols, h: loreH },
     // Where each item answers a pointer: a step tall, as wide as the widest item's plate.
     items: items().map((it, k) => {
-      const w = plateWidth(r, Math.max(...items().map((i) => Array.from(i.label).length)));
+      const w = plateWidth(r, Math.max(...items().map((i) => Array.from(tr(i.label)).length)));
       return { x: Math.round(W / 2 - w / 2), y: menuInk - ink.capTop + k * step - (step - UI.row) / 2 - m.textY, w, h: step };
     }),
   };
@@ -274,25 +275,25 @@ function drawMenu(r, L, title, now) {
   if (title.readyAt === null) return;
   const elapsed = title.reducedMotion ? Infinity : now - title.readyAt, cw = r.cellW, settled = elapsed > 700;
   items().forEach((it, k) => {
-    const len = Array.from(it.label).length, y = L.menu.top + k * L.menu.step, x = Math.round(centredX(r, it.label, L.W / 2, cw, r.font));
+    const label = tr(it.label), len = Array.from(label).length, y = L.menu.top + k * L.menu.step, x = Math.round(centredX(r, label, L.W / 2, cw, r.font));
     if (settled && k === title.menu) {
-      drawTitlePlateCentred(r, it.label, L.W / 2, y - UI.pad - L.m.textY,
+      drawTitlePlateCentred(r, label, L.W / 2, y - UI.pad - L.m.textY,
         { age: (now - title.choseAt) / 1000, instant: title.reducedMotion, ink: TITLE_INKS.accent });
       return;
     }
     const ink = !titleItemEnabled(title, k) ? ROLES.textQuiet : ROLES.textSecondary;
     backing(r, x, y, len * cw, r.cellH);
-    r.text(loreLineFrame(it.label, k, elapsed), x, y, ink);
+    r.text(loreLineFrame(label, k, elapsed), x, y, ink);
   });
 }
 
 function drawFooter(r, L, title, now) {
   const { bar } = L, cw = r.cellW, progress = title.ready ? 1 : Math.min(1, Math.max(0, title.progress || 0));
-  haloText(r, title.ready ? 'READY' : title.label ? `LOADING / ${title.label}` : 'LOADING', bar.x, L.labelTop, ROLES.textSecondary);
+  haloText(r, tr(title.ready ? 'READY' : title.label ? `LOADING / ${title.label}` : 'LOADING'), bar.x, L.labelTop, ROLES.textSecondary);
   const pct = `${Math.floor(progress * 100).toString().padStart(3, '0')}%`;
   haloText(r, pct, bar.x + bar.w - pct.length * cw, L.labelTop, ROLES.textSecondary);
   if (title.message && now - title.message.at < 2400) {
-    const t = title.message.text;
+    const t = tr(title.message.text);
     haloText(r, t, Math.round(L.W / 2 - Array.from(t).length * cw / 2), L.labelTop, ROLES.textPrimary);
   }
   r.fill(bar.x, bar.y, bar.w, bar.h, TITLE_INKS.track);
@@ -300,18 +301,19 @@ function drawFooter(r, L, title, now) {
   const segments = Math.max(1, Math.round(bar.w / bar.pitch));
   for (let i = 1; i < segments; i++) r.fill(Math.round(bar.x + i * bar.w / segments) - bar.gap, bar.y, bar.gap, bar.h, ROLES.space);
   // The four controls in the game's keycaps, their frames in the lettering's accent.
-  const widths = ESSENTIALS.map(([k, d]) => Array.from(k).length * cw + 6 + cw + d.length * cw);
+  const essentials = ESSENTIALS.map(([k, d]) => [k, tr(d)]);
+  const widths = essentials.map(([k, d]) => Array.from(k).length * cw + 6 + cw + Array.from(d).length * cw);
   const gap = UI.group.cols * cw, total = widths.reduce((a, b) => a + b, 0) + gap * (ESSENTIALS.length - 1);
   // The row's ink runs from the first cap's frame to the last word's last glyph: centred by that, not by its cells. A
   // word starts 3 px nearer its cap than `widths` counts (keycap: the cap's frame is 3 px each side of its letters), and
   // the last glyph's ink ends short of its cell.
-  const lastWord = ESSENTIALS.at(-1)[1], ctx = r.ctx;
+  const lastWord = essentials.at(-1)[1], ctx = r.ctx;
   ctx.save(); ctx.font = r.font; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   const lastRight = ctx.measureText(lastWord).actualBoundingBoxRight ?? lastWord.length * cw;
   ctx.restore();
-  const inkW = total - 3 - (lastWord.length * cw - lastRight);
+  const inkW = total - 3 - (Array.from(lastWord).length * cw - lastRight);
   let x = (L.W - inkW) / 2;
-  ESSENTIALS.forEach(([key, what], i) => {
+  essentials.forEach(([key, what], i) => {
     const next = keycap(r, key, Math.round(x + 3), L.keysTop, { cap: TITLE_INKS.accent });
     r.text(what, next, L.keysTop, ROLES.textSecondary);
     x += widths[i] + gap;

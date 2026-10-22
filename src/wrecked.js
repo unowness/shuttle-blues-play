@@ -13,6 +13,7 @@ import { sayFor, wreckPlea } from './voices.js';
 import { sectorOpen } from './frontier.js';
 import { QUEST_LINES as QL } from './questLines.js';
 import { contentAreas } from './mapContent.js';
+import { tr } from './lang.js';
 
 // A wrecked ship asking for money: the yellow quest of QUESTS_V2_HANDOFF.md (SX, 2026-10-02: «Желтые это помочь кораблю,
 // который разбился, дать ему денег»). One of the NPC ships SX picked (src/npcShips.js) lies dead in the open, a share of
@@ -273,7 +274,7 @@ export function drawWreck(world, r, t) {
     drawCraft(r, craft, s.x, s.y, here.angle + t * 0.05);
     if (Math.hypot(here.x - world.ship.x, here.y - world.ship.y) < HAIL_REACH * 2.5) {
       // Under the square its menu's marks stand round (it turns, so the marks hold its whole reach), not under the drawing.
-      const label = `${here.name} / WRECK`, w = label.length * r.cellW * (r.textScale ?? 1);
+      const label = tr(`${here.name} / WRECK`), w = Array.from(label).length * r.cellW * (r.textScale ?? 1);
       const reach = Math.hypot(craft.rows[0].length * r.cellW, craft.rows.length * r.cellH) * craft.scale / 2;
       r.text(label, s.x - w / 2, s.y + reach + r.cellH * 1.5, CONFIG.hud.color, 0.9);
     }

@@ -16,6 +16,7 @@ import { replaceRoster } from './pirateRoster.js';
 import { PIRATE_ROLES } from './pirateRolesConfig.js';
 import { recoverPesterCapsule, cleanupPesterCombat } from './pirateCombat.js';
 import { contentAreas } from './mapContent.js';
+import { tr } from './lang.js';
 
 // Pirates pestering a small ship: the red quest of QUESTS_V2_HANDOFF.md (SX, 2026-10-02: «Красные это рейды или спасти
 // кораблик от набега пиратов. То есть рейды, там большое количество пиратов, мелкие набеги. Там 2-3 пирата просто
@@ -265,7 +266,7 @@ export function drawPestered(world, r) {
   if (!r.onScreen(s.x, s.y, craftReach(r, b.craft))) return;
   drawCraft(r, b.craft, s.x, s.y, b.angle, here ? 1 : b.alpha);
   if (here && Math.hypot(b.x - world.ship.x, b.y - world.ship.y) < HAIL_REACH * 2.5) {
-    const w = b.name.length * r.cellW * (r.textScale ?? 1);
-    r.text(b.name, s.x - w / 2, s.y + b.craft.rows.length * r.cellH * b.craft.scale * 0.5 + r.cellH, CONFIG.hud.color, 0.9);
+    const name = tr(b.name), w = Array.from(name).length * r.cellW * (r.textScale ?? 1);
+    r.text(name, s.x - w / 2, s.y + b.craft.rows.length * r.cellH * b.craft.scale * 0.5 + r.cellH, CONFIG.hud.color, 0.9);
   }
 }

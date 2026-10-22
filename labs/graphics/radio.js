@@ -44,6 +44,7 @@ import { LORE_TIMES } from './rail.js';
 import { noteKey } from './clicks.js';
 import { installGrade, gradeEpoch, gradeKept } from '../../src/grade.js';
 import { SHOWS, SHOW_TIMES, SHOW_EVENTS, SHOW_OF } from './radio-shows.js';
+import { tr } from '../../src/lang.js';
 
 // The set: `h` high (nine steps of the HUD's 8 px grid), as wide as the quest plates (locator.js columnLayout `questW`); `under` the
 // air from its row's keycap to its top line, ink to ink: a button's (COLUMN_GAPS.under) and a pad more, an optical compensation (SX,
@@ -395,7 +396,7 @@ export function drawRadio(r, radio, place, now, { reducedMotion = false, over = 
   // Folded, a moment lights the lamp a cell after the word: the call is still seen.
   if (!open && s.lamp.k > 0.02) {
     const m = uiMetrics(r), capX = Math.round(keyMarkLeft(r, place.x0 + m.capLeft) - 0.5) + KEYCAP_PAD;
-    const wordX = capX + (Array.from(key).length + 1) * r.cellW, lampX = wordX + m.capLeft + ('RADIO'.length + 1) * r.cellW + LAMP_R;
+    const wordX = capX + (Array.from(key).length + 1) * r.cellW, lampX = wordX + m.capLeft + (Array.from(tr('RADIO')).length + 1) * r.cellW + LAMP_R;
     lamp(r.ctx, axis === null ? lampX : axis - lampX, place.rowTop + m.textY + (m.capTop + m.capBottom) / 2, s);
   }
   const B = { x: place.left, y: Math.round(place.rowTop + ink.bottom + RADIO.under), w: size.w, h: size.h };

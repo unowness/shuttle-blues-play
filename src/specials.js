@@ -9,6 +9,7 @@ import { QUEST_LINES as QL } from './questLines.js';
 import { radioFitted, openingStage, REST } from './opening.js';
 import { CREW, talkOf, meetOf, clipperPose } from './clipper.js';
 import { contentAreas } from './mapContent.js';
+import { tr } from './lang.js';
 
 // The reference ships' rare quests (QUESTS_V2_HANDOFF.md, round three; SX, 2026-10-02: «квесты ... какой-то в каком-то из
 // секторов мы на это случайно нарываемся, это как случайная редкое событие, один из кораблей отсылок стоит на месте, и у
@@ -364,7 +365,7 @@ export function drawSpecial(world, r, t) {
       if (h.drawStanding) h.drawStanding(world, s, r, t, p);
       else drawModel(r, model, p.x, p.y, s.site.angle + Math.sin(t * 0.6) * 0.04);
       if (Math.hypot(s.site.x - world.ship.x, s.site.y - world.ship.y) < 1150) {
-        const label = specialById(s.id).label, w = label.length * r.cellW * (r.textScale ?? 1);
+        const label = tr(specialById(s.id).label), w = Array.from(label).length * r.cellW * (r.textScale ?? 1);
         r.text(label, p.x - w / 2, p.y + model.height * r.cellH * model.scale * 0.5 + r.cellH, CONFIG.hud.color, 0.9);
       }
     }

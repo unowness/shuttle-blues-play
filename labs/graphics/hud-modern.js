@@ -53,6 +53,7 @@ import { KEY_MARK_HALF, KEYCAP_PAD } from './ui-parts.js';
 import { sidePlaces } from './hud-sides.js';
 import { NOTCH_MODE } from './helmet.js';
 import { noteKey } from './clicks.js';
+import { tr } from '../../src/lang.js';
 
 // ------------------------------------------------------------------------------------------------ the choice
 
@@ -280,7 +281,7 @@ export function drawModernHud(r, game, args) {
   // The notches: the top one round the task's line (helmet.js, its floor and row in NOTCH_MODE), the bottom one round BRAKES.
   const h = game.notices.notch(r);
   const top = notchOf(h.left, h.right, h.y, L.railT);
-  const brakeW = (4 + BRAKE_LABEL.length) * cw + 2 * BRAKE_OPEN * cw, floorB = L.capsB - L.capH - C - BAR.outer / 2;
+  const brakeW = (4 + Array.from(tr(BRAKE_LABEL)).length) * cw + 2 * BRAKE_OPEN * cw, floorB = L.capsB - L.capH - C - BAR.outer / 2;
   const fit = notchOf(Math.round(mid - brakeW / 2 - S), Math.round(mid + brakeW / 2 + S), floorB, L.railB);
   const bottom = notchOf(Math.round(mid - brakeW / 2 - S - MODERN.wide), Math.round(mid + brakeW / 2 + S + MODERN.wide), floorB, L.railB);
   // The fades at both edges, under the notches.
@@ -325,7 +326,7 @@ export function drawModernHud(r, game, args) {
       ctx.fillRect(Math.round(g.x + i * L.pitch), y0, L.cube, L.cube);
     }
   };
-  const word = (g, text, wordInk, end = false) => r.text(text, Math.round(end ? g.x + gw + m.capLeft - Array.from(text).length * cw : g.x - m.capLeft), g.row, wordInk, 1);
+  const word = (g, words, wordInk, end = false) => { const text = tr(words); r.text(text, Math.round(end ? g.x + gw + m.capLeft - Array.from(text).length * cw : g.x - m.capLeft), g.row, wordInk, 1); };
   const lit = (share) => Math.ceil(clamp(share, 0, 1) * n - 1e-6);
   if (given.deck) {
     ctx.save();
@@ -359,8 +360,8 @@ export function drawModernHud(r, game, args) {
   if (given.column) {
     drawModernScope(r, world, { ...scopeArgs, box: locBox, shape: sq ? 'square' : 'round', reducedMotion, level, seed: cockpitSeed() + 11, wreck: cockpitCrack(), now });
     // The legend's button on the bottom line under the locator's edge; its rows over the locator while they show.
-    const phase = Lc?.phase, open = !!phase?.open, key = keyName('legend'), wordL = open ? 'HIDE LEGEND' : 'LEGEND';
-    const x0 = locBox.x + 1, edge = x0 + KEYCAP_PAD + (Array.from(key).length + 1 + wordL.length + 1) * cw + 2 * KEY_MARK_HALF + 1;
+    const phase = Lc?.phase, open = !!phase?.open, key = keyName('legend'), wordL = tr(open ? 'HIDE LEGEND' : 'LEGEND');
+    const x0 = locBox.x + 1, edge = x0 + KEYCAP_PAD + (Array.from(key).length + 1 + Array.from(wordL).length + 1) * cw + 2 * KEY_MARK_HALF + 1;
     const legendRow = drawColumnButton(r, { x0, edge, rowTop: L.keyRowB, key, word: wordL, turn: phase ? 1 - phase.turn : 0, name: 'locator:legend', note: (box) => noteKey(key, box, r) });
     let column = union(locBox, legendRow);
     if (Lc && phase?.rows) {

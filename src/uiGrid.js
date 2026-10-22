@@ -1,5 +1,6 @@
 import { CONFIG } from './config.js';
 import { fitText } from './util.js';
+import { tr } from './lang.js';
 
 // The interface's spacing system (SX, 2026-09-30: «Все вот эти отступы и отступы
 // в интерфейсе должны быть в системе, берем максимум 8 типов и размеров
@@ -225,9 +226,10 @@ export function uiGrid(r, x0, y0) {
   const lineOf = (row) => Y(row) + ROW / 2;
 
   // Text.
-  const text = (s, col, row, ink) => r.text(String(s), X(col) + m.textX, Y(row) + m.textY, ink, 1);
-  const textEnd = (s, endCol, row, ink) => r.text(String(s), X(endCol + 1) - m.textX - glyphs(s).length * cw, Y(row) + m.textY, ink, 1);
-  const textCentered = (s, col, cols, row, ink) => r.text(String(s), X(col) + (cols - glyphs(s).length) * cw / 2, Y(row) + m.textY, ink, 1);
+  // (Each in the pilot's language, src/lang.js tr, measured as drawn.)
+  const text = (s, col, row, ink) => r.text(tr(String(s)), X(col) + m.textX, Y(row) + m.textY, ink, 1);
+  const textEnd = (s, endCol, row, ink) => { const t = tr(String(s)); r.text(t, X(endCol + 1) - m.textX - glyphs(t).length * cw, Y(row) + m.textY, ink, 1); };
+  const textCentered = (s, col, cols, row, ink) => { const t = tr(String(s)); r.text(t, X(col) + (cols - glyphs(t).length) * cw / 2, Y(row) + m.textY, ink, 1); };
 
   // A caption set into a frame's line (`┌─ SHIP / STANDARD ─┐`): the plate's
   // colour behind ` s `, from column `col`. Counts as text: a blank row goes before it.

@@ -29,6 +29,7 @@ import { hollowBar, BAR } from './cockpit-frame.js';
 import { COCKPIT_FX, cockpitSpots, drawWear, cockpitLevel, cockpitLight, cockpitSeed } from './cockpit-fx.js';
 import { RAIL, railColumns, railFit, moneyRuns, FLAP_GLYPHS } from './rail.js';
 import { actionOf } from '../../src/questLines.js';
+import { tr } from '../../src/lang.js';
 
 // ------------------------------------------------------------------------------------------------ the notch
 
@@ -229,8 +230,9 @@ const DOT = ' · ';
 export function notchLine(b, { cols = Infinity, clockRoom = 0 } = {}) {
   if (!b) return null;
   const act = actionOf(b.sub);
-  const fact = b.clock ?? (!act && b.sub ? b.sub.split(' / ')[0] : null), factInk = b.clock ? (b.clockInk ?? b.ink) : ROLES.textSecondary;
-  const head = act ?? b.title ?? '', dot = head ? DOT : '';
+  // (In the pilot's language, src/lang.js tr: the English's parts picked first, then each put into it.)
+  const fact = b.clock ?? (!act && b.sub ? tr(b.sub.split(' / ')[0]) : null), factInk = b.clock ? (b.clockInk ?? b.ink) : ROLES.textSecondary;
+  const head = tr(act ?? b.title ?? ''), dot = head ? DOT : '';
   const tail = fact ? glyphs(dot).length + Math.max(glyphs(fact).length, b.clock ? clockRoom : 0) : 0;
   const runs = head ? moneyRuns(railFit(head, Math.max(1, cols - 2 - tail)), ROLES.textPrimary).map(([text, ink]) => ({ text, ink })) : [];
   if (fact) runs.push(...(dot ? [{ text: dot, ink: ROLES.textSecondary }] : []), { text: fact, ink: factInk });

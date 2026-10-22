@@ -62,9 +62,10 @@ import { PALETTE, ROLES } from '../../src/roles.js';
 import { glyphs, fitText } from '../../src/util.js';
 import { keyName, keyText } from '../../src/controls.js';
 import { sectorLine } from './swiss.js';
-import { Win, ORG, INK as TONE } from './organism.js';
+import { Win, ORG, INK as TONE, len } from './organism.js';
 import { unnoted } from './clicks.js';
 import { roomFrame } from './garage-room.js';
+import { tr } from '../../src/lang.js';
 
 export const MAP = Object.freeze({
   side: 30,             // columns of the right-hand column's text, a group's step (`gap`) from the sectors' box
@@ -130,10 +131,11 @@ export function sectorShown(map, s, world = null) {
   return map.visited.has(s.id) || world?.ledger?.visited?.has(s.id) ? 'seen' : 'unseen';
 }
 
+// (The words in the pilot's language, src/lang.js tr, wrapped as that language runs.)
 function wrapText(text, cols) {
   const out = [];
   let line = '';
-  for (const word of String(text).split(/\s+/).filter(Boolean)) {
+  for (const word of String(tr(text)).split(/\s+/).filter(Boolean)) {
     if (line && (line + ' ' + word).length > cols) { out.push(line); line = word; } else line = line ? `${line} ${word}` : word;
   }
   if (line) out.push(line);
@@ -368,7 +370,7 @@ function drawTitle(r, cell, vis, state) {
   labelText(r, `${s.label} ${s.name}`, t.lx, t.ly, seen ? CONFIG.hud.color : CONFIG.hud.hint);
   if (seen) r.text(s.label, Math.round(t.lx), Math.round(t.ly), state.lit || state.here ? CONFIG.hud.hot : CONFIG.hud.color, 1);
   if (seen && state.here) r.text(s.name, Math.round(t.lx + (glyphs(s.label).length + 1) * r.cellW), Math.round(t.ly), CONFIG.hud.hot, 1);
-  if (!seen) r.text(state.shown === 'closed' ? 'CLOSED' : 'NOT VISITED', Math.round(t.lx), Math.round(t.ly + UI.row), CONFIG.hud.hint, 1);
+  if (!seen) r.text(tr(state.shown === 'closed' ? 'CLOSED' : 'NOT VISITED'), Math.round(t.lx), Math.round(t.ly + UI.row), CONFIG.hud.hint, 1);
   ctx.restore();
 }
 
@@ -808,7 +810,7 @@ export function drawMap(r, map, world, now, { reducedMotion = false, target = nu
       const Y = col.y(kHereRows + i);
       if (facts) {
         win.text(row[0], colX, Y, TONE.label);
-        win.text(fitText(String(row[1]), tc - glyphs(row[0]).length - 1), colR, Y, TONE.text, { right: true });
+        win.text(fitText(String(row[1]), tc - len(row[0]) - 1), colR, Y, TONE.text, { right: true });
       } else win.text(row, colX, Y, TONE.text);
     });
   } else win.text('HERE', colX, col.y(kHere), TONE.label);

@@ -1,3 +1,4 @@
+import { tr, trIn } from './lang.js';
 import { CONFIG } from './config.js';
 import { lineArt, fitText, COMPACT_SOUVENIR_ART, COMPACT_NAMES } from './interface.js';
 import { UI, uiPanel, uiAir, centredWindow, windowRoom, frameInk } from './uiGrid.js';
@@ -163,10 +164,11 @@ export function pilotLayout(r) {
   };
 }
 
-// Words wrapped to `cols` cells, at most `lines` lines (the last cut with an ellipsis).
+// Words wrapped to `cols` cells, at most `lines` lines (the last cut with an ellipsis): the words in the pilot's language (src/lang.js tr),
+// wrapped as that language runs.
 export function wrap(text, cols, lines) {
   const out = [''];
-  for (const word of String(text).split(/\s+/)) {
+  for (const word of String(tr(text)).split(/\s+/)) {
     const line = out[out.length - 1];
     if (line && Array.from(line).length + 1 + Array.from(word).length > cols) out.push(word);
     else out[out.length - 1] = line ? `${line} ${word}` : word;
@@ -299,7 +301,7 @@ export function drawPilotPanel(r, world, ui) {
   }
   g.rule(CARD_TEXT, CARD_END, lineAt(C.rule1), frame());
   row = at(C.tallyCap);
-  for (const [label, value] of [['CARGO RECOVERED', j.recovered], ['CARGO RESCUED', j.rescued], ['WRECKS', world.wrecks]]) {
+  for (const [label, value] of [[trIn('card', 'CARGO RECOVERED'), j.recovered], [trIn('card', 'CARGO RESCUED'), j.rescued], ['WRECKS', world.wrecks]]) {
     g.leader(label, value, CARD_TEXT, CARD_END, row++, ink(), muted(), frame());
   }
   g.rule(CARD_TEXT, CARD_END, lineAt(C.rule2), frame());

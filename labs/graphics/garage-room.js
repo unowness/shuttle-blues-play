@@ -47,6 +47,7 @@ import { courseOf } from '../../src/course.js';
 import { cargoTaskId, selectTask } from '../../src/tasks.js';
 import { QUEST_TONES, bearingGlyph, seen } from './quest-list.js';
 import { REBOOT } from './respawn-fx.js';
+import { tr } from '../../src/lang.js';
 
 export const ROOM = Object.freeze({
   inset: 48,          // px from every edge of the screen, at most (the binding side; SX: 48 or 56, a multiple of 4)
@@ -337,10 +338,11 @@ function thingAt(L, offs, x, y) {
 
 // ---- the windows ------------------------------------------------------------------------------------------------------------
 
+// (The words in the pilot's language, src/lang.js tr, wrapped as that language runs.)
 function wrapText(text, cols) {
   const out = [];
   let line = '';
-  for (const word of String(text).split(/\s+/)) {
+  for (const word of String(tr(text)).split(/\s+/)) {
     if (line && (line + ' ' + word).length > cols) { out.push(line); line = word; } else line = line ? `${line} ${word}` : word;
   }
   if (line) out.push(line);
@@ -400,13 +402,16 @@ function windowOf(r, key, inside) {
 // (HOVER, CLICK).
 function keyCell(r, key, x, ty, ink, { muted = false } = {}) {
   if (keyCodeOf(key)) return muted ? unnoted(() => keycap(r, key, x + KEYCAP_PAD, ty, { reach: 0 })) : keycap(r, key, x + KEYCAP_PAD, ty, { reach: 0 });
-  r.text(key, x, ty, ink);
-  return x + (glyphs(key).length + 1) * r.cellW;
+  const words = tr(key);
+  r.text(words, x, ty, ink);
+  return x + (glyphs(words).length + 1) * r.cellW;
 }
 // A list's insides from (ox, oy): its head (the first line primary, the rest secondary), half a row, then its rows, each a key and its
 // words in a column after the widest key (the object's menu's grammar, labs/graphics/context.js). The head's ink starts where the
 // caps' strokes do. A row whose key is a key is a button (`hot`: hoverItem's), noted unless `muted`.
-function listInside(head, rows, { muted = false } = {}) {
+function listInside(head0, rows0, { muted = false } = {}) {
+  // (Its words in the pilot's language, src/lang.js tr; a key's letters as they are, a way that is no key in words.)
+  const head = head0.map(tr), rows = rows0.map((row) => ({ ...row, key: keyCodeOf(row.key) ? row.key : tr(row.key), label: tr(row.label) }));
   return (r, ox, oy, measuring = false) => {
     const m = uiMetrics(r), keyCols = Math.max(0, ...rows.map((row) => glyphs(row.key).length)), boxes = [];
     head.forEach((s, k) => r.text(s, ox - Math.round(m.capLeft), oy + k * UI.row + m.textY, k ? ROLES.textSecondary : ROLES.textPrimary));
@@ -433,7 +438,7 @@ function questsInside(plates, { over = null, boxes = null } = {}) {
     const m = uiMetrics(r);
     let ty;
     if (!plates.length) {
-      r.text('NO ACTIVE QUESTS', ox - m.capLeft, oy + KEYCAP_RISE, ROLES.textQuiet);
+      r.text(tr('NO ACTIVE QUESTS'), ox - m.capLeft, oy + KEYCAP_RISE, ROLES.textQuiet);
       ty = oy + KEYCAP_RISE + UI.row;
     } else {
       let y = oy;
@@ -446,7 +451,7 @@ function questsInside(plates, { over = null, boxes = null } = {}) {
       ty = y - ROOM_LOOK.gap + ROOM_LOOK.air + KEYCAP_RISE;   // the cap's top line `air` under the last plate's ink (a cap rises over its text)
     }
     const next = keyCell(r, keyName('nextQuest') || 'R', ox, ty, TONE.text, { muted: true });
-    r.text('QUESTS', next, ty, TONE.text);
+    r.text(tr('QUESTS'), next, ty, TONE.text);
     void measuring;
   };
 }
@@ -507,7 +512,8 @@ export function blackGlyphs(ctx, font, each, tick, clip = null) {
 // a box of that size.
 export function homeWindow(r, controls) {
   const cw = r.cellW, m = uiMetrics(r), A = ROOM_LOOK.air, capH = r.cellH + KEYCAP_RISE + 1;
-  const rows = controls.map((c) => ({ ...c, cap: !!keyTokens(c.key), press: !!keyCodeOf(c.key) }));
+  const rows = controls.map((c) => ({ ...c, cap: !!keyTokens(c.key), press: !!keyCodeOf(c.key) }))
+    .map((c) => ({ ...c, key: c.cap || c.press ? c.key : tr(c.key), label: tr(c.label) }));
   // The words' column from the keys' left edge: the widest key's cap, and a cell.
   const keyPx = (c) => (c.cap ? glyphs(c.key).length * cw + 2 * KEYCAP_PAD : glyphs(c.key).length * cw - 2 * m.capLeft);
   const wordsDx = Math.max(...rows.map(keyPx)) + ORG.keyWord * cw - KEYCAP_PAD + m.capLeft;

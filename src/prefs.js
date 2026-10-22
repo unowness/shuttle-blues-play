@@ -78,6 +78,9 @@ export const PREFS = Object.freeze({
   // The camera's height over the world (src/zoom.js, − and = and the pause's GRAPHICS > CAMERA; SX, 2026-10-17): a step of
   // CONFIG.camera.zoom, its start unless another is kept (null here: the steps are the owner's).
   zoom:       Object.freeze({ key: 'spaser.zoom.v1',      area: 'local',   fallback: null,     shape: '{"zoom":1|0.9|0.833} (a step, to a thousandth)' }),
+  // The language the game's words are shown in (src/lang.js, the pause's GAMEPLAY > LANGUAGE; SX, 2026-10-22: «русской версии игры в
+  // настройках или в паузе, прям можно сменить»): ENGLISH unless РУССКИЙ is kept. The save stays English whatever is shown.
+  language:   Object.freeze({ key: 'spaser.lang.v1',      area: 'local',   fallback: 'en',     shape: '{"lang":"en"|"ru"}' }),
 });
 
 // The store a preference lives in when none is handed in: this browser's. A browser that blocks site data throws on the global
@@ -140,6 +143,10 @@ export function readZoom(steps, store) {
   return Number.isFinite(kept) ? steps.find((z) => Math.abs(z - kept) < 0.001) ?? null : null;
 }
 export const writeZoom = (zoom, store) => writeJSON('zoom', { zoom: Math.round(zoom * 1000) / 1000 }, store);
+
+// The language (PREFS.language): one of `ids`, else ENGLISH.
+export const readLanguage = (ids, store) => { const kept = readJSON('language', store); return ids.includes(kept?.lang) ? kept.lang : PREFS.language.fallback; };
+export const writeLanguage = (lang, store) => writeJSON('language', { lang }, store);
 
 // The locator's side (PREFS.hudSide): one of `ids`, else the left.
 export const readHudSide = (ids, store) => { const kept = readJSON('hudSide', store); return ids.includes(kept?.locator) ? kept.locator : PREFS.hudSide.fallback; };

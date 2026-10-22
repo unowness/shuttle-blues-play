@@ -1,5 +1,6 @@
 // What the pause's rows, the router's keys and the notices do to the page itself, cut from labs/graphics/main.js (PLAN D4, toward createGame): the
-// ship flown takes its drawing (`applyModel`), the display's filter and the sound switched (`toggleCrt`, `toggleSound`), the pointer worn
+// ship flown takes its drawing (`applyModel`), the display's filter and the sound switched (`toggleCrt`, `toggleSound`), the language
+// (`changeLanguage`), the pointer worn
 // (`applyCursor`, `followCursor`, `nextCursorChoice`) and the look put on (`putOnLook`). They are the page's, not a screen's: V, O, K, a row of the
 // pause's GRAPHICS and SETTINGS, a find's notice and the pilot card's L all reach them through `game` (labs/graphics/pause.js, input-router.js,
 // notices.js, screens.js, lab-drawer.js).
@@ -17,6 +18,7 @@ import { writeDisplayMode, DISPLAY_LABELS } from '../../src/display.js';
 import { writeSoundPreference } from '../../src/audio.js';
 import { cursorLabel } from './cursor.js';
 import { QUEST_LINES as QL } from '../../src/questLines.js';
+import { language, setLanguage } from '../../src/lang.js';
 
 // The page's own colours (the pilot's name field, the lab drawer) wear the game's grade too, and so the look worn (src/looks.js): they are
 // set again when it changes. `shade` is the grade (src/grade.js), or the identity where the lab shows the colours as written.
@@ -48,6 +50,13 @@ export function createPageActions(game, env = {}) {
     writeDisplayMode(crt.mode, saveBackend);
     if (crt.mode !== was) sound.play(crt.enabled ? 'crtOn' : 'crtOff');
     notices.toast(`display ${DISPLAY_LABELS[crt.mode].toLowerCase()}`, 'news', { fate: 'gone' });
+  }
+
+  // The language the game's words are shown in (src/lang.js; the pause's GAMEPLAY > LANGUAGE): kept in this browser, shown from the next frame,
+  // no reload; the page's own language said to the browser too.
+  function changeLanguage(id) {
+    if (!setLanguage(id, game.saveBackend)) return;
+    root().lang = language.id;
   }
 
   // O: sound off and on again, remembered in this browser.
@@ -90,5 +99,5 @@ export function createPageActions(game, env = {}) {
     paintPageColours(root(), game.shade);
   }
 
-  return { applyModel, toggleCrt, toggleSound, applyCursor, followCursor, nextCursorChoice, putOnLook };
+  return { applyModel, toggleCrt, toggleSound, changeLanguage, applyCursor, followCursor, nextCursorChoice, putOnLook };
 }

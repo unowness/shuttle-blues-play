@@ -16,6 +16,7 @@ import { moneyRuns } from '../../src/money.js';
 import { Win, ORG, INK, len } from './organism.js';
 import { drawGreetOffer, DEFAULT_GREETING } from './greeting.js';
 import { PAD, LOOK_SCALE } from './station-art.js';
+import { tr } from '../../src/lang.js';
 
 // A menu with words (`target.talk` { name, lines }: an NPC's thanks once its quest is done, src/world.js) is a dialog window:
 // the name in the first row, then what it says, as wide as a find's notice's words (SX, 2026-10-02: «в диалоговом окне ...
@@ -255,8 +256,9 @@ function plateLayout(r, world, target, { live = true, far = false } = {}) {
   const rows = [], tones = rowTones(world, target);
   target.actions.slice(0, CONFIG.interaction.maxActions).forEach((action, i) => {
     const note = action.note && !shortOfCredits(action.note) ? action.note : null;
-    rows.push({ key: String(i + 1), label: action.label, disabled: action.disabled, inline: action.cargo ? null : note, quest: !!QUEST_INKS[tones[i]] });
-    if (note && action.cargo) rows.push({ key: '', label: note });
+    // (Its words in the pilot's language, src/lang.js tr, whole before the money in them is told apart.)
+    rows.push({ key: String(i + 1), label: tr(action.label), disabled: action.disabled, inline: action.cargo || !note ? null : tr(note), quest: !!QUEST_INKS[tones[i]] });
+    if (note && action.cargo) rows.push({ key: '', label: tr(note) });
   });
   // A docked ship's menu is its way out and cannot be dismissed (labs/graphics/input-router.js), so it offers no CLOSE.
   if (!world.docked) rows.push({ key: keyName('close') || '0', label: 'CLOSE', back: true });
@@ -291,7 +293,7 @@ function paintPlate(r, target, L, x, y, live) {
   win.place(() => ({ x, y }));
   if (live && target.talk && rows[0]?.key) noteKeycap(rows[0].key, win.box);
   win.sheet();
-  win.head([[head.title, INK.text]], { under: head.under ? { runs: moneyRuns(head.under, INK.label) } : null, meta: head.sector ? [[head.sector, INK.label]] : [] });
+  win.head([[head.title, INK.text]], { under: head.under ? { runs: moneyRuns(tr(head.under), INK.label) } : null, meta: head.sector ? [[head.sector, INK.label]] : [] });
   const p = win.p, { cw, m } = win;
   said.forEach((l, i) => win.text(l, p.cx, p.y(i), INK.text));
   rows.forEach((rw, k) => {

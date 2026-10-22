@@ -10,6 +10,7 @@ import { keepBegin, keepEnd } from './grade.js';
 import { QUEST_INKS } from './roles.js';
 import { helpColumns, helpIntro, keyName, SCHEMES, SCHEME_NAMES, DEFAULT_SCHEME } from './controls.js';
 import { rimOf, viewArea, rimPoint, insideRim } from './rim.js';
+import { tr } from './lang.js';
 
 // Presentation only. Cell-positioned line art uses the renderer's measured
 // metrics; UI leading never changes the world/Blockmode cell ratio.
@@ -27,7 +28,7 @@ export function formatDistance(units) {
 }
 
 function text(r, value, x, y, color = muted()) {
-  r.text(String(value), x, y, color, 1);
+  r.text(tr(String(value)), x, y, color, 1);
 }
 
 export function lineArt(r, rows, x, y, color = muted()) {

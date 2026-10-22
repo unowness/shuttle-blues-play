@@ -18,6 +18,7 @@ import { SPECIAL_ID, specialDiscovery, specialCraftAt } from './specials.js';
 import { openingStage } from './opening.js';
 import { terraTarget } from './terra.js';
 import { isCrewHail, crewCraftAt } from './clipper.js';
+import { tr } from './lang.js';
 
 // The open quests' places as points of the grid (src/spots.js): what a quest that puts something in the open keeps apart from. A
 // reference ship standing, not yet boarded, is on no list but stands in the open all the same (src/specials.js).
@@ -100,7 +101,7 @@ export function drawDrifter(world, r, t) {
   // The distress light, a second on and a second off, over its nose.
   if (still && Math.floor(t) % 2 === 0) r.glyph('·', s.x, s.y - reach * 0.8, CONFIG.hud.warning, 1, 1.6);
   if (still && Math.hypot(d.x - world.ship.x, d.y - world.ship.y) < HAIL_REACH * 2.5) {
-    const label = craft.name, w = label.length * r.cellW * (r.textScale ?? 1);
+    const label = tr(craft.name), w = Array.from(label).length * r.cellW * (r.textScale ?? 1);
     r.text(label, s.x - w / 2, s.y + reach + r.cellH * 1.5, CONFIG.hud.color, 0.9);
   }
 }

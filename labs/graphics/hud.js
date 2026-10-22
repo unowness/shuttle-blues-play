@@ -17,6 +17,7 @@ import { hoverItem } from '../../src/hover.js';
 import { keyName } from '../../src/controls.js';
 import { flyingLoaner } from '../../src/loaner.js';
 import { drawScootyDeck } from './scooty-deck.js';
+import { tr } from '../../src/lang.js';
 
 // The route's header in the middle of the top stood here (drawMission: the cargo and its station, NO ACTIVE ROUTE without one); since
 // 2026-10-04 that place is the task slot's (labs/graphics/notices.js, SX's items 5-7, the banners A / Rail): one banner for the
@@ -51,10 +52,10 @@ function drawFlightScreen(r, screen, world) {
   // longer one's pitch, so the same points are the same length on each.
   const { barX, valueX, pitch } = meterRow({ x, end: screen.textEnd ?? screen.x + screen.w, cw, count: Math.max(segments, fuelSegments),
     digits: Math.max(String(max).length, String(Math.ceil(tank)).length), capLeft: uiMetrics(r).capLeft });
-  r.text('HULL', x, one, ROLES.textSecondary, 1);
+  r.text(tr('HULL'), x, one, ROLES.textSecondary, 1);
   drawMeterBar(r, barX, one, (hull / max) * segments, segments, barLook(hull / max), pitch);
   r.text(`${hull}`, valueX, one, ROLES.textPrimary, 1);
-  r.text('FUEL', x, two, ROLES.textSecondary, 1);
+  r.text(tr('FUEL'), x, two, ROLES.textSecondary, 1);
   drawMeterBar(r, barX, two, (fuel / tank) * fuelSegments, fuelSegments, barLook(fuel / tank, 'fuel'), pitch);
   r.text(`${Math.ceil(fuel)}`, valueX, two, ROLES.textPrimary, 1);
 }
@@ -111,14 +112,14 @@ export const BRAKE_OPEN = 0.6;
 export function drawBrake(r, row, braking, lamp = null) {
   const cw = r.cellW;
   // A chevron, a space, the word, a space, a chevron; all centred.
-  const width = (4 + BRAKE_LABEL.length) * cw;
+  const label = tr(BRAKE_LABEL), n = Array.from(label).length, width = (4 + n) * cw;
   const x = Math.round(r.width / 2 - width / 2);
   const warned = !braking && !!lamp?.level && lamp.lit;
   const open = braking || warned ? 0 : BRAKE_OPEN * cw;
   const ink = braking ? ROLES.danger : warned ? (lamp.level > 1 ? ROLES.danger : ROLES.caution) : ROLES.textSecondary;
-  const left = Math.round(x - open), right = Math.round(x + (3 + BRAKE_LABEL.length) * cw + open);
+  const left = Math.round(x - open), right = Math.round(x + (3 + n) * cw + open);
   backedText(r, BRAKE_CHEVRONS[0], left, row.y, ink);
-  backedText(r, BRAKE_LABEL, x + 2 * cw, row.y, braking || warned ? ROLES.textPrimary : ROLES.textSecondary);
+  backedText(r, label, x + 2 * cw, row.y, braking || warned ? ROLES.textPrimary : ROLES.textSecondary);
   backedText(r, BRAKE_CHEVRONS[1], right, row.y, ink);
   return { x: left, y: row.y, w: right + cw - left, h: row.h, chevrons: [left, right] };
 }

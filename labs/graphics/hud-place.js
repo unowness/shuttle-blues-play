@@ -36,6 +36,7 @@ import { noteAction } from './clicks.js';
 import { readHudPlace, writeHudPlace, readHudLayout, writeHudLayout, readHudSide } from '../../src/prefs.js';
 import { px, clamp, inBox } from '../../src/util.js';
 import { wornLook, BASE_LOOKS } from '../../src/widgets.js';
+import { tr } from '../../src/lang.js';
 
 // The locator's side (labs/graphics/hud-sides.js is the switch): the other side holds the quests and the radio.
 export const HUD_SIDES = Object.freeze(['left', 'right']);
@@ -320,17 +321,18 @@ export function drawPlaceOverlay(r, boxes, place, { hover = null, top, t = 0, on
     dashedBox(r, b, lit ? ROLES.textPrimary : ROLES.structure, -t * 12);
     // The name over the outline's top left, or inside it when the outline stands at the screen's top or the name would stand on another
     // group's outline (the shelf under the locator: the two are a container's inset apart, less than the name's row).
-    const w = (g.label.length + 2) * cw, above = b.y - 6 - UI.row >= 0 && !crowded(boxes, g.id, { x: b.x - 6, y: b.y - 6 - UI.row, w, h: UI.row }),
+    const label = tr(g.label), w = (Array.from(label).length + 2) * cw, above = b.y - 6 - UI.row >= 0 && !crowded(boxes, g.id, { x: b.x - 6, y: b.y - 6 - UI.row, w, h: UI.row }),
       y = Math.round(above ? b.y - 6 - UI.row : b.y - 5);
     r.fill(Math.round(b.x - 6), y, Math.round(w), UI.row, ROLES.backing);
-    r.text(g.label, Math.round(b.x - 6 + cw), y + m.textY, lit ? ROLES.textPrimary : ROLES.structure);
+    r.text(label, Math.round(b.x - 6 + cw), y + m.textY, lit ? ROLES.textPrimary : ROLES.structure);
   }
   if (!withButtons) return [];
   const buttons = [
     { label: 'SAVE LAYOUT', ink: unsaved(place) ? ROLES.textPrimary : ROLES.textSecondary, run: onSave },
     { label: 'RESET', ink: ROLES.textSecondary, run: onReset },
   ];
-  const gap = 2 * cw, widths = buttons.map((b) => (b.label.length + 4) * cw);
+  for (const b of buttons) b.label = tr(b.label);
+  const gap = 2 * cw, widths = buttons.map((b) => (Array.from(b.label).length + 4) * cw);
   let x = Math.round(r.cx - (widths.reduce((a, b) => a + b, 0) + gap) / 2);
   return buttons.map((b, i) => {
     const box = { x, y: Math.round(top), w: Math.round(widths[i]), h: UI.row + 2 * UI.pad };

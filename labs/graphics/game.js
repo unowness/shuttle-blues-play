@@ -57,6 +57,7 @@ import { createHudPlace, leftColumnEdge, rightColumnEdge } from './hud-place.js'
 import { createHudSide } from './hud-sides.js';
 import { createInterface, createModernFx } from './hud-modern.js';
 import { loadFrames } from '../../src/frames.js';
+import { language, loadLanguage, useLanguage } from '../../src/lang.js';
 import { createRadio } from './radio.js';
 import { readVolumes } from './volume-panel.js';
 import { readOpening } from '../../src/prefs.js';
@@ -152,6 +153,12 @@ export function createGame(env) {
   paintPageColours(document.documentElement, shade);
   // M hides the locator's legend; the choice is this browser's, like V's.
   legend.hidden = readLegendPreference(saveBackend);
+  // The language the game's words are shown in (src/lang.js; SX, 2026-10-22): this browser's, ENGLISH unless the pause's GAMEPLAY > LANGUAGE
+  // keeps РУССКИЙ; read before anything is drawn (the boot warms the Cyrillic letters when it is Russian). The lab's `?lang=ru|en` one for this
+  // load, not kept (tools/lang-coverage.mjs plays the golden master's scenes in Russian with it).
+  loadLanguage(saveBackend);
+  if (!GAME && pageParams.has('lang')) useLanguage(pageParams.get('lang'));
+  document.documentElement.lang = language.id;
 
   const canvas = document.getElementById('stage');
   const announcementEl = document.getElementById('announcement');

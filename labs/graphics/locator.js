@@ -19,6 +19,7 @@ import { taskNavigation } from '../../src/tasks.js';
 import { questTone } from '../../src/quests.js';
 import { hoverItem } from '../../src/hover.js';
 import { DROID_INKS } from '../../src/droids.js';
+import { tr } from '../../src/lang.js';
 
 // The 3400 u draft was rejected in the native screenshot review: an approaching
 // station at 364 u merged with the nose. This is a local display range, not a
@@ -636,9 +637,10 @@ export function headerPieces(r, header, left, right, end = right) {
   const cells = (v) => Array.from(v).length, step = UI.line.cols;
   const room = Math.floor((end - left) / r.cellW) - step;
   if (!header.name || room < 2) return [];
-  const out = [{ value: fitText(header.name, room), x: left, ink: ROLES.textPrimary }];
-  if (header.far && cells(header.name) + step + cells(header.far) <= room) {
-    out.push({ value: header.far, x: left + (cells(header.name) + step) * r.cellW, ink: ROLES.textSecondary });
+  const name = tr(header.name);
+  const out = [{ value: fitText(name, room), x: left, ink: ROLES.textPrimary }];
+  if (header.far && cells(name) + step + cells(header.far) <= room) {
+    out.push({ value: header.far, x: left + (cells(name) + step) * r.cellW, ink: ROLES.textSecondary });
   }
   return out;
 }
@@ -669,7 +671,8 @@ export function questListAnchor(r, now = clockNow()) {
 // on the screen's right (2026-10-08, the quests' and the radio's heads there): the keycap at the right end with its right stroke where
 // the left one's left stroke stood, the word before it ending a cell short of it, the chevron at the left end, each at its mirror place;
 // the words themselves are not reversed.
-export function drawColumnButton(r, { x0, edge, rowTop, key, word, turn = 0, name, over = null, note = null, axis = null }) {
+export function drawColumnButton(r, { x0, edge, rowTop, key, word: words, turn = 0, name, over = null, note = null, axis = null }) {
+  const word = tr(words);
   const { textY, capLeft, capTop, capBottom } = uiMetrics(r), ink = ROLES.textHint;
   const capX = Math.round(keyMarkLeft(r, x0 + capLeft) - 0.5) + KEYCAP_PAD, y = rowTop + textY;
   const box = { x: capX - KEYCAP_PAD - 2, y: Math.round(rowTop) - KEYCAP_RISE, w: Math.round(edge - capX + KEYCAP_PAD) + 4, h: UI.row + KEYCAP_RISE };
@@ -1126,8 +1129,8 @@ function drawColumnText(r, world, L, task) {
 // from the top left (labs/graphics/quest-list.js A2 LORE); going, the same backwards.
 function drawLegendRows(r, L, lore = null) {
   const ctx = r.ctx;
-  LEGEND.forEach(([kind, name], i) => {
-    const col = Math.floor(i / LEGEND_ROWS), row = i % LEGEND_ROWS, x = L.legendX + col * L.colW, y = L.listTop + row * UI.row;
+  LEGEND.forEach(([kind, word], i) => {
+    const name = tr(word), col = Math.floor(i / LEGEND_ROWS), row = i % LEGEND_ROWS, x = L.legendX + col * L.colW, y = L.listTop + row * UI.row;
     const ink = MARK_COLOR[kind] || ROLES.textSecondary;
     if (!lore) {
       haloText(r, name, x + 2 * r.cellW, y + L.textY, ROLES.textSecondary);

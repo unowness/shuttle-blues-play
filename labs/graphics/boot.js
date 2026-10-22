@@ -29,7 +29,8 @@
 // how far it is; the bar is the share of the weight done, not a clock.
 
 import { createPlan } from './plan.js';
-import { warmSizes, warmChars, warmSize } from './warmup.js';
+import { warmSizes, warmChars, warmSize, WARM_EXTRA, WARM_CYRILLIC } from './warmup.js';
+import { language } from '../../src/lang.js';
 import { prepareSound } from '../../src/audio.js';
 import { LOOK_SCALE } from './station-art.js';
 import { inWorld } from '../../src/zoom.js';
@@ -180,7 +181,9 @@ export function buildBootPlan(deps, planOptions) {
       const sizes = warmSizes({ models: [world.ship.model], stations: deps.stationModels(), config, extra: EXTRA_SIZES });
       for (let i = 0; i < sizes.length; i++) {
         step.label = `TEXT ${Math.round(renderer.fontSize * sizes[i] * 100) / 100} PX`;
-        warmSize(renderer, sizes[i], warmChars(sizes[i]), config);
+        // (In Russian the base size's text takes the Cyrillic letters too: warmup.js WARM_CYRILLIC.)
+        const chars = language.id === 'ru' ? warmChars(sizes[i], WARM_EXTRA + (sizes[i] === 1 ? WARM_CYRILLIC : '')) : warmChars(sizes[i]);
+        warmSize(renderer, sizes[i], chars, config);
         // And at the camera's height (src/zoom.js): the world's glyphs reach the canvas at the zoom's own device size.
         if (renderer.worldLayer && renderer.zoom !== 1) inWorld(renderer, (v) => warmSize(v, sizes[i], warmChars(sizes[i]), config));
         yield (i + 1) / sizes.length;

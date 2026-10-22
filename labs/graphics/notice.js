@@ -6,6 +6,7 @@ import { glyphs, noise3 as noise, mixHex, contrastOnBlack } from '../../src/util
 import { TOP } from './hud-layout.js';
 import { helmetOf } from './helmet.js';
 import { WASH, RAIL_TIMES, washOf, drawRail, railSize, railOutTime, FLAP_GLYPHS } from './rail.js';
+import { tr } from '../../src/lang.js';
 export { washOf };
 
 // The game's notices, one at a time under the task slot at the top of the screen: SX's pick of 2026-10-04, Codex's banners A / Rail
@@ -81,7 +82,7 @@ export const flapInTime = (notice) => 0.08 + (Math.max(...[notice.title, notice.
 
 function flapPlace(r, notice, cx) {
   const pitch = r.cellW + 2, rowH = UI.row + 2 * UI.pad;
-  const lines = [notice.title, notice.sub].filter(Boolean);
+  const lines = [notice.title, notice.sub].filter(Boolean).map(tr);
   const text = Math.max(...lines.map(count));
   const strip = notice.pause ? 0 : FLAP.strip, hair = strip ? FLAP.hair : 0;
   const padW = Math.round(FLAP.pad * pitch), panelW = 2 * padW + text * pitch;

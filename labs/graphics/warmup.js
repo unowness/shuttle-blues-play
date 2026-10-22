@@ -47,6 +47,11 @@ export const WARM_EXTRA = [
   '俺の名はキャプテン・ウソップ！',              // Usopp's caption, including non-star sign previews (2026-10-03)
 ].join('');
 
+// The Russian's letters (src/langRu.js, src/langRuStory.js; SX, 2026-10-22), warmed at the base size only when the game starts in Russian
+// (labs/graphics/boot.js): the English game warms what it always did. A switch in the pause makes them on their first frame, under the pause.
+// checks/boot.mjs holds this list to every Cyrillic letter the tables use.
+export const WARM_CYRILLIC = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя№';
+
 // The letters art is drawn with (a station's beacon, and the NPC ships' portholes and masts, src/npcShips.js: o, v, Y; LEARNER's
 // L plate, 2026-10-06); every other letter and digit is text, which is only ever drawn at the base size.
 const ART_LETTERS = 'oOvYL';

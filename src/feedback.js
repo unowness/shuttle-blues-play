@@ -4,6 +4,7 @@ import { formatCR } from './ruins.js';
 import { moneyRuns, hasMoney, drawRuns } from './money.js';
 import { UI, uiMetrics } from './uiGrid.js';
 import { ROLES } from './roles.js';
+import { tr } from './lang.js';
 
 // What is said when a pirate goes down and when a fight ends (World.killPirate,
 // World.endEncounter). A fight that ends in a wreck says nothing here: the wreck
@@ -159,10 +160,12 @@ export class Feedback {
       // their length, src/clipper.js readLife); a friendly ship's and the pilot's greeting (`greet`)
       // in GAMEPLAY's GREETING style (this.drawGreet). Its rows broken once here; `rows` (a planet's three lines, src/errands.js) are
       // said as they stand, not broken to fit. `box` the place it took, kept (labs/graphics/greeting.js).
+      // (Its words in the pilot's language, src/lang.js tr, before its rows are broken.)
       case 'trafficHail': {
-        const item = { type: event.type, label: `${event.label}: ${event.line}`, sectorId: event.sectorId || world.sector.id,
+        const line = tr(event.line);
+        const item = { type: event.type, label: `${event.label}: ${line}`, sectorId: event.sectorId || world.sector.id,
           x: event.x ?? origin.x, y: event.y ?? origin.y, age: 0, life: event.life ?? HAIL.life, box: null,
-          hail: { craftId: event.craftId, name: event.label, line: event.line, rows: event.rows ?? hailRows(event.line), greet: !!event.greet, to: event.to ?? null, angry: !!event.angry } };
+          hail: { craftId: event.craftId, name: tr(event.label), line, rows: event.rows?.map(tr) ?? hailRows(line), greet: !!event.greet, to: event.to ?? null, angry: !!event.angry } };
         this.items = this.items.filter((it) => !(it.hail && it.hail.craftId === event.craftId));
         this.items.push(item);
         if (this.items.length > 4) this.items.shift();
@@ -171,9 +174,10 @@ export class Feedback {
       // A pirate's shout (src/pirates.js pirateShout, SX 2026-10-02: «выкрики короткие») stands with it as a hail does,
       // shorter, in the caution ink a pirate's guns are.
       case 'pirateShout': {
-        const item = { type: event.type, label: event.line, sectorId: event.sectorId || world.sector.id,
+        const line = tr(event.line);
+        const item = { type: event.type, label: line, sectorId: event.sectorId || world.sector.id,
           x: event.x ?? origin.x, y: event.y ?? origin.y, age: 0, life: CONFIG.pirates.personas.life,
-          hail: { craftId: event.pirateId, name: null, line: event.line } };
+          hail: { craftId: event.pirateId, name: null, line } };
         this.items = this.items.filter((it) => !(it.hail && it.hail.craftId === event.pirateId));
         this.items.push(item);
         if (this.items.length > 4) this.items.shift();

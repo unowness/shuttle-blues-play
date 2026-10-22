@@ -91,6 +91,7 @@ export function washOf(ink) {
 
 // Every amount of money in the coin's rim gold (SX's pick S4): src/money.js since chat H (2026-10-04), so the flight's labels read it.
 import { MONEY_INK, moneyRuns } from '../../src/money.js';
+import { tr } from '../../src/lang.js';
 export { MONEY_INK, moneyRuns };
 
 // ------------------------------------------------------------------------------------------------ the sweep (the quest list's)
@@ -152,8 +153,8 @@ export function railSize(r, b) {
 export const railColumns = (r, b) => Math.max(1, Math.floor((RAIL.width - RAIL.reserve - (b.family === 'gift' ? giftField() + RAIL.gift.gap : RAIL.textX)) / r.cellW));
 // Whether a banner's words fit its rows uncut (its title, and its timer, dot and detail).
 export function railFits(r, b) {
-  const cols = railColumns(r, b), detail = (b.clock ? glyphs(b.clock).length + 3 : 0) + glyphs(b.sub ?? '').length;
-  return glyphs(b.title ?? '').length <= cols && detail <= cols;
+  const cols = railColumns(r, b), detail = (b.clock ? glyphs(b.clock).length + 3 : 0) + glyphs(tr(b.sub ?? '')).length;
+  return glyphs(tr(b.title ?? '')).length <= cols && detail <= cols;
 }
 
 // The x edges of a banner's squares: the rail, then columns of a character's width set on the words' columns (on the grid's for
@@ -214,8 +215,8 @@ function arms(r, vx, vy, a, b, ink, k = 1) {
   stroke(r, [[vx + a * k, vy], [vx, vy], [vx, vy + b * k]], ink);
 }
 
-// Words cut to `n` characters, the last an ellipsis when they are longer (Codex's rail.js `fit`).
-export const railFit = (s, n) => { const g = glyphs(s ?? ''); return g.length <= n ? g.join('') : g.slice(0, Math.max(0, n - 1)).join('') + '…'; };
+// Words cut to `n` characters, the last an ellipsis when they are longer (Codex's rail.js `fit`); in the pilot's language (src/lang.js tr).
+export const railFit = (s, n) => { const g = glyphs(tr(s ?? '')); return g.length <= n ? g.join('') : g.slice(0, Math.max(0, n - 1)).join('') + '…'; };
 
 // The text a banner writes, cell by cell: [{ ch, x, row, ink }], its rows at `rowTop` and a row on, from `textX`; with `centre` (the
 // banner's width) each row on the banner's axis instead (SX, 2026-10-05, on the notices under the helmet's notch: «они плохо

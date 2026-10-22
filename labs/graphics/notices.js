@@ -70,6 +70,7 @@ import { toggleRadio } from './radio.js';
 import { offsetOf, shifted } from './hud-place.js';
 import { QUEST_LINES as QL, stationOnly } from '../../src/questLines.js';
 import { specialById } from '../../src/specialShips.js';
+import { tr } from '../../src/lang.js';
 
 // The task slot's own words: an empty board after the last task done, and the ship gone (Codex's specimens).
 export const SLOT_WORDS = Object.freeze({ clear: 'ALL CLEAR', wrecked: 'WRECKED', tow: 'TOW INBOUND' });
@@ -174,8 +175,10 @@ export function createNotices(game) {
   // `now`: a flip that is an answer with a deadline (the erase's question, main.js) stands at once, ahead of every page waiting, dangers too.
   function notify(title, sub = null, { kind = 'news', cargo = false, mark = null, life = NOTICE.life, waits = true, after = false, find = null, fate = 'card', now = false } = {}) {
     if (NOTICE_FATES.mode !== 'old' && fate === 'gone') return;
-    if (NOTICE_FATES.mode !== 'old' && fate === 'flip') { flip(String(title).toUpperCase(), sub ? String(sub).toUpperCase() : null, { kind, mark, waits, now }); return; }
-    const next = { title: String(title).toUpperCase(), sub: sub ? String(sub).toUpperCase() : null, kind, cargo, mark, life, waits, age: 0,
+    // (Its words in the pilot's language, src/lang.js tr, before they are laid into pages or rows; a notice standing at a switch keeps its own.)
+    const head = tr(String(title).toUpperCase()), detail = sub ? tr(String(sub).toUpperCase()) : null;
+    if (NOTICE_FATES.mode !== 'old' && fate === 'flip') { flip(head, detail, { kind, mark, waits, now }); return; }
+    const next = { title: head, sub: detail, kind, cargo, mark, life, waits, age: 0,
       instant: game.feedback.reducedMotion, find, seed: ++state.serial, clicked: null, after: null };
     next.out = bannerOut(next);
     if (beat && game.focus?.hold(next, beat)) return;

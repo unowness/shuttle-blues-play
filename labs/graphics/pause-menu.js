@@ -220,6 +220,14 @@ function layFoot(win, g, plan) {
 
 // ---- the body ------------------------------------------------------------------------------------------------------------------------
 
+// A settings page's columns in the words drawn (organism.js len: the pilot's language): the labels past the widest group name and the gutter,
+// `labelCols` at least; a level's line past the widest level's label and a cell, `trackCols` at least.
+function columns(plan) {
+  const P = PAUSE_WINDOW, names = plan.slots.map((s) => s.hung?.title).filter(Boolean);
+  const levels = plan.slots.filter((s) => s.row.kind === 'volume').map((s) => s.row.label);
+  return { labelCols: Math.max(P.labelCols, ...names.map((t) => len(t) + ORG.gutter)), trackCols: Math.max(P.trackCols, ...levels.map((t) => len(t) + 1)) };
+}
+
 // Each row laid on its row from the body's first: its box, whether the pointer is on it, what ← → do on it, and how it is drawn.
 function layBody(win, g, plan) {
   const { note, pointer, page, lit } = g, p = win.p, cw = win.cw, P = PAUSE_WINDOW, r = win.r;
@@ -228,8 +236,11 @@ function layBody(win, g, plan) {
   // The columns: a menu's words at the content's axis; a settings page's group names there, its labels `labelCols` in, its values ending
   // `4` cells short of the content's right axis (their ‹ › after them), a level's line from `trackCols` past the labels to `levelCols` short of
   // the right axis.
-  const A = p.x(menu ? 0 : P.labelCols), R = p.cxr, valueAt = R - 4 * cw;
-  const trackX0 = A + P.trackCols * cw, trackX1 = R - P.levelCols * cw;
+  // (In a longer language than the English the columns stand past its widest group name and the gutter, and its widest level's label and
+  // a cell: `columns`. The English's own are these numbers.)
+  const { labelCols, trackCols } = columns(plan);
+  const A = p.x(menu ? 0 : labelCols), R = p.cxr, valueAt = R - 4 * cw;
+  const trackX0 = A + trackCols * cw, trackX1 = R - P.levelCols * cw;
   const out = [];
   plan.slots.forEach((slot, i) => {
     const { row, k } = slot, Y = p.y(k);

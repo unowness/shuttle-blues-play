@@ -39,6 +39,7 @@ import { drawColumnButton, buttonInk } from './locator.js';
 import { keyMarkLeft, KEYCAP_PAD, KEY_MARK_HALF } from './ui-parts.js';
 import { noteKey } from './clicks.js';
 import { LOOKS } from './station-art.js';
+import { tr } from '../../src/lang.js';
 
 // The ink of each sector's bar until 2026-10-09 (T1: the code printed by the name was the key to it), now only a ruin's with no look. The sketch gave five of the palette's inks to the
 // five sectors of its demo pilot's ruins; K-05 is YARD 3's, the start ruin one pilot in three begins with, and takes the gray (not the
@@ -239,14 +240,17 @@ function loreOut(s, age, key) {
   }
   return out;
 }
-function say(t, row, s) {
+// (The words in the pilot's language, src/lang.js tr, before their lore turns them.)
+function say(t, row, words) {
+  const s = tr(words);
   if (t.reduced) return s;
   const p = t.phase, key = row.seq * 5;
   return p.name === OUT ? loreOut(s, p.age, key) : p.name === LIVE ? loreIn(s, p.age, key) : s;
 }
 // Capitals with their ink's top at `capTop`: from `x` (the ink's left edge), or ending on it (`end`).
-function caps(r, m, s, x, capTop, ink, end = false) {
-  if (!s) return;
+function caps(r, m, words, x, capTop, ink, end = false) {
+  if (!words) return;
+  const s = tr(words);
   const left = end ? x - s.length * r.cellW + m.capLeft : x - m.capLeft;
   r.text(s, Math.round(left), Math.round(capTop - m.capTop), ink, 1);
 }
@@ -272,13 +276,13 @@ function bar(r, x, y, w, share, ink, row, now, keep) {
 export function drawTracker(r, t, place) {
   const rows = t.rows, m = uiMetrics(r), cw = r.cellW, now = t.now;
   if (!rows.length) { t.button = null; return null; }
-  const key = keyName('tracker'), word = t.hidden ? TRACKER.words.hidden : TRACKER.words.shown;
+  const key = keyName('tracker'), word = tr(t.hidden ? TRACKER.words.hidden : TRACKER.words.shown);
   // The button, as the legend's: the chevron a cell after its word instead of on the column's edge (the wallet stands at the right end of
   // the row), pointing up while the rows are hidden, the way they open (the legend's opens downward).
   const a = t.args, capX = Math.round(keyMarkLeft(r, place.x0 + m.capLeft) - 0.5) + KEYCAP_PAD;
   t.r = r; t.key = key;
   a.x0 = place.x0 - 1; a.rowTop = place.rowTop; a.key = key; a.word = word; a.turn = t.turn;
-  a.edge = capX + (key.length + 1 + word.length + 1) * cw + 2 * KEY_MARK_HALF + 1;
+  a.edge = capX + (key.length + 1 + Array.from(word).length + 1) * cw + 2 * KEY_MARK_HALF + 1;
   t.button = drawColumnButton(r, a);
   const bx = place.x0, bw = place.x1 - place.x0;
   let top = place.rowTop + place.ink.top;

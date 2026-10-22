@@ -34,6 +34,7 @@ import { drawClouds } from './cloudDraw.js';
 import { lap } from './frameProfile.js';
 import { drawPirateCues, drawPirateFields } from './pirateCombatDraw.js';
 import { drawVanishing } from './vanish.js';
+import { tr } from './lang.js';
 
 // The ink of a planet's name, worked out once per tint (World.planetLabelInk).
 const labelInks = new Map();
@@ -813,7 +814,7 @@ class WorldDrawing {
       if (!r.onScreen(s.x, s.y, 120)) continue;
       drawDroid(passedOver(this, r, dr, s.x, s.y, dr.radius), dr, s.x, s.y, t);
       if (Math.hypot(dr.x - this.ship.x, dr.y - this.ship.y) < HAIL_REACH * 2.5) {
-        const label = DROID_CAPTION[dr.kind], w = label.length * r.cellW * (r.textScale ?? 1);
+        const label = tr(DROID_CAPTION[dr.kind]), w = Array.from(label).length * r.cellW * (r.textScale ?? 1);
         r.text(label, s.x - w / 2, s.y + droidFootprint(dr).model.height * r.cellH * CONFIG.droids.scale * 0.5 + r.cellH, CONFIG.hud.color, 0.9);
       }
     }

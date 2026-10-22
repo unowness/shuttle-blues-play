@@ -37,6 +37,7 @@ import { noteKey } from './clicks.js';
 import { drawStationTrue, stationShotAt } from './world-art.js';
 import { keyTokens } from './swiss.js';
 import { Win, ORG, INK, len, money, partLen, selectMark } from './organism.js';
+import { tr, trIn } from '../../src/lang.js';
 
 const NAME_COLS = 14;                       // the name field's columns: a name's twelve letters (src/pilot.js) and two
 
@@ -136,7 +137,7 @@ export function drawPilotCard(r, world, ui) {
   for (const it of j.rows) y = shareRow(win, a, y, it.label, `${it.have}/${it.of}`, it.have / Math.max(1, it.of)) + (UI.row - cap);
   // The tallies, then the journey.
   k = a.next(y - (UI.row - cap));
-  const tallies = [['CARGO RECOVERED', j.recovered], ['CARGO RESCUED', j.rescued], ['WRECKS', world.wrecks ?? 0]];
+  const tallies = [[trIn('card', 'CARGO RECOVERED'), j.recovered], [trIn('card', 'CARGO RESCUED'), j.rescued], ['WRECKS', world.wrecks ?? 0]];
   tallies.forEach(([label, v], i) => { win.text(label, a.cx, a.y(k + i), INK.label); win.text(String(v), a.cxr, a.y(k + i), INK.text, { right: true }); });
   shareRow(win, a, a.y(a.next(a.yb(k + tallies.length - 1))), 'JOURNEY', `${Math.round(j.progress * 100)}%`, j.progress, INK.text);
 
@@ -184,8 +185,9 @@ export function drawPilotCard(r, world, ui) {
   wordLines(WORDS.map((wd) => ({ text: wd.text, got: world.collection.words.has(wd.id) })), b.cols).forEach((line, i) => {
     let x = b.cx;
     for (const wd of line) {
-      win.text(wd.got ? wd.text : '*'.repeat(len(wd.text)), x, b.y(kt + i), wd.got ? INK.text : INK.faint);
-      x += (len(wd.text) + 1) * cw;
+      // (As a sign shows them, in every language: `raw`.)
+      win.text(wd.got ? wd.text : '*'.repeat(wd.text.length), x, b.y(kt + i), wd.got ? INK.text : INK.faint, { raw: true });
+      x += (wd.text.length + 1) * cw;
     }
   });
 
@@ -347,7 +349,8 @@ export function drawHangar(r, world, ui) {
   win.text(fitText(e.label, Math.floor((p.cxr - tx) / cw) - partLen(status) - 2), tx, p.y(0), INK.text);
   win.part(status, p.cxr, p.y(0), { right: true });
   win.text(e.note, tx, p.y(1), INK.label);
-  const m0 = tx + HANGAR.barFrom * cw, m1 = p.cxr - HANGAR.barTo * cw;
+  // (The squares past the widest label as drawn and the gutter, in a longer language than the English: organism.js len.)
+  const m0 = tx + Math.max(HANGAR.barFrom, ...stats[selected].map((st) => len(st.label) + ORG.gutter)) * cw, m1 = p.cxr - HANGAR.barTo * cw;
   stats[selected].forEach((s, i) => {
     const Y = p.y(3 + i);
     win.text(s.label, tx, Y, INK.label);
@@ -432,14 +435,15 @@ export function drawSignComposer(r, world, ui) {
   const k0 = p.next(p.yb(kWords)), cell = Math.floor((p.cols + 1) / per);
   const wordBoxes = [];
   WORDS.forEach((wd, i) => {
-    const known = world.collection.words.has(wd.id), chosen = ui.words.includes(wd.id), shown = known ? wd.text : '*'.repeat(len(wd.text));
+    // (The words as a sign shows them, in every language: `raw`.)
+    const known = world.collection.words.has(wd.id), chosen = ui.words.includes(wd.id), shown = known ? wd.text : '*'.repeat(wd.text.length), n = Array.from(shown).length;
     const wx = p.x((i % per) * cell), Y = p.y(k0 + Math.floor(i / per)), ink = !known ? INK.faint : chosen ? INK.blue : INK.text;
     const box = win.rowBox(wx, wx + (cell - 1) * cw - 2 * m.capLeft, Y);
     const draw = (on) => {
-      if (on && known) win.bar(wx, wx + len(shown) * cw - 2 * m.capLeft, Y);
-      win.text(shown, wx, Y, ink, { plate: on && known });
+      if (on && known) win.bar(wx, wx + n * cw - 2 * m.capLeft, Y);
+      win.text(shown, wx, Y, ink, { plate: on && known, raw: true });
       // The keys' choice, in the white line round the word's ink.
-      if (i === ui.selected) selectMark({ r, MARK: UI.pad }, { x: wx, y: Math.round(Y), w: len(shown) * cw - 2 * m.capLeft, h: Math.round(win.cap) });
+      if (i === ui.selected) selectMark({ r, MARK: UI.pad }, { x: wx, y: Math.round(Y), w: n * cw - 2 * m.capLeft, h: Math.round(win.cap) });
     };
     if (known) { wordBoxes.push({ index: i, box }); win.item(`word:${wd.id}`, box, draw); } else draw(false);
   });
@@ -468,7 +472,8 @@ const cellWidth = (win, cell) => { const t = keyTokens(cell); return t ? win.key
 // Sentences kept whole on a line where they fit, else words: the intro.
 function sentences(text, cols) {
   const out = [];
-  for (const s of String(text).match(/[^.!?]+[.!?]*\s*/g) ?? []) {
+  // (The whole in the pilot's language first, src/lang.js tr: its sentences are that language's.)
+  for (const s of String(tr(text)).match(/[^.!?]+[.!?]*\s*/g) ?? []) {
     const t = s.trim(), last = out.at(-1);
     if (last != null && len(last) + 1 + len(t) <= cols) out[out.length - 1] = `${last} ${t}`;
     else out.push(...wrap(t, cols, 9));

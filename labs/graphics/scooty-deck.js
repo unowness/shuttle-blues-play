@@ -33,6 +33,7 @@ import { keycap, keycapBox, KEYCAP_PAD } from './ui-parts.js';
 import { noteKeycap } from './clicks.js';
 import { EDGE, deckLayout } from './hud-layout.js';
 import { GRIP_INK, HELM_FX, drawGauge } from './vector-helm.js';
+import { tr } from '../../src/lang.js';
 
 // ------------------------------------------------------------------------------------------------ the livery
 
@@ -89,8 +90,8 @@ const textWidth = (r, text) => Array.from(text).length * r.cellW;
 // A key and its word in a lower corner, as the pilot's right screen draws its items (hud.js drawPilotScreen: a button from its cap to the
 // end of its words, coming up under the pointer, a click the key's), its cap in the livery. The key's name is read from the controls'
 // table, never typed. `x` the item's left edge, or its right with `right`.
-function cornerKey(r, id, word, x, y, { right = false } = {}) {
-  const key = keyName(id) || '?', width = textWidth(r, key) + r.cellW + KEYCAP_PAD + textWidth(r, word);
+function cornerKey(r, id, words, x, y, { right = false } = {}) {
+  const word = tr(words), key = keyName(id) || '?', width = textWidth(r, key) + r.cellW + KEYCAP_PAD + textWidth(r, word);
   const left = right ? x - width : x, capX = left + KEYCAP_PAD, after = capX + textWidth(r, key) + r.cellW;
   const cap = keycapBox(r, key, capX, y);
   const box = { ...cap, w: after + textWidth(r, word) - cap.x + KEYCAP_PAD };
@@ -216,11 +217,11 @@ function drawHandlebar(r, at, pose, { stemTo = null, charms = null } = {}) {
     const [hx, hy] = P(64, -3), len = 22;
     const tx = hx + Math.sin(swing) * len, ty = hy + Math.cos(swing) * len;
     path(ctx, [[hx, hy], [tx, ty]], INK.label);
-    const cw = r.cellW, w = Math.round(Math.max(textWidth(r, 'RETURN TO'), textWidth(r, text) + 2 * cw) + 2 * 9), h = 2 * UI.row + 12;
+    const back = tr('RETURN TO'), cw = r.cellW, w = Math.round(Math.max(textWidth(r, back), textWidth(r, text) + 2 * cw) + 2 * 9), h = 2 * UI.row + 12;
     const bx = Math.round(tx - w / 2), by = Math.round(ty - 3);
     path(ctx, cutBox(bx, by, w, h, 4), INK.line, { closed: true, fill: ROLES.backing });
     path(ctx, octagon(Math.round(tx), by + 6, 2), INK.line, { closed: true });
-    r.text('RETURN TO', bx + 9, by + 9, INK.label, 1);
+    r.text(back, bx + 9, by + 9, INK.label, 1);
     if (bearing !== null) needle(ctx, bx + 9 + cw / 2, capMid(r, by + 9 + UI.row), bearing, 13, INK.course);
     r.text(text, bx + 9 + 2 * cw, by + 9 + UI.row, INK.value, 1);
   }

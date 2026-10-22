@@ -11,6 +11,7 @@ import { drawGuideAt, formatDistance } from '../../src/interface.js';
 import { MARK_FOCUS, pingShare } from '../../src/tasks.js';
 import { helmetOf } from './helmet.js';
 import { deckTop } from './hud-place.js';
+import { tr, language } from '../../src/lang.js';
 
 // The gray marks' alpha (SX, 2026-10-04: «серые метки по краям экрана вообще не нужны, или нужны прям сильно прозрачнее», then his
 // pick E1 QUIET on labs/graphics/sketches/space-tones.html): 2.2:1 on black through the look NOW.
@@ -49,7 +50,7 @@ const keyOf = (keys, prefix, id) => { let key = keys.get(id); if (key === undefi
 function slotOf(key, kind) {
   let s = slots.get(key);
   if (!s) {
-    s = { key, kind, angle: 0, w: 0, h: 0, at: null, seed: seedOf(key), guide: null, arrow: '', name: '', dist: -1, label: '', glyph: '',
+    s = { key, kind, angle: 0, w: 0, h: 0, at: null, seed: seedOf(key), guide: null, arrow: '', name: '', dist: -1, epoch: -1, label: '', glyph: '',
       r: null, m: null, paint: null, pingAt: -Infinity, left: Infinity };
     s.paint = () => drawGuideAt(s.r, s.guide, s.m);
     slots.set(key, s);
@@ -109,8 +110,9 @@ export function drawRimMarks(r, { area, guides = NONE, bearings = NONE, pirates 
   }
   for (const d of bearings) {
     const s = slotOf(keyOf(nearKeys, 'near:', d.id), 'near'), arrow = compassArrow(d.angle), dist = Math.round(d.dist);
-    if (s.arrow !== arrow || s.name !== d.label || s.dist !== dist) {
-      s.arrow = arrow; s.name = d.label; s.dist = dist; s.label = `${arrow} ${d.label}  ${formatDistance(d.dist)}`;
+    // (Its words in the pilot's language, src/lang.js: made again at a switch.)
+    if (s.arrow !== arrow || s.name !== d.label || s.dist !== dist || s.epoch !== language.epoch) {
+      s.arrow = arrow; s.name = d.label; s.dist = dist; s.epoch = language.epoch; s.label = `${arrow} ${tr(d.label)}  ${formatDistance(d.dist)}`;
     }
     s.w = (s.label.length + 2) * cw; s.h = UI.row;
     const far = d.dist * (r.zoom ?? 1);              // (its units in px on the screen: the camera's height, src/zoom.js)
