@@ -52,7 +52,7 @@ import { clipperPose } from '../../src/clipper.js';
 import { floatPose, floatPhases } from '../../src/float.js';
 import { CONFIG } from '../../src/config.js';
 import { PESTER_ID, pesterHere } from '../../src/pester.js';
-import { clamp, easeOut, dimToContrast } from '../../src/util.js';
+import { clamp, easeOut, dimToContrast, contrastOnBlack } from '../../src/util.js';
 import { withAlpha } from '../../src/hover.js';
 import { drawStationShot } from './windows.js';
 import { glyphsNow } from './world-art.js';
@@ -66,12 +66,19 @@ import { Win, ORG, INK, SIZES, partLen, len } from './organism.js';
 // at least; `show` how far the beat has come in when its window starts to come, `drop` the px it comes from above (the pause's).
 // The script: a line stands `read` s and a second each `cps` characters before the next comes, the pilot's action `act` s; a line comes in
 // over `fresh` s; a line wraps to `wrap` rows at most; a conversation is kept `keep` s of page time after its last word, `threads` of them at
-// most. `talk` the row the object's window offers to begin it. `names` the grays of the names, the lightest and YOU's, as contrast on black:
-// the others between, a step a speaker.
+// most. `talk` the row the object's window offers to begin it. `names` the grays of who speaks, names and words alike: the lightest the
+// window's text, YOU's `you` as contrast on black, the others between, a step a speaker.
 export const BEAT = Object.freeze({ pace: 0.2, in: 0.3, out: 0.3, veil: 0.72, width: SIZES.S[0], shot: 200, shotLeast: 120, show: 0.35, drop: 12, under: 48, floor: 8,
-  read: 0.6, cps: 27, act: 0.5, fresh: 0.25, wrap: 8, keep: 900, threads: 24, talk: 'TALK', names: Object.freeze({ first: 11, you: 4.5 }) });
-// The gray of the `i`-th of `k` who speak to the pilot (YOU apart, the quietest): a step down from the lightest for each, in contrast's ratio.
-export const nameGray = (i, k) => dimToContrast(PALETTE.white, BEAT.names.first * (BEAT.names.you / BEAT.names.first) ** (i / Math.max(1, k)));
+  read: 0.6, cps: 27, act: 0.5, fresh: 0.25, wrap: 8, keep: 900, threads: 24, talk: 'TALK', names: Object.freeze({ you: 4.5 }) });
+// The gray of the `i`-th of `n` voices in a talk, YOU the last: from the window's white down to YOU's, the steps even in lightness (CIE L*), so
+// each reads as far from the next (SX, 2026-10-22: «их строчки тоже подписаны этим оттенком»; «достаточно различными друг с другом»; a step even in
+// contrast's ratio, the round before, bunched the lighter ones).
+const lightOf = (ratio) => 116 * Math.cbrt(ratio * 0.05 - 0.05) - 16, ratioOf = (L) => (((L + 16) / 116) ** 3 + 0.05) / 0.05;
+export function voiceGray(i, n) {
+  if (i <= 0) return PALETTE.white;
+  const top = lightOf(contrastOnBlack(PALETTE.white)), you = lightOf(BEAT.names.you);
+  return dimToContrast(PALETTE.white, ratioOf(top + ((you - top) * Math.min(i, n - 1)) / Math.max(1, n - 1)));
+}
 
 // The pilot's name in the script.
 export const YOU = 'YOU';
@@ -299,9 +306,10 @@ export function createTalkBeat(game) {
     // The script's columns: the names' (the longest and a gutter), the words' (what is left); every entry, said or still to come, so the window
     // is as tall from the first line as the talk will be.
     const entries = script.entries;
-    // The names' grays: who speaks, in the order they first do, a step each; YOU the quietest.
+    // The voices' grays: who speaks, in the order they first do, a step each; YOU the quietest, counted from the first line so no gray moves
+    // when the pilot first answers. A line by no one (COMMONS's own words, its static) keeps the ink its talk gives it.
     const mine = (e) => e.you || e.who === YOU, speakers = [...new Set(entries.filter((e) => e.who && !mine(e)).map((e) => e.who))];
-    const grayOf = (e) => (mine(e) ? nameGray(1, 1) : nameGray(speakers.indexOf(e.who), speakers.length));
+    const voices = speakers.length + 1, grayOf = (e) => (mine(e) ? voiceGray(voices - 1, voices) : voiceGray(speakers.indexOf(e.who), voices));
     const nameCols = entries.some((e) => e.who) ? Math.max(...entries.map((e) => len(e.who))) + ORG.gutter : 0;
     const lines = entries.flatMap((e) => wrap(e.text, cols - nameCols, BEAT.wrap).filter(Boolean).map((text, j) => ({ e, text, first: j === 0 })));
     const rows = [];
@@ -325,13 +333,12 @@ export function createTalkBeat(game) {
       win.sheet();
       win.head([[kind, INK.text]], { meta: [{ runs: [[placeOf(world, t), INK.text]] }] });
       if (paint) paint(r, { x: Math.round(p.cxr) - side, y: Math.round(p.y(0)), w: side, h: side }, now);
-      // The script: each line once its time has come, coming in; its speaker on its first row (the pilot's in gray, anyone else's in the quest's
-      // ink), its words beside, the pilot's in gray too.
+      // The script: each line once its time has come, coming in; its speaker on its first row, its words beside, both in the speaker's gray.
       lines.forEach((l, i) => {
         if (l.e.at > now) return;
         const put = () => {
           if (l.first && l.e.who) win.text(l.e.who, p.cx, p.y(i), grayOf(l.e));
-          win.text(l.text, p.x(nameCols), p.y(i), l.e.you || l.e.who === YOU ? INK.label : l.e.ink ?? INK.text);
+          win.text(l.text, p.x(nameCols), p.y(i), l.e.who || mine(l.e) ? grayOf(l.e) : l.e.ink ?? INK.text);
         };
         const fresh = clamp((now - l.e.at) / BEAT.fresh, 0, 1);
         if (fresh < 1) withAlpha(r.ctx, easeOut(fresh), put); else put();
