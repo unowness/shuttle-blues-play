@@ -3,8 +3,8 @@ import { sectorById, neighbourOf, SECTOR_SIZE } from './sectors.js';
 import { TERRA, terraOf, terraSpot, placeTerra } from './terra.js';
 import { noteVanish } from './vanish.js';
 import { QUEST_LINES as QL } from './questLines.js';
-import { clamp, TAU } from './util.js';
-import { ROLES } from './roles.js';
+import { clamp, TAU, dimToContrast } from './util.js';
+import { ROLES, QUEST_INKS } from './roles.js';
 
 // CLIPPER, the eighth reference ship: SX (ROUXEE) and his friend Pasha (KWLSK), who tested the game, on their way to a beta test (SX,
 // 2026-10-21, labs/graphics/sketches/clipper-beta.html: «встречаешь этот корабль ... две полосочки, с текстом, один от меня, другой от Паши
@@ -64,11 +64,16 @@ export const LINES = Object.freeze({
   bye: [[CREW.pasha, "THANKS, DUDE. WE'LL TAKE IT FROM HERE."]],
   last: [[CREW.sx, 'I SWEAR. THAT WAS OUR LAST RIDE.']],
 });
-// What the window says, as the script's lines (src/specials.js specialCandidates): each its speaker, RADIO's name in the radio's blue (SX,
-// 2026-10-22: «И радио там фиолетовым подсвечено ... синим, наверное. Как радио»); the two strips of the meeting said before it, so the
+// A line of the script, its speaker's name in an ink of its own where it has one: ROUXEE's a little darker than KWLSK's purple, so the two
+// tell apart (SX, 2026-10-22: «у КВЛСК и Роксети раздели ... у Роксети чуть потемнее тон был»; the quest's purple dimmed to 5:1 on black, 6.3
+// it is), RADIO's the label's gray as YOU's («радио сделай серым. Таким же, как и Ю»; the radio's blue a moment before, the purple at first).
+export const ROUXEE_INK = dimToContrast(QUEST_INKS.special, 5);
+const nickOf = (who) => (who === CREW.sx ? ROUXEE_INK : who === RADIO ? ROLES.textLabel : null);
+const lineOf = (who, line, key = null) => ({ who, line, ...(nickOf(who) ? { nick: nickOf(who) } : null), ...(key ? { key } : null) });
+// What the window says, as the script's lines (src/specials.js specialCandidates); the two strips of the meeting said before it, so the
 // script begins with them (SX: «И начинаться все должно быть дюд»).
-export const talkOf = () => LINES.talk.map(([who, line]) => ({ who, line, ...(who === RADIO ? { nick: ROLES.structure } : null) }));
-export const meetOf = () => LINES.meet.map(([who, line]) => ({ who, line }));
+export const talkOf = () => LINES.talk.map(([who, line]) => lineOf(who, line));
+export const meetOf = () => LINES.meet.map(([who, line]) => lineOf(who, line));
 
 // How long a line stands: long enough to read while flying (SX: «чтобы фразочки ... довольно долго на экране висели»).
 export const readLife = (line) => Math.max(C().read.least, C().read.base + line.length / C().read.chars);
@@ -145,13 +150,14 @@ function sayDue(world, list, at, gate, log = null) {
   return e;
 }
 
-// The crew's window: its script, what they said in the window and on the way (`q.log`), each line once; the call standing among it.
-function talkMenu(world, s, at) {
+// The crew's window: its script, what they said in the window and on the way (`q.log`), each line once. A call is a window of its own, the
+// one line it says (`call`, its own conversation: SX, 2026-10-22, «когда прерывается по пути, это уже другое окно ... Другой высоты»).
+function talkMenu(world, s, at, call = null) {
   const sp = { name: 'CLIPPER', place: 'CLIPPER' }, log = s.q?.log ?? [];
+  const talk = call ? { ...sp, lines: [lineOf(...call.line)], thread: `${s.questId}:call:${call.n}` }
+    : { ...sp, before: meetOf(), lines: [...talkOf(), ...log.map(([who, line], i) => lineOf(who, line, `${s.questId}:${i}`))], thread: s.questId };
   return { id: MENU_ID, title: sp.name, subtitle: `${CREW.sx} / ${CREW.pasha}`, x: at.x, y: at.y, interactRadius: CONFIG.quests.special.reach,
-    art: { model: { width: 8, height: 6 }, scale: 1.5, turns: true },
-    talk: { ...sp, before: meetOf(), lines: [...talkOf(), ...log.map(([who, line], i) => ({ who, line, key: `${s.questId}:${i}` }))], thread: s.questId },
-    actions: [] };
+    art: { model: { width: 8, height: 6 }, scale: 1.5, turns: true }, talk, actions: [] };
 }
 
 // ---- the handler (src/specials.js) -----------------------------------------------------------------------------------------------
@@ -193,8 +199,9 @@ function follow(world, s, dt) {
   const dx = o.x + ship.x - q.x, dy = o.y + ship.y - q.y, d = Math.hypot(dx, dy) || 1;
   if (d > c.lag && !q.lag) {
     q.lag = true;
-    q.log.push(LINES.calls[q.calls++ % LINES.calls.length]);
-    world.talkCall = { n: `${s.questId}:${q.calls}`, menu: talkMenu(world, s, localOf(world, q)) };
+    const line = LINES.calls[q.calls++ % LINES.calls.length];
+    q.log.push(line);
+    world.talkCall = { n: `${s.questId}:${q.calls}`, menu: talkMenu(world, s, localOf(world, q), { n: q.calls, line }) };
   } else if (q.lag && inSight(world, localOf(world, q))) { q.lag = false; world.talkCall = null; }
   const want = !q.lag && ship.alive ? clamp((d - c.follow) / c.ramp, 0, 1) * c.speed * f.share : 0, push = keepOff(world, localOf(world, q));
   steer(q, (dx / d) * want + push.x, (dy / d) * want + push.y, dt);

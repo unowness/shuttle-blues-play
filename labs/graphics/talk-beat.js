@@ -15,10 +15,11 @@
 // The talk is written as a script (SX, 2026-10-22, on D2 SCRIPT of labs/graphics/sketches/clipper-beta.html: «диалог в виде скрипта вообще
 // отличный вариант. Наверное, я бы и другие диалоги хотел так»; the game's dialogs on labs/graphics/sketches/talk-script.html): who speaks in a
 // column at the left, the line beside it wrapped under itself; the whole conversation in one window, kept from its first line (a quest's plea,
-// the pilot's answer, the thanks), the lines coming one at a time at a reading pace (SX, 2026-10-22: «фразочки слишком быстро ... их не
-// успеваешь прочитать», then of his P1, a second and a second a dozen letters, «очень медленно появляются строчки. Надо все-таки быстрее»: 0.8 s
-// and a second each 18 letters, 2.9 s a line of 38; 1.4 s and 0.03 s a letter at first) and the window as tall as all of them from the first;
-// its answers once all of it is said (SX: «сначала разговор должен быть»; a press before then says the rest at once); the
+// the pilot's answer, the thanks), the lines coming one at a time (SX, 2026-10-22: «фразочки слишком быстро ... их не успеваешь прочитать»,
+// then of a second and a second a dozen letters «очень медленно», then of 0.8 s and a second each 18 «слишком медленный все еще, пусть
+// быстрее строки появляются гораздо»: 0.4 s and a second each 40 letters, 1.35 s a line of 38) and the window as tall as all of them from the
+// first; its answers standing from the first line («кнопка должна быть доступна и до того, как закончился диалог»), a press saying the rest
+// at once; the
 // pilot's pressed answer written into it as YOU's, an action between asterisks, YOU and the action in gray (SX: «писать строки you серым.
 // Писать действия»); whoever speaks to the pilot in the ink of the talk's quest (src/roles.js QUEST_INKS by its rows' tone, the story's purple
 // where none: «зеленый квест ... зеленый ники. Фиолетовый квест ... фиолетовые ники»), and only a quest's answer framed in that ink («рамочка
@@ -35,7 +36,8 @@
 // slowed (COMMONS's recordings play on the world's clock).
 //
 // A call (`world.talkCall` { n, menu }: CLIPPER's crew left a screen behind, src/clipper.js) stands by itself, whatever the ship is next to,
-// until LATER or the world takes it back (SX's W1, 2026-10-22: «давай появляется диалоговое окно, и они говорят, чувак, давай без спидранов»).
+// until LATER or the world takes it back (SX's W1, 2026-10-22: «давай появляется диалоговое окно, и они говорят, чувак, давай без спидранов»):
+// a window of its own, its own conversation («когда прерывается по пути, это уже другое окно ... Другой высоты»).
 //
 // The page's (no world state, nothing saved): the world's pace is the page's to give (labs/graphics/flight-frame.js runs `steps` of the world's
 // steps a frame), as the opening's slow beat does (labs/graphics/opening-focus.js F3).
@@ -67,7 +69,7 @@ import { Win, ORG, INK, SIZES, partLen, len } from './organism.js';
 // over `fresh` s; a line wraps to `wrap` rows at most; a conversation is kept `keep` s of page time after its last word, `threads` of them at
 // most. `talk` the row the object's window offers to begin it.
 export const BEAT = Object.freeze({ pace: 0.2, in: 0.3, out: 0.3, veil: 0.72, width: SIZES.S[0], shot: 200, shotLeast: 120, show: 0.35, drop: 12, under: 48, floor: 8,
-  read: 0.8, cps: 18, act: 0.6, fresh: 0.25, wrap: 8, keep: 900, threads: 24, talk: 'TALK' });
+  read: 0.4, cps: 40, act: 0.4, fresh: 0.25, wrap: 8, keep: 900, threads: 24, talk: 'TALK' });
 
 // The pilot's name in the script.
 export const YOU = 'YOU';
@@ -226,18 +228,14 @@ export function createTalkBeat(game) {
   function open(t) { S.opened = threadOf(t); S.dismissed = null; }
   // Whatever of a conversation is still to come, said now.
   function sayAll(s, now) { for (const e of s.entries) if (e.at > now) e.at = now; }
-  // Row `i` of the window the pilot sees, pressed (the router's keys and clicks): TALK on a menu that asks, or a row it keeps; in a talk begun
-  // whose words are still coming, the rest of them said at once (its answers stand only then); else the menu's own row (`run`).
+  // Row `i` of the window the pilot sees, pressed (the router's keys and clicks): TALK on a menu that asks, or a row it keeps; else the menu's
+  // own row (`run`).
   function press(i, now = pageTime()) {
     const t = world.selected;
-    if (asks(t)) {
-      if (i === 0) { open(t); return true; }
-      const row = kept(t)[i - 1];
-      return row ? run(row.i, now) : false;
-    }
-    const s = t?.talk && S.key ? S.scripts.get(threadOf(t)) : null;
-    if (s?.entries.some((e) => e.at > now)) { sayAll(s, now); return true; }
-    return run(i, now);
+    if (!asks(t)) return run(i, now);
+    if (i === 0) { open(t); return true; }
+    const row = kept(t)[i - 1];
+    return row ? run(row.i, now) : false;
   }
   // Row `i` of the menu the ship is next to, run: the world runs it (World.runAction), and where the menu talks the answer is written into its
   // script as YOU's action, whatever of the talk was still to come said first. Returns whether it ran.
@@ -335,8 +333,6 @@ export function createTalkBeat(game) {
         if (fresh < 1) withAlpha(r.ctx, easeOut(fresh), put); else put();
       });
       // The answers: each its keycap and its words (money in gold, one that cannot be taken faint), a cargo's note under it; each row a button.
-      // (Only once all the talk is said: «сначала разговор должен быть».)
-      if (entries.some((e) => e.at > now)) rows.length = 0;
       rows.forEach((row, i) => {
         const Y = p.y(kRows + i), words = row.disabled ? [[row.label, INK.faint]] : moneyRuns(row.label, row.key ? INK.text : INK.label);
         const wx = p.cx + win.keyWidth(row.key || '1', null) + (ORG.keyWord * cw - KEYCAP_PAD) + m.capLeft;
