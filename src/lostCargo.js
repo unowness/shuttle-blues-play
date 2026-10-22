@@ -48,7 +48,7 @@ export function buildLostCargo(world, sector) {
 // planet's orbit or a station's margin, pushed there by the inset).
 export function restingPoint(world, x, y) {
   const S = CONFIG.stranded;
-  const thrust = world.ship.params().thrust;
+  const thrust = world.ship.chassis.thrust;      // (the hull's own: a cup of coffee moves no cargo's rest)
   const hazards = [
     ...world.attractors.map((a) => ({
       x: a.x, y: a.y,

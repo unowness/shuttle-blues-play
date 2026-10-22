@@ -1,4 +1,4 @@
-// The economy's numbers: the delivery clock, fuel, the freight tariff and the pirates' take, the new pilot's wallet, chalk,
+// The economy's numbers: the delivery clock, fuel, the freight tariff and the pirates' take, the new pilot's wallet, chalk, coffee,
 // and the raids and the ruins' guards. Moved out of src/config.js as they were (chat E1, 2026-10-04, the roadmap's refactoring
 // piece: the economy part of the config in its own file); CONFIG holds each section under its old name (CONFIG.delivery is
 // ECONOMY.delivery, the same object), so every reader is unchanged. What a ruin costs is in the sector catalogue (src/sectors.js),
@@ -139,14 +139,22 @@ export const ECONOMY = {
   support: { after: 1500, deliveries: 5, keep: 150 },
 
   // Chalk (SX, 2026-09-29: "мелки чтобы оставлять знаки"; FEATURE_PLAN.md section 11,
-  // E3). Every sign left uses one piece. A new pilot starts with `start`; any docked
-  // station sells up to `box` pieces at a time for `price` CR each, and a pilot
-  // carries at most `max`.
+  // E3): a sign took a piece and every docked station sold a box, until 2026-10-23, when the
+  // station's row became the coffee (below) and a sign took none. The pilot's pieces stay in
+  // the save (every key a save has had stays, checks/home-garage.mjs): `start` for a new pilot,
+  // at most `max`.
   chalk: {
     start: 3,
     max: 20,
-    box: 5,
-    price: 5,             // CR a piece
+  },
+
+  // Coffee (SX, 2026-10-23: «купить мел ... назови это выпить кофе. И после того, как ты выпил кофе, корабль становится быстрее на 20%.
+  // На 5 минут»): any docked station pours a cup for `price` CR; for `life` s of the world's clock the flown hull's push and top
+  // are `boost` more (src/ship.js params), then it wears off. Another cup while one works is not poured.
+  coffee: {
+    price: 25,            // CR a cup
+    boost: 0.2,           // the push's and the top's share more
+    life: 300,            // s of the world's clock
   },
 
   // Raids and guards (SX, 2026-10-01, GARAGE_QUESTS_HANDOFF.md step 3: «Вокруг разрушенной станции есть пираты. Когда

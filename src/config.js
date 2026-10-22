@@ -793,7 +793,7 @@ export const CONFIG = {
     // stays the speed a station takes the ship at.
     standSpeed: 350,
     // A docked garage lists seven (2026-09-29): cargo, undock, refuel, repair,
-    // chalk, hangar, log. Keys 1-7.
+    // coffee (chalk until 2026-10-23), hangar, log. Keys 1-7.
     maxActions: 7,
   },
 
@@ -850,8 +850,9 @@ export const CONFIG = {
   // support: src/economyConfig.js, the first-dock support's numbers (chat N2 part 2, 2026-10-08).
   support: ECONOMY.support,
 
-  // chalk: src/economyConfig.js, the economy's numbers in a file of their own (chat E1, 2026-10-04).
+  // chalk and coffee: src/economyConfig.js, the economy's numbers in a file of their own (chat E1, 2026-10-04).
   chalk: ECONOMY.chalk,
+  coffee: ECONOMY.coffee,
 
   // SX, 2026-10-01, late: «давай, короче, сделаем 100 хп и перерасчет дамага. Дело в том, что я слишком часто
   // врезаюсь, взрываюсь. Давай восстанавливаться будет персонаж. После взрыва ... с 50 процентами хп ... дамаг должен
@@ -1058,15 +1059,6 @@ export const CONFIG = {
     // по цвету сильнее»), the gray dimmed to 4.6:1 on black (AA for its size).
     hint: '#6f7780',
     hot: '#d6dce3',
-    // A coin's +N CR where it was picked up (src/feedback.js): a dark gold, half seen (SX, 2026-10-02: «надписи от них не
-    // должны быть зеленые ... какие-то не очень яркие. Возможно, желтые, но темные. Сильно прозрачные»; they were the
-    // gains' green). The coin's rim gold (src/roles.js creditsLabel) a step darker, at half its light.
-    coinLabel: '#B08A3A80',
-    // A fuel canister's +N FUEL where it was picked up (src/feedback.js; SX, 2026-10-02: «при подборе горючего цвет текста об
-    // этом должен быть приглушенным и цвета горючего»): the oil's blue (src/oil.js OIL_LOOK's heart, #4980AF, 4.99:1 on black)
-    // with its chroma cut to 60 % and a hair more light, so it is quieter by colour and not by darkness: the heart is already
-    // near the 4.5:1 a label needs, and the grade (src/grade.js) takes a little more. 5.21:1 on black as written, 4.78:1 after the grade.
-    fuelLabel: '#62829E',
     accent: '#b2c9b8',
     // The alarm inks (style.js binds them to the palette's caution and danger): a
     // loss or a hit on a label, the lost-cargo route (src/feedback.js, src/interface.js).

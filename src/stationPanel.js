@@ -84,7 +84,7 @@ export function stationStatus(world, station) {
 }
 
 // What it offers a pilot who docks: what the station's menu holds now, in the menu's
-// order. Runs while it has one to give, fuel and chalk at every working station, repairs
+// order. Runs while it has one to give, fuel and coffee at every working station, repairs
 // and the hangar at a garage, the hull's patch at a freight hub (src/stationService.js patchAction; UI-05). A ruin offers
 // nothing until it is rebuilt, a broken station nothing until repaired (UI-03). A list with
 // commas, like GOODS beside it, and docking itself left out: it is how any of these is
@@ -99,7 +99,7 @@ export function stationOffers(world, station) {
     offersAt(station.id, world.ledger).length > 0 && 'JOBS',
     'FUEL',
     garage ? 'REPAIRS' : 'HULL PATCH',
-    'CHALK',
+    'COFFEE',
     garage && 'HANGAR',
   ].filter(Boolean).join(', ');
 }

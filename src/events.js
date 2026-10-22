@@ -60,7 +60,9 @@ export const EVENTS = Object.freeze({
   homeLeaving: E('stationId'),
   refueled: E('...at units cost fuel credits', 'refuel'),
   hullRepaired: E('...at points cost hull credits', 'repair'),
-  chalkBought: E('sectorId x y pieces cost chalk credits', 'chalk'),
+  // A cup of coffee at a docked station (src/stationService.js drinkCoffee), and its boost worn off.
+  coffeeDrunk: E('sectorId x y cost boost life credits', 'coffee'),
+  coffeeWoreOff: E('sectorId x y'),
   stationInvested: E('stationId label amount invested cost share credits by ...at', 'invest'),
   stationRestored: E('stationId label becomes price credits restored finds gift ...at', 'restore'),
   stationBroken: E('stationId label cost sectorId x y', 'station'),
@@ -83,7 +85,7 @@ export const EVENTS = Object.freeze({
   radioGiven: E('questId sectorId', 'radio'),
   findMarked: E('findId label kind sectorId', 'mark'),
   signalHeard: E('signalId kind wordId text amount credits x y sectorId tip', 'signal'),
-  signPlaced: E('signId sectorId x y text chalk replaced', 'sign'),
+  signPlaced: E('signId sectorId x y text replaced', 'sign'),
   signRemoved: E('signId sectorId x y text', 'sign'),
   flagRemoved: E('slot colour sectorId x y', 'flag'),
   // Pirates (src/pirates.js, src/raids.js).

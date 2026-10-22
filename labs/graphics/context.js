@@ -235,11 +235,13 @@ function stepPlace(r, world, target, w, h, avoid, { live = true, still = false, 
 // before it his V2 LEDGER on labs/graphics/sketches/menus-ledger.html, 2026-10-05): a small window over open space, its frame white, as large as its
 // words. Its head as every window's, narrow: the object's name at the left, the sector it is in at the right, what it is under its name (its
 // visit, its price) in the label's gray, the head's rule frame to frame; or a talk's speaker. Then, `C` inside, what a talk says, and the actions,
-// each a keycap with its number and its words, CLOSE last. A quest's row has its keycap in the quest's purple (SX, 2026-10-16: «важные кнопки
-// квестовые ... фиолетовым»; a repair the story asks for, src/menus.js litRepair, too); the others the interface's blue, CLOSE the way back's gray.
+// each a keycap with its number and its words, CLOSE last. A quest's row has its keycap in its quest's ink (src/menus.js rowTones, QUEST_INKS), as
+// the same answer has it in the talk window (labs/graphics/talk-beat.js): the story's purple (SX, 2026-10-16: «важные кнопки квестовые ...
+// фиолетовым»; a repair the story asks for, src/menus.js litRepair, too), an errand's blue, the cargo's green (SX, 2026-10-23: «когда сдаешь квест
+// NPC, у него сначала фиолетовым обведено кнопка действия, а внутри разговора синим»); the others the interface's blue, CLOSE the way back's gray.
 //
 // One row an action (SX, 2026-10-01: «в такой менюшке ... все действия должны быть в одну строку, принимаю только исключения для грузов»): what an
-// action's note says stands on its own row at the window's right axis: a price in the label's gray with its money gold (BUY CHALK  5 CHALK / 25 CR),
+// action's note says stands on its own row at the window's right axis: a price in the label's gray with its money gold (REFUEL  45 FUEL / 90 CR),
 // or, on a row that cannot be taken, why, in the interface's blue (REFUEL  TANK FULL: nothing is needed). A note that only says the wallet is
 // short (NEED 500 CR, HAVE 430; SX struck them) is not shown: the action is faint, its price is in its words, and pressing it says what is
 // missing. A cargo's action (`cargo`) keeps its note on the row under its words: a cargo's size, pay and time, or where it is bound. Every amount
@@ -257,7 +259,7 @@ function plateLayout(r, world, target, { live = true, far = false } = {}) {
   target.actions.slice(0, CONFIG.interaction.maxActions).forEach((action, i) => {
     const note = action.note && !shortOfCredits(action.note) ? action.note : null;
     // (Its words in the pilot's language, src/lang.js tr, whole before the money in them is told apart.)
-    rows.push({ key: String(i + 1), label: tr(action.label), disabled: action.disabled, inline: action.cargo || !note ? null : tr(note), quest: !!QUEST_INKS[tones[i]] });
+    rows.push({ key: String(i + 1), label: tr(action.label), disabled: action.disabled, inline: action.cargo || !note ? null : tr(note), quest: QUEST_INKS[tones[i]] ?? null });
     if (note && action.cargo) rows.push({ key: '', label: tr(note) });
   });
   // A docked ship's menu is its way out and cannot be dismissed (labs/graphics/input-router.js), so it offers no CLOSE.
@@ -310,7 +312,7 @@ function paintPlate(r, target, L, x, y, live) {
     if (live) noteKeycap(rw.key, box);
     win.item(`act:${rw.key}`, box, (on) => {
       if (on) win.bar(p.cx, p.cxr, Y);
-      win.key(p.cx, Y, rw.key, { words: { runs: rw.back ? [[rw.label, INK.label]] : runs(rw.label, ink) }, tier: rw.back ? 'back' : rw.quest ? 'quest' : 'key', plate: on });
+      win.key(p.cx, Y, rw.key, { words: { runs: rw.back ? [[rw.label, INK.label]] : runs(rw.label, ink) }, tier: rw.back ? 'back' : rw.quest ?? 'key', plate: on });
       // What the action says of itself at the right: why it cannot be taken, in the blue; a price in the gray, its money gold.
       if (rw.inline) win.part({ runs: rw.disabled && !far ? [[rw.inline, INK.blue]] : runs(rw.inline, INK.label) }, p.cxr, Y, { right: true, plate: on });
     }, 'button');

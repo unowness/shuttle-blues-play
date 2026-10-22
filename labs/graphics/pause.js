@@ -24,6 +24,7 @@
 //              DRIFT where the lab flies it, GREETING, TURN RATE (quiet where the keys fly); PARALLAX's three; DEFAULTS in the foot
 //   leave      a step back before the title: STAY, LEAVE TO TITLE (the flight is saved first)
 //   layout     where the interface's groups stand (labs/graphics/hud-place.js), moved under the pause
+// GRAPHICS, AUDIO and GAMEPLAY stand over the title too, its SETTINGS (`settings`, at the end).
 // The toy ship's square is the main page's alone (the Swiss pages give the room to the rows); it is not stepped while another page stands.
 import { CONFIG } from '../../src/config.js';
 import { readSeen, writeSeen } from '../../src/prefs.js';
@@ -38,7 +39,10 @@ import { ZOOM_STEPS, zoomName } from '../../src/zoom.js';
 import { createPauseMenu, drawPauseWindow, PAUSE_WINDOW } from './pause-menu.js';
 import { createPauseToy, stepPauseToy, drawPauseToy, homePauseToy } from './pause-toy.js';
 import { carryKick } from './ship-kick.js';
-import { noteAction } from './clicks.js';
+import { noteAction, beginNotes, endNotes, actionBoxes, actionAt, keyAt } from './clicks.js';
+import { cursorPark, cursorSleep } from './cursor.js';
+import { hoverFrame } from '../../src/hover.js';
+import { UI } from '../../src/uiGrid.js';
 import { saveHudPlace, drawPlaceOverlay, unsaved as unsavedLayout, layoutOrder, LAYOUT_NOTES, NUDGE, groupLabel, takeGroup, nudgeGroup,
   backMove, cancelLayout, resetGroups, lookOf, setLook } from './hud-place.js';
 import { HUD_SIDES, HUD_SIDE_NAMES, setHudSide } from './hud-sides.js';
@@ -149,6 +153,10 @@ export function createPause(game) {
     return { value: 'NOT SAVING', ink: ROLES.danger };
   }
 
+  // A choice that lives in the save (a look, a paint, a pointer), saved: at once in the flight; from the title's SETTINGS only over a save there
+  // is (nothing is saved from the title alone), else with the flight's first save.
+  const keep = (reason) => { if (!settings.open || !game.labFresh) game.persist(reason); };
+
   const blank = { kind: 'blank' };
   const back = (label) => ({ kind: 'back', label, run: () => leavePausePage() });
   // A choice of several (S2's ‹ VALUE ›): `options` [{ label, worn, dot, run }].
@@ -171,16 +179,16 @@ export function createPause(game) {
       // kept in this browser.
       ...(game.zoom ? [choice('CAMERA', ZOOM_STEPS.map((z) => ({ label: zoomName(z), worn: game.zoom.value === z, run: () => game.setZoom(z) })))] : []),
       choice('LOOK', o.looks.map((id) => ({ label: lookById(id)?.name ?? id, worn: P.look === id, dot: isNew('looks', id),
-        run: () => { P.wearLook(id); game.putOnLook(); game.persist('look'); } }))),
+        run: () => { P.wearLook(id); game.putOnLook(); keep('look'); } }))),
       // The frames and rules of the Swiss windows (src/frames.js; SX, 2026-10-09: «в оригинале они были серые. А там можно было бы включить
       // и тонированные, пока в графические настройки сохраняю»): GRAY, or TINTED toward the look worn; kept in this browser.
       choice('FRAMES', FRAME_STYLES.map((id) => ({ label: FRAME_STYLE_NAMES[id], worn: frames.style === id, run: () => setFrames(id, game.saveBackend) }))),
       blank, { kind: 'heading', title: 'PILOT' },
       ...shipRows(),
       choice('PAINT', o.paints.map((id) => ({ label: paintById(id)?.label ?? id, worn: P.paint === id, dot: isNew('paints', id),
-        run: () => { P.wearPaint(id); game.persist('paint'); } }))),
+        run: () => { P.wearPaint(id); keep('paint'); } }))),
       choice('CURSOR', o.cursors.map((id) => ({ label: cursorName(id), worn: P.cursor === id, dot: isNew('cursors', id),
-        run: () => { game.pointerAsked = null; game.applyCursor(P.wearCursor(id)); game.persist('cursor'); } }))),
+        run: () => { game.pointerAsked = null; game.applyCursor(P.wearCursor(id)); keep('cursor'); } }))),
       blank, { kind: 'heading', title: 'COCKPIT' },
       // The interface the flight wears (labs/graphics/hud-modern.js; SX, 2026-10-16: «переключение интерфейса Modern ... по умолчанию.
       // Legacy — это старый интерфейс»), and the modern one's locator («карту с круглой на квадратную. По умолчанию квадратную»); kept in
@@ -473,7 +481,116 @@ export function createPause(game) {
     return !!pb && !inBox(pb, x, y);
   }
 
+  // ------------------------------------------------------------------------------------------------------------ the title's SETTINGS
+  // The title's SETTINGS (SX, 2026-10-23: «в главное меню пункт настройки ... это тоже модельная окно, пусть открывается. По тем же
+  // принципам»): the pause's own pages, GRAPHICS, AUDIO and GAMEPLAY (LANGUAGE and CONTROLS among its rows), in the pause's window over the
+  // title, under the head SETTINGS; LAYOUT, SAVE GAME and MAIN MENU are the flight's. The keys walk it as they walk the pause (↑ ↓ the rows,
+  // ← → on a row, ENTER, the pointer parked after the row's words: key-focus.js), ESC steps back from a page and then closes it, a click
+  // outside it closes it. What lives in the save (a look, a paint, a pointer) is put on the pilot; from the title it is saved only over a save
+  // there is, else with the flight's first (nothing is saved from the title alone: page-boot.js).
+  const settings = { open: false, page: 'main', at: 0, box: null, rows: [] };
+  const settingsPages = { graphics: graphicsRows, audio: audioRows, gameplay: gameplayRows };
+  function settingsRows() {
+    if (settingsPages[settings.page]) return settingsPages[settings.page]();
+    const o = ownedNow(), fresh = o.looks.some((id) => isNew('looks', id)) || o.paints.some((id) => isNew('paints', id)) || o.cursors.some((id) => isNew('cursors', id));
+    const go = (page) => () => { settings.page = page; };
+    return [back('SETTINGS'),
+      { kind: 'item', label: 'GRAPHICS', dot: fresh, page: 'graphics', run: go('graphics') },
+      { kind: 'item', label: 'AUDIO', page: 'audio', run: go('audio') },
+      { kind: 'item', label: 'GAMEPLAY', page: 'gameplay', run: go('gameplay') }];
+  }
+  const ESC_CLOSE = { side: 'left', key: 'ESC', words: 'CLOSE' };
+  const settingsHints = () => (settings.page === 'main' ? [ESC_CLOSE, { key: 'ENTER', words: 'OPEN' }, { key: '↑ ↓', words: 'MOVE' }]
+    : [ESC_BACK, { key: '← →', words: 'CHANGE' }]);
+  function openSettings() {
+    Object.assign(settings, { open: true, page: 'main', at: pageTime(), box: null, rows: [] });
+    game.sound.play('blip');
+  }
+  function closeSettings() {
+    if (settings.page === 'graphics') markSeen();
+    settings.open = false; settings.page = 'main'; settings.box = null; settings.rows = [];
+    if (game.pointer.parked === 'settings') cursorSleep(game.pointer);
+    game.sound.play('blip');
+  }
+  // ESC: a page goes back to the first, the first closes the window. (The keys' walk, where it stands, starts again at the first row.)
+  function settingsBack() {
+    if (settings.page === 'main') { closeSettings(); return; }
+    if (settings.page === 'graphics') markSeen();
+    settings.page = 'main';
+    if (walk.index !== null) walk.index = 0;
+    game.sound.play('blip');
+  }
+  // Drawn over the title (page-boot.js), its rows' buttons noted for the clicks and the keys' walk (clicks.js), the pointer theirs.
+  function drawSettings() {
+    if (!settings.open) return;
+    const { renderer, pointer, feedback } = game, still = feedback.reducedMotion;
+    beginNotes();
+    hoverFrame(pointer, game.frameDt?.() ?? 1 / 60, { reducedMotion: still });
+    const drawn = drawPauseWindow(renderer, settingsRows(), pointer, null, { dim: 1 - CONFIG.view.underPanel,
+      age: still ? Infinity : pageTime() - settings.at, page: `settings:${settings.page}`, dt: game.frameDt?.() ?? 1 / 60, still,
+      hints: settingsHints() });
+    endNotes();
+    settings.box = drawn.box;
+    settings.rows = drawn.rows;
+    // A walk follows its row as the window comes in (it drops a few px over its first frames).
+    if (game.pointer.parked === 'settings' && walk.index !== null) parkOn(walk.index);
+  }
+  // The keys' walk: the buttons the last frame noted, in reading order; the pointer parked on one (cursor.js cursorPark).
+  const walk = { index: null };
+  const reading = () => [...actionBoxes()].sort((a, b) => (Math.abs(a.y - b.y) > UI.row / 4 ? a.y - b.y : a.x - b.x));
+  function parkOn(index) {
+    const boxes = reading(), box = boxes[Math.max(0, Math.min(boxes.length - 1, index))];
+    if (!box) return;
+    walk.index = boxes.indexOf(box);
+    const p = box.rest ?? { x: box.x + box.w / 2, y: box.y + box.h / 2 };
+    cursorPark(game.pointer, p.x, p.y, performance.now(), 'settings');
+  }
+  // A key on the title while the window stands (`code`, KeyboardEvent.code): true when it was the window's.
+  function settingsKey(code) {
+    if (!settings.open) return false;
+    const is = (action) => codesOf(action).includes(code);
+    if (is('back')) { settingsBack(); return true; }
+    const p = game.pointer, on = p.parked === 'settings' && walk.index !== null;
+    if (is('up') || is('down')) {
+      if (!on) parkOn(0);
+      else { const before = walk.index; parkOn(walk.index + (is('down') ? 1 : -1)); if (walk.index !== before) game.sound.play('menu'); }
+      return true;
+    }
+    if (is('left') || is('right')) {
+      const row = p.inside ? settings.rows.find((l) => l.step && inBox(l.box, p.x, p.y)) : null;
+      if (!row) return false;
+      row.step(is('right') ? 1 : -1);
+      if (row.kind !== 'volume') game.sound.play('menu');
+      return true;
+    }
+    if (is('confirm')) {
+      if (!on) { parkOn(0); return true; }
+      const page = settings.page;
+      actionAt(p.x, p.y)?.();
+      game.sound.play('menu');
+      // A row that opened a page: the walk starts again at its first row.
+      if (settings.page !== page) walk.index = 0;
+      return true;
+    }
+    return false;
+  }
+  // A click on the title while the window stands: a foot's key as that key, a row as its button, outside the window closes it. Always the
+  // window's while it stands.
+  function settingsClick(x, y) {
+    if (!settings.open) return false;
+    const code = keyAt(x, y);
+    if (code) { settingsKey(code); return true; }
+    const act = actionAt(x, y);
+    if (act) { const page = settings.page; act(); if (settings.page !== page) walk.index = null; return true; }
+    if (settings.box && !inBox(settings.box, x, y)) closeSettings();
+    return true;
+  }
+  // Whether the pointer at (x, y) is on something of the window that answers a click (the cursor's hint).
+  const settingsOver = (x, y) => settings.open && (!!keyAt(x, y) || !!actionAt(x, y));
+  const titleSettings = { shown: () => settings.open, open: openSettings, close: closeSettings, draw: drawSettings, key: settingsKey,
+    click: settingsClick, over: settingsOver, rows: settingsRows, state: settings };
+
   // (`rows`: the open page's rows, for checks/controls-coverage.mjs.)
   return { state, menu, seen, markSeen, pauseShown, layoutEditing, leavePausePage, resumeFromMenu, letPauseGo, playOnAfterPause, rows: pauseRows,
-    head: headOf, hints: hintsOf, press, keys, settle, draw, clickOutside };
+    head: headOf, hints: hintsOf, press, keys, settle, draw, clickOutside, settings: titleSettings };
 }

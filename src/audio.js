@@ -479,7 +479,7 @@ export const EVENT_SOUNDS = {
   undocked: () => 'undock',
   refueled: () => 'refuel',
   hullRepaired: () => 'repair',
-  chalkBought: () => 'purchase',
+  coffeeDrunk: () => 'purchase',
   shipBought: () => 'purchaseShip',
   shipChanged: () => 'engineStart',
   signPlaced: () => 'chalk',
@@ -559,6 +559,7 @@ export const EVENT_SOUNDS = {
 };
 
 export const SILENT = {
+  coffeeWoreOff: 'a quiet end: the notch says it, and the ship flies as it always did (the cup had its sound, coffeeDrunk)',
   bossPattern: 'its warnings are its glyph cues, as a pirate\'s are; its shots and its escort keep their own sounds',
   bossPhase: 'its phase is read from what it does and how far it has come apart (SX, 2026-10-14: «номер фазы тоже не нужно»)',
   bossHealed: 'it heals as the pilot is wrecked: the wreck\'s own sounds are playing',

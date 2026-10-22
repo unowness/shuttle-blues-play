@@ -158,6 +158,9 @@ export function createPageBoot(game, page, { saves, respawnFx, followPixelRatio,
       if (title.show) {
         advanceTitleFinal(titleFinal, { progress: title.progress, label: title.label, done: title.ready }, at);
         page.titleDrawn = drawTitleFinal(renderer, titleFinal, at);
+        // The title's SETTINGS over it, the pause's pages in the pause's window (labs/graphics/pause.js settings): drawn over what the frame has
+        // drawn, its own glyphs alone (src/renderer.js drawOver; a flush of the frame's would put the title's stars back over it).
+        if (game.pause?.settings.shown()) renderer.drawOver(() => game.pause.settings.draw());
       }
       followCursor();
       stepCursor(pointer, at, { hint: canvas.style.cursor });
@@ -199,7 +202,7 @@ export function createPageBoot(game, page, { saves, respawnFx, followPixelRatio,
   }
 
   bindTitleMenu({ window, canvas, title, final: titleFinal, input, choose: titleMenu.choose, wake: titleMenu.wake,
-    unproject: (x, y) => crt.unproject(x, y), layout: () => page.titleDrawn, clock: now });
+    unproject: (x, y) => crt.unproject(x, y), layout: () => page.titleDrawn, clock: now, modal: game.pause?.settings ?? null });
   // Nothing is saved while only the title has been up: the world has not run. The page puts it on `pagehide` where it always has, at the end of
   // its body, after the loop has started (the order of the page's listeners is its behaviour).
   function leave() { if (!title.active) saves.persist('lab-close'); }

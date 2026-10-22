@@ -74,6 +74,8 @@ export function worldToJSON(world) {
     hull: kept ? Math.max(1, kept.hull) : afloat ? Math.max(1, world.hull) : world.respawnHull,
     fuel: kept ? kept.fuel : afloat ? world.fuel : Math.max(world.fuel, CONFIG.fuel.respawnMin),
     chalk: world.chalk,
+    // A cup of coffee's seconds left (src/stationService.js drinkCoffee): an optional key, there only while one works.
+    ...(world.coffee > 0 ? { coffee: world.coffee } : {}),
     hangar: world.hangar.toJSON(),
     visits: [...world.visits],
     // Where the secret hole stands now (src/secretHole.js), v12.
@@ -174,6 +176,9 @@ export function restoreWorld(world, data) {
   world.fuel = Number.isFinite(data.fuel) ? clamp(data.fuel, 0, world.fuelTank) : world.fuelTank;
   // A save from before chalk starts with a new pilot's pieces.
   world.chalk = Number.isInteger(data.chalk) ? clamp(data.chalk, 0, CONFIG.chalk.max) : CONFIG.chalk.start;
+  // A cup of coffee still working goes on where it was (none in a save without one, or from before the coffee).
+  world.coffee = Number.isFinite(data.coffee) ? clamp(data.coffee, 0, CONFIG.coffee.life) : 0;
+  world.ship.boost = world.coffee > 0 ? 1 + CONFIG.coffee.boost : 1;
   // The opening chapter (src/opening.js, v17): a new pilot's still in SCOOTY JR. flies it again, its hull and tank its own.
   restoreOpening(world, data.opening, { hull: data.hull, fuel: data.fuel });
   world.openingState = null;

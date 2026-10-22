@@ -399,7 +399,7 @@ export function drawHangar(r, world, ui) {
 // drawing, across the pane's top (`boxRows` rows); TYPE and its choice (VALUE ‹ ›, which T steps too) with its place among the types after its
 // name; WORDS and how many are found, and the words in `per` columns across the pane: a known word white, a word the sign holds in the blue (what
 // is in hand), a word not found faint stars as long as it; the keys' choice the white line round its word. The head: what the pilot has left
-// (the signs, the chalk) and the sector at the right; the last key's words stand there in their place.
+// (the signs; the chalk until 2026-10-23, when a sign took none) and the sector at the right; the last key's words stand there in their place.
 export const SIGN = Object.freeze({
   size: 'S', boxRows: 6,
   per: WORDS_PER_ROW,          // the words a row (the arrows' ↑ ↓ step this many: labs/graphics/screens.js)
@@ -409,11 +409,11 @@ export const SIGN = Object.freeze({
 // window's `box`.
 export function drawSignComposer(r, world, ui) {
   const win = new Win(r, { size: SIGN.size, id: 'sign' }).place().sheet(), p = win.p, { cw, m } = win, per = SIGN.per;
-  // The head: the title, and at the right the signs left, the chalk and the sector (the last key's words in their place).
+  // The head: the title, and at the right the signs left and the sector (the last key's words in their place).
   const own = world.signs.placed.length;
   win.head([['LEAVE A SIGN', INK.text]], { meta: ui.message ? [[ui.message, INK.text]] : [
     ...(own >= SIGN_LIMIT ? [['REPLACES OLDEST', INK.label]] : []),
-    { runs: [['SIGNS ', INK.label], [`${own}/${SIGN_LIMIT}`, INK.text]] }, { runs: [['CHALK ', INK.label], [String(world.chalk ?? 0), INK.text]] },
+    { runs: [['SIGNS ', INK.label], [`${own}/${SIGN_LIMIT}`, INK.text]] },
     ...(world.sector?.label ? [[world.sector.label, INK.label]] : [])] });
   // The sign as it will stand, of the chosen type, across the pane (STARS scatters its sky wide: kept inside it).
   const picture = { x: Math.round(p.cx), y: Math.round(p.y(0)), w: Math.round(p.cxr - p.cx), h: SIGN.boxRows * UI.row };

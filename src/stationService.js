@@ -1,31 +1,34 @@
 import { CONFIG } from './config.js';
 import { workingKind, formatCR, stationBill } from './ruins.js';
 import { stationDefById } from './sectors.js';
+import { clockText } from './contracts.js';
 
 // What a docked station sells and mends, and a station a wreck or a raid broke (moved out of src/world.js, 2026-10-04, chat E1:
 // the station service as its own module, the economy's prices read in one place). World keeps a method of each name that calls
 // the one here, so a caller (a menu's row, a check) says `world.refuel()` as before.
 //
 //   serviceActions   the docked rows the station's menu lists after UNDOCK: REFUEL, REPAIR HULL at a garage or PATCH HULL at a
-//                    freight hub, BUY CHALK
+//                    freight hub, DRINK COFFEE
 //   refuel           fuel by the whole unit (CONFIG.fuel.price), as much as the tank takes and the wallet pays for
 //   repairHull       a garage's hull points (CONFIG.hull.repairPrice), as many as the wallet pays for, up to a whole hull
 //   patchHull        a freight hub's, at the same price, up to CONFIG.hull.patchShare of the chassis' whole hull (2026-10-04,
 //                    the economy SX chose: freight docks had no repair, and a pilot far from a garage flew on damaged)
-//   buyChalk         chalk, up to a box at a time (CONFIG.chalk)
+//   drinkCoffee      a cup (CONFIG.coffee): the hull's push and top a fifth more for five minutes of the world's clock; BUY CHALK's row
+//                    until 2026-10-23
+//   stepCoffee       the cup wearing off, each step, and the boost it gives the ship (src/ship.js params)
 //   breakStation     a working station a ship was wrecked against, or one worn out by hard blows (wearStation), is closed until
 //                    repaired, for the bill of a lost raid (stationBill)
 //   wearStation      a hard blow on a working station's hull is remembered (CONFIG.station.wear): `ledger.wear`, a notice at 10 %, broken at 20 %
 //   brokenActions    a broken station's menu: a cargo bound to it, UNDOCK, REPAIR STATION, INFO
 //   repairStation    the broken station's price paid, and it works again; a worn one's pro rata, and the wear is gone
 
-// The rows a docked station's menu lists after UNDOCK: its fuel, its hull repair (a garage's whole, a freight hub's patch), its chalk.
+// The rows a docked station's menu lists after UNDOCK: its fuel, its hull repair (a garage's whole, a freight hub's patch), its coffee.
 export function serviceActions(world, station) {
   const kind = workingKind(world.ledger, station);
   const actions = [world.refuelAction()];
   if (kind === 'garage') actions.push(world.repairAction());
   else if (kind === 'freight') actions.push(world.patchAction());
-  actions.push(world.chalkAction());
+  actions.push(world.coffeeAction());
   // A station worn by hard blows (wearStation) can be put right before it breaks, for its share of the bill.
   if ((world.ledger.wear.get(station.id) ?? 0) > 0) actions.push(wornAction(world, station));
   return actions;
@@ -62,34 +65,42 @@ export function refuel(world) {
   });
 }
 
-// Any docked station sells chalk, up to a box at a time (CONFIG.chalk).
-export function chalkAction(world) {
-  const C = CONFIG.chalk;
-  const room = C.max - world.chalk;
-  const pieces = Math.min(C.box, room, Math.floor(world.ledger.credits / C.price));
+// Any docked station pours a cup of coffee (CONFIG.coffee; SX, 2026-10-23: «купить мел почему-то у нас такой есть пункт ... назови это выпить
+// кофе. И после того, как ты выпил кофе, корабль становится быстрее на 20%. На 5 минут»): BUY CHALK's row until then. Not while a cup still
+// works (the minutes it has left in its note).
+export function coffeeAction(world) {
+  const C = CONFIG.coffee;
+  const left = world.coffee > 0;
   return {
-    label: 'BUY CHALK',
-    disabled: room <= 0 || pieces <= 0,
-    note: room <= 0 ? 'CHALK STOCK FULL'
-      : pieces <= 0 ? `NEED ${C.price} CR, HAVE ${world.ledger.credits}`
-      : `${pieces} CHALK / ${pieces * C.price} CR`,
-    run: () => world.buyChalk(),
+    label: 'DRINK COFFEE',
+    disabled: left || world.ledger.credits < C.price,
+    note: left ? `${clockText(world.coffee)} LEFT`
+      : world.ledger.credits < C.price ? `NEED ${C.price} CR, HAVE ${world.ledger.credits}`
+      : `+${Math.round(C.boost * 100)}% / ${C.price} CR`,
+    run: () => world.drinkCoffee(),
   };
 }
 
-export function buyChalk(world) {
-  const C = CONFIG.chalk;
-  const room = C.max - world.chalk;
-  if (room <= 0) { world.emit('actionRefused', { reason: 'CHALK STOCK FULL' }); return; }
-  const pieces = Math.min(C.box, room, Math.floor(world.ledger.credits / C.price));
-  if (pieces <= 0) { world.emit('actionRefused', { reason: `NEED ${C.price} CR, HAVE ${world.ledger.credits}` }); return; }
-  const cost = pieces * C.price;
-  world.ledger.credits -= cost;
-  world.chalk += pieces;
-  world.emit('chalkBought', {
+export function drinkCoffee(world) {
+  const C = CONFIG.coffee;
+  if (world.coffee > 0) { world.emit('actionRefused', { reason: 'STILL BUZZING' }); return; }
+  if (world.ledger.credits < C.price) { world.emit('actionRefused', { reason: `NEED ${C.price} CR, HAVE ${world.ledger.credits}` }); return; }
+  world.ledger.credits -= C.price;
+  world.coffee = C.life;
+  world.ship.boost = 1 + C.boost;
+  world.emit('coffeeDrunk', {
     sectorId: world.sector.id, x: world.ship.x, y: world.ship.y,
-    pieces, cost, chalk: world.chalk, credits: world.ledger.credits,
+    cost: C.price, boost: C.boost, life: C.life, credits: world.ledger.credits,
   });
+}
+
+// Each step of the world's clock, docked or flying: the cup wears off, and the ship's push and top are the boost's while it works.
+export function stepCoffee(world, dt) {
+  if (world.coffee > 0) {
+    world.coffee = Math.max(0, world.coffee - dt);
+    if (world.coffee === 0) world.emit('coffeeWoreOff', { sectorId: world.sector.id, x: world.ship.x, y: world.ship.y });
+  }
+  world.ship.boost = world.coffee > 0 ? 1 + CONFIG.coffee.boost : 1;
 }
 
 // One action, in the cacheActions style: the price is in the note, which

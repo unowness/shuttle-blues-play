@@ -438,6 +438,16 @@ export function createNotices(game) {
           notify('RESCUE TOW', e.paid === 0 ? 'NO CHARGE / NO CREDITS'
             : `-${formatCR(e.paid)} CR${e.paid < e.cost ? ` / ${formatCR(e.cost - e.paid)} CR WAIVED` : ''}`, { kind: 'danger', life: 3.2, fate: 'flip' });
           break;
+        // What the pirates took at a wreck (src/wreck.js): a line of the notch, no label at the wreck (SX, 2026-10-23: «Вот статус, когда пираты
+        // забрали твои деньги, надо писать в верхней челке»; src/feedback.js).
+        case 'creditsSeized':
+          notify(`PIRATES TOOK ${e.amount} CR`, null, { kind: 'danger', life: 3.2, fate: 'flip' });
+          break;
+        // A cup of coffee at a docked station (src/stationService.js drinkCoffee): what it gives and for how long, and when it wears off.
+        case 'coffeeDrunk':
+          notify('COFFEE', `+${Math.round(e.boost * 100)}% SPEED FOR ${Math.round(e.life / 60)} MIN`, { kind: 'gain', life: 3.2, fate: 'flip' });
+          break;
+        case 'coffeeWoreOff': notify('COFFEE WORE OFF', null, { life: 2.6, fate: 'flip' }); break;
         // What is found is said as a notice, not a label at the thing (SX, 2026-10-01: «добавь еще когда мы
         // подбираем сигнал нотификацию в стиле нотификаций и также для сундуков и красок»); coins and fuel keep theirs.
         case 'signalHeard':

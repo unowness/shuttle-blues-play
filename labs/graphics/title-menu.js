@@ -1,7 +1,7 @@
 // What the title's menu does with a choice (labs/graphics/title-final.js draws it and binds its keys and pointer: bindTitleMenu), cut from
 // labs/graphics/main.js (PLAN D4, toward createGame): CONTINUE flies the save; NEW GAME flies a new pilot, and over a save asks first, as
-// Cmd+Backspace does (the save goes on a second choice within ERASE_WINDOW s, and the page starts afresh); MANUAL and CREDITS are not
-// written yet. `game`: the page's parts (`sound`), read when a function runs; `titleFinal`: the title's state (`save`: there is a game to
+// Cmd+Backspace does (the save goes on a second choice within ERASE_WINDOW s, and the page starts afresh); SETTINGS opens the pause's settings
+// in their window over the title (labs/graphics/pause.js settings); MANUAL and CREDITS are not written yet. `game`: the page's parts (`sound`), read when a function runs; `titleFinal`: the title's state (`save`: there is a game to
 // CONTINUE; `message`: the line it says); `start()`: the flight begins; `erase()`: the save goes and the page reloads (save-keeper.js).
 import { ERASE_WINDOW } from './save-keeper.js';
 
@@ -19,6 +19,7 @@ export function createTitleMenu({ game, titleFinal, start, erase, clock = () => 
   function choose(id) {
     const now = clock();
     if (id === 'continue' || (id === 'new' && !titleFinal.save)) { start(); return; }
+    if (id === 'settings') { game.pause.settings.open(); return; }
     if (id === 'new') {
       if (now / 1000 - newAskedAt <= ERASE_WINDOW) { erase(); return; }
       newAskedAt = now / 1000;

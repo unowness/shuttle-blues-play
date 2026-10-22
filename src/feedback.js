@@ -21,8 +21,6 @@ const PIRATE_DOWN = {
   shot: '', friendly: ' / FRIENDLY FIRE', rock: ' / ROCK', planet: ' / PLANET',
   hole: ' / BLACK HOLE', ram: ' / RAMMED', cargo: ' / CARGO', collision: ' / COLLISION',
 };
-// What hit the hull, before the points it cost; a rock says nothing (it is the usual).
-const HIT_BY = { cargo: 'CARGO HIT / ', planet: 'PLANET / ', droid: 'DROID / ', station: 'STATION / ', npc: 'SHIP / ' };
 const ENCOUNTER_ENDED = {
   hole: 'ESCAPED / BLACK HOLE', docked: 'ESCAPED / DOCKED', station: 'PIRATES WITHDREW / STATION',
   lost: 'PIRATES LOST YOU', cleared: 'ALL PIRATES DOWN', routed: 'PIRATES RETREATED',
@@ -40,12 +38,11 @@ const MONEY_LABEL = Object.freeze({
 // hit or a loss by an enemy and an empty tank are in danger, a lesser loss and a
 // warning in caution, and news that is neither a gain nor a loss in the primary text.
 const TONE = {
-  shipDamaged: 'danger', creditsSeized: 'danger', fuelEmpty: 'danger',
-  coinsSpilled: 'caution', fuelLow: 'caution', piratesEngaged: 'caution',
-  contractAccepted: 'news', docked: 'news', signPlaced: 'news', signRemoved: 'news', flagRemoved: 'news', chalkBought: 'news', tankFull: 'news',
+  fuelEmpty: 'danger', fuelLow: 'caution', piratesEngaged: 'caution',
+  contractAccepted: 'news', docked: 'news', signPlaced: 'news', signRemoved: 'news', flagRemoved: 'news', tankFull: 'news',
   refueled: 'news', hullRepaired: 'news', droidServed: 'news', shipBought: 'news', shipChanged: 'news', findMarked: 'news', stationInvested: 'news',
   pirateDown: 'news', npcDown: 'danger', encounterEnded: 'news', trafficHail: 'news', pirateShout: 'caution', drifterHelped: 'gain',
-  pickupClaimed: 'coin', fuelClaimed: 'fuel', suitcaseTaken: 'news', suitcaseLost: 'danger',
+  suitcaseTaken: 'news', suitcaseLost: 'danger',
 };
 export function labelInk(type) {
   const hud = CONFIG.hud;
@@ -53,18 +50,17 @@ export function labelInk(type) {
     case 'danger': return hud.danger ?? hud.hot;
     case 'caution': return hud.caution ?? hud.hot;
     case 'news': return hud.hot;
-    case 'coin': return hud.coinLabel ?? hud.accent;
-    case 'fuel': return hud.fuelLabel ?? hud.accent;
     default: return hud.accent;
   }
 }
 
-// Fuel taken from a canister: whole units as they are, a part of one to a tenth.
-const fuelAmount = (units) => (Number.isInteger(units) ? String(units) : units.toFixed(1));
-
 // Signals, caches, paints, pirates and restorations are said by the page's notices under the navigation
 // (labs/graphics/notice.js) since 2026-10-01; a label at the thing would repeat them (SX: «ты не убрал
-// повторные нотификации старые»). Coins, fuel and the rest keep their labels.
+// повторные нотификации старые»). What the hull takes by touching it (a coin, a Scooby snack, fuel, a hull part) and what a blow
+// costs (the hull's points, the coins it spills, the pirates' take at a wreck) say nothing at the thing since 2026-10-23 (SX: «когда ты
+// взял монетку или ударился, или в тебя попали, или пираты забрали твои деньги ... Все остальные вот эти мелкие надписи, надо
+// скрыть. Они не нужны»): the wallet, the gauges and the sparks say them, and the pirates' take is a line of the notch
+// (labs/graphics/notices.js). The rest keep their labels.
 // Transient presentation consumes committed world events. It never grants
 // rewards, runs actions, writes saves or advances simulation time.
 // The labels that say a quest ended (what a rescued ship, a freed one, a wreck helped, a suitcase delivered, a raid won or a radio
@@ -109,34 +105,20 @@ export class Feedback {
           x: event.x ?? origin.x, y: event.y ?? origin.y, age: 0, life: 0.6 });
         if (this.items.length > 4) this.items.shift();
         return false;
-      case 'coinsSpilled': label = `-${event.amount} CR`; break;
-      case 'signPlaced': label = Number.isInteger(event.chalk) ? `SIGN LEFT / CHALK ${event.chalk}` : 'SIGN LEFT'; break;
-      case 'chalkBought': label = `CHALK +${event.pieces} / -${event.cost} CR`; break;
+      case 'signPlaced': label = 'SIGN LEFT'; break;
       case 'signRemoved': label = 'SIGN REMOVED'; break;
       case 'flagRemoved': label = `${event.colour} FLAG REMOVED`; break;
-      case 'pickupClaimed': label = `+${event.reward} CR`; break;
-      // A Scooby snack (src/specialQuests.js scooby): the count is the plate's, here the one taken.
-      case 'snackTaken': label = '+1'; break;
-      case 'fuelClaimed': label = `+${fuelAmount(event.gained ?? event.units)} FUEL`; break;
-      case 'partClaimed': label = `+${event.gained} HULL`; break;
       case 'tankFull': label = 'TANK FULL'; break;
       // Another pilot's cargo (src/strangers.js) ends with their thanks, said at the station; the pay is the plate's.
       case 'delivered':
         if (!event.thanks) return false;
         label = event.thanks; break;
       case 'docked': label = 'DOCKED'; break;
-      // A pirate's hit is seen, not read: sparks and a piece of the hull flying off (src/debris.js chipHull), the HULL gauge
-      // going down (SX, 2026-10-01: «Пират, хит и минус 10. Не надо делать этого. Просто покажи искры ... деталь
-      // цвета нашего корабля отлетает»).
-      case 'shipDamaged':
-        if (event.cause === 'pirate') return false;
-        label = `${HIT_BY[event.cause] || ''}-${event.amount} HULL`; break;
       case 'pirateDown':
         label = `${CONFIG.pirates.types[event.kind]?.label || 'PIRATE'} DOWN${PIRATE_DOWN[event.cause] || ''}`;
         break;
       // A friendly ship run into hard enough to break (src/npcFleet.js Fleet.hurt).
       case 'npcDown': label = `${event.label || 'SHIP'} DESTROYED`; break;
-      case 'creditsSeized': label = `PIRATES TOOK ${event.amount} CR`; break;
       case 'refueled': label = event.cost > 0 ? `REFUELED / -${event.cost} CR` : 'REFUELED / FREE'; break;
       case 'fuelLow': label = 'FUEL LOW'; break;
       case 'fuelEmpty': label = 'FUEL EMPTY / LOW THRUST'; break;
@@ -243,29 +225,9 @@ export class Feedback {
       if (p.x < r.view.x || p.x > r.view.x + r.view.w || p.y < r.view.y || p.y > r.view.y + r.view.h) continue;
       const t = Math.min(1, item.age / 0.45);
       const objectBox = { x: p.x - 36, y: p.y - 36, w: 72, h: 72 };
-      // A coin picked up shows no burst: its six marks were the gains' green round it, the green SX had taken off the coins' labels
-      // (2026-10-02: «надписи от них не должны быть зеленые»; 2026-10-06: «при сборе монеток снова показываются зеленые тексты»). Its
-      // dim gold «+1 CR» stays. A Scooby snack is taken as a coin is: its «+1» alone (its crunch is its crumbs, src/scoobySnacks.js).
-      if (!this.reducedMotion && t < 1 && item.type !== 'pickupClaimed' && item.type !== 'snackTaken') {
-        if (item.type === 'fuelClaimed' || item.type === 'partClaimed') {
-          const radius = 9 + 26 * (1 - t) ** 2;
-          for (let i = 0; i < 6; i++) {
-            const angle = i * Math.PI / 3;
-            const x = p.x + Math.cos(angle) * radius, y = p.y + Math.sin(angle) * radius;
-            const foot = { x: x - r.cellW / 2, y: y - r.cellH / 2, w: r.cellW, h: r.cellH };
-            if (foot.x >= r.view.x && foot.y >= r.view.y
-              && foot.x + foot.w <= r.view.x + r.view.w
-              && foot.y + foot.h <= r.view.y + r.view.h
-              && !occupied.some(b => overlaps(foot, b))) {
-              r.glyphNow(i % 2 ? '·' : '+', x, y, CONFIG.hud.accent);
-            }
-          }
-        } else {
-          drawTargetBrackets(r, objectBox, CONFIG.hud.hot, 14 * (1 - t) ** 2, occupied);
-        }
-      }
+      if (!this.reducedMotion && t < 1) drawTargetBrackets(r, objectBox, CONFIG.hud.hot, 14 * (1 - t) ** 2, occupied);
       // An amount of money in the coin's rim gold (S4, src/money.js) where the label is a gain or news; a warning or a loss keeps its
-      // ink whole (PIRATES TOOK, coins spilled), and so does the coin's own «+1 CR».
+      // ink whole.
       const tone = TONE[item.type] ?? 'gain';
       const gold = (tone === 'gain' || tone === 'news') && hasMoney(item.label);
       const box = drawLocalLabel(r, item.label, p, [...occupied, objectBox], labelInk(item.type), 50, gold ? MONEY_LABEL : null);

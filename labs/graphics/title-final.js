@@ -44,7 +44,9 @@ export const TITLE_FINAL = Object.freeze({
   menu: Object.freeze({
     step: 32,
     items: Object.freeze([
+      // SETTINGS (SX, 2026-10-23: «в главное меню пункт настройки»): the pause's settings in its window over the title (labs/graphics/pause.js).
       Object.freeze({ id: 'new', label: 'NEW GAME' }), Object.freeze({ id: 'continue', label: 'CONTINUE' }),
+      Object.freeze({ id: 'settings', label: 'SETTINGS' }),
       Object.freeze({ id: 'manual', label: 'MANUAL' }), Object.freeze({ id: 'credits', label: 'CREDITS' }),
     ]),
   }),
@@ -375,8 +377,10 @@ export function titleFinalPick(title, L, x, y, now, press = false) {
 // SPACE choose; a click chooses the item under it; the pointer hovers. Every press is first handed to `wake` (the sound a
 // browser holds back starts inside a press), then answered: `choose(id)` is the page's. A repeat, or a press with Cmd, Ctrl or
 // Alt (a shortcut, not a choice), is not the title's. `unproject` maps a pointer through the screen's curve (src/display.js),
-// `layout()` is the layout last drawn, `clock()` the clock the title is drawn with.
-export function bindTitleMenu({ window, canvas, title, final, input, choose, wake = null, unproject = (x, y) => ({ x, y }), layout, clock }) {
+// `layout()` is the layout last drawn, `clock()` the clock the title is drawn with. `modal`: a window standing over the title (SETTINGS,
+// labs/graphics/pause.js settings: { shown(), key(code), click(x, y), over(x, y) }) takes its keys (a held arrow repeats there) and its
+// clicks while it stands.
+export function bindTitleMenu({ window, canvas, title, final, input, choose, wake = null, unproject = (x, y) => ({ x, y }), layout, clock, modal = null }) {
   const waiting = () => title.active && title.show && title.ready;
   const answer = (id) => {
     if (!id) return;
@@ -385,7 +389,13 @@ export function bindTitleMenu({ window, canvas, title, final, input, choose, wak
     choose(id);
   };
   window.addEventListener('keydown', (event) => {
-    if (!waiting() || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (!waiting() || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (modal?.shown()) {
+      if (event.repeat && !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) return;
+      if (modal.key(event.code)) { event.preventDefault?.(); input.down.clear(); input.pressed.clear(); }
+      return;
+    }
+    if (event.repeat) return;
     wake?.();
     if (['ArrowUp', 'ArrowDown', 'Enter', 'Space'].includes(event.code)) event.preventDefault?.();
     answer(titleFinalKey(final, event.code, clock()));
@@ -399,12 +409,14 @@ export function bindTitleMenu({ window, canvas, title, final, input, choose, wak
     const L = layout();
     if (!waiting() || !L) return;
     const p = at(event);
+    if (modal?.shown()) { canvas.style.cursor = modal.over(p.x, p.y) ? 'pointer' : ''; return; }
     canvas.style.cursor = titleFinalPick(final, L, p.x, p.y, clock()).over ? 'pointer' : '';
   });
   canvas.addEventListener('click', (event) => {
     const L = layout();
     if (!waiting() || !L) return;
     const p = at(event);
+    if (modal?.shown()) { modal.click(p.x, p.y); return; }
     answer(titleFinalPick(final, L, p.x, p.y, clock(), true).id);
   });
 }

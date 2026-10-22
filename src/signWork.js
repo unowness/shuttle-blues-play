@@ -27,7 +27,7 @@ export function signIssue(world, x, y, ignoreId = null) {
   if (x < S.edgeClear || y < S.edgeClear || x > world.width - S.edgeClear || y > world.height - S.edgeClear) {
     return 'TOO CLOSE TO THE SECTOR EDGE';
   }
-  const thrust = world.ship.params().thrust;
+  const thrust = world.ship.chassis.thrust;      // (the hull's own: a cup of coffee moves no sign's place)
   for (const h of world.holes) {
     const pull = Math.sqrt(h.mass / (thrust * CONFIG.stranded.gravityShare));
     if (near(h.x, h.y, Math.max(h.disc, pull) + S.wellMargin)) return 'TOO CLOSE TO A BLACK HOLE';
@@ -57,8 +57,6 @@ export function signCheck(world) {
   const ship = world.ship;
   if (!ship.alive) return { ok: false, reason: 'NOT WHILE WRECKED' };
   if (world.docked) return { ok: false, reason: 'UNDOCK FIRST' };
-  // Every sign uses a piece of chalk (CONFIG.chalk); without any, that comes first.
-  if (world.chalk < 1) return { ok: false, reason: 'NO CHALK · BUY AT A STATION' };
   const limit = CONFIG.station.dockSpeed;
   if (Math.hypot(ship.vx, ship.vy) > limit) return { ok: false, reason: `BRAKE BELOW ${limit}` };
   const issue = world.signIssue(ship.x, ship.y);
@@ -76,9 +74,8 @@ export function leaveSign(world, words, type = undefined) {
   const { sign, replaced } = world.signs.add({
     sectorId: world.sector.id, x: Math.round(world.ship.x), y: Math.round(world.ship.y), words, type,
   });
-  world.chalk -= 1;
   world.emit('signPlaced', {
-    signId: sign.id, sectorId: sign.sectorId, x: sign.x, y: sign.y, text: captionOf(sign.words), chalk: world.chalk,
+    signId: sign.id, sectorId: sign.sectorId, x: sign.x, y: sign.y, text: captionOf(sign.words),
     replaced: replaced ? {
       signId: replaced.id, sectorId: replaced.sectorId, text: captionOf(replaced.words),
       sectorLabel: sectorById(replaced.sectorId)?.label || replaced.sectorId,

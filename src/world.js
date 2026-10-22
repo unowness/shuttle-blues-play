@@ -53,7 +53,7 @@ import { candidates as menuCandidates, candidatesNear as menusNear, menuFor as m
 import { updateSelection, runAction } from './selection.js';
 import { stepOpening, openingActions } from './opening.js';
 import { findPrice, cacheActions, openCache, giveLook, openLookCache } from './finds.js';
-import { refuelAction, refuel, chalkAction, buyChalk, repairAction, repairHull, patchAction, patchHull, brokenActions, breakStation,
+import { refuelAction, refuel, coffeeAction, drinkCoffee, stepCoffee, repairAction, repairHull, patchAction, patchHull, brokenActions, breakStation,
   repairStation, wearStation } from './stationService.js';
 import { driftLostCargo, easeCaches } from './keepOut.js';
 import { buildLostCargo, restingPoint, clearOfStrangers, lostCargoActions, recoverCargo, returnLostCargo, takeStrangerCargo } from './lostCargo.js';
@@ -134,7 +134,10 @@ export class World {
     this.hangar = new Hangar();
     this.hull = CONFIG.hull.max;
     this.fuel = CONFIG.fuel.tank;
+    // The chalk a sign took until 2026-10-23 (CONFIG.chalk): kept in the save, spent and sold no more.
     this.chalk = CONFIG.chalk.start;
+    // A cup of coffee's seconds left on the world's clock, 0 for none (src/stationService.js drinkCoffee; saved).
+    this.coffee = 0;
     this.hullGrace = 0;
 
     this.width = SECTOR_SIZE.width;
@@ -619,6 +622,8 @@ export class World {
     this.time += dt;
     // The pilot's clock: it times deliveries, and it is saved (CONFIG.delivery).
     this.ledger.clock += dt;
+    // A cup of coffee wearing off (src/stationService.js stepCoffee), its boost on the ship's push and top meanwhile.
+    stepCoffee(this, dt);
     if (this.ledger.stranded.size) returnLostCargo(this);
     const ship = this.ship;
 
@@ -1113,12 +1118,12 @@ export class World {
     if (this.fuel <= 0) this.emit('fuelEmpty', {});
   }
 
-  // The station service (src/stationService.js): fuel, chalk, a garage's hull repair and a freight hub's patch, each a menu row and
+  // The station service (src/stationService.js): fuel, coffee, a garage's hull repair and a freight hub's patch, each a menu row and
   // its purchase.
   refuelAction() { return refuelAction(this); }
   refuel() { return refuel(this); }
-  chalkAction() { return chalkAction(this); }
-  buyChalk() { return buyChalk(this); }
+  coffeeAction() { return coffeeAction(this); }
+  drinkCoffee() { return drinkCoffee(this); }
   repairAction() { return repairAction(this); }
   repairHull() { return repairHull(this); }
   patchAction() { return patchAction(this); }

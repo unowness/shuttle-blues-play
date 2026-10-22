@@ -73,7 +73,7 @@ export function drawSignPanel(r, world, ui) {
 
   const own = world.signs.placed.length;
   // The sign's type (src/signs.js SIGN_TYPES), which T steps through, ends the header line.
-  g.text(fitText(`${world.sector.label} / YOUR SIGNS ${own} OF ${SIGN_LIMIT} / CHALK ${world.chalk ?? 0}`, room), first, at.header, muted());
+  g.text(fitText(`${world.sector.label} / YOUR SIGNS ${own} OF ${SIGN_LIMIT}`, room), first, at.header, muted());
   g.textEnd(signTypeLabel(ui.type), last, at.header, accent());
 
   // The sign itself, as it will stand, of the chosen type, centred in rows 3 to 8 at the world's
