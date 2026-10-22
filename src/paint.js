@@ -33,7 +33,8 @@ import { CONFIG } from './config.js';
 // rule they were picked by: one hull hue, one accent of another, the glass neutral or the complement; the hull against its arcs and
 // against its glass 2:1 or more, every ink 3:1 on black, through the grade. DUNE kept («dune старая версия первая самая была лучше»).
 export const PENDING_PAINT = 'paint-12';
-// `marks`: some glyphs of a role in an ink of their own, by the role the drawing authored them in ({ material: { '◢': ink } }): SUPRA's.
+// `marks`: some glyphs of a role in an ink of their own, by the role the drawing authored them in ({ material: { '◢': ink } }), or a glyph at
+// one row of the drawing only (`'◞@0.5'`, its cell's y): SUPRA's.
 const paint = (id, label, inks, marks = null) => Object.freeze({ id, label, inks: inks && Object.freeze(inks), ...(marks ? { marks: Object.freeze(marks) } : null) });
 // Sixteen inks moved on 2026-10-01 by the palette consolidation SX chose (codex/reports/palette/
 // PALETTE_HANDOFF_FOR_CLAUDE.md, section 5): near-equal glass darks, highlights, jets and engines across
@@ -94,10 +95,13 @@ export const PAINTS = Object.freeze([
   // inner struts white (`glass`), white on the drive too («когда он летит белый хвост не надо делать голубым»). CLIPPER wears it in its
   // quest (src/clipper.js); a pilot who led its crew wears it on any ship. On MODERN, which has no struts of the glass's colour, the lime
   // lies on its wings ◢ ◣ and its inner whiskers ◝ ◜ (`marks`; SX's S2 WHISKERS LIME on labs/graphics/sketches/supra-modern.html, «берем
-  // этот», after «она не имеет в себе зеленого цвета»), its glass ╭╮╰╯ white; CLIPPER's whiskers, its hull's, stay the light gray.
+  // этот», after «она не имеет в себе зеленого цвета»), its glass ╭╮╰╯ white; CLIPPER's whiskers, its hull's, stay the light gray. In
+  // MODERN's brake pose its wings turned ◤ ◥ and its inner whiskers turned ◞ ◟ (their row, not the top whiskers') silver (SX, 2026-10-22:
+  // «когда он тормозит ... покрасим перевернутые крылья и перевернутые палочки ... при тормозе в серый. Серебристый такой цвет»).
   paint('sp-clipper', 'SUPRA', { material: '#F07B1F', structure: '#8E959E', highlight: '#D9DEE3', struts: '#86DC32', glass: '#EEF1F4',
-    engine: '#EEF1F4', engineActive: '#EEF1F4', smoke: '#FFC488', jets: '#F4F6F8', glassDark: '#59626B' },
-  { material: { '◢': '#86DC32', '◣': '#86DC32' }, structure: { '◝': '#86DC32', '◜': '#86DC32' } }),
+    engine: '#EEF1F4', engineActive: '#EEF1F4', smoke: '#FFC488', jets: '#F4F6F8', glassDark: '#59626B', silver: '#B9C0C8' },
+  { material: { '◢': '#86DC32', '◣': '#86DC32', '◤': '#B9C0C8', '◥': '#B9C0C8' },
+    structure: { '◝': '#86DC32', '◜': '#86DC32', '◞@0.5': '#B9C0C8', '◟@0.5': '#B9C0C8' } }),
 ]);
 
 // The eight paints the reference ships leave (found in no cache): the pilot card's PAINTS count and the caches' twelve are the others.
@@ -130,7 +134,7 @@ export function paintedHull(paintId, cell, engineOn = false) {
   const p = paintById(paintId), inks = p?.inks;
   const part = inks && AUTHORED[String(cell?.color).toLowerCase()];
   if (!part) return null;
-  const mark = p.marks?.[part]?.[cell.ch];
+  const mark = p.marks?.[part]?.[`${cell.ch}@${cell.y}`] ?? p.marks?.[part]?.[cell.ch];
   if (mark) return mark;
   if (part === 'material') return ARCS.has(cell.ch) ? inks.structure : inks.material;
   if (part === 'engine') return engineOn ? inks.engineActive : inks.engine;

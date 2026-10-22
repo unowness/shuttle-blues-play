@@ -15,23 +15,22 @@
 // The talk is written as a script (SX, 2026-10-22, on D2 SCRIPT of labs/graphics/sketches/clipper-beta.html: «диалог в виде скрипта вообще
 // отличный вариант. Наверное, я бы и другие диалоги хотел так»; the game's dialogs on labs/graphics/sketches/talk-script.html): who speaks in a
 // column at the left, the line beside it wrapped under itself; the whole conversation in one window, kept from its first line (a quest's plea,
-// the pilot's answer, the thanks), the lines coming one at a time (SX, 2026-10-22: «фразочки слишком быстро ... их не успеваешь прочитать»,
-// then of a second and a second a dozen letters «очень медленно», then of 0.8 s and a second each 18 «слишком медленный все еще, пусть
-// быстрее строки появляются гораздо»: 0.4 s and a second each 40 letters, 1.35 s a line of 38) and the window as tall as all of them from the
-// first; its answers standing from the first line («кнопка должна быть доступна и до того, как закончился диалог»), a press saying the rest
-// at once; the
-// pilot's pressed answer written into it as YOU's, an action between asterisks, YOU and the action in gray (SX: «писать строки you серым.
-// Писать действия»); whoever speaks to the pilot in the ink of the talk's quest (src/roles.js QUEST_INKS by its rows' tone, the story's purple
-// where none: «зеленый квест ... зеленый ники. Фиолетовый квест ... фиолетовые ники»), and only a quest's answer framed in that ink («рамочка
-// синий или фиолетовая ... Только у кнопки «Принять»»); the head's left what the talk is and its right the place, both in white («вот это
-// сверху текст писать белым»). A conversation is its talk's `thread` (a quest's id; the target's id where it names none), kept on the page,
+// the pilot's answer, the thanks), the lines coming one at a time (SX, 2026-10-22, round by round: «фразочки слишком быстро ... их не
+// успеваешь прочитать»; of a second and a second a dozen letters «очень медленно»; of 0.8 s and a second each 18 «слишком медленный все еще»;
+// of 0.4 s and a second each 40 «теперь слишком быстро»: 0.6 s and a second each 27 letters, 2 s a line of 38) and the window as tall as all
+// of them from the first; its answers standing from the first line («кнопка должна быть доступна и до того, как закончился диалог»), a press
+// saying the rest at once; the pilot's pressed answer written into it as YOU's, an action between asterisks, YOU and the action in gray (SX:
+// «писать строки you серым. Писать действия»); every name in a gray, a step of its own for each who speaks, the first the lightest, YOU the
+// quietest («слишком ... разноцветно ... надо все серым делать, но в зависимости от того, сколько собеседников, столько и градаций серого
+// делать ... с каким-то серьезным шагом»; the quest's ink, a darker ROUXEE and a gray RADIO before), and only a quest's answer framed in its
+// quest's ink («рамочка синий или фиолетовая ... Только у кнопки «Принять»»); the head's left what the talk is and its right the place, both in
+// white («вот это сверху текст писать белым»). A conversation is its talk's `thread` (a quest's id; the target's id where it names none), kept on the page,
 // never saved: a pilot who comes back to it finds it as it was (the planet's ask over the suitcase brought), a reload starts it at what the
 // talk says now.
 //
 // A talk's data (`target.talk`): { name, lines, before?, thread?, place?, live? }. `lines` strings are said by the one `name` names, together
 // as one line (old saves and quest data read as before: "RELAY 12 MECHANIC" is the station's desk, "SCOOTY / MECHANIC" a person and a role,
-// anything else one name), or { who, line, ink, nick, key } a line of its own speaker's (`nick` its name's own ink: CLIPPER's RADIO the
-// radio's blue); `before` what was said earlier in the same conversation (a plea a
+// anything else one name), or { who, line, ink, key } a line of its own speaker's; `before` what was said earlier in the same conversation (a plea a
 // hail said), written first where the script does not hold it yet; `place` the head's right where the target is no station; `live` the world not
 // slowed (COMMONS's recordings play on the world's clock).
 //
@@ -41,7 +40,7 @@
 //
 // The page's (no world state, nothing saved): the world's pace is the page's to give (labs/graphics/flight-frame.js runs `steps` of the world's
 // steps a frame), as the opening's slow beat does (labs/graphics/opening-focus.js F3).
-import { ROLES, QUEST_INKS } from '../../src/roles.js';
+import { ROLES, QUEST_INKS, PALETTE } from '../../src/roles.js';
 import { rowTones } from '../../src/menus.js';
 import { moneyRuns } from '../../src/money.js';
 import { wrap } from '../../src/pilotPanel.js';
@@ -53,7 +52,7 @@ import { clipperPose } from '../../src/clipper.js';
 import { floatPose, floatPhases } from '../../src/float.js';
 import { CONFIG } from '../../src/config.js';
 import { PESTER_ID, pesterHere } from '../../src/pester.js';
-import { clamp, easeOut } from '../../src/util.js';
+import { clamp, easeOut, dimToContrast } from '../../src/util.js';
 import { withAlpha } from '../../src/hover.js';
 import { drawStationShot } from './windows.js';
 import { glyphsNow } from './world-art.js';
@@ -67,9 +66,12 @@ import { Win, ORG, INK, SIZES, partLen, len } from './organism.js';
 // at least; `show` how far the beat has come in when its window starts to come, `drop` the px it comes from above (the pause's).
 // The script: a line stands `read` s and a second each `cps` characters before the next comes, the pilot's action `act` s; a line comes in
 // over `fresh` s; a line wraps to `wrap` rows at most; a conversation is kept `keep` s of page time after its last word, `threads` of them at
-// most. `talk` the row the object's window offers to begin it.
+// most. `talk` the row the object's window offers to begin it. `names` the grays of the names, the lightest and YOU's, as contrast on black:
+// the others between, a step a speaker.
 export const BEAT = Object.freeze({ pace: 0.2, in: 0.3, out: 0.3, veil: 0.72, width: SIZES.S[0], shot: 200, shotLeast: 120, show: 0.35, drop: 12, under: 48, floor: 8,
-  read: 0.4, cps: 40, act: 0.4, fresh: 0.25, wrap: 8, keep: 900, threads: 24, talk: 'TALK' });
+  read: 0.6, cps: 27, act: 0.5, fresh: 0.25, wrap: 8, keep: 900, threads: 24, talk: 'TALK', names: Object.freeze({ first: 11, you: 4.5 }) });
+// The gray of the `i`-th of `k` who speak to the pilot (YOU apart, the quietest): a step down from the lightest for each, in contrast's ratio.
+export const nameGray = (i, k) => dimToContrast(PALETTE.white, BEAT.names.first * (BEAT.names.you / BEAT.names.first) ** (i / Math.max(1, k)));
 
 // The pilot's name in the script.
 export const YOU = 'YOU';
@@ -131,7 +133,7 @@ export function talkLines(world, t) {
       if (typeof l === 'string') { if (l.trim()) run.push(l.trim()); continue; }
       if (l?.line == null || !String(l.line).trim()) continue;
       flush();
-      out.push({ who: l.who ?? who, text: String(l.line).trim(), ink: l.ink ?? null, nick: l.nick ?? null, key: l.key ?? null });
+      out.push({ who: l.who ?? who, text: String(l.line).trim(), ink: l.ink ?? null, key: l.key ?? null });
     }
     flush();
   };
@@ -151,8 +153,8 @@ export function createTalkBeat(game) {
   // `key` what stands (said), `target` its menu as last read, `dismissed` what LATER put away, `level` 0..1 how far it has come in, `carry`
   // the fraction of a world step the slow pace owes, `last` the page time of the last step.
   // `shot`: where the speaker's picture takes its fragment of a station, new each time a beat stands (a look-only choice: Math.random).
-  // `scripts`: each conversation's script by its thread, { entries: [{ who, text, ink, you, at }], seen, tone, touched } (`at` the page time an
-  // entry comes; `seen` what the talk said that is in it already; `tone` its quest's, the first a row of it had).
+  // `scripts`: each conversation's script by its thread, { entries: [{ who, text, ink, you, at }], seen, touched } (`at` the page time an
+  // entry comes; `seen` what the talk said that is in it already).
   // `opened`: the conversation the pilot began (TALK) by the object the ship is at, until the ship leaves it or LATER puts it away; `call`
   // the world's call standing, `callDone` the last one LATER put away.
   const S = { key: null, target: null, dismissed: null, level: 0, carry: 0, last: null, forId: null, shot: null, scripts: new Map(), opened: null,
@@ -165,7 +167,7 @@ export function createTalkBeat(game) {
     let s = S.scripts.get(id);
     if (!s) {
       for (const [k, old] of S.scripts) if (S.scripts.size >= BEAT.threads || now - old.touched > BEAT.keep) S.scripts.delete(k);
-      s = { entries: [], seen: new Set(), tone: null, touched: now };
+      s = { entries: [], seen: new Set(), touched: now };
       S.scripts.set(id, s);
     }
     s.touched = now;
@@ -182,7 +184,6 @@ export function createTalkBeat(game) {
       s.seen.add(k);
       s.entries.push({ ...l, at: nextAt(s, now) });
     }
-    s.tone ??= rowTones(world, t).find(Boolean) ?? null;
     return s;
   }
 
@@ -289,7 +290,7 @@ export function createTalkBeat(game) {
     const tones = rowTones(world, t), tone = tones[0] ?? null;
     const hand = t.actions.some((a) => /^HAND IN/.test(a.label));
     const kind = hand ? KIND.done : tone === 'story' || !tone ? KIND.story : KIND.offer;
-    const script = absorb(t, now), nick = QUEST_INKS[script.tone] ?? INK.purple;
+    const script = absorb(t, now);
     const win = new Win(r, { size: [BEAT.width, null], id: 'beat', live: come >= 1 }), p = win.p, { cw, m } = win;
     // Measured first: the script, the picture, the answers.
     // The picture as large as the room between the ship and the cockpit leaves it, the window's bands taken off (it stands under the ship).
@@ -298,6 +299,9 @@ export function createTalkBeat(game) {
     // The script's columns: the names' (the longest and a gutter), the words' (what is left); every entry, said or still to come, so the window
     // is as tall from the first line as the talk will be.
     const entries = script.entries;
+    // The names' grays: who speaks, in the order they first do, a step each; YOU the quietest.
+    const mine = (e) => e.you || e.who === YOU, speakers = [...new Set(entries.filter((e) => e.who && !mine(e)).map((e) => e.who))];
+    const grayOf = (e) => (mine(e) ? nameGray(1, 1) : nameGray(speakers.indexOf(e.who), speakers.length));
     const nameCols = entries.some((e) => e.who) ? Math.max(...entries.map((e) => len(e.who))) + ORG.gutter : 0;
     const lines = entries.flatMap((e) => wrap(e.text, cols - nameCols, BEAT.wrap).filter(Boolean).map((text, j) => ({ e, text, first: j === 0 })));
     const rows = [];
@@ -326,7 +330,7 @@ export function createTalkBeat(game) {
       lines.forEach((l, i) => {
         if (l.e.at > now) return;
         const put = () => {
-          if (l.first && l.e.who) win.text(l.e.who, p.cx, p.y(i), l.e.you || l.e.who === YOU ? INK.label : l.e.nick ?? nick);
+          if (l.first && l.e.who) win.text(l.e.who, p.cx, p.y(i), grayOf(l.e));
           win.text(l.text, p.x(nameCols), p.y(i), l.e.you || l.e.who === YOU ? INK.label : l.e.ink ?? INK.text);
         };
         const fresh = clamp((now - l.e.at) / BEAT.fresh, 0, 1);

@@ -3,8 +3,7 @@ import { sectorById, neighbourOf, SECTOR_SIZE } from './sectors.js';
 import { TERRA, terraOf, terraSpot, placeTerra } from './terra.js';
 import { noteVanish } from './vanish.js';
 import { QUEST_LINES as QL } from './questLines.js';
-import { clamp, TAU, dimToContrast } from './util.js';
-import { ROLES, QUEST_INKS } from './roles.js';
+import { clamp, TAU } from './util.js';
 
 // CLIPPER, the eighth reference ship: SX (ROUXEE) and his friend Pasha (KWLSK), who tested the game, on their way to a beta test (SX,
 // 2026-10-21, labs/graphics/sketches/clipper-beta.html: «встречаешь этот корабль ... две полосочки, с текстом, один от меня, другой от Паши
@@ -64,12 +63,8 @@ export const LINES = Object.freeze({
   bye: [[CREW.pasha, "THANKS, DUDE. WE'LL TAKE IT FROM HERE."]],
   last: [[CREW.sx, 'I SWEAR. THAT WAS OUR LAST RIDE.']],
 });
-// A line of the script, its speaker's name in an ink of its own where it has one: ROUXEE's a little darker than KWLSK's purple, so the two
-// tell apart (SX, 2026-10-22: «у КВЛСК и Роксети раздели ... у Роксети чуть потемнее тон был»; the quest's purple dimmed to 5:1 on black, 6.3
-// it is), RADIO's the label's gray as YOU's («радио сделай серым. Таким же, как и Ю»; the radio's blue a moment before, the purple at first).
-export const ROUXEE_INK = dimToContrast(QUEST_INKS.special, 5);
-const nickOf = (who) => (who === CREW.sx ? ROUXEE_INK : who === RADIO ? ROLES.textLabel : null);
-const lineOf = (who, line, key = null) => ({ who, line, ...(nickOf(who) ? { nick: nickOf(who) } : null), ...(key ? { key } : null) });
+// A line of the script, known by `key` where it may come again (the calls).
+const lineOf = (who, line, key = null) => ({ who, line, ...(key ? { key } : null) });
 // What the window says, as the script's lines (src/specials.js specialCandidates); the two strips of the meeting said before it, so the
 // script begins with them (SX: «И начинаться все должно быть дюд»).
 export const talkOf = () => LINES.talk.map(([who, line]) => lineOf(who, line));
