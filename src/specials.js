@@ -6,7 +6,7 @@ import { factsOfWorld, nextSpecial, specialDue, specialPay } from './pacing.js';
 import { SPECIALS, specialById, specialModel, specialSize, drawModel, drawFlown, drawParked, brokenShare } from './specialShips.js';
 import { HANDLERS } from './specialQuests.js';
 import { QUEST_LINES as QL } from './questLines.js';
-import { radioFitted } from './opening.js';
+import { radioFitted, openingStage, REST } from './opening.js';
 import { CREW, talkOf, meetOf, clipperPose } from './clipper.js';
 import { contentAreas } from './mapContent.js';
 
@@ -17,7 +17,7 @@ import { contentAreas } from './mapContent.js';
 // src/specialQuests.js, the ships (drawing, chassis, rewards) in src/specialShips.js.
 //
 //   met      Now and then (CONFIG.quests.special; the pacing is the quest economy's, src/pacing.js specialDue: the first at
-//            `first` s, then a rest and a chance a minute, about every half hour), the next of the six in their `order` (the
+//            `first` s once the opening chapter is over, then a rest and a chance a minute, all eight in a game of two hours), the next in their `order` (the
 //            gentlest first, each waiting for some stations restored) that has not left its note yet stands still in the
 //            sector the pilot flies in, in a clear place out of sight. A pilot who comes within `reach` u is
 //            spoken to, three lines over its head in the hail's way (what happened to one of its people, the quest);
@@ -133,8 +133,10 @@ export function stepSpecial(world, dt) {
     world.specialLook = C.checkEvery;
     // (A reference ship is one of the side activities the radio opens: SX, 2026-10-06, «радио открывает квесты нпс и прочие
     // дополнительные активности».)
+    // Nor while the opening chapter runs: one thing at a time until its ruin is restored (src/opening.js REST).
+    const chapter = openingStage(world);
     const blocked = !world.ship.alive || !!world.docked || !!world.home || !!world.encounter || !!L.raid || !!world.pester || world.sector.hidden
-      || !radioFitted(world);
+      || !radioFitted(world) || (chapter !== null && chapter !== REST);
     if (specialDue(world.specialClock, factsOfWorld(world), world.pilot.notes, world.rng('quest'), C.checkEvery, blocked, world.pilot.lastSpecial, world.pilot.specialOrder)) offerSpecial(world);
     return;
   }

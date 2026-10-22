@@ -148,11 +148,14 @@ export const QUESTS = {
     // SX, 2026-10-02: «Раз в ~30 мин»): a ship out of O-08 stands still in the pilot's sector, rarely, for `stay` s, `apart` u
     // from the pilot and `clear` u from everything. They come in `order` (each [ship, ruins restored it waits for, CR it
     // pays when its quest is won, on top of its paint, cockpit and note: SX picked «Вещи и CR»]), each until its note is
-    // held, the gentlest first. The first not before `first` s of the pilot's clock; after one ends (won, lost or left
-    // unmet) `rest` s of none, then a chance a minute (`chance`, looked for every `checkEvery` s) and a sure one once `pity`
-    // s have passed since it ended. Measured by tools/quest-economy-sim.mjs on the steady pilot: the first at about 46
-    // minutes, 28 minutes from one's coming to the next's, the sixth about 3.5 hours in (a ship failed comes again, and
-    // 15 % fail). Said over its head within `reach` u of it. The pay is flat: they come late, where a station's worth is a small part of a wallet.
+    // held, the gentlest first. The first not before `first` s of the pilot's clock, and never while the opening chapter runs
+    // (src/specials.js stepSpecial); after one ends (won, lost or left unmet after `stay` s) `rest` s of none, then a chance a
+    // minute (`chance`, looked for every `checkEvery` s) and a sure one once `pity` s have passed since it ended. All eight in
+    // a game of two hours (SX, 2026-10-22: «среднее прохождение игры максимум 120 минут. И надо все распределить, чтобы почаще
+    // что-то интересное случалось»; first 2100, rest 600, chance 1/10, pity 1500 and stay 900 until then: the first at 46 minutes
+    // and one every 24 on the pro pilot, three or four met in two hours). Measured by tools/quest-economy-sim.mjs on the pro pilot
+    // (a real player's pace): the first at 20 minutes, as the opening ends, then one every 9, the eighth at 95 (82-112); the sharp
+    // pilot's eighth at 111. Said over its head within `reach` u of it. The pay is flat.
     //   delorean   a race to a station 7-13 km off at `speed` u/s on average, and `slack` s over
     //   swordfish  `waves` of pirates one after another at a place in this or the next sector, from `arrive` u (a squad is four
 //              at most, CONFIG.pirates.maxGroup: so are the waves)
@@ -164,7 +167,7 @@ export const QUESTS = {
     //              `squad` every `spawnEvery` s, never more than `cap` at once
     // A leg (`minLeg`, `maxLeg`) is a distance of the map: written in u of SX's layout, grown with the world (src/worldScale.js spread).
     special: {
-      first: 2100, rest: 600, chance: 1 / 10, pity: 1500, checkEvery: 15, stay: 900, apart: 2200, clear: 900, edge: 0.2, reach: 460,
+      first: 720, rest: 120, chance: 1 / 2, pity: 300, checkEvery: 15, stay: 600, apart: 2200, clear: 900, edge: 0.2, reach: 460,
       // The ruins each waits for are what its quest's geometry needs (chat E1, 2026-10-04; Codex's economy study found the gates
       // the map really makes): EXPRESS three working stations in reach of a planet, so one restored (the start has two); SERENITY
       // a station two sectors off, so three (J-06 opens with the third); until then they were 0 and 1, and the ship that was due
