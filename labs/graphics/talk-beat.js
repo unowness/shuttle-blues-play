@@ -21,7 +21,9 @@ import { moneyRuns } from '../../src/money.js';
 import { wrap } from '../../src/pilotPanel.js';
 import { drawCraft } from '../../src/traffic.js';
 import { DRIFTER_ID, drifterHere, drifterCraft } from '../../src/quests.js';
-import { WRECK_ID, wreckCraftAt } from '../../src/wrecked.js';
+import { WRECK_ID, wreckHere, wreckCraftAt } from '../../src/wrecked.js';
+import { floatPose, floatPhases } from '../../src/float.js';
+import { CONFIG } from '../../src/config.js';
 import { PESTER_ID, pesterHere } from '../../src/pester.js';
 import { clamp, easeOut } from '../../src/util.js';
 import { withAlpha } from '../../src/hover.js';
@@ -36,6 +38,26 @@ import { Win, ORG, INK, SIZES, partLen } from './organism.js';
 // `width` the window (the ladder's S); `shot` the speaker's picture's square at most (INFO's), as much of it as the room under the ship leaves, `shotLeast`
 // at least; `show` how far the beat has come in when its window starts to come, `drop` the px it comes from above (the pause's).
 export const BEAT = Object.freeze({ pace: 0.2, in: 0.3, out: 0.3, veil: 0.72, width: SIZES.S[0], shot: 200, shotLeast: 120, show: 0.35, drop: 12, under: 48, floor: 8 });
+
+// How fast a pilot out of fuel and a wreck turn where they drift, rad/s (src/questHooks.js drawDrifter, src/wrecked.js drawWreck).
+const TURN = 0.05;
+
+// A ship in the speaker's square (SX, 2026-10-22: «в диалоге с кораблем ... этот корабль тоже будет floating. В окошке. Да, только он не
+// покидает пределы окошка ... Если не помещается, то мы его не скейлим ... он в основном в окне находился. Да, и направление его кабины мы
+// рисуем так же, как он сейчас в космосе относительно нас стоит»; it stood nose up in the middle until then): its drawing at its own size,
+// its nose where it points in space (the camera never turns), floating on the stations' orbit (src/float.js floatPose, its phase from the
+// speaker's id, on the page's clock `now`), the orbit kept to the room the turned drawing leaves in the square, so a ship that fits never
+// leaves it and one that does not stays in its middle; clipped to the square.
+function floatingCraft(r, box, id, { craft, angle }, now) {
+  const turn = angle + Math.PI / 2, c = Math.abs(Math.cos(turn)), s = Math.abs(Math.sin(turn));
+  const w = craft.rows[0].length * r.cellW * craft.scale, h = craft.rows.length * r.cellH * craft.scale;
+  const roomX = Math.max(0, (box.w - (w * c + h * s)) / 2), roomY = Math.max(0, (box.h - (w * s + h * c)) / 2);
+  const F = CONFIG.float, f = floatPose(floatPhases(id), now, F);
+  const x = box.x + box.w / 2 + (f.dx / F.orbit) * Math.min(F.orbit, roomX), y = box.y + box.h / 2 + (f.dy / F.orbit) * Math.min(F.orbit, roomY);
+  const ctx = r.ctx;
+  ctx.save(); ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
+  try { drawCraft(glyphsNow(r), craft, x, y, angle); } finally { ctx.restore(); }
+}
 
 // The words at the head's right: a hand-in is a quest done; the opening's lines are the story's; any other talk offers.
 const KIND = Object.freeze({ done: 'QUEST DONE', story: 'STORY', offer: 'NEW QUEST' });
@@ -79,13 +101,23 @@ export function createTalkBeat(game) {
 
   // The speaker's picture in its square, or null when it has none drawn here (a planet's errand): a station as the world draws it, a fragment of
   // it at its own size taken somewhere new each time the beat stands (labs/graphics/windows.js drawStationShot; SX, 2026-10-16: «рандомный
-  // фрагмент станции один к одному»), a ship's drawing nose up.
+  // фрагмент станции один к одному»), a ship's drawing floating in it as the station's fragment does (`floatingCraft`).
   function picture(t) {
     const st = world.stations.find((s) => s.id === t.id);
     if (st) return (r, box, now) => drawStationShot(r, box, st, world, S.shot, now);
-    const craft = t.id === DRIFTER_ID ? (drifterHere(world) && drifterCraft(drifterHere(world)))
-      : t.id === WRECK_ID ? wreckCraftAt(world)?.craft : t.id === PESTER_ID ? pesterHere(world)?.craft : null;
-    if (craft) return (r, box) => drawCraft(glyphsNow(r), craft, box.x + box.w / 2, box.y + box.h / 2, -Math.PI / 2);
+    const pose = craftPose(t.id);
+    if (pose) return (r, box, now) => floatingCraft(r, box, t.id, pose, now);
+    return null;
+  }
+  // A quest's ship as the world draws it now: its drawing and its heading (a pilot out of fuel and a wreck turn slowly by the world's clock,
+  // src/questHooks.js drawDrifter and src/wrecked.js drawWreck, `TURN`; a ship the pirates hold sways, src/pester.js pesterHere), or null.
+  function craftPose(id) {
+    if (id === DRIFTER_ID) { const d = drifterHere(world); return d && { craft: drifterCraft(d), angle: d.angle + world.time * TURN }; }
+    if (id === WRECK_ID) {
+      const at = wreckCraftAt(world), here = wreckHere(world);
+      return at && { craft: at.craft, angle: here ? here.angle + world.time * TURN : at.angle ?? -Math.PI / 2 };
+    }
+    if (id === PESTER_ID) { const p = pesterHere(world); return p && { craft: p.craft, angle: p.angle }; }
     return null;
   }
 
@@ -101,9 +133,10 @@ export function createTalkBeat(game) {
   // The beat drawn now, over the finished frame and under the pop-ups, on the organism's kit (labs/graphics/organism.js; SX's sketch W-ORG R7):
   // a dialog the ladder's S wide (640). Its head says what the talk is at the left, in the story's purple (SX: «надпись Story, она должна быть
   // слева»), and who speaks at the right, what they are in the label's gray before their name (SX: «Скути механик ... должно быть явно справа»).
-  // The words at the left, the speaker's picture at the right in a square, frameless; the answers two `C` under the words (SX: «кнопочный выбор
-  // после текста диалога ... Двойной, тройной, четверной отступ»; «Не вниз, а то не видно»); a quest's answer its keycap in the purple. The foot: ESC LATER. It comes in as the pause's window does, out of a fade and
-  // a few px from above, once the veil is down. Returns the window's box, or null.
+  // The words at the left, the speaker's picture at the right in a square, frameless; the answers at the body's foot, `C` over the foot's rule
+  // and two `C` under the words at least (SX, 2026-10-21: «кнопка ответа вообще во всех таких окнах должна привязываться к низу»; 2026-10-16:
+  // «Двойной, тройной, четверной отступ»); a quest's answer its keycap in the purple. The foot: ESC LATER. It comes in as the pause's window does,
+  // out of a fade and a few px from above, once the veil is down. Returns the window's box, or null.
   function draw(r, now = pageTime()) {
     if (!shown()) return null;
     const t = S.target, k = easeOut(S.level);
@@ -125,11 +158,15 @@ export function createTalkBeat(game) {
       rows.push({ key: String(i + 1), label: a.label, disabled: a.disabled, tone: tones[i] ?? null });
       if (a.cargo && a.note) rows.push({ key: '', label: a.note });
     });
-    // The answers two `C` under the words (SX, 2026-10-16, on a quest handed in: «хендин куда-то бы в другое место поместить. Не вниз, а то не
-    // видно ... с каким-то отступом под текст»; at the picture's foot until then).
-    const shotBottom = (y0) => y0 + side, n = rows.length;
-    const kRows = p.kAfter(p.yb(Math.max(0, lines.length - 1)), 2 * ORG.C + win.keyTop);
-    win.fit(Math.max(paint ? shotBottom(p.y(0)) : 0, p.y(kRows + n - 1) - win.keyTop + win.keyH));
+    // The answers at the body's foot, the last one's keycap `C` over the foot's rule as any content stands off a line (the picture's foot on that
+    // line too where it is the taller), never nearer the words than two `C`; the window as tall as that asks, or as the picture (SX, 2026-10-21, on
+    // two short lines beside a taller picture: «кнопка ответа вообще во всех таких окнах должна привязываться к низу. То есть единичка должна быть
+    // привязана внизу, да, с отступом каким-то хорошеньким»; from 2026-10-16 two `C` under the words, «Не вниз, а то не видно ... с каким-то
+    // отступом под текст», which left them floating beside a taller picture; at the picture's foot before that).
+    // (px, the first answer's keycap top to the last row's ink bottom: its keycap's, or a cargo's note's capitals)
+    const n = rows.length, answersH = n ? (n - 1) * ORG.row + (rows[n - 1].key ? win.keyH : win.keyTop + win.cap) : 0;
+    win.fit(Math.max(paint ? p.y(0) + side : 0, p.yb(Math.max(0, lines.length - 1)) + 2 * ORG.C + answersH));
+    const kRows = p.kAfter(win.footRule - ORG.C - answersH, win.keyTop);
     const y = Math.round(Math.min(r.cy + BEAT.under, r.cockpit.y - BEAT.floor - win.h));
     const lift = (1 - come) * BEAT.drop;
     win.place(() => ({ x: Math.round(r.width / 2 - win.w / 2), y: Math.max(r.view.y, y) - lift }));

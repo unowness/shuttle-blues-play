@@ -43,6 +43,7 @@ import { QUEST_TIMES, QUEST_WIDTH } from './quest-list.js';
 import { LORE_TIMES } from './rail.js';
 import { noteKey } from './clicks.js';
 import { installGrade, gradeEpoch, gradeKept } from '../../src/grade.js';
+import { SHOWS, SHOW_TIMES, SHOW_EVENTS, SHOW_OF } from './radio-shows.js';
 
 // The set: `h` high (nine steps of the HUD's 8 px grid), as wide as the quest plates (locator.js columnLayout `questW`); `under` the
 // air from its row's keycap to its top line, ink to ink: a button's (COLUMN_GAPS.under) and a pad more, an optical compensation (SX,
@@ -81,22 +82,35 @@ const TURN = 0.18;
 
 // ------------------------------------------------------------------------------------------------ the radio's state
 
-// `store`: the page's backend, where whether it is hidden is kept. `moment` the last thing heard ({ kind, at }), `after` a quest's
-// signal waiting for a call or a line of the same frame to end (a kind, or null), `since` the page's time of the first quest list
-// read (its plates were there before: none of them is a quest come), `open` whether the picture was shown last frame and `changed`
-// since when (s, the page's clock).
+// `store`: the page's backend, where whether it is hidden is kept. `moment` the last thing heard ({ kind, at, info, life }: `info` what
+// it told the radio, `life` its own length where it is not its kind's), `after` one waiting for it to end ({ kind, info }, or null),
+// `hit` the page's time of the last blow to the hull, `since` the page's time of the first quest list read (its plates were there
+// before: none of them is a quest come), `open` whether the picture was shown last frame and `changed` since when (s, the page's clock).
 export function createRadio(store) {
-  return { hidden: readRadio(store), store, moment: null, after: null, since: null, open: null, changed: -Infinity, box: null, row: null, wheel: { on: false, x: 0, y: 0, R: 0, dir: -1 } };
+  return { hidden: readRadio(store), store, moment: null, after: null, hit: -Infinity, since: null, open: null, changed: -Infinity, box: null, row: null, wheel: { on: false, x: 0, y: 0, R: 0, dir: -1 } };
 }
-// `kind` heard at `now`: a quest's signal waits behind a call or a line begun the same frame (they carry words), else the newest plays.
-function hear(radio, kind, now) {
-  const m = radio.moment, quest = RADIO_MOMENTS[kind].target === null;
-  if (quest && m && m.at === now && RADIO_MOMENTS[m.kind].target !== null) { radio.after = kind; return; }
-  radio.moment = { kind, at: now };
+// How long a moment plays: its own `life` where it has one (the warning's, the wreck's), else its kind's (RADIO_MOMENTS, radio-shows.js
+// SHOW_TIMES), never past its kind's `most`.
+const lifeOf = (m) => Math.min(m.life ?? RADIO_MOMENTS[m.kind]?.life ?? SHOW_TIMES[m.kind]?.life ?? 0, SHOW_TIMES[m.kind]?.most ?? Infinity);
+// How a moment ranks (radio-shows.js SHOW_TIMES): the wreck, the pirates on their way, then what carries words (a call, the line, the
+// boss), then the rest.
+const rankOf = (kind) => SHOW_TIMES[kind]?.rank ?? (RADIO_MOMENTS[kind]?.target != null ? 2 : 1);
+// `kind` heard at `now`, with what it tells (`info`): one ranking under what plays, or as high and begun the same frame, waits behind
+// it (one waits: the newest); else it plays at once.
+function hear(radio, kind, now, info = null) {
+  const m = radio.moment, playing = m && now - m.at < lifeOf(m);
+  if (playing && (rankOf(kind) < rankOf(m.kind) || (rankOf(kind) === rankOf(m.kind) && m.at === now))) { radio.after = { kind, info }; return; }
+  radio.moment = { kind, at: now, info };
 }
-// The frame's events (World.events, before the notices drain them): the last call, line or loss heard, at `now` (s).
+// The frame's events (World.events, before the notices drain them): a call, the line, a quest lost and what the lamps show (radio-shows.js
+// SHOW_EVENTS), at `now` (s); a blow to the hull kept for the fight's lamps.
 export function listenRadio(radio, events, now) {
-  for (const e of events ?? []) if (HEARD[e.type]) hear(radio, HEARD[e.type], now);
+  for (const e of events ?? []) {
+    if (HEARD[e.type]) hear(radio, HEARD[e.type], now);
+    const said = SHOW_EVENTS[e.type]?.(e);
+    if (said) hear(radio, said[0], now, said[1]);
+    if (e.type === 'shipDamaged') radio.hit = now;
+  }
 }
 // The quest list as syncQuestBoard left it this frame, at the same `now`: a plate born now is a quest come, one done now a quest
 // ended (ENDED by its outcome). Then a signal waiting behind a call or a line plays once that has ended.
@@ -107,7 +121,7 @@ export function listenQuests(radio, board, now) {
     if (p.doneAt === now && ENDED[p.outcome]) hear(radio, ENDED[p.outcome], now);
   }
   const m = radio.moment;
-  if (radio.after && (!m || now - m.at >= RADIO_MOMENTS[m.kind].life)) { radio.moment = { kind: radio.after, at: now }; radio.after = null; }
+  if (radio.after && (!m || now - m.at >= lifeOf(m))) { radio.moment = { ...radio.after, at: now }; radio.after = null; }
 }
 // T, or a click on its row: hidden or shown, kept in this browser.
 export function toggleRadio(radio) {
@@ -210,8 +224,8 @@ function lamp(ctx, x, y, s) {
   disc(ctx, x, y, LAMP_R, { fill: ROLES.backing, stroke: s.lamp.k > 0.02 ? s.lamp.ink : ROLES.textHint });
   if (s.lamp.k > 0.02) disc(ctx, x, y, LAMP_R, { fill: s.lamp.ink, alpha: s.lamp.k });
 }
-// Whether a hole of the silence's static flickers now.
-const flicker = (s, i, j) => !s.reduced && noise3(i, j, Math.floor(s.t / STATIC.step)) < STATIC.share;
+// Whether a hole of the silence's static flickers now (not under a show: it is the show's picture then).
+const flicker = (s, i, j) => !s.reduced && !s.show && noise3(i, j, Math.floor(s.t / STATIC.step)) < STATIC.share;
 
 // The holes over the speaker in the field `F`: a hole UI.pad / 2 square every 2 UI.pad, as many as fit, centred; the voice lights them
 // from the field's middle out as loud as it is, and each wave runs out through them as a ring of lit holes, from the middle to the
@@ -219,13 +233,17 @@ const flicker = (s, i, j) => !s.reduced && noise3(i, j, Math.floor(s.t / STATIC.
 const PITCH = 2 * UI.pad, HOLE = UI.pad / 2;
 // `part`: 'all' every hole (with no page to stamp on), 'still' the holes alone in their dark ink (the stamp's), 'live' only what
 // lights or flickers over them.
-// `gone` (i, j): a hole knocked dark (the modern radio's wear), drawn not at all.
+// `gone` (i, j): a hole knocked dark (the modern radio's wear), drawn not at all, unless the state's show lights it and says `over`.
+// The state's `show` ({ paint(g), over, dot }): a picture played on the holes as on a grid of lamps (lampGrid), over the voice and the
+// waves, a lit lamp `dot` px square round its hole's middle (the hole's own size, none given).
 function grille(r, F, s, part = 'all', gone = null) {
   const nx = Math.floor((F.w - HOLE) / PITCH) + 1, ny = Math.floor((F.h - HOLE) / PITCH) + 1;
   const ox = F.x + (F.w - ((nx - 1) * PITCH + HOLE)) / 2, oy = F.y + (F.h - ((ny - 1) * PITCH + HOLE)) / 2;
   const gx = ox + ((nx - 1) * PITCH + HOLE) / 2, gy = oy + ((ny - 1) * PITCH + HOLE) / 2, far = Math.hypot(gx - ox, gy - oy);
+  const g = s?.show ? playOn(s.show, nx, ny) : null;
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-    if (gone && gone(i, j)) continue;
+    const n = j * nx + i, shown = g !== null && g.k[n] > 0.004;
+    if (gone && gone(i, j) && !(shown && s.show.over)) continue;
     const x = Math.round(ox + i * PITCH), y = Math.round(oy + j * PITCH), away = Math.hypot(x + HOLE / 2 - gx, y + HOLE / 2 - gy);
     if (part === 'still') { r.fill(x, y, HOLE, HOLE, ROLES.structure); continue; }
     let lit = clamp((s.voice * 0.8 - away / far) / 0.2, 0, 1);
@@ -236,7 +254,26 @@ function grille(r, F, s, part = 'all', gone = null) {
     const flick = flicker(s, i, j);
     if (part === 'all' || flick) r.fill(x, y, HOLE, HOLE, flick ? ROLES.textPrimary : ROLES.structure);
     if (lit > 0) r.fill(x, y, HOLE, HOLE, s.lamp.ink, lit);
+    if (shown) { const d = s.show.dot ?? HOLE, o = Math.floor((HOLE - d) / 2); r.fill(x + o, y + o, d, d, g.ink[n], Math.min(1, g.k[n])); }
   }
+}
+
+// The holes as a grid of lamps, `nx` across and `ny` down from the top left: each its light (0..1) and its ink. `put` keeps the brighter
+// of what is there and what is put, so a show paints its layers in any order. One grid, cleared for each picture played on it.
+export function lampGrid(nx, ny) {
+  return { nx, ny, k: new Float32Array(nx * ny), ink: new Array(nx * ny).fill(null),
+    put(i, j, k, ink) {
+      if (i < 0 || j < 0 || i >= this.nx || j >= this.ny || !(k > 0)) return;
+      const n = j * this.nx + i;
+      if (k > this.k[n]) { this.k[n] = k; this.ink[n] = ink; }
+    } };
+}
+let played = lampGrid(0, 0);
+function playOn(show, nx, ny) {
+  if (played.nx !== nx || played.ny !== ny) played = lampGrid(nx, ny);
+  else played.k.fill(0);
+  show.paint(played);
+  return played;
 }
 // The tuning wheel at (wx, wy), `R` round: its rim, ticks every 15 degrees turning with the tune over three quarters of a turn (the
 // band), its own white mark, the hub; the index over it stands still and points down at its top. W1's, whose wheel is 1.5 rows round,
@@ -387,7 +424,9 @@ export function drawRadio(r, radio, place, now, { reducedMotion = false, over = 
 // row's. `wear` ({ level, seed }, cockpit-fx.js damageLevel): at the hull's last fifths it breaks where it stands (SX, 2026-10-16: «радио не
 // падает ... На последних десяти-двадцати хп радио на месте остается, у него просто контур ломается ... лампочки пропадают, некоторые»): its
 // holes go dark here and there, then its line breaks in places. Returns the block's box, or null.
-export const RADIO_MODERN = Object.freeze({ h: 9 * UI.vector.space, round: UI.vector.space, s: 9, c: 18,
+// Eight steps of the 8 px grid high since SX, 2026-10-21 («по высоте сделать чуть поменьше, процентов на 10 ... на одну линию поменьше
+// лампочек»): six rows of holes, 11 % lower than the nine steps (seven rows) of R1.
+export const RADIO_MODERN = Object.freeze({ h: 8 * UI.vector.space, round: UI.vector.space, s: 9, c: 18,
   // At each wear level (0-4): the share of holes gone dark, the breaks in its line (more since SX, 2026-10-16: «Ну и радио в целом тоже»);
   // at a wreck (the deck's break standing, cockpit-fx.js cockpitCrack): `wreck`'s, its lamp out, every other break knocked out of line.
   dark: Object.freeze([0, 0.02, 0.06, 0.14, 0.3]), breaks: Object.freeze([0, 1, 2, 3, 5]),
@@ -413,16 +452,74 @@ export function wheelModern(ctx, wx, wy, R, s, mirror) {
   disc(ctx, wx, wy, hub, { fill: ROLES.backing, stroke: ROLES.structure });
   path(ctx, [[wx, iy], [wx - UI.pad, iy + UI.pad + 1], [wx + UI.pad, iy + UI.pad + 1]], { fill: ROLES.textPrimary });
 }
+// What the MODERN radio's lamps play now (radio-shows.js, SX's picks of 2026-10-21): the moment heard while it lasts, else the fight's
+// embers while pirates fight the pilot, else the silence's rain. The wreck plays while the deck's break stands (`wreck`), the warning
+// while the pirates come (watchWarn). A call's show is told the voice of `s` (radioState) and a quest's its ink; the line keeps the
+// radio's own beeps and waves (no show). Reduced motion: a moment stands at its `still`, nothing else plays. Returns the show for
+// drawRadioModern, or null.
+function playing(r, radio, now, s, { world, wreck, reducedMotion }) {
+  let m = radio.moment;
+  if (m?.kind === 'wreck' && !wreck) m.life = Math.min(m.life ?? Infinity, now - m.at);
+  if (m?.kind === 'warn') watchWarn(m, world, r, now);
+  if (m && (now < m.at || now - m.at >= lifeOf(m))) m = null;
+  if (m?.kind === 'line') return null;
+  let id, u, I;
+  if (m) {
+    id = SHOW_OF[m.kind] ?? m.kind; u = now - m.at;
+    I = m.kind === 'call' ? { voice: s.voice } : SHOW_OF[m.kind] === 'quest' ? { kind: m.kind, ink: RADIO_MOMENTS[m.kind].lamp } : (m.info ?? {});
+  } else {
+    const fighting = world.ship?.alive && world.encounter && world.pirates.some((p) => p.mode !== 'guard');
+    id = fighting ? 'fight' : 'rest'; u = now; I = { since: now - radio.hit };
+  }
+  const S = SHOWS[id];
+  if (!S) return null;
+  if (reducedMotion) {
+    if (!m || !S.still) return null;
+    u = S.still.u; I = S.still.I ?? I;
+  }
+  const life = m ? lifeOf(m) : Infinity;
+  let lamp = S.lamp ? S.lamp(u, I) : S.keepLamp ? null : { ink: S.ink, k: 0.6 * (Number.isFinite(life) ? smooth((life - u) / 0.35) : 1) };
+  if (reducedMotion && lamp) lamp = { ink: lamp.ink, k: 1 };
+  return { paint: (g) => S.paint(g, u, I), over: !!S.over, lamp };
+}
+// The pirates on their way (radio-shows.js A1), read off the world each frame: how near the nearest is to the view's edge (`share`, 1 when
+// the warning began, 0 at the edge; the camera's view at its height, src/zoom.js r.zoom) and since when one is in view (`arrived`, s, or
+// -1). The warning ends SHOW_TIMES.warn.tail after one is in view, or when none is left.
+function watchWarn(m, world, r, now) {
+  const I = m.info ?? (m.info = {}), cam = world.cam ?? world.ship, z = r.zoom || 1, hw = r.width / 2 / z, hh = r.height / 2 / z;
+  let near = Infinity;
+  for (const p of world.pirates) {
+    if (p.mode === 'guard') continue;
+    const d = world.delta(cam.x, cam.y, p.x, p.y);
+    near = Math.min(near, Math.max(Math.abs(d.x) / hw, Math.abs(d.y) / hh));
+  }
+  if (I.from == null && Number.isFinite(near)) I.from = Math.max(near, 1.001);
+  if (I.arrivedAt == null && near < 1) I.arrivedAt = now;
+  I.share = I.from ? clamp((near - 1) / (I.from - 1), 0, 1) : 0;
+  I.arrived = I.arrivedAt != null ? now - I.arrivedAt : -1;
+  if (I.arrivedAt != null) m.life = I.arrivedAt - m.at + SHOW_TIMES.warn.tail;
+  else if (!Number.isFinite(near)) m.life = now - m.at;
+}
+
 // `wear` { level, seed, wreck }: its wear's step, where its breaks fall, the wreck's break standing; `torn` its wheel gone (hud-modern.js:
 // torn off under BREAK.at of the hull, SX, 2026-10-16: «вот этот диск может отвалиться да, в какой-то момент на 10%»), its socket left.
 // Where the wheel stands is kept on the radio (`wheel`: on while drawn, x, y, R, `dir` toward the screen's middle), for the page to tear it from.
-export function drawRadioModern(r, radio, place, now, { reducedMotion = false, over = null, wear = null, torn = false } = {}) {
+// `world`: what it plays is what it heard and what the world is doing (playing); `show` ({ paint(g), over, lamp, tune }) a picture given
+// instead (the sketch sheets): played on its holes (grille), in place of the voice and the waves, the lamp's { ink, k } and the
+// wheel's tune while it plays.
+export function drawRadioModern(r, radio, place, now, { reducedMotion = false, over = null, wear = null, torn = false, show = null, world = null } = {}) {
   radio.box = null; radio.row = null; radio.wheel.on = false;
   if (!place) return null;
   const open = !radio.hidden;
   if (radio.open === null) radio.open = open;
   else if (radio.open !== open) { radio.open = open; radio.changed = now; }
   const s = radioState(now, radio.moment, reducedMotion), key = keyName('radio'), since = now - radio.changed, B = place.box;
+  show ??= world ? playing(r, radio, now, s, { world, wreck: !!wear?.wreck, reducedMotion }) : null;
+  if (show) {
+    s.show = show; s.voice = 0; s.waves = [];
+    if (show.lamp) s.lamp = show.lamp;
+    if (show.tune != null) s.tune = show.tune;
+  }
   const k = reducedMotion ? 1 : clamp(since / TURN, 0, 1), axis = place.mirror ? 2 * B.x + B.w : null;
   const row = drawColumnButton(r, { x0: place.x0, edge: place.edge, rowTop: place.rowTop, key, word: open ? 'HIDE RADIO' : 'RADIO',
     turn: open ? 1 - easeOut(k) : easeOut(k), name: 'radio:button', over, note: (box) => noteKey(key, box, r), axis });
@@ -447,7 +544,7 @@ export function drawRadioModern(r, radio, place, now, { reducedMotion = false, o
       disc(ctx, wx, wy, Math.max(2, UI.pad / 2), { fill: ROLES.structure });
     }
     radio.wheel.on = true; radio.wheel.x = wx; radio.wheel.y = wy; radio.wheel.R = R; radio.wheel.dir = wx < r.width / 2 ? 1 : -1;   // toward the screen's middle
-    lamp(ctx, lx, wy, wreck ? DEAD : s);
+    lamp(ctx, lx, wy, wreck && !show?.lamp ? DEAD : s);
     // Its line broken: black over it in places along its long sides, a piece of it knocked a little out of line.
     for (let i = 0; i < (wreck ? M.wreck.breaks : M.breaks[level] ?? 0); i++) {
       const t = noise3(seed, i, 17), len = 6 + 10 * noise3(seed, i, 19), onTop = i % 2 === 0;

@@ -961,6 +961,16 @@ export const STAR_LIFT = Object.freeze([1.48, 1.32, 1]);
 // the sky keeps its depth steps on black: 4.7, 7.2 and 14.8 to 1 against the blues' and greys' 5.0, 7.5 and 15.2.
 export const STAR_PINK = Object.freeze(['#AB5E84', '#C684A3', '#FBCCE1']);
 
+// A look's external dock's module at rest (station-art.js dockFrame: five cells by three past the dock's root, a sixth for the claws), its
+// box in cells off the look's middle times LOOK_SCALE, as the home garage's `dx` and `dy` are: the station's drawing with its core, for a
+// hail to stand clear of (src/feedback.js hailBodies).
+function dockModule(look) {
+  const E = look.docks?.ext;
+  if (!E) return null;
+  const o = lookOrigin(look), a = E.x0 + E.dir, b = E.x0 + E.dir * (E.mw + 1);
+  return { x: (Math.min(a, b) - o.x - 0.5) * LOOK_SCALE, y: (E.y - 1.5 - o.y) * LOOK_SCALE, w: (Math.abs(b - a) + 1) * LOOK_SCALE, h: 3 * LOOK_SCALE };
+}
+
 export function createWorldPresentation(world, settings) {
   const attached = new WeakSet(), originals = new Map();
   const attach = (object, draw) => {
@@ -978,7 +988,7 @@ export function createWorldPresentation(world, settings) {
       // A look is drawn at its own size: the menus stand clear of that, not of the model's.
       const look = s.look ? stationLook(s.look) : null;
       // The station itself, without its external dock and the ship it holds (station-art.js `core`, its middle the look's origin).
-      if (look) s.footprint = { model: { width: look.core?.W ?? look.W, height: look.core?.H ?? look.H }, scale: LOOK_SCALE };
+      if (look) s.footprint = { model: { width: look.core?.W ?? look.W, height: look.core?.H ?? look.H }, scale: LOOK_SCALE, dock: dockModule(look) };
       else if (s.kind === 'home') {
         // The drawing's own box (BOARD_INK), off the board's middle by as much (`dx`, `dy` are screen cells: scaled here).
         const I = BOARD_INK;

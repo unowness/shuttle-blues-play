@@ -288,8 +288,10 @@ export function noticeRect(r, notice) {
 // one, in the lower right the left one). Torn, by a click or at the end of its time, its two pieces fly off away from the screen's middle,
 // toward its quarter's corner, as the sky does past the nose (rail.js giftOut, `away`), growing as they come nearer, the same light both.
 // Torn while the ship stands, slower than `still` u/s, its pieces fall down out of the screen instead (SX, 2026-10-17: «Если корабль стоит на
-// месте, то они падают вниз»; rail.js PIECES).
-export const PAPER = Object.freeze({ tilt: Object.freeze([8, 30]), clear: 110, edge: 24, tries: 40, still: 60 });
+// месте, то они падают вниз»; rail.js PIECES). Both on arcs since 2026-10-20 (SX's P1 ARC, labs/graphics/sketches/paper-flight.html): out
+// toward the nearer side edge first and round to the corner, or slid aside and bent down (`paperBend`). Turned 2-8° since 2026-10-20 (SX,
+// 2026-10-19: «она под каким-то сильным углом всегда»; his T2 on the same sheet, «2-8 давай»; 8-30° until then).
+export const PAPER = Object.freeze({ tilt: Object.freeze([2, 8]), clear: 110, edge: 24, tries: 40, still: 60 });
 
 // Where a find's paper lands on a screen `r` (its middle `cx`, `cy`), how it is turned (`angle`, rad: positive turns its right end down),
 // and the way it flies off (`away`, a unit on the screen). `area` { x0, x1, y0, y1 } where it may stand (the flight's view under the
@@ -329,6 +331,13 @@ export function onPaper(p, x, y) {
 export const paperAway = (p, fall = false) => {
   const c = Math.cos(p.angle), s = Math.sin(p.angle), ax = fall ? 0 : p.away.x, ay = fall ? 1 : p.away.y;
   return { x: ax * c + ay * s, y: -ax * s + ay * c };
+};
+// The way the pieces' arcs bend out first, in the paper's own turn (rail.js PIECES, SX's P1 ARC): square to the way off, turned the way the
+// paper is (toward the screen's nearer side edge in every quarter); or, falling, the screen's level (the coupon's way, the stub the other).
+export const paperBend = (p, fall = false) => {
+  const c = Math.cos(p.angle), s = Math.sin(p.angle);
+  const [bx, by] = fall ? [1, 0] : p.angle > 0 ? [-p.away.y, p.away.x] : [p.away.y, -p.away.x];
+  return { x: bx * c + by * s, y: -bx * s + by * c };
 };
 
 // The motion a notice is drawn with now (rail.js drawRail's `m`), from its clock: the sweep in, the press of a click, the way out.

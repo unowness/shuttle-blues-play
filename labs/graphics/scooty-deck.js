@@ -297,7 +297,8 @@ export function drawScootyDeck(r, world, input, { reducedMotion = false } = {}) 
   if (HELM_FX.gauge) drawGauge(r, { grip: [[cx, bar.top]], pivot: [cx, bar.top] }, HELM_FX.gauge);
   const reach = 90, top = Math.round(bar.top - UI.vector.line);
   const box = { x: Math.round(cx - HANDLEBAR.half - reach), y: top, w: Math.round(2 * (HANDLEBAR.half + reach)), h: H - top };
-  // The two keys on the row the pilot's deck has its lower words on: ESC first at the left, as every window's foot has it.
+  // The two keys on the row the pilot's deck has its lower words on: ESC at the left, ? at the right (the windows' feet had ESC at the left too
+  // until SX's E1 SWAP of 2026-10-22; the deck's two corners are its own).
   const row = deckLayout(r).left.rows[1];
   const keys = [cornerKey(r, 'pause', 'PAUSE', EDGE, row), cornerKey(r, 'help', 'CONTROLS', W - EDGE, row, { right: true })];
   return { braking, bar, box, keys };

@@ -375,8 +375,11 @@ export function handInDrifter(world) {
 // story is purple, `story` (the radio's guide here, the opening chapter's objective in src/opening.js), and the reference ships'
 // `special` with it; the inks are src/roles.js QUEST_INKS. Since 2026-10-08 the yellow ones (a pilot out of fuel, a wrecked ship asking
 // for money) are blue (SX: «бежевые квесты должны быть синие»: the amber read as beige); the yellow is the radio's for a quest come. The
-// freight hint (2026-10-09, SX: «присылай квест синий что есть груз») is blue: a station with a job to take.
-export const QUEST_TONE = Object.freeze({ raid: 'red', pester: 'red', guide: 'story', rescue: 'blue', wreck: 'blue', find: 'green', rebuild: 'green', signal: 'green', stranger: 'blue', planet: 'blue', freight: 'blue', special: 'special' });
+// freight hint (2026-10-09, SX: «присылай квест синий что есть груз») is blue: a station with a job to take. Since 2026-10-22 the green ones are
+// blue too, and a ruin to restore is the story's (SX, on labs/graphics/sketches/quest-tones.html: «вот эти два можно объединить и в синий ...
+// квест Restore я бы делал фиолетовым, да, потому что это как бы для продвижения по сюжету важно»): a cache and a signal blue, a restoration
+// purple; green stays the cargo's clock and a quest done.
+export const QUEST_TONE = Object.freeze({ raid: 'red', pester: 'red', guide: 'story', rescue: 'blue', wreck: 'blue', find: 'blue', rebuild: 'story', signal: 'blue', stranger: 'blue', planet: 'blue', freight: 'blue', special: 'special' });
 export const questTone = (q) => q?.tone ?? (q?.kind === 'raid' ? 'red' : 'green');
 
 // The quest's words: its kind's.

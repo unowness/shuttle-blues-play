@@ -267,8 +267,9 @@ function breakWalls(ctx, n, level, seed) {
 // The modern interface this frame. `game` the page's parts (its renderer's context under the page's shake), `args`: `given` what the
 // opening has given (src/opening.js interfaceGiven), `brake` and `lamp` the brake's state and the heavy hit's warning, `speed`, `maxSpeed`,
 // `input` the controls the world was stepped with (thrust, retro), `now` the page's seconds, `scopeArgs` the locator's (its flags, quests,
-// task), `markedIds`, `bearingOf`, `pointer`, `attached` (the keys hold the quest list), `focusId`, `level` the wear's step. Returns what the
-// page keeps of it: the boxes the page lays its groups and windows by, the rim marks' area, the radio's box.
+// task), `markedIds`, `bearingOf`, `pointer`, `attached` (the keys hold the quest list), `focusId`, `level` the wear's step, `starterRows` the
+// rows of the first flight's keys standing in the top left corner (labs/graphics/starter-keys.js; the stations being built hang under them
+// meanwhile). Returns what the page keeps of it: the boxes the page lays its groups and windows by, the rim marks' area, the radio's box.
 export function drawModernHud(r, game, args) {
   const { world, tracker, radio, questBoard, charm } = game, fx = game.modernFx, ui = game.interface;
   const { given, brake, lamp, speed, maxSpeed, input, now, scopeArgs, reducedMotion, level } = args;
@@ -378,7 +379,7 @@ export function drawModernHud(r, game, args) {
   if (given.radio) {
     const box = { x: left, y: L.keyRowB + ink.top - S - RADIO_MODERN.h, w: Wm, h: RADIO_MODERN.h };
     radioArea = drawRadioModern(r, radio, { box, rowTop: L.keyRowB, x0: q.x0 + dx, edge: q.edge + dx, mirror: q.mirror }, now,
-      { reducedMotion, wear: { level, seed: cockpitSeed() + 53, wreck: !!cockpitCrack() }, torn: fx.wheel.at != null });
+      { reducedMotion, wear: { level, seed: cockpitSeed() + 53, wreck: !!cockpitCrack() }, torn: fx.wheel.at != null, world });
   }
   out.radioArea = radioArea;
   out.wheelAt = given.radio ? radio.wheel : null;
@@ -395,8 +396,10 @@ export function drawModernHud(r, game, args) {
   // The stations in the top left corner under their B row, as wide as the radio, down to C over the quests (over the locator, C, until the
   // bottom's corners were mirrored).
   const leftTop = given.quests ? Math.min(qListTop, qRow + ink.top) : radioArea ? radioArea.y : H - L.M;
-  const place = { x0: X, x1: X + Wm, rowTop: L.keyRowT, ink, capH: L.capH, down: true, under: S,
-    rowsTop: Math.round(L.keyRowT + ink.bottom + C), pitch: Math.round(UI.pad + S + L.capH + C), floor: leftTop - C,
+  // Under the first flight's keys while they stand: their last row's ink, C, then the B row's ink.
+  const keysRows = args.starterRows ?? 0, rowT = keysRows ? Math.round(L.keyRowT + (keysRows - 1) * UI.row + ink.bottom + C - ink.top) : L.keyRowT;
+  const place = { x0: X, x1: X + Wm, rowTop: rowT, ink, capH: L.capH, down: true, under: S,
+    rowsTop: Math.round(rowT + ink.bottom + C), pitch: Math.round(UI.pad + S + L.capH + C), floor: leftTop - C,
     rowsBottom: 0, wallet: null, foot: null };
   const stations = drawTracker(r, tracker, place);
   if (stations) out.avoid.push(stations);

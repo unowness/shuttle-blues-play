@@ -323,7 +323,12 @@ export const fillKeys = (text) => String(text).replace(/\{(\w+)\}/g, (_, id) => 
 // `steering` says (src/steering.js: 'tank', the default, or 'screen'); and its intro.
 export function helpColumns(page, can = null, steering = 'tank') {
   const groups = HELP[page] ?? HELP[DEFAULT_SCHEME];
-  const fit = (rows) => rows.flatMap(([cell, words, needs]) => {
+  return groups.map((col) => col.map(([heading, rows]) => [heading, fitRows(rows, can, steering)]));
+}
+export const helpIntro = (page) => fillKeys(HELP_INTRO[page] ?? HELP_INTRO[DEFAULT_SCHEME]);
+// A list's rows as drawn, [key, words], for a hull that can do what `can` says and the keys steering as `steering` says (helpColumns).
+function fitRows(rows, can, steering) {
+  return rows.flatMap(([cell, words, needs]) => {
     let say = words;
     for (const [what, instead] of Object.entries(needs ?? {})) {
       if (what === 'steer') { if (instead !== steering) return []; continue; }
@@ -333,9 +338,23 @@ export function helpColumns(page, can = null, steering = 'tank') {
     }
     return [[cellOf(cell), fillKeys(say)]];
   });
-  return groups.map((col) => col.map(([heading, rows]) => [heading, fit(rows)]));
 }
-export const helpIntro = (page) => fillKeys(HELP_INTRO[page] ?? HELP_INTRO[DEFAULT_SCHEME]);
+
+// ------------------------------------------------------------------------------------------------ the first flight's keys
+// The rows the top left corner lists until the pilot's first money goes into a ruin (labs/graphics/starter-keys.js; SX, 2026-10-21, his
+// marks on the controls list: «вот эти пункты управления компактно написаны в левом верхнем углу»): the flight's, the jump and the trick,
+// the map, the pilot card and the way home, in the interface's capitals and shorter than the list says them; for each mode, as the help.
+const STARTER = {
+  K: [[k('thrust'), 'THRUST', TANK], [k('retro'), 'REVERSE', TANK], [k('turnLeft', 'turnRight'), 'TURN', TANK],
+    [k('thrust', 'turnLeft', 'retro', 'turnRight'), 'FLY', SCREEN], [k('brake'), 'BRAKE, DRIFT', { drift: 'BRAKE' }], [k('fire'), 'FIRE', NO_FIRE],
+    [k('jump'), 'JUMP'], [k('figure'), 'TRICK']],
+  M: [[{ mouse: 'hold-l-ahead' }, 'FLY'], [{ words: 'HOLD L BEHIND' }, 'BRAKE'], [{ mouse: 'hold-r' }, 'FIRE', NO_FIRE],
+    [{ keys: ['jump'], scheme: 'M' }, 'JUMP'], [{ mouse: 'r-in-air' }, 'TRICK']],
+};
+const STARTER_PILOT = [[k('map'), 'MAP'], [k('card'), 'PILOT CARD'], [k('homeGuide'), 'HOME BEARING']];
+export function starterRows(page, can = null, steering = 'tank') {
+  return fitRows([...(STARTER[page] ?? STARTER[DEFAULT_SCHEME]), ...STARTER_PILOT], can, steering);
+}
 
 // ------------------------------------------------------------------------------------------------ the garage room's plate
 // The room's own keys (labs/graphics/garage-room.js, the plate at its top right), as the mode reads them. The words

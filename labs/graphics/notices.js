@@ -60,7 +60,7 @@ import {
   currentTasks, focusedTask, taskNavigation, selectTask, cargoTaskId, createTaskLog, reconcileTasks, advanceTaskLog, allClear,
 } from '../../src/tasks.js';
 import { NOTICE, NOTICE_KINDS, QUEST_NOTICE, CARGO_MARKS, TASK_TOP, noticeTop, drawNotice, noticeRect, noticeDone, noticeMotion, bannerOut,
-  placePaper, paperBox, onPaper, paperAway, PAPER } from './notice.js';
+  placePaper, paperBox, onPaper, paperAway, paperBend, PAPER } from './notice.js';
 import { helmetOf, notchLine, drawNotchLine, drawNotchRow, taskLineBox, FLIP, HELMET } from './helmet.js';
 import { giftWords, FIND_LIFE } from './find-notice.js';
 import { RAIL_TIMES, railFit, moneyRuns } from './rail.js';
@@ -682,13 +682,13 @@ export function createNotices(game) {
     const now = slot.time, dt = lastFold == null ? 0 : Math.max(0, now - lastFold);
     lastFold = now;
     notice.fold = notice.instant ? (over ? 1 : 0) : clamp((notice.fold ?? 0) + (over ? 1 : -1) * dt / RAIL_TIMES.fold, 0, 1);
-    // A find's paper: turned about its middle where it landed, its pieces flying off its own way when it tears; down, when the ship stood
-    // as it tore (`falls`, kept from that moment: notice.js PAPER.still).
+    // A find's paper: turned about its middle where it landed, its pieces flying off its own way when it tears, on arcs (`bend`); down, when
+    // the ship stood as it tore (`falls`, kept from that moment: notice.js PAPER.still).
     const P = notice.paper;
     if (P) {
       const m = noticeMotion(notice, { over, fold: notice.fold }), local = { x: -P.w / 2, y: -P.h / 2, w: P.w, h: P.h };
       if (m.outMs != null && notice.falls == null) { const ship = game.world.ship; notice.falls = Math.hypot(ship.vx, ship.vy) < PAPER.still; }
-      m.away = paperAway(P, !!notice.falls); m.fall = !!notice.falls;
+      m.away = paperAway(P, !!notice.falls); m.bend = paperBend(P, !!notice.falls); m.fall = !!notice.falls;
       r.ctx.save(); r.ctx.translate(P.cx, P.cy); r.ctx.rotate(P.angle);
       try {
         hoverItem(r, 'notice', local, () => drawNotice(r, notice, local.x, local.y, m), { kind: 'panel', over: pointed || (keyboardFocus() && over), disabled: notice.clicked != null });

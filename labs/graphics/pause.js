@@ -6,7 +6,7 @@
 //
 // The pages, in the order SX's pick argued (labs/graphics/sketches/pause-v2.html, P2 LEDGER with S2 STEPPER, its «Порядок строк»), laid out in
 // the organism since 2026-10-16 (labs/graphics/pause-menu.js on labs/graphics/organism.js: the menu's rows and the pause's space on the main page, a settings
-// page's groups by their name under its name in the head, the foot's keys with ESC first, the frame and rules in the grays of src/frames.js):
+// page's groups by their name under its name in the head, the foot's keys with ESC in its right corner, the frame and rules in the grays of src/frames.js):
 //   main       the settings (GRAPHICS with the finds' news, AUDIO, GAMEPLAY, LAYOUT, the rarest and a mode of its own), then SAVE GAME (a
 //              click saves at once, as before chat P) and MAIN MENU last, a blank row apart, so the end of a session is never under the hand.
 //              RESUME's row went on SX's word of 2026-10-16 («повторение не нужно»): the foot's ESC RESUME plays on. The head says what the
@@ -340,9 +340,9 @@ export function createPause(game) {
     const words = saveWords();
     return { title: 'PAUSE', meta: words.value ? [{ text: words.value, ink: words.ink ?? undefined }] : [] };
   }
-  // The foot's keys, as Escape does them (labs/graphics/input-router.js): ESC first at the left, on the main page letting the pause go, on another
-  // going back to the main page (SX, 2026-10-14: «во внутренних окнах esc это назад»; 2026-10-16: «escape назад ... без цикла»); the others at
-  // the right in their order of importance (SX: «идем по важности слева направо»). A group taken on LAYOUT is moved by the arrows, put down by
+  // The foot's keys, as Escape does them (labs/graphics/input-router.js): ESC in the right corner (SX's E1 SWAP, 2026-10-22), on the main page
+  // letting the pause go, on another going back to the main page (SX, 2026-10-14: «во внутренних окнах esc это назад»; 2026-10-16: «escape
+  // назад ... без цикла»); the others from the left in their order of importance (SX: «идем по важности слева направо»). A group taken on LAYOUT is moved by the arrows, put down by
   // Enter or the same click, Escape takes the move back.
   const ESC_RESUME = { side: 'left', key: 'ESC', words: 'RESUME' }, ESC_BACK = { side: 'left', key: 'ESC', words: 'BACK' };
   function hintsOf() {

@@ -208,6 +208,9 @@ export const openingCalm = (world) => { const s = openingStage(world); return s 
 // has come to the first money (`fund`, then `repair` and `work`, and `board` at rest). Before it the next thing is the ruin's pirates or the
 // chapter's own freight, and the freight hint (src/freight.js) keeps out of the way.
 export const openingFunding = (world) => { const s = openingStage(world); return s === null || at(s) >= at('fund'); };
+// Before the pilot's first money goes into R (the chapter running, its stage short of the repair that follows the first coins in; R restored
+// at one stroke rests it): the first flight's keys stand in the top left corner till then (labs/graphics/starter-keys.js).
+export const beforeFirstMoney = (world) => { const s = openingStage(world); return s !== null && at(s) < at('repair'); };
 // The old radio line (src/guide.js) waits while the chapter runs: one tutorial at a time.
 export const openingHoldsGuide = (world) => { const s = openingStage(world); return s !== null && s !== REST; };
 // Why the hangar will not change ships now, or null: SCOOTY JR. is not the pilot's to swap, and their own shuttle is at A.

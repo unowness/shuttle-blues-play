@@ -1,4 +1,4 @@
-import { dimToContrast } from './util.js';
+import { dimToContrast, mixHex } from './util.js';
 import { PALETTE } from './palette.js';
 
 // The palette, shared by the lab's Canvas painters and DOM tuning controls, lives in src/palette.js (chat H, 2026-10-04) and is
@@ -12,15 +12,20 @@ export const ROLES = Object.freeze({
   // the far layer used depth, 1.16:1 on black, which did not show at all.
   starFar: PALETTE.blue, starMid: PALETTE.gray, starNear: PALETTE.white,
   structure: PALETTE.blue, surfaceMid: PALETTE.blue,
-  textSecondary: PALETTE.gray, material: PALETTE.gray, iconStatic: PALETTE.gray,
+  // The secondary text a tenth of the way from the palette's gray to black (SX, 2026-10-22: «глобально этот серый прям чуть-чуть темнее
+  // сделать»; «давай везде он везде светловат»; of T0, T5 and T10 on labs/graphics/sketches/clipper-beta.html, «Ставим во всю игру T10, серый на
+  // 10 % темнее»): 6.2:1 on black where the gray was 7.5. The materials and the static icons keep the gray as it is.
+  textSecondary: mixHex(PALETTE.gray, PALETTE.black, 0.1), material: PALETTE.gray, iconStatic: PALETTE.gray,
   textPrimary: PALETTE.white, focus: PALETTE.white, highlight: PALETTE.white,
   interactionActive: PALETTE.green, routeActive: PALETTE.green, driveActive: PALETTE.green,
   // A station's and HOME's cells lit while docked or selected: the green they had before the game's became HALCYON's (src/palette.js sage;
   // SX, 2026-10-20: «не трогай только нпс и станции»).
   stationLit: PALETTE.sage,
   caution: PALETTE.orange, danger: PALETTE.red, brakeActive: PALETTE.amber,
-  // The route's middle state (src/interface.js routeState, SX 2026-10-01): the same amber.
-  routeClosing: PALETTE.amber,
+  // The route's middle state (src/interface.js routeState, SX 2026-10-01), the cargo's clock as its fast pay melts: the coin's rim gold,
+  // creditsLabel's (SX, 2026-10-22: «Желтый я бы чуть-чуть другой тон подобрал. Ну, как у монет, наверное ... этот желтый слишком светлый»;
+  // the palette's amber until then).
+  routeClosing: '#D9A441',
   // A hint quieter than secondary text (SX, 2026-09-30: the legend's M HIDE
   // "должны быть более серыми чем основной список"): the palette's gray dimmed to
   // 5.5:1 on black, where secondary text reads 7.5. It was 4.6, which the CRT

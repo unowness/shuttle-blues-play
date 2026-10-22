@@ -54,6 +54,7 @@ import { stepCursor, drawCursor, cursorSleep } from './cursor.js';
 import { cornerTile } from './ui-parts.js';
 import { drawHelmet } from './helmet.js';
 import { drawModernHud, wearNotch, stepModernFx, MODERN_HOLD } from './hud-modern.js';
+import { drawStarterKeys, starterKeysShown, starterKeysRows } from './starter-keys.js';
 import { hungCharm } from './charm.js';
 import { fitWorldLayer, inWorld } from '../../src/zoom.js';
 
@@ -528,6 +529,9 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     // MODERN: the whole interface under the shake (SX: «при столкновениях весь интерфейс трясется ... как будто бы это ... аугментированный
     // интерфейс в шлеме»), the charm on its mount's reel, what tore off at the hull's last tenth falling (hud-modern.js).
     let modernOut = null;
+    // The first flight's keys (labs/graphics/starter-keys.js), drawn after the interface; their rows are what the stations being built hang under.
+    const starter = (modern || scooter) && starterKeysShown(world)
+      ? { scheme: schemes.scheme(), can: world.ship.params().can, steering: game.steering?.mode } : null;
     if (modern) {
       const hungId = given.shelf ? hungCharm(world) : null;
       stepCharm(charm, world.ship, world.time, hungId, pageTime(), rawDt, feedback.reducedMotion, MODERN_HOLD);
@@ -541,6 +545,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
         scopeArgs: { flags: scopeArgs.flags, quests: scopeArgs.quests, task: scopeArgs.task }, reducedMotion: feedback.reducedMotion,
         level: damageLevel(world.ship.alive ? world.hull : 0, world.hullMax), attached: keyFocus.holdsArrows(), focusId: notices.focusedQuestId(),
         markedIds: markedIds(), pointer: screens.anyScreen() ? null : pointer,
+        starterRows: starter ? starterKeysRows(starter.scheme, starter.can, starter.steering) : 0,
         bearingOf: (q) => { const way = courseOf(questNavigation(world, q)); return way ? Math.atan2(way.dy, way.dx) : null; } }));
       locatorArea = modernOut.column;
     }
@@ -561,6 +566,12 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     // (steady, below).
     const stuntScale = world.stunts ? scaleOf(stuntFx, { reducedMotion: feedback.reducedMotion }) : null;
     if (hudLayout?.deck) group('helmet', renderer, (r) => drawHelmet(r, notices.notch(r), stuntScale));
+    // The first flight's keys in the top left corner, until the pilot's first money goes into the ruin (labs/graphics/starter-keys.js);
+    // the marks and the windows keep off them.
+    if (starter) {
+      const keys = group('starter', renderer, (r) => drawStarterKeys(r, starter));
+      if (keys && hudLayout?.avoid) hudLayout.avoid.push(keys);
+    }
     // The wallet stands from the first frame (SX, 2026-10-06: «сейчас нет индикатора монет нигде»): since 2026-10-08 on the deck's left
     // shoulder, drawn with the deck (hud.js drawLabCockpit); the shelf is the charm alone.
     const drawShelfBlock = () => group('shelf', renderer, (r) => drawLabCockpit(r, world, brakeHands, { ...cockpitArgs, part: 'shelf' }));

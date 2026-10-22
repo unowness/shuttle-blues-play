@@ -405,7 +405,7 @@ export function createGame(env) {
   // How a friendly ship is greeted and its words drawn (labs/graphics/greeting.js; SX, 2026-10-07): WAVE, the default, or NOTCH, GAMEPLAY's
   // GREETING row, kept in this browser.
   game.greeting = createGreeting(saveBackend);
-  feedback.drawGreet = (r, w, item) => drawGreetAnswer(r, w, item, game.greeting.style);
+  feedback.drawGreet = (r, w, item, occupied) => drawGreetAnswer(r, w, item, game.greeting.style, occupied);
   game.kick = createKick();
   // The drift and the trick drawn, where the lab turned them on (labs/graphics/stunt-fx.js).
   game.stuntFx = createStuntFx();

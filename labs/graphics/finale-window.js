@@ -41,7 +41,8 @@ export function drawFinaleWindow(r, world, { onClose = null } = {}) {
   let y = p.y(p.next(p.yb(0)));
   for (const row of j.rows) y = shareRow(win, p, y, row.label, `${row.have}/${row.of}`, row.have / Math.max(1, row.of)) + (UI.row - win.cap);
   shareRow(win, p, y - (UI.row - win.cap) + ORG.C, FINALE.share, `${Math.round(j.progress * 100)}%`, j.progress, INK.text);
-  win.foot([], [{ key: FINALE.key, words: FINALE.words, id: 'key:return' }]);
+  // The way on, in the foot's right corner where every window's way out stands (labs/graphics/organism.js foot), in the keys' blue.
+  win.foot([{ key: FINALE.key, words: FINALE.words, id: 'key:return', tier: 'key' }], []);
   if (onClose) noteAction(win.box, onClose);
   return win.box;
 }

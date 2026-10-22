@@ -19,8 +19,8 @@
 //        values flush right on one axis with ‹ › after them (the sketch's A1 PAIR), on and off a choice of two, a level a hairline with ticks and
 //        its mark and its value flush right (SX, 2026-10-16: no ‹ › beside a slider); groups an empty row apart.
 //   the MAIN MENU's step back: the menu's rows across the window.
-//   the foot: ESC first at the left in the gray of the way back, its words what it does on the page (RESUME, BACK), DEFAULTS after it where a
-//        page has it (`foot` item), the other keys at the right in their order (labs/graphics/pause.js hintsOf).
+//   the foot: the keys from the left in their order (labs/graphics/pause.js hintsOf), DEFAULTS where a page has it (`foot` item) and ESC last in
+//        the right corner in the gray of the way back, its words what it does on the page (RESUME, BACK) (labs/graphics/organism.js foot).
 // The row under the pointer, or the keyboard's focus (the same pointer parked, labs/graphics/key-focus.js), stands on the half-clear focus bar,
 // its words in their own inks (SX: «выбранная строка не белая ... попрозрачнее»): on the main page as wide as its words. Something new (not yet
 // seen on its page) has a dot in the interface's blue by its row, and so does the row that leads to it. A row is a button
@@ -70,8 +70,8 @@ export const PAUSE_WINDOW = Object.freeze({ size: 'S', labelCols: 10, trackCols:
 // pause is let go; `above(view, frac)` is drawn over the window while it is coming or going (the ship); `page` the page's name (the rows'
 // hover ids); `dt` the frame's seconds; `still` reduced motion. `drawView` and `above` get `frac`, the px the window stands off its drawn (whole
 // px) place. `head` { title, meta: [{ text, ink }] } (the main page's title and what the game knows);
-// `hints` [{ side: 'left' | 'right', key, words, dim }] the foot's keys, the left ones after ESC's place (ESC is a left one), the right ones in
-// their order of importance.
+// `hints` [{ side: 'left' | 'right', key, words, dim }] the foot's keys: 'left' the way back's group (ESC, laid in the foot's right corner since
+// SX's E1 SWAP of 2026-10-22), the others the window's, from the foot's left in their order of importance.
 // Returns { box, view } on the screen as drawn this frame, `at`, the window's place unshaken and unrounded, and `rows`, each row's box as laid
 // out with what ← → do on it ({ box, step(d) }: a choice, a switch, a level), for the keys (labs/graphics/pause.js).
 export function drawPauseWindow(r, rows, pointer, drawView, { dim = 0.5, over = null, age = Infinity, above = null,
@@ -205,7 +205,7 @@ function layHead(win, g, plan) {
 
 // ---- the foot ------------------------------------------------------------------------------------------------------------------------
 
-// ESC first at the left (its words what it does here), then DEFAULTS and the like, each a button; the other keys at the right in their order.
+// The keys from the left in their order; DEFAULTS and the like, then ESC in the right corner (its words what it does here), each a button.
 function layFoot(win, g, plan) {
   const hints = g.hints ?? [], left = hints.filter((h) => h.side === 'left'), right = hints.filter((h) => h.side !== 'left');
   const item = (h) => ({ key: h.key, words: h.words, dim: h.dim, tier: h.side === 'left' ? 'back' : 'key', id: `key:${h.key}` });

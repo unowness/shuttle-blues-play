@@ -66,7 +66,7 @@ export const RAIL_TIMES = Object.freeze({ press: 0.09, fold: 0.18, tear: 0.52, a
 export const railInTime = () => LORE_TIMES.sweep + LORE_TIMES.scatter + LORE_TIMES.cell;
 export const railOutTime = (family) => (family === 'gift' ? GIFT_TIMES.out : LORE_TIMES.sweep * 0.94 + LORE_TIMES.cell + LORE_TIMES.scatter);
 // A gift's (F1a): its coupon fed out of its stub, and torn off and fallen with the stub after it.
-export const GIFT_TIMES = Object.freeze({ in: 0.64, out: 0.82 });   // (out: the tear's 0.26 s and the pieces' longest way off, PIECES.fall's 0.55)
+export const GIFT_TIMES = Object.freeze({ in: 0.64, out: 0.88 });   // (out: the tear's 0.26 s and the pieces' longest way off, PIECES.fall's 0.62)
 
 // ------------------------------------------------------------------------------------------------ the wash
 
@@ -369,29 +369,60 @@ export function drawRail(r, b, x, y, m = {}) {
 // drawing apart, turning, growing as they come nearer (`PIECES`), instead of falling. Since 2026-10-17 (SX: «пусть они разрываться будут,
 // но без фейда уходить ... когда они разорвались, они уже быстрее слетают ... если корабль в этот момент двигается, то они слетают в
 // направление ... как мы распределили по квадратам. Если корабль стоит на месте, то они падают вниз»): a paper's pieces never fade, they
-// leave the screen, quicker; down out of it (`m.fall`) when the ship stood as it tore (labs/graphics/notices.js).
+// leave the screen, quicker; down out of it (`m.fall`) when the ship stood as it tore (labs/graphics/notices.js). Since 2026-10-20 (SX: «Я
+// бы хотел, чтобы она как-то нелинейно улетала с экрана, а то она ... неестественно так улетает»; his pick on
+// labs/graphics/sketches/paper-flight.html, «P1  ARC»): on arcs, not straight lines (`PIECES`).
 const GIFT_IN = Object.freeze({ arms: 0.14, edge: [0.06, 0.12], picture: [0.08, 0.16], feed: [0.18, 0.32], settle: 0.4 });
 const GIFT_OUT = Object.freeze({ pull: 0.06, tear: [0.04, 0.22] });
-// The pieces' flight off, as far as the screen's diagonal (off it from anywhere): `fly` s the way off (eased in: the wind takes them), px
-// apart, rad each turns, how much larger at its end; or down in `fall` s, `fallApart` px apart, `fallTurn` rad each. (0.62 s, 520 px and
-// fading out until 2026-10-17.)
-const PIECES = Object.freeze({ fly: 0.4, apart: 40, turn: 0.35, grow: 0.6, fall: 0.55, fallApart: 12, fallTurn: 0.22 });
+// The pieces' flight off, SX's P1 ARC. While the ship moves: each piece on a curve (a quadratic Bézier) out toward the screen's nearer side
+// edge first (`m.bend`, `bend` px: the coupon's arc wider than the stub's, so they part by themselves) and round to its quarter's corner,
+// `lead` and `swing` the shares of the way and of the bend the curve's control and its end take; turned along its path (`follow` of the
+// path's turn) and `turn` rad more each, `apart` px apart, larger by `grow` at its end; paced in `fly` s by Material 3's exit curve
+// (emphasized accelerate, `cubic-bezier(0.3, 0, 0.8, 0.15)`: almost still, then gone). While it stands: each piece slides to its side at
+// `slide` px/s damped in `drag` s, and falls `drop` of the reach in `fall` s and on, its leading end dipping by `dip` of its path's turn.
+// (A straight line, eased in u², an even turn, until 2026-10-20: 0.4 s, 40 px apart, 0.35 rad, ×1.6; down in 0.55 s, 12 px, 0.22 rad.)
+const PIECES = Object.freeze({ fly: 0.5, bend: Object.freeze([230, 140]), lead: 0.25, swing: 0.5, apart: 36, follow: 0.85, turn: 0.12, grow: 0.5,
+  fall: 0.62, slide: 300, drag: 0.28, drop: 0.62, dip: 0.4 });
 const easeIn = (u) => clamp(u, 0, 1) ** 2;
+// A CSS cubic-bezier(x1, y1, x2, y2) as a function of progress 0..1 (Newton's method on x, then halving if it strays).
+function cubicBezier(x1, y1, x2, y2) {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx, cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const X = (t) => ((ax * t + bx) * t + cx) * t, Y = (t) => ((ay * t + by) * t + cy) * t, dX = (t) => (3 * ax * t + 2 * bx) * t + cx;
+  return (u) => {
+    u = clamp(u, 0, 1);
+    let t = u;
+    for (let i = 0; i < 8; i++) { const e = X(t) - u, d = dX(t); if (Math.abs(e) < 1e-7) return Y(t); if (Math.abs(d) < 1e-6) break; t -= e / d; }
+    let lo = 0, hi = 1; t = u;
+    for (let i = 0; i < 40; i++) { if (X(t) < u) lo = t; else hi = t; t = (lo + hi) / 2; }
+    return Y(t);
+  };
+}
+const EXIT = cubicBezier(0.3, 0, 0.8, 0.15);
+// The turn (rad) from the way `a` to the way `b`.
+const angleFrom = (ax, ay, bx, by) => Math.atan2(ax * by - ay * bx, ax * bx + ay * by);
 // How a piece goes once it is free, `s` s after the tear has run its length: { dx, dy } moved, `turn` (rad) about its middle, `k` its
-// scale, `alpha`, the same for both pieces; `side` 1 the coupon, -1 the stub; `away` the way off in the paper's turn (`reach` px of it,
-// `fall` down rather than toward its quarter's corner), or none: a card that stood at the notices' place falls and fades, as it did.
-function pieceGoes(s, side, away, reach = 0, fall = false) {
+// scale, `alpha`, the same light for both pieces; `side` 1 the coupon, -1 the stub; `away` the way off in the paper's turn (`reach` px of
+// it, `fall` down rather than toward its quarter's corner) and `bend` the way its path bends out first (labs/graphics/notice.js paperBend),
+// or no `away`: a card that stood at the notices' place falls and fades, as it did.
+function pieceGoes(s, side, away, reach = 0, fall = false, bend = null) {
   if (!away) {
     const u = clamp(s / 0.5, 0, 1);
     return side > 0 ? { dx: 12 * u, dy: 46 * u * u, turn: 0.16 * easeIn(u), k: 1, alpha: 1 - easeIn(u) }
       : { dx: -2 * u, dy: 30 * u * u, turn: -0.07 * easeIn(u), k: 1, alpha: 1 - easeIn(u) };
   }
+  const P = PIECES, b = bend ?? (fall ? { x: 1, y: 0 } : { x: -away.y, y: away.x });
   if (fall) {
-    const u = clamp(s / PIECES.fall, 0, 1), d = reach * easeIn(u);
-    return { dx: away.x * d + side * PIECES.fallApart * u, dy: away.y * d, turn: side * PIECES.fallTurn * u, k: 1, alpha: 1 };
+    const slide = P.slide * P.drag * (1 - Math.exp(-s / P.drag)), G = reach * P.drop, drop = G * (s / P.fall) ** 2;
+    const vs = side * P.slide * Math.exp(-s / P.drag), vd = (2 * G * s) / (P.fall * P.fall);
+    return { dx: b.x * side * slide + away.x * drop, dy: b.y * side * slide + away.y * drop,
+      turn: P.dip * angleFrom(b.x * side, b.y * side, b.x * vs + away.x * vd, b.y * vs + away.y * vd), k: 1, alpha: 1 };
   }
-  const u = clamp(s / PIECES.fly, 0, 1), e = easeIn(u), d = reach * e;
-  return { dx: away.x * d + side * PIECES.apart * u, dy: away.y * d, turn: side * PIECES.turn * u, k: 1 + PIECES.grow * e, alpha: 1 };
+  const u = clamp(s / P.fly, 0, 1), e = EXIT(u), arc = P.bend[side > 0 ? 0 : 1], part = P.apart * easeOut(u);
+  const cx = b.x * arc + away.x * reach * P.lead, cy = b.y * arc + away.y * reach * P.lead;
+  const ex = away.x * reach + b.x * arc * P.swing, ey = away.y * reach + b.y * arc * P.swing;
+  const pc = 2 * (1 - e) * e, pe = e * e, tc = 2 * (1 - 2 * e), te = 2 * e;
+  return { dx: cx * pc + ex * pe + side * part, dy: cy * pc + ey * pe,
+    turn: P.follow * angleFrom(cx, cy, cx * tc + ex * te, cy * tc + ey * te) + side * P.turn * easeOut(u), k: 1 + P.grow * e, alpha: 1 };
 }
 // The coupon's three jerks out of the stub, each eased and held.
 const feed = (u) => { u = clamp(u, 0, 1); const j = Math.min(2, Math.floor(u * 3)), f = u * 3 - j; return (j + easeOut(Math.min(1, f / 0.55))) / 3; };
@@ -509,12 +540,12 @@ function giftOut(r, b, x, y, t, m) {
   const pX = x + FIELD + 1, pY = y + H;
   ctx.save();
   ctx.translate(pX + 2 * easeOut(t / T.pull), pY); ctx.rotate(0.035 * f); ctx.translate(-pX, -pY);
-  piece(r, pieceGoes(s, 1, m.away, reach, fall), x + (FIELD + 1 + W) / 2, y + H / 2, [x + FIELD + 1, y - 2, W - FIELD + 2, H + 4], () => {
+  piece(r, pieceGoes(s, 1, m.away, reach, fall, m.bend), x + (FIELD + 1 + W) / 2, y + H / 2, [x + FIELD + 1, y - 2, W - FIELD + 2, H + 4], () => {
     pressed(ctx, box, press, () => giftCard(r, b, x, y, { age: m.age }));
     if (front > 0) stroke(r, zigzag(x + FIELD + 1, y, Math.min(front, H - 1), 1), ROLES.textPrimary, false);
   });
   ctx.restore();
-  piece(r, pieceGoes(s, -1, m.away, reach, fall), x + FIELD / 2, y + H / 2, [x - 2, y - 2, FIELD + 3, H + 4], () => {
+  piece(r, pieceGoes(s, -1, m.away, reach, fall, m.bend), x + FIELD / 2, y + H / 2, [x - 2, y - 2, FIELD + 3, H + 4], () => {
     pressed(ctx, box, press, () => giftCard(r, b, x, y, { age: m.age }));
     perforation(r, x, y, free ? H : front);
   });

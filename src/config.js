@@ -125,15 +125,14 @@ export const CONFIG = {
     neighbourStrip: 2400,
     spawnClear: UNSEEN,
     // The seam itself: a faint dashed line with a slow light running along
-    // it, and the next sector's name beside it once the ship is within
-    // `labelRange` u.
+    // it (the next sector's name beside it, within 1500 u, went on SX's word
+    // of 2026-10-21; src/worldDraw.js drawSeams).
     seam: {
       color: '#8a93a0',
       alpha: 0.1,
       pulse: 0.18,
       wave: 240,           // u per radian of the running light
       speed: 0.7,          // rad/s
-      labelRange: 1500,
     },
     bannerTime: 2.6,
 

@@ -858,8 +858,8 @@ export function drawMap(r, map, world, now, { reducedMotion = false, target = nu
       win.text(from, colR, Y, TONE.label, { right: true });
     });
   }
-  // The foot: ESC CLOSE first (TAB, which opens the map, closes it too), then the keys the picture answers to, as the cockpit's caps, each with
-  // its words. The keyboard alone (`scheme` K, the hints' scheme, labs/graphics/schemes.js) reads the keys that work for it from the table
+  // The foot: the keys the picture answers to, as the cockpit's caps, each with its words, then ESC CLOSE in the right corner (TAB, which opens
+  // the map, closes it too). The keyboard alone (`scheme` K, the hints' scheme, labs/graphics/schemes.js) reads the keys that work for it from the table
   // (Codex's text pass UI-04, SX 2026-10-07: it was taught CLICK, WHEEL and DRAG); the mouse's and MK's say what a click, the wheel and a drag do
   // (words, not keys).
   const capOf = (action) => keyName(action) || action;

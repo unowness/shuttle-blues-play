@@ -7,17 +7,20 @@
 // cells a side apart (the fifteen puzzle's move), the swaps of a round apart from each other, `pairs` of the silhouette's cells in each. Mixed
 // by playing the rounds from the whole drawing; put back by playing them backwards, a round at a time, its pieces sliding to their neighbours'
 // cells together. Mixed it stands `hold` s from the moment it comes up (labs/graphics/respawn-fx.js: the rise starts mixed), then it is put
-// back over the rest of the time it cannot be hurt (CONFIG.ship.respawnInvuln), so it is whole the moment it can be hit again: read off the
-// ship's own `invuln`, on the world's clock, so the pause holds it. Presentation only, made from the page's seed (Math.random), never the
+// back over `put` s, a little before the time it cannot be hurt ends (CONFIG.ship.respawnInvuln, untouched): read off the ship's own `invuln`,
+// on the world's clock, so the pause holds it. Until SX's «на 30% быстрее, чтобы корабль собирался» (2026-10-21) it stood mixed 2 s and was
+// put back over the rest of its grace (1.5 s), whole the moment it could be hit again; both are 0.7 of that now, the grace as it was. Presentation only, made from the page's seed (Math.random), never the
 // world's; reduced motion has none (no return is played, and the ship stands whole and steady).
 import { CONFIG } from '../../src/config.js';
 import { clamp, mulberry32 } from '../../src/util.js';
 import { REBOOT } from './reboot.js';
 
-export const SCRAMBLE = Object.freeze({ hold: 2, rounds: 12, pairs: 0.3 });
-// Seconds of the grace the putting back takes: what is left of CONFIG.ship.respawnInvuln once the ship has come up (the sweep up to the rise)
-// and stood mixed for `hold`.
-export const assembleTime = () => CONFIG.ship.respawnInvuln - REBOOT.sweep * REBOOT.rise.start - SCRAMBLE.hold;
+export const SCRAMBLE = Object.freeze({ hold: 1.4, put: 1.05, rounds: 12, pairs: 0.3 });
+// Seconds the putting back takes, never more than what is left of CONFIG.ship.respawnInvuln once the ship has come up (the sweep up to the
+// rise) and stood mixed for `hold`.
+export const assembleTime = () => Math.min(SCRAMBLE.put, Math.max(0, riseGrace() - SCRAMBLE.hold));
+// The grace left as the ship comes up.
+const riseGrace = () => CONFIG.ship.respawnInvuln - REBOOT.sweep * REBOOT.rise.start;
 
 const keyOf = (x, y) => `${x},${y}`;
 
@@ -79,8 +82,9 @@ export function slotOfCell(plan, c) {
   return i;
 }
 
-// How far put back the ship is (0 mixed .. 1 whole) at `invuln` s of grace left: mixed while more than the putting back's time is left.
+// How far put back the ship is (0 mixed .. 1 whole) at `invuln` s of grace left: mixed for `hold` s after it comes up, then put back over
+// the putting back's time.
 export function assembled(invuln) {
-  const A = assembleTime();
-  return A > 0 ? 1 - clamp(invuln / A, 0, 1) : 1;
+  const A = assembleTime(), since = riseGrace() - invuln - SCRAMBLE.hold;
+  return A > 0 ? clamp(since / A, 0, 1) : 1;
 }

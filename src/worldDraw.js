@@ -8,7 +8,7 @@ import { CONFIG } from './config.js';
 import { TAU, clamp, wrapTo, dimToContrast, hashId, glyphCount, hypot2 } from './util.js';
 import { leanLook } from './starfield.js';
 import { PLANE, WRAP } from './topology.js';
-import { neighbourOf, sectorTitle } from './sectors.js';
+import { neighbourOf } from './sectors.js';
 import { contractById, cargoOf, cargoSize } from './contracts.js';
 import { signalsIn } from './progression.js';
 import { signText, drawSign, signCoverBox } from './signs.js';
@@ -502,7 +502,7 @@ class WorldDrawing {
 
   // The seams between sectors that exist, around this one: faint dashes with a
   // slow light running along them (SX, 2026-09-24: "minor, barely noticeable,
-  // animated"), and the next sector's name beside a seam the ship is near.
+  // animated").
   // Positions along a line are measured globally, so the light does not jump
   // when the ship crosses.
   drawSeams(r) {
@@ -544,37 +544,9 @@ class WorldDrawing {
         }
       }
     }
-    // The next sector's name, just across the nearest point of a close seam. Space
-    // runs on behind the cockpit, so a seam can lie under the instruments; the name
-    // is nudged into the safe view, off the strip and the cockpit, where it would
-    // be drawn over an instrument with no backing (QA, 2026-09-30: 21 px above the helm).
-    const ship = this.ship;
-    // (In the interface's letters, their size the same whatever the camera's height: `textScale`, src/zoom.js.)
-    const k = r.textScale ?? 1, cw = r.cellW * k, ch = r.cellH * k;
-    const name = (label, x, y) => {
-      const s = this.project(r, x, y);
-      const half = (label.length * cw) / 2;
-      if (!r.onScreen(s.x, s.y, half)) return;
-      const v = r.view;
-      const sx = clamp(s.x, v.x + half + cw * 2, Math.max(v.x + half + cw * 2, v.x + v.w - half - cw * 2));
-      const sy = clamp(s.y, v.y + ch * 2, Math.max(v.y + ch * 2, v.y + v.h - ch * 2));
-      for (let i = 0; i < label.length; i++) {
-        r.glyph(label[i], sx + (i - (label.length - 1) / 2) * cw, sy, CONFIG.hud.color, 1, k);
-      }
-    };
-    for (const n of this.neighbours) {
-      if (n.dx && n.dy) continue;
-      const gap = n.dx > 0 ? W - ship.x : n.dx < 0 ? ship.x : n.dy > 0 ? H - ship.y : ship.y;
-      if (gap > C.labelRange) continue;
-      const label = sectorTitle(n.sector);
-      if (n.dx) {
-        const x = n.dx > 0 ? W + r.cellW * (label.length / 2 + 2) : -r.cellW * (label.length / 2 + 2);
-        name(label, x, clamp(ship.y, 0, H));
-      } else {
-        const y = n.dy > 0 ? H + r.cellH * 2 : -r.cellH * 2;
-        name(label, clamp(ship.x, 0, W), y);
-      }
-    }
+    // The next sector's name beside a seam the ship was near, in the interface's ink, went on SX's word (2026-10-21: «мне не нравятся
+    // яркие метки, когда ты прилетаешь в новый сектор ... на границе такой серый текст который выглядит как серая метка ... но ярче, вот
+    // его убрать»): the locator's header and the top banner say where the ship is.
   }
 
   // A signal: a quiet dot with a pair of brackets breathing out from it, the

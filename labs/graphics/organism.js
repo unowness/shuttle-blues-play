@@ -14,9 +14,10 @@
 // row apart. Inks, monochrome (SX: «давай делать монохромный ... синенький, который был раньше ... Также на кнопки назначим. Но все равно надо
 // выделять важные кнопки квестовые ... фиолетовым. Какие-то диалоги красным»): the text white; a label gray (ROLES.textLabel, «гораздо
 // прозрачнее»); what is not there yet quieter (ROLES.textFaint); the interface's blue for keys, progress and what is in hand; the story's
-// purple for a quest's key; the red for a warning; money gold. The keys in three tiers (SX: «градацию рамочек управления»): the way back,
-// ESC, gray and first at the foot's left (SX: «Escape ... в левом нижнем углу ... чтобы соответствовать клавиатуре»), the others blue at the
-// right in their order of importance (SX: «идем по важности слева направо»), a quest's purple. A share is a row of identical squares across
+// purple for a quest's key; the red for a warning; money gold. The keys in three tiers (SX: «градацию рамочек управления»): the window's own
+// blue from the foot's left in their order of importance (SX: «идем по важности слева направо»), a quest's purple, and the way back, ESC,
+// gray and last, in the foot's right corner (SX, 2026-10-22, E1 SWAP on labs/graphics/sketches/esc-side.html: «давай свап везде. Принимаю»;
+// from 2026-10-16 it stood first at the left, «Escape ... в левом нижнем углу ... чтобы соответствовать клавиатуре»). A share is a row of identical squares across
 // its column, the had ones filled blue, the rest a gray line (SX: «все квадратики одинаковые, просто не заполненные серые, а заполненные
 // цветные ... на всю ширину»). The thing in focus stands on a half-clear gray bar, its words in their own inks (SX: «не должна быть белая»,
 // «попрозрачнее»). Nothing inside a window leans (SX: «я бы не делал параллакс внутри окон. Он не нужен»).
@@ -282,13 +283,16 @@ export class Win {
   // The box a row answers the pointer in: from `x0` to `x1` of ink, the bar's height.
   rowBox(x0, x1, Y) { return { x: Math.round(x0 - UI.pad), y: Math.round(Y - this.keyTop - 1), w: Math.round(x1 - x0 + 2 * UI.pad), h: this.keyH + 2 }; }
 
-  // The foot: `left` keys from the service's left axis (the way back first), `right` keys ending on the service's right axis, laid in their
-  // order. Each item a button: its keycap and its words answer a click as its key (a cap of several keys, ← →, each on its own characters and
-  // its words for the first), and stand on the focus bar under the pointer. An item: { key, words, tier ('back' for the left's, 'key' else),
+  // The foot: `back`, the way back (ESC first, what goes with it after: the pause's DEFAULTS), ending on the service's right axis with ESC last in
+  // its corner (SX's E1 SWAP, 2026-10-22); `keys`, the window's own, from the service's left axis in their order. Each item a button: its keycap
+  // and its words answer a click as its key (a cap of several keys, ← →, each on its own characters and its words for the first), and stand on
+  // the focus bar under the pointer. An item: { key, words, tier ('back' for the way back's, 'key' for the window's, unless it says),
   // id, dim (its words faint: not now), quiet (said, not pressed), plain (a way that is no key: the key's words white, then its own), run (a
   // button with no key: a click runs it), noKey (only its words) }. `message` { text, ink, money }: the last action's words in the room between,
-  // at the left keys' end (`side: 'left'`) or against the right ones. Returns the foot's capitals' top.
-  foot(left = [], right = [], { gap = ORG.hintGap, message = null } = {}) {
+  // at the window's keys' end (`side: 'left'`) or against the way back. Returns the foot's capitals' top.
+  foot(back = [], keys = [], { gap = ORG.hintGap, message = null } = {}) {
+    // (Laid as the left group and the right one: the window's keys at the left, the way back at the right, ESC in the corner.)
+    const left = keys.map((it) => ({ ...it, tier: it.tier ?? 'key' })), right = [...back.slice(1), ...back.slice(0, 1)].map((it) => ({ ...it, tier: it.tier ?? 'back' }));
     const first = this.panes[0], last = this.panes.at(-1), { cw, m } = this;
     const Y = this.y0 + this.footRule + 1 + ORG.S + this.keyTop;
     const widthOf = (it) => (it.plain ? (len(it.key) + ORG.keyWord + len(it.words)) * cw - 2 * m.capLeft
@@ -317,11 +321,11 @@ export class Win {
       return w;
     };
     let lx = first.sx;
-    for (const it of left) lx += put(it, lx, 'back') + gap * cw;
+    for (const it of left) lx += put(it, lx, 'key') + gap * cw;
     const widths = right.map(widthOf), total = widths.reduce((n, w) => n + w, 0) + gap * cw * Math.max(0, right.length - 1);
     let x = last.sxr - total;
     const edge = x;
-    right.forEach((it, i) => { put(it, x, 'key'); x += widths[i] + gap * cw; });
+    right.forEach((it, i) => { put(it, x, 'back'); x += widths[i] + gap * cw; });
     if (message?.text) {
       const room = Math.floor(((right.length ? edge - gap * cw : last.sxr) - lx) / cw);
       if (room >= 4) {

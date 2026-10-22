@@ -6,7 +6,7 @@ import { Win, INK, SIZES, len } from './organism.js';
 // labs/graphics/organism.js; before it his S9 of labs/graphics/sketches/windows-swiss-2.html): a dialog the ladder's XS wide (480), as tall as its words.
 // The head the title after its kind's mark, the mark in the red of a warning (the held tab's danger, the other tab's refusal) or the interface's blue
 // (the way clear); the head's TWO TABS went (the window says what it is). The lines that say what is going on in white, then, a blank row on, the status
-// that says what happens now in the label's gray, and, where there is a key to leave by, the foot with it first at the left, which a click presses
+// that says what happens now in the label's gray, and, where there is a key to leave by, the foot with it in its right corner, which a click presses
 // (labs/graphics/clicks.js). The status breathes while it waits for a key, and while the newer tab waits for the older one to close three dots run after
 // it (the room for them kept, so the line does not move as they come); both hold still under reduced motion. `onClick`: what a click anywhere on the
 // window does (the clear one plays on). Returns the window's box.

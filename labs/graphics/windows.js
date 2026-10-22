@@ -1,6 +1,6 @@
 // The centred windows: the pilot card (C), a station's INFO, the hangar (HANGAR at a garage), the sign composer (L) and the controls list (?), all on
 // the organism since SX's sketch W-ORG of 2026-10-16 (labs/graphics/organism.js: the frame, the service `S` off its lines, the content `C` off any line,
-// the ladder's sizes, the monochrome inks, the keys' tiers with ESC first at the foot's left, the shares as rows of squares, the focus bar under the
+// the ladder's sizes, the monochrome inks, the keys' tiers with ESC in the foot's right corner, the shares as rows of squares, the focus bar under the
 // pointer; before it the Swiss manner of 2026-10-09). Each is the page's spec of it with the game's own data and state: what the keys chose (a
 // souvenir, a ship, a word), the last action's message, the name being typed.
 // Presentation only, as the panels they replace were (src/pilotPanel.js, src/stationPanel.js, src/hangarPanel.js, src/signPanel.js
@@ -189,7 +189,7 @@ export function drawPilotCard(r, world, ui) {
     }
   });
 
-  // The foot: ESC CLOSE first, the arrows' CHOOSE at the right; the last action's words between, white. While the name is typed the foot says
+  // The foot: the arrows' CHOOSE at the left, ESC CLOSE in the right corner; the last action's words between, white. While the name is typed the foot says
   // the field's keys (they are the field's, not buttons of the card).
   const back = keyName('back') || 'back';
   if (ui.editing) win.foot([{ key: 'ESC', words: 'CANCEL', quiet: true }], [{ key: 'ENTER', words: 'SAVE', quiet: true }]);
@@ -275,7 +275,7 @@ export function drawStationInfo(r, world, ui) {
 //   ALLIES, the crews' six, a shelf each), `S` apart: the chosen one a whole white line, the others dashes (SX: «в ангаре не заполненные не
 //   должны быть заключенными в квадраты ... пунктир ... приглушить надо сильно ... такой же пунктир в ангаре сделай»); a ship not had (CLIPPER
 //   in the opening) in the label's gray at `notHad` of its light.
-// The foot: ESC CLOSE first; what the chosen ship's key does (USE, BUY), then the arrows' SHIP; why it cannot be had, or what the last key said,
+// The foot: what the chosen ship's key does (USE, BUY), then the arrows' SHIP, ESC CLOSE in the right corner; why it cannot be had, or what the last key said,
 // between.
 export const HANGAR = Object.freeze({
   size: 'M',
@@ -377,7 +377,7 @@ export function drawHangar(r, world, ui) {
   });
   for (const sq of boxes.slice(fleet.length)) win.cell(sq);
 
-  // The foot: ESC CLOSE first; the chosen ship's key and the arrows at the right; why it cannot be had (the world's words, the amounts in
+  // The foot: the chosen ship's key and the arrows at the left, ESC CLOSE in the right corner; why it cannot be had (the world's words, the amounts in
   // gold) or what the last key said between. A crew's ship not had has no key: its crew's run first.
   const message = ui.message ? { text: ui.message, ink: INK.text, side: 'left', money: true }
     : action.reason ? { text: action.reason, ink: INK.label, side: 'left', money: true } : null;
@@ -443,7 +443,7 @@ export function drawSignComposer(r, world, ui) {
     };
     if (known) { wordBoxes.push({ index: i, box }); win.item(`word:${wd.id}`, box, draw); } else draw(false);
   });
-  // The foot: ESC CANCEL first; LEAVE SIGN, what the window is for, then ADD, UNDO and TYPE.
+  // The foot: LEAVE SIGN, what the window is for, then ADD, UNDO and TYPE; ESC CANCEL in the right corner.
   win.foot([{ key: keyName('back') || 'back', words: 'CANCEL', id: 'key:back' }], [
     { key: keyName('placeSign') || 'placeSign', words: 'LEAVE SIGN', id: 'key:placeSign' },
     { key: keyName('addWord') || 'addWord', words: 'ADD', id: 'key:addWord' },

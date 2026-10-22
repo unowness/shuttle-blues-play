@@ -332,7 +332,8 @@ function drawChorus(r, world, pieces) {
 // flies: from the craft's shoulder a slash rises `rise` rows at the interface's 2:1 slant, and on it stands the line,
 // in one row or two of at most `wrap` cells, on its text's shadow (src/textShadow.js; it stood over a black at 0.62 until
 // 2026-10-02, then on the shadow of every shape until 2026-10-06). The craft's name is not repeated: the world writes it under the craft while the pilot is near. It lasts
-// `life` s and fades in and out over `fade` s. Up and to the right first; another corner where that would leave the view or cover the interface.
+// `life` s and fades in and out over `fade` s. Up and to the right first; another corner where that would leave the view or cover the interface,
+// a planet or a station (hailBodies).
 export const HAIL = Object.freeze({ life: 4.5, rise: 1.6, wrap: 22, fade: 0.35, pad: 4 });
 
 // The line in one row, or in two where it is longer than `wrap` cells: broken between words, as evenly as it goes,
@@ -348,6 +349,58 @@ export function hailRows(line, wrap = HAIL.wrap) {
   }
   return best ? best.rows : [text];
 }
+
+// What a hail stands clear of besides the interface (SX, 2026-10-21: «нам бы сделать так чтобы тексты на станции и планеты не налезались»):
+// every planet on the screen, its disc to its rim (src/bodies.js Planet.rim; a circle, since its square would keep the words off the
+// sky at its corners) and its name where it stands now (World.planetLabelAt), and every station, the box its drawing takes (`footprint`, as
+// its menu stands clear of it) and its external dock's module at rest (`footprint.dock`); a neighbouring sector's too, as drawn beyond
+// the seam (World.drawNeighbour). On `r`'s px, as the camera draws them (src/zoom.js). Filled into the module's scratch shapes (a disc
+// { cx, cy, rad }, a box { x, y, w, h }); returns how many there are.
+const BODIES = [];
+const LAYER = { cellW: 0, cellH: 0, textScale: 1 };       // the world's layer's measures, for World.planetLabelAt
+function shapeAt(n) { return BODIES[n] ?? (BODIES[n] = { cx: 0, cy: 0, rad: 0, x: 0, y: 0, w: 0, h: 0 }); }
+function putDisc(n, cx, cy, rad) { const s = shapeAt(n); s.cx = cx; s.cy = cy; s.rad = rad; s.w = 0; return n + 1; }
+function putBox(n, x, y, w, h) { const s = shapeAt(n); s.rad = 0; s.x = x; s.y = y; s.w = w; s.h = h; return n + 1; }
+function onView(v, x, y, reach) { return x + reach >= v.x && x - reach <= v.x + v.w && y + reach >= v.y && y - reach <= v.y + v.h; }
+function bodiesOf(r, world, planets, stations, ox, oy, n) {
+  const v = r.view, z = r.zoom ?? 1;
+  LAYER.cellW = r.cellW; LAYER.cellH = r.cellH; LAYER.textScale = 1 / z;
+  for (const p of planets) {
+    const s = world.projectBody(r, p.x + ox, p.y + oy), rad = p.rim * z;
+    if (!onView(v, s.x, s.y, rad + (p.label?.length ?? 0) * r.cellW + 3 * r.cellH)) continue;
+    n = putDisc(n, s.x, s.y, rad);
+    // Its name, drawn on the world's layer in its units (World.drawPlanetLabel): the place there, on the page's px.
+    if (p.label) { const at = world.planetLabelAt(LAYER, p, { x: s.x / z, y: s.y / z }); n = putBox(n, at.x * z, at.y * z, p.label.length * r.cellW, r.cellH); }
+  }
+  for (const st of stations) {
+    const art = st.footprint ?? { model: st.model, scale: st.model.scale }, cw = r.cellW * art.scale * z, ch = r.cellH * art.scale * z;
+    const cx = world.projectX(r, st.x + ox) + (art.dx ?? 0) * r.cellW * z, cy = world.projectY(r, st.y + oy) + (art.dy ?? 0) * r.cellH * z;
+    // Turned in the float (src/float.js): the box round the turned one.
+    const c = Math.abs(Math.cos(st.angle || 0)), sn = Math.abs(Math.sin(st.angle || 0));
+    const w0 = art.model.width * cw, h0 = art.model.height * ch, w = w0 * c + h0 * sn, h = w0 * sn + h0 * c;
+    if (!onView(v, cx, cy, Math.max(w, h))) continue;
+    n = putBox(n, cx - w / 2, cy - h / 2, w, h);
+    const d = art.dock;
+    if (d) n = putBox(n, cx + d.x * r.cellW * z, cy + d.y * r.cellH * z, d.w * r.cellW * z, d.h * r.cellH * z);
+  }
+  return n;
+}
+export function hailBodies(r, world) {
+  let n = bodiesOf(r, world, world.planets ?? [], world.stations ?? [], 0, 0, 0);
+  for (const nb of world.neighbours ?? []) {
+    const b = world.sectorBodies(nb.sector);
+    n = bodiesOf(r, world, b.planets, b.stations, nb.ox, nb.oy, n);
+  }
+  return n;
+}
+// Whether `box` comes within `gap` px of shape `s` (a disc by its nearest point to the box, a box as `overlaps` has it).
+function meets(box, s, gap = 6) {
+  if (!s.rad) return overlaps(box, s, gap);
+  const dx = Math.max(box.x - s.cx, 0, s.cx - box.x - box.w), dy = Math.max(box.y - s.cy, 0, s.cy - box.y - box.h);
+  return dx * dx + dy * dy < (s.rad + gap) ** 2;
+}
+// The shapes `hailBodies` filled, as a list (for a check, and for a sketch that wants to draw them).
+export const hailShapes = (r, world) => BODIES.slice(0, hailBodies(r, world)).map((s) => (s.rad ? { cx: s.cx, cy: s.cy, rad: s.rad } : { x: s.x, y: s.y, w: s.w, h: s.h }));
 
 // `name` over the words (the hail's own unless given; null for none) in `nameInk`: a friendly ship's words and the pilot's greeting are drawn
 // here too (labs/graphics/greeting.js drawGreetAnswer).
@@ -365,16 +418,21 @@ export function drawHail(r, world, item, occupied = [], name = item.hail.name ??
   const rows = item.hail.rows ?? hailRows(item.hail.line), head = name ? 1 : 0;
   const width = Math.max(name ? name.length : 0, ...rows.map((t) => t.length)) * r.cellW, height = (rows.length + head) * row;
   const shoulder = half * 0.55, rise = HAIL.rise * row * 1.5, run = rise / 2;
+  const bodies = hailBodies(r, world);
   const place = (dir, up) => {
     const sx = p.x + dir * shoulder, sy = p.y - up * shoulder;
     const ex = sx + dir * run, ey = sy - up * rise;
     const tx = dir > 0 ? ex + HAIL.pad : ex - HAIL.pad - width, ty = up > 0 ? ey - height : ey + HAIL.pad;
     const box = { x: tx - HAIL.pad, y: ty - HAIL.pad, w: width + 2 * HAIL.pad, h: height + 2 * HAIL.pad };
     const inside = box.x >= v.x && box.y >= v.y && box.x + box.w <= v.x + v.w && box.y + box.h <= v.y + v.h;
-    return { sx, sy, ex, ey, tx, ty, box, ok: inside && !occupied.some((o) => overlaps(box, o)) };
+    let clear = true;
+    for (let k = 0; k < bodies && clear; k++) clear = !meets(box, BODIES[k]);
+    return { sx, sy, ex, ey, tx, ty, box, ok: inside && !occupied.some((o) => overlaps(box, o)), clear };
   };
+  // The first corner off the interface and off the planets and stations; where none is, off the interface alone (as before 2026-10-21);
+  // where none is either, the first.
   const tries = [place(1, 1), place(-1, 1), place(1, -1), place(-1, -1)];
-  const at0 = tries.find((t) => t.ok) ?? tries[0];
+  const at0 = tries.find((t) => t.ok && t.clear) ?? tries.find((t) => t.ok) ?? tries[0];
   const { sx, sy, ex, ey, tx, ty, box } = at0;
   if (box.x + box.w < v.x || box.x > v.x + v.w || box.y + box.h < v.y || box.y > v.y + v.h) return null;
   // No darkened box since 2026-10-02: the line stands on its text's shadow (src/textShadow.js, the labels' group; SX: «на тексте ...
