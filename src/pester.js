@@ -31,7 +31,7 @@ import { contentAreas } from './mapContent.js';
 // red quest on its own slot (`world.pester`), called on its own clock as a raid is (CONFIG.quests.pester): a call for
 // help does not wait behind a green quest. Open at a save, it is in the save (src/questSave.js), its squad made again.
 //
-//   world.pester = { id, code, paint, name, sectorId, x, y, angle, size, down, ends, hailed, hits, cleared, thanks }   (x, y in world units)
+//   world.pester = { id, code, paint, name, sectorId, x, y, angle, size, down, ends, hailed, plea, hits, cleared, thanks }   (x, y in world units)
 //   world.pesterLeaving = { x, y, angle, code, paint, name, sectorId, t, limp }                       a ship going away
 //   world.pesterNext    the pilot's clock when the next call may come
 //   pester.mix / piratePaint keep the remaining allocation; combat keeps finite supplies and an optional NPC capsule.
@@ -163,7 +163,9 @@ export function stepPester(world, dt) {
   // It calls to a pilot who comes near, once.
   if (!p.hailed && Math.hypot(p.x - world.ship.x, p.y - world.ship.y) < C.hailReach) {
     p.hailed = true;
-    world.emit('trafficHail', { craftId: PESTER_ID, label: p.name, line: sayFor(world, 'pester', 'help', p.code), x: p.x, y: p.y, sectorId: p.sectorId });
+    // Its call for help, kept: its thanks' window says it first (src/menus.js pesteredMenu).
+    p.plea = sayFor(world, 'pester', 'help', p.code);
+    world.emit('trafficHail', { craftId: PESTER_ID, label: p.name, line: p.plea, x: p.x, y: p.y, sectorId: p.sectorId });
   }
   // The squad: made when the pilot is in the sector and it has none, as many as are still to beat.
   if (world.autoEncounters && !world.pirates.some((q) => q.post?.stationId === p.id)) {

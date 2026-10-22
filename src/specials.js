@@ -7,6 +7,7 @@ import { SPECIALS, specialById, specialModel, specialSize, drawModel, drawFlown,
 import { HANDLERS } from './specialQuests.js';
 import { QUEST_LINES as QL } from './questLines.js';
 import { radioFitted } from './opening.js';
+import { CREW, talkOf, clipperPose } from './clipper.js';
 import { contentAreas } from './mapContent.js';
 
 // The reference ships' rare quests (QUESTS_V2_HANDOFF.md, round three; SX, 2026-10-02: «квесты ... какой-то в каком-то из
@@ -29,6 +30,8 @@ import { contentAreas } from './mapContent.js';
 //            no stations' trade, no caches (a station says only what the quest wants of it, and INFO); a pilot saved
 //            meanwhile is saved at the parked ship. A wreck of the borrowed ship is the quest lost, never a wreck of the
 //            pilot's: no cargo stranded, no coins taken, no wreck on the card.
+//   led      CLIPPER (src/clipper.js, 2026-10-22) is not boarded but led: LEAD THEM in its window, the pilot in their own ship all the way,
+//            the crew following to TERRA; nothing of the pilot's is parked or given back.
 //   ended    Won: the ship's rewards, all three (src/pilot.js notes, cockpits, paints): a cockpit scheme in its style, a paint,
 //            a note in the garage, and its CR (CONFIG.quests.special.order; SX picked «Вещи и CR»). Lost: nothing is lost but the chance, which comes again after the rest of the round. Either way the pilot is back
 //            in its own ship where the quest ended, the borrowed one flying on and fading.
@@ -48,6 +51,7 @@ const ASK = {
   serenity: (p) => `REACH ${p.dest.name} BEFORE BREAKUP`,
   xwing: (p) => `RUN TO ${p.dest.name}`,
   scooby: (p) => `GRAB ${p.need} OF ${p.total} SNACKS`,
+  clipper: () => `${CREW.sx} / ${CREW.pasha}`,
 };
 
 // ---- who is met, where, when ----------------------------------------------------------------------------------------------
@@ -134,8 +138,9 @@ export function stepSpecial(world, dt) {
     if (specialDue(world.specialClock, factsOfWorld(world), world.pilot.notes, world.rng('quest'), C.checkEvery, blocked, world.pilot.lastSpecial, world.pilot.specialOrder)) offerSpecial(world);
     return;
   }
-  if (s.boarded) {
-    if (world.sector.hidden) return finish(world, 'late', 'LOST');
+  // Flown (or, CLIPPER, led: src/clipper.js): the quest's own step. A borrowed ship taken into O-08 is the quest lost; a crew led waits.
+  if (s.stage === 'flying') {
+    if (s.boarded && world.sector.hidden) return finish(world, 'late', 'LOST');
     const h = HANDLERS[s.id];
     h.step(world, s, dt, END);
     if (world.special === s && h.done?.(world, s)) END.win(world);
@@ -149,13 +154,18 @@ export function stepSpecial(world, dt) {
     return;
   }
   if (!world.ship.alive || world.sector.id !== s.site.sectorId) { s.spoke = false; return; }
-  const d = Math.hypot(s.site.x - world.ship.x, s.site.y - world.ship.y);
+  const d = Math.hypot(s.site.x - world.ship.x, s.site.y - world.ship.y), h = HANDLERS[s.id];
   if (s.spoke && d > C.reach * 2.5) s.spoke = false;
   if (!s.spoke && d <= C.reach) {
     s.spoke = true;
-    const sp = specialById(s.id), rows = HANDLERS[s.id].rows(s.plan);
-    world.emit('trafficHail', { craftId: SPECIAL_ID, label: sp.label, line: rows.join(' '), rows, x: s.site.x, y: s.site.y, sectorId: s.site.sectorId });
+    // Its own way of speaking where it has one (CLIPPER's two strips), else three lines over its head.
+    if (h.meet) h.meet(world, s);
+    else {
+      const sp = specialById(s.id), rows = h.rows(s.plan);
+      world.emit('trafficHail', { craftId: SPECIAL_ID, label: sp.label, line: rows.join(' '), rows, x: s.site.x, y: s.site.y, sectorId: s.site.sectorId });
+    }
   }
+  h.standing?.(world, s);
 }
 
 // A ship's turn is over, met or not, done or not: the rest before the next one begins, and the round goes on from the ship after
@@ -173,6 +183,16 @@ function boardBar(world) {
   if (world.docked || world.home) return 'UNDOCK FIRST';
   if (!world.ship.alive) return 'NOT NOW';
   return null;
+}
+
+// LEAD THEM (CLIPPER, led and never flown: src/clipper.js): the quest begins, the pilot in their own ship.
+function lead(world) {
+  const s = world.special;
+  if (!s || s.stage !== 'seen' || !world.ship.alive) { world.emit('actionRefused', { reason: 'NOT NOW' }); return false; }
+  s.stage = 'flying';
+  HANDLERS[s.id].start(world, s);
+  world.selectedId = null;
+  return true;
 }
 
 function board(world) {
@@ -202,17 +222,20 @@ function board(world) {
 // and fades. Won, the rewards are given.
 function finish(world, outcome, why = null) {
   const s = world.special;
-  if (!s || !s.boarded) return;
+  if (!s || s.stage !== 'flying') return;
   const ship = world.ship, pk = s.parked, sp = specialById(s.id), C = S();
   const at = { x: ship.x, y: ship.y, angle: ship.angle, vx: ship.vx, vy: ship.vy };
-  world.specialLeaving = { id: s.id, x: at.x, y: at.y, angle: at.angle, sectorId: world.sector.id, t: 0, vx: at.vx, vy: at.vy };
-  ship.setChassis(pk.chassis);
-  pk.model.scale = pk.model.baseScale ?? pk.model.scale;
-  ship.setModel(pk.model);
-  world.hull = clamp(pk.hull, 1, world.hullMax);
-  world.fuel = clamp(pk.fuel, 0, world.fuelTank);
-  Object.assign(ship, { vx: at.vx * 0.3, vy: at.vy * 0.3, angVel: 0, spool: 0, retroSpool: 0, jolt: 0, alive: true, invuln: C.invuln });
-  world.hullGrace = 0;
+  // (A crew led leaves nothing to give back: the pilot was in their own ship all along.)
+  if (s.boarded) {
+    world.specialLeaving = { id: s.id, x: at.x, y: at.y, angle: at.angle, sectorId: world.sector.id, t: 0, vx: at.vx, vy: at.vy };
+    ship.setChassis(pk.chassis);
+    pk.model.scale = pk.model.baseScale ?? pk.model.scale;
+    ship.setModel(pk.model);
+    world.hull = clamp(pk.hull, 1, world.hullMax);
+    world.fuel = clamp(pk.fuel, 0, world.fuelTank);
+    Object.assign(ship, { vx: at.vx * 0.3, vy: at.vy * 0.3, angVel: 0, spool: 0, retroSpool: 0, jolt: 0, alive: true, invuln: C.invuln });
+    world.hullGrace = 0;
+  }
   world.questOutcomes.set(s.questId, outcome);
   // What is flown no more: the tow of crates, the pirates a quest sent (they fly off), the weight.
   for (const p of world.pirates) if (p.tag === 'special') { p.tag = null; if (p.mode !== 'leave') { p.mode = 'leave'; p.leaveTimer = CONFIG.pirates.leave.time; } }
@@ -278,9 +301,19 @@ export function specialQuest(world) {
 export function specialCandidates(world) {
   const s = world.special;
   if (!s) return [];
-  if (s.boarded) return HANDLERS[s.id].candidates?.(world, s) ?? [];
+  if (s.stage === 'flying') return HANDLERS[s.id].candidates?.(world, s) ?? [];
   if (s.stage !== 'seen' || s.site.sectorId !== world.sector.id || !world.ship.alive) return [];
   const sp = specialById(s.id), bar = boardBar(world);
+  // CLIPPER's: its crew's talk as a script, the window's head CLIPPER (labs/graphics/talk-beat.js; SX's D2 SCRIPT: «в шапке ... напиши
+  // просто клиппер, то есть название корабля белым»), and LEAD THEM (whatever the ship carries: it is not given up).
+  if (sp.escort) {
+    return [{
+      id: SPECIAL_ID, title: sp.label, subtitle: ASK[s.id](s.plan),
+      x: s.site.x, y: s.site.y, interactRadius: S().reach, art: { model: specialSize(s.id), scale: sp.scale, turns: true },
+      talk: { name: sp.label, place: sp.label, lines: talkOf(), thread: s.questId },
+      actions: [{ label: 'LEAD THEM', run: () => lead(world) }],
+    }];
+  }
   return [{
     id: SPECIAL_ID, title: `${sp.label} / NEEDS A PILOT`, subtitle: ASK[s.id](s.plan),
     x: s.site.x, y: s.site.y, interactRadius: S().reach, art: { model: specialSize(s.id), scale: sp.scale, turns: true },
@@ -296,8 +329,13 @@ export function specialStationActions(world, station) {
 }
 
 // The marker on the screen's edge for the ship standing (World.discoveries).
+// CLIPPER's crew led, wherever it is near (src/clipper.js clipperPose): the pilot finds them again by it when they fall behind.
 export function specialDiscovery(world) {
   const s = world.special;
+  if (s?.stage === 'flying' && specialById(s.id).escort) {
+    const at = clipperPose(world);
+    return at && { id: SPECIAL_ID, x: at.x, y: at.y, label: specialById(s.id).label, interactRadius: S().reach, discoverRadius: 3400 };
+  }
   if (!s || s.stage !== 'seen' || s.site.sectorId !== world.sector.id) return null;
   return { id: SPECIAL_ID, x: s.site.x, y: s.site.y, label: specialById(s.id).label, interactRadius: S().reach, discoverRadius: 3400 };
 }
@@ -319,22 +357,21 @@ export const specialLoadTop = (world) => (world.special?.boarded ? world.special
 export function drawSpecial(world, r, t) {
   const s = world.special;
   if (s && s.stage === 'seen' && s.site.sectorId === world.sector.id) {
-    const model = specialModel(s.id), p = world.project(r, s.site.x, s.site.y);
+    const model = specialModel(s.id), p = world.project(r, s.site.x, s.site.y), h = HANDLERS[s.id];
     if (r.onScreen(p.x, p.y, 220)) {
-      drawModel(r, model, p.x, p.y, s.site.angle + Math.sin(t * 0.6) * 0.04);
+      if (h.drawStanding) h.drawStanding(world, s, r, t, p);
+      else drawModel(r, model, p.x, p.y, s.site.angle + Math.sin(t * 0.6) * 0.04);
       if (Math.hypot(s.site.x - world.ship.x, s.site.y - world.ship.y) < 1150) {
         const label = specialById(s.id).label, w = label.length * r.cellW * (r.textScale ?? 1);
         r.text(label, p.x - w / 2, p.y + model.height * r.cellH * model.scale * 0.5 + r.cellH, CONFIG.hud.color, 0.9);
       }
     }
   }
-  if (s?.boarded) {
-    if (s.parked.sectorId === world.sector.id) {
-      const p = world.project(r, s.parked.x, s.parked.y);
-      if (r.onScreen(p.x, p.y, 200)) drawParked(r, s.parked, p.x, p.y);
-    }
-    HANDLERS[s.id].draw?.(world, s, r, t);
+  if (s?.boarded && s.parked.sectorId === world.sector.id) {
+    const p = world.project(r, s.parked.x, s.parked.y);
+    if (r.onScreen(p.x, p.y, 200)) drawParked(r, s.parked, p.x, p.y);
   }
+  if (s?.stage === 'flying') HANDLERS[s.id].draw?.(world, s, r, t);
   const g = world.specialLeaving;
   if (g && g.sectorId === world.sector.id) {
     const u = Math.min(1, g.t / 3), run = u * u * 1100;

@@ -49,7 +49,7 @@ import { CLAIM, earnWaiver, payCash } from './rewardLedger.js';
 // One objective at a time, on the selected-task state chat B built (src/tasks.js): the stage's objective is a quest of the list
 // (`openingQuest`, selected as it comes), so the plate, the top banner, the in-flight bearing (with its course round what is in the
 // way, src/course.js), the locator and the map all lead to the same target; while the first freight is carried the cargo is that
-// objective. The words at A are its people's, in A's menu (a dialog window: SCOOTY the mechanic, then A's dispatch); B's are radio
+// objective. The words at A are its mechanic's, in A's menu (a dialog window, written as a script); B's are radio
 // lines (`openingCall`). Nothing the chapter says is a key's name: it names the action (the keys come from src/controls.js, chat C).
 //
 // While the guided stretch runs (to the first delivery) nothing else asks for the pilot's attention: no droid comes, no side quest is
@@ -659,35 +659,39 @@ export function openingActions(world, station, actions) {
   return rows;
 }
 
-// What A's people say in its menu (a dialog window, labs/graphics/context.js `talk`), or null. Each line is short enough for the
-// window's five rows (checks/opening.mjs holds it).
+// What A's people say in its menu (a dialog window, labs/graphics/context.js `talk`; the script's, labs/graphics/talk-beat.js), or null. Each
+// line is short enough for the window's five rows (checks/opening.mjs holds it). Everything said at A is its mechanic's (SX, 2026-10-22: «Надо
+// просто механик писать. Механик и диспатч тоже механик», his A1; SCOOTY / MECHANIC and A's DISPATCH until then), B's its receiving desk's.
+// Each talk names its conversation (`thread`): A's from the shuttle handed over to the first job, A's about the old station, B's.
 export function openingTalk(world, station) {
   const r = running(world);
   if (!r) return null;
   const a = label(r.a), b = label(r.b);
+  const atA = (lines, part = 'start') => ({ name: `${a} MECHANIC`, lines, thread: `opening:${r.a}:${part}` });
+  const atB = (lines) => ({ name: `${b} RECEIVING`, lines, thread: `opening:${r.b}` });
   // B's, after the cache: the shelf to fit, then the rack to fill, then the return load (A is waiting; the old station is slice 4's).
   if (station.id === r.b) {
-    if (r.stage === 'shelf' && closeBy(world, station.id)) return { name: `${b} RECEIVING`, lines: ["NICE FIND. LET'S FIT A SHELF FOR IT IN YOUR COCKPIT."] };
+    if (r.stage === 'shelf' && closeBy(world, station.id)) return atB(["NICE FIND. LET'S FIT A SHELF FOR IT IN YOUR COCKPIT."]);
     if (r.stage === 'look') {
       const has = world.collection.instances.length > 0;
-      return { name: `${b} RECEIVING`, lines: [has ? "THERE. YOUR FIRST SOUVENIR IN PLAIN SIGHT. THE REST OF THE RACK IS YOURS TO FILL." : 'THERE. THE RACK IS YOURS TO FILL.'] };
+      return atB([has ? "THERE. YOUR FIRST SOUVENIR IN PLAIN SIGHT. THE REST OF THE RACK IS YOURS TO FILL." : 'THERE. THE RACK IS YOURS TO FILL.']);
     }
-    if (r.stage === 'load' && !world.ledger.active) return { name: `${b} RECEIVING`, lines: [`${a} IS WAITING FOR THIS LOAD. THEY ASKED ABOUT THE OLD STATION, TOO.`] };
+    if (r.stage === 'load' && !world.ledger.active) return atB([`${a} IS WAITING FOR THIS LOAD. THEY ASKED ABOUT THE OLD STATION, TOO.`]);
     return null;
   }
   if (station.id !== r.a) return null;
   // A's, once the return load is in: the old station and its pirates (the ready ship is told to go; one that needs mending, to mend first).
   if (r.stage === 'ruin' && closeBy(world, station.id)) {
     const R = label(ruinOf(world)), ready = world.hull >= world.hullMax * READY.hull && world.fuel >= world.fuelTank * READY.fuel;
-    return { name: `${a} DISPATCH`, lines: [ready ? `${R} KEPT THIS STRETCH MOVING. PIRATES HOLD IT NOW. CLEAR THEM AND WE CAN REBUILD.`
-      : `${R} KEPT THIS STRETCH MOVING. PIRATES HOLD IT NOW. REPAIR AND REFUEL, THEN CLEAR THEM.`] };
+    return atA([ready ? `${R} KEPT THIS STRETCH MOVING. PIRATES HOLD IT NOW. CLEAR THEM AND WE CAN REBUILD.`
+      : `${R} KEPT THIS STRETCH MOVING. PIRATES HOLD IT NOW. REPAIR AND REFUEL, THEN CLEAR THEM.`], 'ruin');
   }
   if (r.stage === 'service' && closeBy(world, station.id)) {
-    return { name: 'SCOOTY / MECHANIC', lines: ["SHUTTLE'S READY. FIXED THE RADIO TOO. NO CHARGE. LEAVE JUNIOR WITH ME."] };
+    return atA(["SHUTTLE'S READY. FIXED THE RADIO TOO. NO CHARGE. LEAVE JUNIOR WITH ME."]);
   }
-  if (r.stage === 'call') return { name: `${a} DISPATCH`, lines: [`THERE YOU ARE. ${b} NEEDS A SMALL DELIVERY. READY TO WORK AGAIN?`] };
+  if (r.stage === 'call') return atA([`THERE YOU ARE. ${b} NEEDS A SMALL DELIVERY. READY TO WORK AGAIN?`]);
   if (r.stage === 'freight' && !world.ledger.active) {
-    return { name: `${a} DISPATCH`, lines: [`LOCATOR'S FITTED. ${b} IS ON IT AND YOUR MAP. BEAT THE TARGET TIME FOR BETTER PAY.`] };
+    return atA([`LOCATOR'S FITTED. ${b} IS ON IT AND YOUR MAP. BEAT THE TARGET TIME FOR BETTER PAY.`]);
   }
   return null;
 }

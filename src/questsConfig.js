@@ -169,7 +169,9 @@ export const QUESTS = {
       // the map really makes): EXPRESS three working stations in reach of a planet, so one restored (the start has two); SERENITY
       // a station two sectors off, so three (J-06 opens with the third); until then they were 0 and 1, and the ship that was due
       // could not be met at all (its plan found nothing) while the clock that paces them ran as if it could.
-      order: [['delorean', 0, 300], ['scooby', 1, 300], ['express', 1, 300], ['serenity', 3, 350], ['swordfish', 2, 400], ['falcon', 3, 450], ['xwing', 4, 500]],
+      // CLIPPER (2026-10-22) waits for two, as SWORDFISH II: TERRA is laid in an open sector a sector or two from it, and pays as SX was asked (R1).
+      order: [['delorean', 0, 300], ['scooby', 1, 300], ['express', 1, 300], ['serenity', 3, 350], ['swordfish', 2, 400], ['falcon', 3, 450], ['xwing', 4, 500],
+        ['clipper', 2, 400]],
       invuln: 2.4,
       // The timed runs' paces (`speed`) and the X-WING's `time` follow the ships' tops: 380 and 260 until the world and the ships slowed (W2),
       // 285 and 195 and 160 s until the tops went to 0.85 of that, and 242, 166 and 188 s until 0.8 of it (2026-10-05), and 228, 156 and
@@ -194,6 +196,26 @@ export const QUESTS = {
         smoke: { every: 0.045, life: 1.1, speed: 80, carry: 0.15, drag: 2.4, scatter: 0.55, moving: 140, max: 120, grow: 1.1,
           ink: '#B7BEC6', alpha: 0.85, glyphs: ['·', '∘', 'o', 'O', 'O'] },
         art: { scale: 0.5, spin: 1.1, body: '#C47A45', knob: '#EDD3A2' } },
+      // CLIPPER, SX's and Pasha's ship, led to TERRA (src/clipper.js, src/terra.js; labs/graphics/sketches/clipper-beta.html, 2026-10-21/22).
+      // The crew flies `speed` u/s at most (slower than the pilot: «Чуваки летят медленнее нашего корабля»), `follow` u behind the pilot and at
+      // its top `ramp` u further (a pilot at 260 u/s has them about 450 u behind, in sight), easing to it at `accel` a second and keeping
+      // `avoid` u more than a body's own off planets, holes and stations; past `lag` u they stop and wait, and come on once the pilot is back
+      // in sight («если мы разошлись на два разных экрана, то надо к ним вернуться»): `view` u across and down from the pilot, the screen at the
+      // camera's 83 %, about. `fidget`: SX's R4 FIDGET, a round of `period` s (backwards, unsure, forwards in bursts, backwards again), `back`
+      // the share of `speed` flown backwards and `coast` between the bursts. `terra`: TERRA laid in a ring of `sectors` round the meeting,
+      // `clear` u past its cushion off everything, `edge` of its sector in. The crew is there `arrive` u off its rim; then round it `orbit` u
+      // off its rim at `spin` rad/s for `round` s, easing to a stop over `stop` s («проходят вокруг планеты»). `fight`: once the crew has come
+      // `at` of the way, `count` of `type` come at them from `distance` u ahead («если нападает на них пираты, то они тоже стреляют»); the crew
+      // shoots at any pirate within `reach` u every `every` s, a shot of `speed` u/s for `life` s. A line stands max(`read.least`, `read.base` +
+      // a second a `read.chars` characters) s, said only in sight («чтобы они активировались только когда пилот на экране»), the second of a
+      // pair `pair` s after the first; the way's three exchanges at `road` s of the escort.
+      clipper: { speed: 520, follow: 320, ramp: 250, lag: 2600, accel: 2.2, avoid: 420, view: { x: 760, y: 560 },
+        fidget: { period: 11, back: 0.75, coast: 0.85 },
+        terra: { sectors: [1, 2], clear: 1200, edge: 0.22 },
+        arrive: 900, orbit: 520, spin: 0.53, round: 7.5, stop: 0.8,
+        fight: { at: 0.4, count: 2, type: 'dart', distance: 1600 },
+        shot: { every: 0.55, reach: 1300, speed: 900, life: 1.6 },
+        read: { least: 4.5, base: 2, chars: 9 }, pair: 1.3, road: [1, 22, 45] },
     },
     errand: {
       pay: 450, reach: 460, minLeg: spread(2500), maxLeg: spread(9000),

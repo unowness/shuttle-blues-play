@@ -406,6 +406,9 @@ export class Progress {
     // The first-dock support's offer (src/starterSupport.js, save v24): { offeredAt (this.clock), doneAtOffer (completed contracts then) }
     // once it has been made, or null. Its claim (`starter-support`) is in `claims`, with what was built.
     this.support = null;
+    // Where TERRA stands, the planet CLIPPER's crew is led to (src/terra.js): { sector, x, y } (fractions of its sector) from the escort's
+    // start, for good, as a laid find's place is (`placed`); null until then. Optional in the save, read leniently (no SAVE_VERSION step).
+    this.terra = null;
   }
 
   // The job of a cargo carried or lying in space, or null.
@@ -572,6 +575,8 @@ export class Progress {
       guardsAt: [...this.guardsAt].map(([id, at]) => ({ id, at })),
       claims: claimsToJSON(this.claims),
       support: this.support ? { ...this.support } : null,
+      // (Written once it stands: a game without it writes the save it always wrote.)
+      ...(this.terra ? { terra: { ...this.terra } } : null),
     };
   }
 
@@ -678,6 +683,11 @@ function readRest(l, raw) {
   const sup = raw.support;
   l.support = sup && typeof sup === 'object' && Number.isFinite(sup.offeredAt) && Number.isInteger(sup.doneAtOffer) && sup.doneAtOffer >= 0
     ? { offeredAt: onClock(sup.offeredAt), doneAtOffer: sup.doneAtOffer } : null;
+  // TERRA's place: a grid sector the catalogue has, a place inside it; anything else is none.
+  const ts = sectorById(raw.terra?.sector);
+  if (ts && !ts.hidden && Number.isFinite(raw.terra.x) && Number.isFinite(raw.terra.y)) {
+    l.terra = { sector: ts.id, x: Math.min(1, Math.max(0, raw.terra.x)), y: Math.min(1, Math.max(0, raw.terra.y)) };
+  }
   // The mark, if it still names a find that is unlocked and not opened.
   const mark = findDef(raw.marked, l);
   l.marked = mark && !l.found.has(mark.id) && (!mark.station || l.restored.has(mark.station)) ? mark.id : null;

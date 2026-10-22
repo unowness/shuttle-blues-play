@@ -69,6 +69,7 @@ import { crackCockpit, knockCockpit } from './cockpit-fx.js';
 import { toggleRadio } from './radio.js';
 import { offsetOf, shifted } from './hud-place.js';
 import { QUEST_LINES as QL, stationOnly } from '../../src/questLines.js';
+import { specialById } from '../../src/specialShips.js';
 
 // The task slot's own words: an empty board after the last task done, and the ship gone (Codex's specimens).
 export const SLOT_WORDS = Object.freeze({ clear: 'ALL CLEAR', wrecked: 'WRECKED', tow: 'TOW INBOUND' });
@@ -357,8 +358,9 @@ export function createNotices(game) {
         case 'specialBoarded': notify(e.label, 'SHIP BORROWED / YOUR SHIP PARKED HERE', { kind: 'news', life: 3.2, fate: 'gone' }); break;
         // What it left is one bundle, one gift card (codex/economy-2026-10-03/CLAUDE_HANDOFF.md: «One display card per achievement
         // bundle»): its paint's picture; its pay is said by its plate in the quest list as it lights (`+300 CR / PAINT, COCKPIT, NOTE`).
+        // (CLIPPER's crew was led, not lent: no ship in it, src/specialShips.js `escort`.)
         case 'specialDone':
-          notifyBundle({ title: e.label, sub: "SHIP, PAINT, COCKPIT, NOTE", picture: e.paint ? { kind: 'paint', id: e.paint } : null,
+          notifyBundle({ title: e.label, sub: specialById(e.id)?.escort ? 'PAINT, COCKPIT, NOTE' : 'SHIP, PAINT, COCKPIT, NOTE', picture: e.paint ? { kind: 'paint', id: e.paint } : null,
             open: () => screens.openCardOn(), life: 4.6 });
           break;
         case 'specialFailed': notify(`${e.label} / FAILED`, 'YOUR SHIP RETURNED', { kind: 'danger', life: 3.2, fate: 'flip' }); break;

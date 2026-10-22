@@ -3,7 +3,7 @@ import { CRAFT_ART } from './trafficArt.js';
 import { normalizeModel } from './asciiModel.js';
 import { clamp } from './util.js';
 
-// The reference ships of the rare quests (six, and the MYSTERY MACHINE since 2026-10-21) (QUESTS_V2_HANDOFF.md, round three; SX, 2026-10-02: «Специальные квесты
+// The reference ships of the rare quests (six, the MYSTERY MACHINE since 2026-10-21 and CLIPPER since 2026-10-22) (QUESTS_V2_HANDOFF.md, round three; SX, 2026-10-02: «Специальные квесты
 // награждаются каким-то цветом, или, возможностью применить этот корабль на себя ... они должны цветовую схему давать,
 // как бы в стиле их корабля для штурвала, нижней части. Плюс подарить краску в для твоего кораблика в стиле их
 // корабля, памятную записку какую-то оставлять, которая в гараже можно читать и смотреть об этой истории рассказывать
@@ -59,13 +59,29 @@ export const SPECIALS = Object.freeze([
     paint: 'sp-scooby', cockpit: { label: 'MYSTERY', line: '#4FB3C2', accent: '#8BB33F', grip: '#F0913A' },
     note: { title: 'FROM THE GANG', text: note(`Like, thanks for driving! Scoob says every snack was worth it. Mystery solved, and the paint's in your kit. - Shaggy`) },
   },
+  // The eighth (SX, 2026-10-21: «Clipper тоже превратим в отсылочный корабль и в нем буду я и мой друг паша, который тестировал»; built on
+  // «Насчет квеста, с Рокси и Ковальски, ну, пора делать», 2026-10-22, from labs/graphics/sketches/clipper-beta.html): CLIPPER, SX's own
+  // first drawing (ships/spaceship.json, the STANDARD's look of that name, src/shipLooks.js), SX as ROUXEE and Pasha as KWLSK aboard. The
+  // pilot never flies it: it is led (`escort`), to TERRA (src/clipper.js), and leaves what the seven leave but a ship for the hangar (SX's
+  // R1: «КАК У СЕМИ ... CLIPPER в ангаре остаётся как сегодня»): its paint SUPRA (its G8), a cockpit in its inks, a note from the two, CR.
+  // No craft of O-08's traffic: the page draws it from the look (labs/graphics/clipper-art.js, lent as world.clipperArt).
+  {
+    id: 'clipper', escort: true, label: 'CLIPPER', who: 'ROUXEE & KWLSK', scale: 1.5,
+    paint: 'sp-clipper', cockpit: { label: 'CLIPPER', line: '#F07B1F', accent: '#86DC32', grip: '#5CC4FF' },
+    note: { title: 'FROM ROUXEE & KWLSK', text: note(`We made it to TERRA. The test was still running, so we found two new bugs on the way in.
+      Thanks for leading, dude. The paint is yours. - R. & K.`) },
+  },
 ]);
 
 export const specialById = (id) => SPECIALS.find((s) => s.id === id) ?? null;
 export const SPECIAL_IDS = Object.freeze(SPECIALS.map((s) => s.id));
 
-// Every ink a reference ship is drawn in: its palette, passed through the page's colour resolver as it is.
-export const SPECIAL_INKS = new Set(SPECIALS.flatMap((s) => Object.values(CRAFT_ART[s.craft].palette)));
+// Every ink a reference ship is drawn in: its palette, passed through the page's colour resolver as it is (CLIPPER's are its paint's).
+export const SPECIAL_INKS = new Set(SPECIALS.filter((s) => s.craft).flatMap((s) => Object.values(CRAFT_ART[s.craft].palette)));
+
+// What an escorted ship's drawing is to the world (its size, for its menu's marks and its hails' shoulder): CLIPPER's file is 8 x 6 cells at
+// the STANDARD's 1.5, as the look the page registers is (src/shipLooks.js); the world draws none of its own (src/clipper.js).
+const ESCORTED = Object.freeze({ width: 8, height: 6, scale: 1.5, baseScale: 1.5, cells: Object.freeze([]) });
 
 // A ship's model for the world's Ship (src/ship.js): the traffic drawing's glyphs, each in its palette colour, pivoting
 // on the middle of the drawing, nose up, drawn `scale` times the game's cell. `baseScale` is what the page's
@@ -73,7 +89,9 @@ export const SPECIAL_INKS = new Set(SPECIALS.flatMap((s) => Object.values(CRAFT_
 const models = new Map();
 export function specialModel(id) {
   if (models.has(id)) return models.get(id);
-  const sp = specialById(id), art = CRAFT_ART[sp.craft];
+  const sp = specialById(id);
+  if (sp.escort) return ESCORTED;
+  const art = CRAFT_ART[sp.craft];
   const cells = [];
   art.glyphs.forEach((row, j) => Array.from(row).forEach((ch, i) => {
     if (ch === ' ') return;

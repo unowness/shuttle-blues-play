@@ -116,7 +116,7 @@ function writePester(world, p) {
 // A reference ship standing, or one flown: both are saved as the ship standing at its site (see the top of the file).
 function writeSpecial(world, s) {
   return { kind: 'special', ship: s.id, site: { sectorId: s.site.sectorId, x: s.site.x, y: s.site.y, angle: s.site.angle },
-    plan: structuredClone(s.plan), left: s.boarded ? Q().special.stay : Math.max(0, s.leaveAt - world.ledger.clock) };
+    plan: structuredClone(s.plan), left: s.stage === 'flying' ? Q().special.stay : Math.max(0, s.leaveAt - world.ledger.clock) };
 }
 
 // ------------------------------------------------------------------------------------------------------- reading

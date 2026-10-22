@@ -249,6 +249,16 @@ function strangerDescription(s) {
   return `${s.author} set out from ${stationLabel(s.contract.from)} for ${stationLabel(s.contract.to)} with ${s.contract.label} (${s.contract.reward} CR) and lost the ship to ${what}. Thanks line: ${s.thanks}`;
 }
 
+// A planet of the catalogue (or TERRA where a game has it: src/terra.js) as a layout's object in sector `sectorId`.
+export function planetObject(p, sectorId) {
+  const props = { radius: p.radius, pull: p.pull, tint: p.tint, seed: p.seed, aliens: !!p.aliens, bands: p.bands ?? 0, spin: p.spin ?? 0 };
+  if (p.style) props.style = p.style;
+  if (p.tint2) props.tint2 = p.tint2;
+  const o = make('planet', `planet-${slug(p.label)}`, p.label, sectorId, p.x, p.y, props, '');
+  o.game.look = lookOf(props);
+  return o;
+}
+
 // The game's layout, built from the catalogues. A fresh copy each call.
 export function gameLayout() {
   const sectors = SECTORS.map((s) => {
@@ -260,14 +270,7 @@ export function gameLayout() {
   });
   const objects = [];
   for (const s of SECTORS) {
-    for (const p of s.planets || []) {
-      const props = { radius: p.radius, pull: p.pull, tint: p.tint, seed: p.seed, aliens: !!p.aliens, bands: p.bands ?? 0, spin: p.spin ?? 0 };
-      if (p.style) props.style = p.style;
-      if (p.tint2) props.tint2 = p.tint2;
-      const o = make('planet', `planet-${slug(p.label)}`, p.label, s.id, p.x, p.y, props, '');
-      o.game.look = lookOf(props);
-      objects.push(o);
-    }
+    for (const p of s.planets || []) objects.push(planetObject(p, s.id));
     for (const h of s.holes || []) {
       objects.push(make('hole', h.id, h.id.replace('hole-', 'HOLE ').toUpperCase(), s.id, h.x, h.y,
         { horizon: h.horizon, disc: h.disc, mass: h.mass, spinDir: h.spinDir }, ''));

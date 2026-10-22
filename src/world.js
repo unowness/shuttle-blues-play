@@ -415,6 +415,9 @@ export class World {
     // A station's own cargo, lent by the page (labs/graphics/cargo-art.js): (stationId, size) -> its sprite or null; null in a check's
     // world (the plain container). Drawing only: the body the world gives it is CONFIG.cargo.bodies (src/tow.js cargoBody).
     this.cargoArt = null;
+    // CLIPPER drawn as its crew flies it, lent by the page (labs/graphics/clipper-art.js): { draw(r, x, y, angle, o), craft() }; null in a
+    // check's world (nothing drawn, no beam: src/clipper.js).
+    this.clipperArt = null;
     this.egg = { held: 0, done: false }; // src/eggs.js's own
 
     if (quiet) this.quieten();

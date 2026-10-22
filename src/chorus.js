@@ -19,9 +19,15 @@
 // (D1), the voices come back one at a time (O1), the recorder is carried on a rope home (B3 as the suitcase), the reward is money and the
 // AI's own words from then (R3). docs/decisions/2026-10.md, "THE CHORUS".
 //
-//   world.chorus = { stage, voice, buoy: { sectorId, x, y }, queue: [{ at, piece }], greeted, saidAt, ownAt }
-//   voice: how many voices are back (0 to 4); buoy x, y: fractions of its sector
+//   world.chorus = { stage, voice, buoy: { sectorId, x, y }, queue: [{ at, piece }], greeted, saidAt, ownAt, telling }
+//   voice: how many voices are back (0 to 4); buoy x, y: fractions of its sector; telling: what it has said since it began to speak to the
+//   pilot, { n, pieces, over } (the window's script at COMMONS, `chorusTalk`; over once the pilot has gone)
+//
+// Its words stand in COMMONS's window too, as a script (SX's C1 on labs/graphics/sketches/talk-script.html, 2026-10-22): while it speaks to
+// the pilot, the station's menu is a talk of what it said (labs/graphics/talk-beat.js), and the beat stands once the ship stands by the
+// ring; it slows nothing (`live`: the recordings keep the world's time). The pieces rise over the ring as before while no window shows them.
 import { CONFIG } from './config.js';
+import { ROLES } from './roles.js';
 import { sectorById, stationDefById, SECTOR_SIZE } from './sectors.js';
 import { sectorOpen } from './frontier.js';
 import { clearSpot } from './spots.js';
@@ -39,8 +45,12 @@ const C = () => CONFIG.quests.chorus;
 const W = SECTOR_SIZE.width, H = SECTOR_SIZE.height;
 
 // ---------------------------------------------------------------------------------------------------------------------- the words ---
-// A piece is one recording: `who` and `at` its tag, `line` what it says; `own` the AI's own word (lowercase, no tag, the station's hue);
-// `hole` a recording that is not there; `noise` the static before a voice.
+// A piece is one recording: `who` its tag, `at` when it was recorded (the station's clock: the night shift's 23.59, the last one out's 00.00,
+// kept, no longer shown), `line` what it says; `own` the AI's own word (lowercase, no tag, the station's hue); `hole` a recording that is not
+// there; `noise` the static before a voice. The residents by short names, no time beside them (SX's V2 on labs/graphics/sketches/talk-script.html,
+// 2026-10-22: «возможно ли там придумать ... чуть-чуть покороче, чтобы у нас вот не так разносилось»; the announcer the chime before every
+// announcement, DING; the dock warden WARDEN; the greenhouse kid a SPROUT; the night shift an OWL; the mechanic a WRENCH; the last one out the
+// LIGHTS they left on; the baker, the mayor and the singer as they were): the window's script and the pieces over the ring alike.
 const P = (who, at, line) => Object.freeze({ who, at, line });
 const OWN = (line) => Object.freeze({ own: true, line });
 const HOLE = Object.freeze({ hole: true, line: 'NO RECORDING' });
@@ -49,12 +59,12 @@ const NOISE = Object.freeze({ noise: true, line: '~ ~ ~ ~ ~ ~' });
 // The call, the first time the pilot comes near the ring restored.
 export const CALL = Object.freeze([
   NOISE,
-  P('ANNOUNCER', '01.01', 'Attention, please.'),
-  P('DOCK WARDEN', '03.14', 'Anyone—'),
+  P('DING', '01.01', 'Attention, please.'),
+  P('WARDEN', '03.14', 'Anyone—'),
   P('BAKER', '05.40', '—out there?'),
-  P('GREENHOUSE KID', '11.20', 'Hello? Hello hello.'),
+  P('SPROUT', '11.20', 'Hello? Hello hello.'),
   P('MAYOR', '02.11', 'We are still here.'),
-  P('ANNOUNCER', '06.40', 'Thank you for flying COMMONS.'),
+  P('DING', '06.40', 'Thank you for flying COMMONS.'),
 ]);
 // The four voices that are missing, in the order they come back: the hole another voice leaves where theirs should be, what their own
 // recorder plays, and what the AI says with it back (longer each time: it has more words).
@@ -63,30 +73,30 @@ export const VOICES = Object.freeze([
     hole: P('MAYOR', '02.11', 'The one who knew the song was—'),
     back: Object.freeze(['La, la-la.', 'Hum it with me, ring.']),
     after: Object.freeze([P('MAYOR', '02.11', 'Thank you.')]) }),
-  Object.freeze({ who: 'NIGHT SHIFT', at: '23.59', where: 'sector-j05',
+  Object.freeze({ who: 'OWL', at: '23.59', where: 'sector-j05',
     hole: P('BAKER', '05.40', "Who used to say goodnight—"),
     back: Object.freeze(['Goodnight, ring.', 'Goodnight, lamps.', "Goodnight, whoever's listening."]),
-    after: Object.freeze([P('BAKER', '05.40', 'You look hungry.'), P('NIGHT SHIFT', '23.59', "Goodnight—"), P('ANNOUNCER', '01.01', 'pilot.')]) }),
-  Object.freeze({ who: 'MECHANIC', at: '07.15', where: 'sector-k06',
-    hole: P('DOCK WARDEN', '03.14', 'Who fixes the—'),
+    after: Object.freeze([P('BAKER', '05.40', 'You look hungry.'), P('OWL', '23.59', "Goodnight—"), P('DING', '01.01', 'pilot.')]) }),
+  Object.freeze({ who: 'WRENCH', at: '07.15', where: 'sector-k06',
+    hole: P('WARDEN', '03.14', 'Who fixes the—'),
     back: Object.freeze(['Hit it twice. Left side.', 'Works every time.']),
-    after: Object.freeze([P('DOCK WARDEN', '05.02', 'Berths open.'), P('MECHANIC', '07.15', 'Works every time.'), P('GREENHOUSE KID', '11.20', "Come back soon!")]) }),
-  Object.freeze({ who: 'LAST ONE OUT', at: '00.00', where: 'sector-j06',
-    hole: P('ANNOUNCER', '06.40', 'Last call for—'),
+    after: Object.freeze([P('WARDEN', '05.02', 'Berths open.'), P('WRENCH', '07.15', 'Works every time.'), P('SPROUT', '11.20', "Come back soon!")]) }),
+  Object.freeze({ who: 'LIGHTS', at: '00.00', where: 'sector-j06',
+    hole: P('DING', '06.40', 'Last call for—'),
     back: Object.freeze(["I'll leave the lights on.", 'In case someone comes back.']),
     after: Object.freeze([]) }),
 ]);
 // The roll call, the four back: every voice answers, the AI last, in its own word.
 export const ROLL_CALL = Object.freeze([
-  P('ANNOUNCER', '01.01', 'Roll call.'),
-  P('DOCK WARDEN', '03.14', 'Here.'),
+  P('DING', '01.01', 'Roll call.'),
+  P('WARDEN', '03.14', 'Here.'),
   P('BAKER', '05.40', 'Here.'),
-  P('GREENHOUSE KID', '11.20', "Here!"),
+  P('SPROUT', '11.20', "Here!"),
   P('MAYOR', '02.11', 'Present.'),
   P('SINGER', '04.30', 'La.'),
-  P('NIGHT SHIFT', '23.59', 'Here.'),
-  P('MECHANIC', '07.15', 'Yep.'),
-  P('LAST ONE OUT', '00.00', 'Here.'),
+  P('OWL', '23.59', 'Here.'),
+  P('WRENCH', '07.15', 'Yep.'),
+  P('LIGHTS', '00.00', 'Here.'),
   OWN('here.'),
   OWN('thank you. i only had their words.'),
   OWN("now i have one of my own."),
@@ -96,7 +106,7 @@ export const GREETINGS = Object.freeze(['hello again.', 'you came back.', 'the l
 
 // The hole of voice `k` (0-based): its hole, the gap, and where its recorder lies, said by the dock warden and the announcer (who once
 // read out every platform, and every sector).
-const holeOf = (k, sectorId) => [VOICES[k].hole, HOLE, P('DOCK WARDEN', '03.14', "Out past—"), P('ANNOUNCER', '01.01', `${sectorById(sectorId)?.label ?? ''}.`)];
+const holeOf = (k, sectorId) => [VOICES[k].hole, HOLE, P('WARDEN', '03.14', "Out past—"), P('DING', '01.01', `${sectorById(sectorId)?.label ?? ''}.`)];
 // Voice `k` back: the static, its own recording, then the AI with it.
 const backOf = (k) => [NOISE, ...VOICES[k].back.map((line) => P(VOICES[k].who, VOICES[k].at, line)), ...VOICES[k].after];
 
@@ -140,9 +150,11 @@ function layBuoy(world, k) {
   return null;
 }
 
-// Queues pieces to be said one after another from now (or after what is still queued).
+// Queues pieces to be said one after another from now (or after what is still queued). A telling begins where none is on.
 function queue(world, pieces) {
   const q = world.chorus;
+  // (Known by when it began on the world's clock: a conversation of its own in the window, labs/graphics/talk-beat.js.)
+  if (!q.telling || q.telling.over) q.telling = { n: Math.round(world.time * 1000), pieces: [], over: false };
   let at = Math.max(world.time, q.queue.length ? q.queue.at(-1).at + pieceGap(q.queue.at(-1).piece) : world.time);
   for (const piece of pieces) { q.queue.push({ at, piece }); at += pieceGap(piece); }
 }
@@ -151,6 +163,7 @@ function sayDue(world) {
   while (q.queue.length && q.queue[0].at <= world.time) {
     const { piece } = q.queue.shift();
     q.saidAt = world.time;
+    q.telling?.pieces.push(piece);
     if (piece.own) q.ownAt = world.time;
     world.emit('chorusLine', { stationId: COMMONS_ID, who: piece.who ?? null, at: piece.at ?? null, line: piece.line,
       own: !!piece.own, hole: !!piece.hole, noise: !!piece.noise, sectorId: st.sectorId });
@@ -163,9 +176,16 @@ const nearCommons = (world, reach) => {
 
 // ----------------------------------------------------------------------------------------------------------------------- the step ---
 
+// The telling is over once nothing is left to say and the pilot has gone `again` times as far as it is heard from.
+function endTelling(world) {
+  const q = world.chorus;
+  if (q?.telling && !q.telling.over && !q.queue.length && !nearCommons(world, C().hear * C().again)) q.telling.over = true;
+}
+
 export function stepChorus(world) {
   const L = world.ledger;
   if (!L.restored.has(COMMONS_ID)) return;
+  endTelling(world);
   if (chorusDone(world)) {
     // Done: the AI greets the pilot in its own words, once each time the pilot comes near.
     const q = world.chorus ??= { stage: 'done', voice: VOICES.length, buoy: null, queue: [], greeted: false, saidAt: null, ownAt: null };
@@ -206,7 +226,7 @@ export function buoyMenu(world) {
   const b = buoyHere(world);
   if (!b || !world.ship.alive) return null;
   const v = VOICES[b.voice];
-  return { id: BUOY_ID, title: 'RECORDER', subtitle: `${v.who} · ${v.at}`, x: b.x, y: b.y, interactRadius: C().reach,
+  return { id: BUOY_ID, title: 'RECORDER', subtitle: v.who, x: b.x, y: b.y, interactRadius: C().reach,
     art: { model: { width: 5, height: 5 }, scale: C().art.lying }, tone: 'story',
     actions: [{ label: 'TAKE THE RECORDER', tone: 'story', run: () => takeRecorder(world) }] };
 }
@@ -224,6 +244,17 @@ export function chorusStationAction(world, station) {
   if (station.id !== COMMONS_ID || !q || q.stage !== 'carry' || !world.ship.alive) return null;
   return { label: `PLAY BACK ${VOICES[q.voice].who}`, tone: 'story', run: () => playBack(world) };
 }
+// What it has said to the pilot, as COMMONS's window's talk (src/menus.js stationMenu; labs/graphics/talk-beat.js), or null: each piece by
+// its resident, the AI's own words, a missing recording and the static by no one, in the hues they rise in over the ring (src/feedback.js
+// drawChorus); one conversation a telling.
+export function chorusTalk(world, station) {
+  const t = world.chorus?.telling;
+  if (station.id !== COMMONS_ID || !t || t.over || !t.pieces.length) return null;
+  const lines = t.pieces.map((p, i) => ({ who: p.own || p.hole || p.noise ? '' : p.who, line: p.own ? p.line : p.line.toUpperCase(),
+    ink: p.own ? C().art.own : p.hole || p.noise ? ROLES.textHint : null, key: `${t.n}:${i}` }));
+  return { name: station.label, lines, thread: `chorus:${t.n}`, live: true };
+}
+
 // The voice played back at COMMONS: it is the ring's again; it pays; the next hole is heard (or the roll call, the four back).
 export function playBack(world) {
   const q = world.chorus, s = commonsHere(world);

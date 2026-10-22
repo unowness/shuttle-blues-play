@@ -17,6 +17,7 @@ import { scrambledPlaces, slotOfCell } from './ship-scramble.js';
 import { BLOCK_TONES, planetTones, ROCK_EDGE, ROCK_INKS, ROCK_LIT, ROCK_SHADE, SHADE_GAP, ROCK_RELIEF } from './art-tones.js';
 import { stationLook, stationCells, lookOrigin, LOOK_SCALE, MAX_CELLS } from './station-art.js';
 import { cargoArt } from './cargo-art.js';
+import { clipperArt } from './clipper-art.js';
 import { paintPlanetType } from './planet-types.js';
 import { prepareHome, drawHome, homeLive } from './garage-art.js';
 import { BOARD, BOARD_INK, dockState, homeDockState } from '../../src/home.js';
@@ -1033,6 +1034,8 @@ export function createWorldPresentation(world, settings) {
   world.stationHue = (id) => { const def = stationDefById(id); const look = def?.look ? stationLook(def.look) : null; return look?.tone?.lit ?? null; };
   // A station's own cargo, SX's twelve (labs/graphics/cargo-art.js), at a job's size; null for a station without one (HOME).
   world.cargoArt = (id, size) => { const look = stationDefById(id)?.look; return look ? cargoArt(look, size) : null; };
+  // CLIPPER as its crew flies it, and as a craft for its talk's picture and its beam (labs/graphics/clipper-art.js; src/clipper.js).
+  world.clipperArt = clipperArt;
   const sectorBodies = world.sectorBodies;
   world.sectorBodies = function (...args) { return bodies(sectorBodies.apply(this, args)); };
   for (const group of world.bodyCache.values()) bodies(group);

@@ -6,7 +6,7 @@
 // and `menu()` to build the rest), `menuFor` builds the menu of one, `candidates` of all. The step chooses on the first and builds one.
 // Pure functions of the world: nothing here keeps state.
 import { CONFIG } from './config.js';
-import { buoyMenu, buoyHere, BUOY_ID, chorusStationAction } from './chorus.js';
+import { buoyMenu, buoyHere, BUOY_ID, chorusStationAction, chorusTalk } from './chorus.js';
 import { addressOf } from './sectors.js';
 import { contractById, offersAt, parTime, clockText, cargoOf, cargoSize, quoteJob, jobQuote } from './contracts.js';
 import { captionOf, signBox } from './signs.js';
@@ -43,8 +43,9 @@ function repairAsked(world, id) {
 }
 export const litRepair = (world, id, rows) => (repairAsked(world, id) ? rows.map((a) => (/^(FUND|RESTORE) /.test(a.label) ? { ...a, story: true } : a)) : rows);
 
-// The opening's words at a station (src/opening.js), as the candidate's `talk`, or nothing.
-const talkAt = (world, s) => { const talk = openingTalk(world, s); return talk ? { talk } : {}; };
+// The opening's words at a station (src/opening.js), or what COMMONS's voices have said to the pilot (src/chorus.js), as the candidate's
+// `talk`, or nothing.
+const talkAt = (world, s) => { const talk = openingTalk(world, s) ?? chorusTalk(world, s); return talk ? { talk } : {}; };
 
 // A friendly ship of the sector (the fleet's NPC ships, O-08's traffic: World.trafficHere) as a candidate: its name, a friendly ship, and
 // one row, the pilot's greeting (src/greetings.js), within the reach a craft hails the pilot at itself (src/traffic.js HAIL_REACH). It
@@ -91,9 +92,15 @@ function craftsNear(world) {
 const costWords = (world, def) => { const price = world.findPrice(def); return price > 0 ? `${formatCR(price)} CR` : FREE_WORDS; };
 
 // A quest ship's words as a window (`talk`, drawn as a dialog by labs/graphics/context.js) and the quest's HAND IN, which pays
-// (SX, 2026-10-02, NPC_DIALOG_HANDOFF.md): so with a wreck helped, a planet's suitcase brought and a ship pestered driven clear.
-const talk = (base, name, line, run) => ({ ...base, title: name, subtitle: '', talk: { name, lines: [line ?? ''] },
+// (SX, 2026-10-02, NPC_DIALOG_HANDOFF.md): so with a wreck helped, a planet's suitcase brought and a ship pestered driven clear. Its
+// conversation is its quest's (`thread`), its plea said before it (`before`): the talk's script holds the plea, the pilot's answer and the
+// thanks in one window (labs/graphics/talk-beat.js; SX, 2026-10-22, the game's dialogs as a script).
+const talk = (base, name, line, run, { thread = null, plea = null } = {}) => ({ ...base, title: name, subtitle: '',
+  talk: { name, lines: [line ?? ''], ...(thread ? { thread } : null), ...(plea ? { before: [plea] } : null) },
   actions: [{ label: 'HAND IN', run }] });
+// A quest ship's plea as its window's words while it asks (the pilot out of fuel, a wreck): the window it asks in is the start of its
+// conversation. None where its plea was never said (a game loaded after it: the object's window then).
+const pleading = (menu, name, plea, thread) => (plea ? { ...menu, talk: { name, lines: [plea], thread } } : menu);
 
 // A station's menu: a ruin (src/ruins.js) with what it would be, its price and its own rows, or a working station with its address
 // and its rows.
@@ -161,28 +168,36 @@ const lookMenu = (world, c) => ({
 // A pilot out of fuel (src/quests.js, a rescue quest): give it fuel for pay. Given, its menu is its words and the quest's HAND IN.
 // One of the thirteen friendly ships SX picked (src/npcShips.js), its footprint the ship's own; the sum it pays is the grown one
 // the plate says (it said the base, 75, whatever the network had grown to).
-const drifterMenu = (world, drifter) => (world.sideQuest.fueled ? talk({ id: drifter.id, x: drifter.x, y: drifter.y, interactRadius: CONFIG.stranded.interactRadius,
-  art: drifterArt(drifter) }, NPC_ART[drifter.code]?.name ?? 'PILOT', world.sideQuest.thanks, () => handInDrifter(world)) : {
-  id: drifter.id, title: 'PILOT OUT OF FUEL',
-  subtitle: `ASKS ${CONFIG.quests.rescue.fuel} FUEL / PAYS ${payFor('rescue', world.ledger.restored.size)} CR`,
-  x: drifter.x, y: drifter.y, interactRadius: CONFIG.stranded.interactRadius,
-  art: drifterArt(drifter),
-  actions: [{ label: `GIVE ${CONFIG.quests.rescue.fuel} FUEL`, disabled: world.fuel < CONFIG.quests.rescue.fuel,
-    reason: `NEED ${CONFIG.quests.rescue.fuel} FUEL`, run: () => helpDrifter(world) }],
-});
+const drifterMenu = (world, drifter) => {
+  const s = world.sideQuest, name = NPC_ART[drifter.code]?.name ?? 'PILOT';
+  if (s.fueled) return talk({ id: drifter.id, x: drifter.x, y: drifter.y, interactRadius: CONFIG.stranded.interactRadius,
+    art: drifterArt(drifter) }, name, s.thanks, () => handInDrifter(world), { thread: s.id, plea: s.plea });
+  return pleading({
+    id: drifter.id, title: 'PILOT OUT OF FUEL',
+    subtitle: `ASKS ${CONFIG.quests.rescue.fuel} FUEL / PAYS ${payFor('rescue', world.ledger.restored.size)} CR`,
+    x: drifter.x, y: drifter.y, interactRadius: CONFIG.stranded.interactRadius,
+    art: drifterArt(drifter),
+    actions: [{ label: `GIVE ${CONFIG.quests.rescue.fuel} FUEL`, disabled: world.fuel < CONFIG.quests.rescue.fuel,
+      reason: `NEED ${CONFIG.quests.rescue.fuel} FUEL`, run: () => helpDrifter(world) }],
+  }, name, s.plea, s.id);
+};
 
 // A wrecked ship asks for money (src/wrecked.js, a wreck quest): give it, for a tip.
-const wreckMenu = (world, wreck) => (world.sideQuest.wreck.given ? talk({ id: WRECK_ID, x: wreck.x, y: wreck.y, interactRadius: CONFIG.stranded.interactRadius,
-  art: wreckArt(wreck.code) }, wreck.name, world.sideQuest.wreck.thanks, () => handInWreck(world)) : {
-  id: WRECK_ID, title: `${wreck.name} / WRECKED`, subtitle: `GIVE ${wreck.ask} CR / GET A TIP`,
-  x: wreck.x, y: wreck.y, interactRadius: CONFIG.stranded.interactRadius, art: wreckArt(wreck.code),
-  actions: [{ label: `GIVE ${wreck.ask} CR`, disabled: world.ledger.credits < wreck.ask, reason: `NEED ${wreck.ask} CR`, run: () => giveToWreck(world) }],
-});
+const wreckMenu = (world, wreck) => {
+  const s = world.sideQuest;
+  if (s.wreck.given) return talk({ id: WRECK_ID, x: wreck.x, y: wreck.y, interactRadius: CONFIG.stranded.interactRadius,
+    art: wreckArt(wreck.code) }, wreck.name, s.wreck.thanks, () => handInWreck(world), { thread: s.id, plea: s.wreck.plea });
+  return pleading({
+    id: WRECK_ID, title: `${wreck.name} / WRECKED`, subtitle: `GIVE ${wreck.ask} CR / GET A TIP`,
+    x: wreck.x, y: wreck.y, interactRadius: CONFIG.stranded.interactRadius, art: wreckArt(wreck.code),
+    actions: [{ label: `GIVE ${wreck.ask} CR`, disabled: world.ledger.credits < wreck.ask, reason: `NEED ${wreck.ask} CR`, run: () => giveToWreck(world) }],
+  }, wreck.name, s.wreck.plea, s.id);
+};
 
 // A ship the pirates pestered (src/pester.js), once they are driven off: it waits with its thanks.
 const pesteredMenu = (world, held) => talk({ id: PESTER_ID, x: held.x, y: held.y, interactRadius: CONFIG.stranded.interactRadius,
   art: { model: { width: held.craft.rows[0].length, height: held.craft.rows.length }, scale: held.craft.scale, turns: true } },
-  held.name, world.pester.thanks, () => handInPester(world));
+  held.name, world.pester.thanks, () => handInPester(world), { thread: world.pester.id, plea: world.pester.plea });
 
 // A cargo lying in space: the pilot's own, or another pilot's (src/strangers.js).
 function lostMenu(world, c) {

@@ -8,8 +8,10 @@ import { goneCells, brokenShare, specialModel } from './specialShips.js';
 import { layTrails, snacksOf, trailWay, drawSnack, snackSpin, snackBits, pipesOf, stepSmoke, drawSmoke } from './scoobySnacks.js';
 import { lerp, clamp } from './util.js';
 import { QUEST_LINES as QL } from './questLines.js';
+import { clipper, readClipperPlan } from './clipper.js';
 
-// The reference ships' quests (the six of QUESTS_V2_HANDOFF.md, round three, and the MYSTERY MACHINE's of 2026-10-21, below; SX, 2026-10-02, each in his words: «Это с Марти
+// The reference ships' quests (the six of QUESTS_V2_HANDOFF.md, round three, the MYSTERY MACHINE's of 2026-10-21, below, and CLIPPER's of
+// 2026-10-22, src/clipper.js; SX, 2026-10-02, each in his words: «Это с Марти
 // Макфлаем скорее на скорость надо долететь. Если со спайком, то победить где-то большое количество пиратов. На
 // планет-экспресс ... паровозик грузов из трех грузов ... по трем разным станциям. Корабль Хана Соло точно битва в
 // космосе с пиратами. У какой-нибудь разбитой станции. Сиренити ... долететь до какой-то станции через два сектора ...
@@ -109,6 +111,7 @@ export function readPlan(world, id, raw) {
       const trails = raw.trails.map((t) => t.map(([x, y]) => [x, y])), total = snacksOf(trails, W, H).length;
       return total >= c.need ? { sectorId: sector.id, trails, total, need: c.need, distance, time: seconds } : null;
     }
+    case 'clipper': return readClipperPlan(world, raw, openTo);
     case 'express': {
       const planet = readDest(world, raw.planet, ['planet']);
       const stops = Array.isArray(raw.stops) ? raw.stops.map((d) => readDest(world, d, ['station'])) : [];
@@ -465,4 +468,5 @@ const scooby = {
     });
   },
 };
-export const HANDLERS = Object.freeze({ delorean, swordfish, express, falcon, serenity, xwing, scooby });
+// CLIPPER's (src/clipper.js): led, never flown; its `meet` and `standing` say its two strips while it stands, `drawStanding` draws it then.
+export const HANDLERS = Object.freeze({ delorean, swordfish, express, falcon, serenity, xwing, scooby, clipper });

@@ -15,6 +15,7 @@ import { currentQuests, questTone } from '../../src/quests.js';
 import { drawLabCockpit } from './hud.js';
 import { drawScootyDeck } from './scooty-deck.js';
 import { flyingLoaner } from '../../src/loaner.js';
+import { COMMONS_ID } from '../../src/chorus.js';
 import { stepCharm } from './charm.js';
 import { stepTracker } from './tracker.js';
 import { COCKPIT_FX, damageLevel, wearCockpit, shakeOffset, drawPieces, steerLight, mendCockpit, crackShape, drawCracked } from './cockpit-fx.js';
@@ -485,6 +486,8 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
         const occupied = noteDuring(r, () => drawInteraction(r, avoid, wasModern && lastLayout.area ? lastLayout.area : playArea(r, { boxes: game.hud.boxes, layout: lastLayout })));
         const trace = scooter ? null : ghost.drawLabel(r, world, occupied);
         if (trace) occupied.push(trace);
+        // (COMMONS's pieces over the ring kept down while its window writes them as a script: src/chorus.js chorusTalk.)
+        feedback.quietChorus = game.beat.shown() && game.beat.state.target?.id === COMMONS_ID;
         if (!scooter) feedback.draw(r, world, occupied);
         // By the ship, riding with it (src/skillHints.js; labs/graphics/skill-hint.js).
         if (skillHints.shown) drawSkillHint(r, world, skillHints.shown, { scheme: schemes.scheme(), reducedMotion: feedback.reducedMotion });

@@ -173,7 +173,7 @@ export const EVENTS = Object.freeze({
   droidLeft: E('droidId kind sectorId'),
   droidServed: E('droidId kind name sectorId x y units cost left fuel hull credits', 'droid'),
   visitorArrived: E('craftId label sectorId'),
-  trafficHail: E('craftId label line rows x y sectorId visitor greet to angry'),
+  trafficHail: E('craftId label line rows x y sectorId visitor greet to angry life'),
   npcDown: E('code label x y sectorId speed'),
   // A friendly ship's favor to a pilot who helped it (src/npcTalk.js giveFavor; N6 QUESTS): fuel or hull given, a cache, a signal or a word.
   npcFavor: E('code kind amount sectorId x y', 'favor'),

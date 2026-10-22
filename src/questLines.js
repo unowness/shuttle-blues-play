@@ -281,6 +281,11 @@ export const QUEST_LINES = Object.freeze({
     snacksSub: line(1, [], () => 'GRAB SNACKS', { timed: true, act: true }),
     solved: line(0, [], () => 'MYSTERY SOLVED'),
     hungry: line(1, [], () => 'SCOOBY STILL HUNGRY'),
+    // CLIPPER's escort (src/clipper.js): where the crew is led, or, while they wait a screen behind, back to them; done at TERRA.
+    escort: line(0, [], () => 'ESCORT CLIPPER'),
+    escortTo: line(1, ['planet'], (planet) => `TO ${planet}`),
+    escortBack: line(1, [], () => 'GO BACK FOR THEM', { act: true }),
+    escorted: line(0, [], () => 'CLIPPER ARRIVED'),
     paid: line(1, ['cr'], (cr) => `+${cr} CR / GIFTS`),
   }),
   // The cargo carried, or lying in space, as a plate of the list, the last (src/tasks.js cargoQuests; SX, 2026-10-16: «о доставке груза

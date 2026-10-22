@@ -155,12 +155,13 @@ export class Feedback {
       case 'stationInvested': label = event.by === 'support' ? `+${formatCR(event.amount)} CR FUNDED / ${Math.floor(event.share * 100)}%`
         : `-${formatCR(event.amount)} CR / FUNDED ${Math.floor(event.share * 100)}%`; break;
       case 'findMarked': label = `MARKED / ${event.label}`; break;
-      // A hail is said by the craft itself (drawHail): its line up a slash from it; a friendly ship's and the pilot's greeting (`greet`)
+      // A hail is said by the craft itself (drawHail): its line up a slash from it, `life` s (its own where it says: CLIPPER's crew's, read by
+      // their length, src/clipper.js readLife); a friendly ship's and the pilot's greeting (`greet`)
       // in GAMEPLAY's GREETING style (this.drawGreet). Its rows broken once here; `rows` (a planet's three lines, src/errands.js) are
       // said as they stand, not broken to fit. `box` the place it took, kept (labs/graphics/greeting.js).
       case 'trafficHail': {
         const item = { type: event.type, label: `${event.label}: ${event.line}`, sectorId: event.sectorId || world.sector.id,
-          x: event.x ?? origin.x, y: event.y ?? origin.y, age: 0, life: HAIL.life, box: null,
+          x: event.x ?? origin.x, y: event.y ?? origin.y, age: 0, life: event.life ?? HAIL.life, box: null,
           hail: { craftId: event.craftId, name: event.label, line: event.line, rows: event.rows ?? hailRows(event.line), greet: !!event.greet, to: event.to ?? null, angry: !!event.angry } };
         this.items = this.items.filter((it) => !(it.hail && it.hail.craftId === event.craftId));
         this.items.push(item);
@@ -266,7 +267,8 @@ export class Feedback {
       const box = drawLocalLabel(r, item.label, p, [...occupied, objectBox], labelInk(item.type), 50, gold ? MONEY_LABEL : null);
       if (box) occupied.push(box);
     }
-    const chorus = drawChorus(r, world, this.chorus);
+    // (Not while COMMONS's window writes them as a script: `quietChorus`, the page's, labs/graphics/talk-beat.js.)
+    const chorus = this.quietChorus ? null : drawChorus(r, world, this.chorus);
     if (chorus) occupied.push(chorus);
     return occupied;
   }
@@ -274,7 +276,7 @@ export class Feedback {
 
 // COMMONS's collage over the station (src/chorus.js; SX's V1 HAIL on labs/graphics/sketches/commons-voice.html, 2026-10-15: «hail над
 // станцией»): from the ring's upper shoulder a slash rises as a hail's does, and on it stand the newest `shown` pieces, the newest at the
-// slash and the older above it, fading; each a recording's tag (who and when) over its line in capitals, a missing recording and the
+// slash and the older above it, fading; each a recording's tag (who) over its line in capitals, a missing recording and the
 // static faint, and the AI's own words lowercase in the station's hue with no tag. Mirrored to the left where the right leaves the view.
 function drawChorus(r, world, pieces) {
   if (!pieces.length) return null;
@@ -289,7 +291,8 @@ function drawChorus(r, world, pieces) {
   // Each piece: its tag (none for the AI's own words, the static or a gap) over its line in capitals (the AI's own lowercase).
   const blocks = shown.map((piece) => {
     const text = piece.own || piece.faint ? [piece.line] : hailRows(piece.line.toUpperCase());
-    const tag = piece.own || piece.faint ? null : `${piece.who} · ${piece.at}`;
+    // (The resident's short name alone, no recording's time: SX's V2, 2026-10-22, src/chorus.js.)
+    const tag = piece.own || piece.faint ? null : piece.who;
     return { piece, tag, text, h: (text.length + (tag ? 1 : 0)) * row };
   });
   const width = Math.max(...blocks.flatMap((b) => [...b.text, b.tag ?? ''].map((t) => t.length))) * r.cellW;

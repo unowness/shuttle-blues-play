@@ -54,7 +54,8 @@ import { openingHoldsOffers } from '../../src/opening.js';
 import { lookById } from '../../src/looks.js';
 import { stationLoreNow } from '../../src/stationInfo.js';
 import { installGrade, gradeEpoch } from '../../src/grade.js';
-import { gameLayout } from '../map-editor/data.js';
+import { gameLayout, planetObject } from '../map-editor/data.js';
+import { terraRecord } from '../../src/terra.js';
 import { glyph, paintObject, objectMetrics, INK } from '../map-editor/view.js';
 import { markBlinkAlpha } from './locator.js';
 import { PALETTE, ROLES } from '../../src/roles.js';
@@ -454,8 +455,9 @@ function paintSector(T, map, world, cell, area, S) {
   const taken = [title.box];
   const S2 = { bounds: { x0: vis.x0 + 2, y0: vis.y0 + 2, x1: vis.x1 - 2, y1: vis.y1 - 2 }, taken, title: title.box, labels: S.labels };
   const placed = [];
-  // The bodies, as the editor draws them, at true size on this sector's scale.
-  for (const o of cat.planet) {
+  // The bodies, as the editor draws them, at true size on this sector's scale; TERRA too where this game has it in this sector (src/terra.js).
+  const terra = terraRecord(world, s.id);
+  for (const o of terra ? [...cat.planet, planetObject(terra, s.id)] : cat.planet) {
     const p = at(cell, o.x * W, o.y * H), m = objectMetrics(o, cell.kx);
     if (!near(p, m.r + 2)) continue;
     paintObject(ctx, o, p.x, p.y, m, { k: cell.kx });
@@ -528,14 +530,14 @@ function paintStatic(T, r, map, world, G, S) {
 
 // What the static picture shows, as a string: when it changes, the picture is drawn again (the size and place of the panel,
 // the view, the sector the ship is in, what each sector shows, the ruins' restoring and funding, the caches opened, come up
-// to and marked, the looks owned, the screen's colour look).
+// to and marked, the looks owned, the screen's colour look, TERRA come to stand).
 function stampOf(r, map, world, G) {
   const L = world?.ledger ?? EMPTY_LEDGER;
   let funds = 0;
   for (const v of L.invested.values()) funds += v;
   return [r.dpr, r.cellW, r.font, G.area.x0, G.area.y0, G.area.x1, G.area.y1, G.view.z.toFixed(4), G.view.cx.toFixed(4), G.view.cy.toFixed(4),
     world?.sector?.id, shown().map((s) => sectorShown(map, s, world)[0]).join(''), L.restored.size, funds, L.found.size, L.reached.size, L.placed?.size ?? 0, L.told?.size ?? 0,
-    L.marked, world?.pilot?.looks?.size ?? 0, gradeEpoch(), startRuinOf(L)].join('|');
+    L.marked, world?.pilot?.looks?.size ?? 0, gradeEpoch(), startRuinOf(L), L.terra?.sector ?? ''].join('|');
 }
 
 function makeCanvas(w, h) {

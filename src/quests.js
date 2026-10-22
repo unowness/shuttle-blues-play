@@ -191,7 +191,9 @@ export function stepQuests(world, dt) {
   if (drifter && !world.sideQuest?.hailed && world.ship.alive &&
       Math.hypot(drifter.x - world.ship.x, drifter.y - world.ship.y) < C.rescue.hailReach) {
     world.sideQuest.hailed = true;
-    world.emit('trafficHail', { craftId: DRIFTER_ID, label: NPC_ART[drifter.code].name, line: sayFor(world, 'rescue', 'hail', drifter.code), x: drifter.x, y: drifter.y, sectorId: world.sector.id });
+    // Its plea, kept: its window asks in it (src/menus.js drifterMenu), the start of its conversation.
+    const plea = world.sideQuest.plea = sayFor(world, 'rescue', 'hail', drifter.code);
+    world.emit('trafficHail', { craftId: DRIFTER_ID, label: NPC_ART[drifter.code].name, line: plea, x: drifter.x, y: drifter.y, sectorId: world.sector.id });
   }
   noteHome(world);
   world.questCheckIn -= dt;

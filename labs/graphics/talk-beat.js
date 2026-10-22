@@ -3,18 +3,35 @@
 // took D4 «Перебивка»; asked, the world slows while the line stands («Замедляется») and the line goes at a press («По нажатию»); of the three
 // compositions on labs/graphics/sketches/quest-beat.html (2026-10-15: «D4A B C все нравятся, давай их сохраним пока что сделаем D4C») D4C SPEAKER.
 //
-// A menu with words (`target.talk` { name, lines }: src/opening.js openingTalk at A and B, an NPC's thanks before HAND IN, src/menus.js talk; a
-// planet's errand, src/errands.js) is no longer a floating plate beside its object (labs/graphics/context.js): once the ship stands by it (the
-// plate's own moment, src/interaction.js shipStands), the whole frame goes under a black veil, the world eases to `pace` of its speed, the ship's
-// controls are let go, and one of the Swiss windows stands under the ship: who speaks in its head and what the moment is at its right in the
-// quest's ink, the speaker's picture in a box at the left (a station's look as its INFO draws it, a ship's drawing nose up), the line in white
-// beside it, then the menu's rows as keycaps with their words, and LATER in the foot. A row is pressed as any menu's (its digit, or a click on it:
-// the input router reads world.selected as before); 0 or Escape is LATER: the menu closed (game.menu.closed), the beat gone until the words change
-// or the ship comes again. When a row changes what is said (the opening's next line), the beat stands again with the new words.
+// A menu with words (`target.talk`: src/opening.js openingTalk at A and B, a quest ship's plea and thanks, src/menus.js; a planet's errand,
+// src/errands.js; COMMONS's voices, src/chorus.js; CLIPPER's crew, src/clipper.js) is no longer a floating plate beside its object
+// (labs/graphics/context.js): once the ship stands by it (the plate's own moment, src/interaction.js shipStands), the whole frame goes under a
+// black veil, the world eases to `pace` of its speed, the ship's controls are let go, and one of the organism's windows stands under the ship. A
+// row is pressed as any menu's (its digit, or a click on it: the input router reads world.selected as before, through `run` here); 0 or Escape
+// is LATER: the menu closed (game.menu.closed), the beat gone until the words change or the ship comes again. When a row changes what is said
+// (the opening's next line), the beat stands again with the new words.
+//
+// The talk is written as a script (SX, 2026-10-22, on D2 SCRIPT of labs/graphics/sketches/clipper-beta.html: «диалог в виде скрипта вообще
+// отличный вариант. Наверное, я бы и другие диалоги хотел так»; the game's dialogs on labs/graphics/sketches/talk-script.html): who speaks in a
+// column at the left, the line beside it wrapped under itself; the whole conversation in one window, kept from its first line (a quest's plea,
+// the pilot's answer, the thanks), the lines coming one at a time at a reading pace and the window as tall as all of them from the first; the
+// pilot's pressed answer written into it as YOU's, an action between asterisks, YOU and the action in gray (SX: «писать строки you серым.
+// Писать действия»); whoever speaks to the pilot in the ink of the talk's quest (src/roles.js QUEST_INKS by its rows' tone, the story's purple
+// where none: «зеленый квест ... зеленый ники. Фиолетовый квест ... фиолетовые ники»), and only a quest's answer framed in that ink («рамочка
+// синий или фиолетовая ... Только у кнопки «Принять»»); the head's left what the talk is and its right the place, both in white («вот это
+// сверху текст писать белым»). A conversation is its talk's `thread` (a quest's id; the target's id where it names none), kept on the page,
+// never saved: a pilot who comes back to it finds it as it was (the planet's ask over the suitcase brought), a reload starts it at what the
+// talk says now.
+//
+// A talk's data (`target.talk`): { name, lines, before?, thread?, place?, live? }. `lines` strings are said by the one `name` names, together
+// as one line (old saves and quest data read as before: "RELAY 12 MECHANIC" is the station's desk, "SCOOTY / MECHANIC" a person and a role,
+// anything else one name), or { who, line, ink, key } a line of its own speaker's; `before` what was said earlier in the same conversation (a plea a
+// hail said), written first where the script does not hold it yet; `place` the head's right where the target is no station; `live` the world not
+// slowed (COMMONS's recordings play on the world's clock).
 //
 // The page's (no world state, nothing saved): the world's pace is the page's to give (labs/graphics/flight-frame.js runs `steps` of the world's
 // steps a frame), as the opening's slow beat does (labs/graphics/opening-focus.js F3).
-import { ROLES } from '../../src/roles.js';
+import { ROLES, QUEST_INKS } from '../../src/roles.js';
 import { rowTones } from '../../src/menus.js';
 import { shipStands } from '../../src/interaction.js';
 import { moneyRuns } from '../../src/money.js';
@@ -22,6 +39,8 @@ import { wrap } from '../../src/pilotPanel.js';
 import { drawCraft } from '../../src/traffic.js';
 import { DRIFTER_ID, drifterHere, drifterCraft } from '../../src/quests.js';
 import { WRECK_ID, wreckHere, wreckCraftAt } from '../../src/wrecked.js';
+import { SPECIAL_ID } from '../../src/specials.js';
+import { clipperPose } from '../../src/clipper.js';
 import { floatPose, floatPhases } from '../../src/float.js';
 import { CONFIG } from '../../src/config.js';
 import { PESTER_ID, pesterHere } from '../../src/pester.js';
@@ -31,13 +50,19 @@ import { drawStationShot } from './windows.js';
 import { glyphsNow } from './world-art.js';
 import { noteKey, unnoted } from './clicks.js';
 import { KEYCAP_PAD } from './ui-parts.js';
-import { Win, ORG, INK, SIZES, partLen } from './organism.js';
+import { Win, ORG, INK, SIZES, partLen, len } from './organism.js';
 
 // `pace` the world's speed while the line stands, reached in `in` s and left in `out` s (page time); `veil` the black over the frame at its
 // darkest; `under` px from the ship's middle (the camera's, r.cy) to the window's top; `floor` px kept clear over the cockpit.
 // `width` the window (the ladder's S); `shot` the speaker's picture's square at most (INFO's), as much of it as the room under the ship leaves, `shotLeast`
 // at least; `show` how far the beat has come in when its window starts to come, `drop` the px it comes from above (the pause's).
-export const BEAT = Object.freeze({ pace: 0.2, in: 0.3, out: 0.3, veil: 0.72, width: SIZES.S[0], shot: 200, shotLeast: 120, show: 0.35, drop: 12, under: 48, floor: 8 });
+// The script: a line stands `read` s and `perChar` s a character before the next comes, the pilot's action `act` s; a line comes in over
+// `fresh` s; a line wraps to `wrap` rows at most; a conversation is kept `keep` s of page time after its last word, `threads` of them at most.
+export const BEAT = Object.freeze({ pace: 0.2, in: 0.3, out: 0.3, veil: 0.72, width: SIZES.S[0], shot: 200, shotLeast: 120, show: 0.35, drop: 12, under: 48, floor: 8,
+  read: 1.4, perChar: 0.03, act: 0.5, fresh: 0.25, wrap: 8, keep: 900, threads: 24 });
+
+// The pilot's name in the script.
+export const YOU = 'YOU';
 
 // How fast a pilot out of fuel and a wreck turn where they drift, rad/s (src/questHooks.js drawDrifter, src/wrecked.js drawWreck).
 const TURN = 0.05;
@@ -59,19 +84,91 @@ function floatingCraft(r, box, id, { craft, angle }, now) {
   try { drawCraft(glyphsNow(r), craft, x, y, angle); } finally { ctx.restore(); }
 }
 
-// The words at the head's right: a hand-in is a quest done; the opening's lines are the story's; any other talk offers.
+// The words at the head's left: a hand-in is a quest done; the story's lines are the story's; any other talk offers.
 const KIND = Object.freeze({ done: 'QUEST DONE', story: 'STORY', offer: 'NEW QUEST' });
+// The rows that tell about a thing rather than answer it (src/menus.js rowTones' TELLS): pressed, nothing is written into the script.
+const TELLS = new Set(['INFO', 'REPLAY FLIGHT']);
+
+// Who speaks a talk's plain lines, by its name: "SCOOTY / MECHANIC" a person and a role (the role speaks); "RELAY 12 MECHANIC" the station's
+// name and its desk (the desk speaks); anything else one name. And the head's right: the station, or the talk's `place`, or the name.
+function speakerOf(world, t) {
+  const name = String(t.talk.name ?? '');
+  if (name.includes(' / ')) return name.split(' / ')[1];
+  const st = world.stations.find((s) => s.id === t.id);
+  if (st && name.startsWith(`${st.label} `)) return name.slice(st.label.length + 1);
+  return name;
+}
+function placeOf(world, t) {
+  const st = world.stations.find((s) => s.id === t.id);
+  if (st) return st.label;
+  const name = String(t.talk.name ?? '');
+  return t.talk.place ?? (name.includes(' / ') ? name.split(' / ')[0] : name);
+}
+
+// What a talk says, as the script's lines: { who, text, ink, key }. Its `before` first, then its `lines`; plain strings by its speaker,
+// together. A line is written into the script once, known by its speaker and words, or by its own `key` where the same words come again (a
+// recording played twice at COMMONS).
+export function talkLines(world, t) {
+  if (!t?.talk) return [];
+  const who = speakerOf(world, t), out = [];
+  const add = (list) => {
+    let run = [];
+    const flush = () => { if (run.length) out.push({ who, text: run.join(' '), ink: null }); run = []; };
+    for (const l of list ?? []) {
+      if (typeof l === 'string') { if (l.trim()) run.push(l.trim()); continue; }
+      if (l?.line == null || !String(l.line).trim()) continue;
+      flush();
+      out.push({ who: l.who ?? who, text: String(l.line).trim(), ink: l.ink ?? null, key: l.key ?? null });
+    }
+    flush();
+  };
+  add(t.talk.before);
+  add(t.talk.lines);
+  return out;
+}
 
 // What is said, as one string: the beat stands again when it changes.
-const said = (t) => (t?.talk ? `${t.id}|${t.talk.name}|${(t.talk.lines ?? []).join(' ')}|${t.actions.map((a) => a.label).join(',')}` : null);
+const saidKey = (world, t) => (t?.talk ? `${t.id}|${t.talk.name}|${talkLines(world, t).map((l) => `${l.who}:${l.text}`).join(' ')}|${t.actions.map((a) => a.label).join(',')}` : null);
+const threadOf = (t) => String(t.talk.thread ?? t.id);
+// How long an entry stands before the next comes.
+const readOf = (e) => (e.you ? BEAT.act : BEAT.read + BEAT.perChar * len(e.text));
 
 export function createTalkBeat(game) {
   const { world } = game;
   // `key` what stands (said), `target` its menu as last read, `dismissed` what LATER put away, `level` 0..1 how far it has come in, `carry`
   // the fraction of a world step the slow pace owes, `last` the page time of the last step.
   // `shot`: where the speaker's picture takes its fragment of a station, new each time a beat stands (a look-only choice: Math.random).
-  const S = { key: null, target: null, dismissed: null, level: 0, carry: 0, last: null, forId: null, shot: null };
+  // `scripts`: each conversation's script by its thread, { entries: [{ who, text, ink, you, at }], seen, tone, touched } (`at` the page time an
+  // entry comes; `seen` what the talk said that is in it already; `tone` its quest's, the first a row of it had).
+  const S = { key: null, target: null, dismissed: null, level: 0, carry: 0, last: null, forId: null, shot: null, scripts: new Map() };
   const pageTime = () => performance.now() / 1000;
+
+  // A conversation's script, made the first time it is met (and the oldest let go past `threads`, or past `keep` s unheard).
+  function scriptOf(t, now) {
+    const id = threadOf(t);
+    let s = S.scripts.get(id);
+    if (!s) {
+      for (const [k, old] of S.scripts) if (S.scripts.size >= BEAT.threads || now - old.touched > BEAT.keep) S.scripts.delete(k);
+      s = { entries: [], seen: new Set(), tone: null, touched: now };
+      S.scripts.set(id, s);
+    }
+    s.touched = now;
+    return s;
+  }
+  // Where the next entry comes: once the last has stood its time, or now.
+  const nextAt = (s, now) => { const e = s.entries.at(-1); return e ? Math.max(now, e.at + readOf(e)) : now; };
+  // What the talk says now, written into its script where it is not yet: one line after another.
+  function absorb(t, now) {
+    const s = scriptOf(t, now);
+    for (const l of talkLines(world, t)) {
+      const k = l.key ?? `${l.who}|${l.text}`;
+      if (s.seen.has(k)) continue;
+      s.seen.add(k);
+      s.entries.push({ ...l, at: nextAt(s, now) });
+    }
+    s.tone ??= rowTones(world, t).find(Boolean) ?? null;
+    return s;
+  }
 
   // Once a frame, before the world steps: whether the beat stands, and how far it has come in.
   function step(now = pageTime()) {
@@ -79,24 +176,39 @@ export function createTalkBeat(game) {
     S.last = now;
     const t = world.selected;
     if ((t?.id ?? null) !== S.forId) { S.forId = t?.id ?? null; S.dismissed = null; }
-    const k = said(t);
+    const k = saidKey(world, t);
     if (S.key && game.menu.closed) S.dismissed = S.key;
     const stands = !!k && !game.menu.closed && !world.paused && k !== S.dismissed && shipStands(world).on && world.ship?.alive !== false;
-    if (stands) { if (S.key !== k && !S.level) S.shot = { u: Math.random(), v: Math.random() }; S.key = k; S.target = t; } else S.key = null;
+    if (stands) { if (S.key !== k && !S.level) S.shot = { u: Math.random(), v: Math.random() }; S.key = k; S.target = t; absorb(t, now); } else S.key = null;
     const goal = S.key ? 1 : 0, rate = 1 / (goal ? BEAT.in : BEAT.out);
     S.level = goal > S.level ? Math.min(goal, S.level + dt * rate) : Math.max(goal, S.level - dt * rate);
     if (!S.level) { S.target = null; S.carry = 0; }
   }
   const shown = () => S.level > 0 && !!S.target;
   const standing = () => !!S.key;
-  // The world's pace now, and of `n` world steps the frame's clock gives, how many run (the fraction carried to the next frame).
-  const pace = () => 1 - (1 - BEAT.pace) * easeOut(S.level);
+  // The world's pace now, and of `n` world steps the frame's clock gives, how many run (the fraction carried to the next frame). A `live` talk
+  // leaves the world its pace.
+  const slows = () => !S.target?.talk?.live;
+  const pace = () => (slows() ? 1 - (1 - BEAT.pace) * easeOut(S.level) : 1);
   function steps(n) {
-    if (!S.level && !S.carry) return n;
+    if ((!S.level && !S.carry) || !slows()) { S.carry = 0; return n; }
     S.carry += n * pace();
     const m = Math.floor(S.carry + 1e-9);
     S.carry -= m;
     return m;
+  }
+
+  // Row `i` of the menu the ship is next to, pressed (the router's keys and clicks): the world runs it (World.runAction), and where the menu
+  // talks the answer is written into its script as YOU's action, whatever of the talk was still to come said first. Returns whether it ran.
+  function run(i, now = pageTime()) {
+    const t = world.selected, row = t?.actions?.[i];
+    const ran = world.runAction(i);
+    if (ran && t?.talk && row && !TELLS.has(row.label)) {
+      const s = scriptOf(t, now);
+      for (const e of s.entries) if (e.at > now) e.at = now;
+      s.entries.push({ who: YOU, text: `*${row.label}*`, ink: null, you: true, at: now });
+    }
+    return ran;
   }
 
   // The speaker's picture in its square, or null when it has none drawn here (a planet's errand): a station as the world draws it, a fragment of
@@ -110,7 +222,8 @@ export function createTalkBeat(game) {
     return null;
   }
   // A quest's ship as the world draws it now: its drawing and its heading (a pilot out of fuel and a wreck turn slowly by the world's clock,
-  // src/questHooks.js drawDrifter and src/wrecked.js drawWreck, `TURN`; a ship the pirates hold sways, src/pester.js pesterHere), or null.
+  // src/questHooks.js drawDrifter and src/wrecked.js drawWreck, `TURN`; a ship the pirates hold sways, src/pester.js pesterHere; CLIPPER as its
+  // crew points it, src/clipper.js, in its paint as the page lends it), or null.
   function craftPose(id) {
     if (id === DRIFTER_ID) { const d = drifterHere(world); return d && { craft: drifterCraft(d), angle: d.angle + world.time * TURN }; }
     if (id === WRECK_ID) {
@@ -118,41 +231,36 @@ export function createTalkBeat(game) {
       return at && { craft: at.craft, angle: here ? here.angle + world.time * TURN : at.angle ?? -Math.PI / 2 };
     }
     if (id === PESTER_ID) { const p = pesterHere(world); return p && { craft: p.craft, angle: p.angle }; }
+    if (id === SPECIAL_ID) { const c = clipperPose(world), craft = c && world.clipperArt?.craft(); return craft && { craft, angle: c.angle }; }
     return null;
   }
 
-  // Who speaks and what they are: "RELAY 12 DISPATCH" is the station's name and its desk; "SCOOTY / MECHANIC" its two parts; else one name.
-  function speaker(t) {
-    const name = String(t.talk.name ?? '');
-    if (name.includes(' / ')) { const [a, b] = name.split(' / '); return [a, b]; }
-    const st = world.stations.find((s) => s.id === t.id);
-    if (st && name.startsWith(`${st.label} `)) return [st.label, name.slice(st.label.length + 1)];
-    return [name, ''];
-  }
-
   // The beat drawn now, over the finished frame and under the pop-ups, on the organism's kit (labs/graphics/organism.js; SX's sketch W-ORG R7):
-  // a dialog the ladder's S wide (640). Its head says what the talk is at the left, in the story's purple (SX: «надпись Story, она должна быть
-  // слева»), and who speaks at the right, what they are in the label's gray before their name (SX: «Скути механик ... должно быть явно справа»).
-  // The words at the left, the speaker's picture at the right in a square, frameless; the answers at the body's foot, `C` over the foot's rule
-  // and two `C` under the words at least (SX, 2026-10-21: «кнопка ответа вообще во всех таких окнах должна привязываться к низу»; 2026-10-16:
-  // «Двойной, тройной, четверной отступ»); a quest's answer its keycap in the purple. The foot: ESC LATER. It comes in as the pause's window does,
-  // out of a fade and a few px from above, once the veil is down. Returns the window's box, or null.
+  // a dialog the ladder's S wide (640). Its head says what the talk is at the left (SX: «надпись Story, она должна быть слева») and the place at
+  // the right, both white. The script at the left, the speaker's picture at the right in a square, frameless; the answers at the body's foot, `C`
+  // over the foot's rule and two `C` under the words at least (SX, 2026-10-21: «кнопка ответа вообще во всех таких окнах должна привязываться к
+  // низу»; 2026-10-16: «Двойной, тройной, четверной отступ»); a quest's answer its keycap in the quest's ink. The foot: ESC LATER. It comes in
+  // as the pause's window does, out of a fade and a few px from above, once the veil is down. Returns the window's box, or null.
   function draw(r, now = pageTime()) {
     if (!shown()) return null;
     const t = S.target, k = easeOut(S.level);
     r.fill(0, 0, r.width, r.height, ROLES.backing, BEAT.veil * k);
     if (k < BEAT.show) return null;
     const come = clamp((k - BEAT.show) / (1 - BEAT.show), 0, 1), paint = picture(t);
-    const tone = rowTones(world, t)[0] ?? null, tones = rowTones(world, t);
+    const tones = rowTones(world, t), tone = tones[0] ?? null;
     const hand = t.actions.some((a) => /^HAND IN/.test(a.label));
     const kind = hand ? KIND.done : tone === 'story' || !tone ? KIND.story : KIND.offer;
-    const [who, role] = speaker(t);
+    const script = absorb(t, now), nick = QUEST_INKS[script.tone] ?? INK.purple;
     const win = new Win(r, { size: [BEAT.width, null], id: 'beat', live: come >= 1 }), p = win.p, { cw, m } = win;
-    // Measured first: the words, the picture, the answers.
+    // Measured first: the script, the picture, the answers.
     // The picture as large as the room between the ship and the cockpit leaves it, the window's bands taken off (it stands under the ship).
     const room = r.cockpit.y - BEAT.floor - (r.cy + BEAT.under) - (win.headRule + 1 + 2 * ORG.C + win.footBand);
     const side = paint ? clamp(Math.floor(room), BEAT.shotLeast, BEAT.shot) : 0, cols = Math.floor((p.cxr - side - (paint ? ORG.C : 0) - p.cx + 2 * m.capLeft) / cw);
-    const lines = (t.talk.lines ?? []).flatMap((l) => wrap(l, cols, 5)).filter(Boolean);
+    // The script's columns: the names' (the longest and a gutter), the words' (what is left); every entry, said or still to come, so the window
+    // is as tall from the first line as the talk will be.
+    const entries = script.entries;
+    const nameCols = entries.some((e) => e.who) ? Math.max(...entries.map((e) => len(e.who))) + ORG.gutter : 0;
+    const lines = entries.flatMap((e) => wrap(e.text, cols - nameCols, BEAT.wrap).filter(Boolean).map((text, j) => ({ e, text, first: j === 0 })));
     const rows = [];
     t.actions.forEach((a, i) => {
       rows.push({ key: String(i + 1), label: a.label, disabled: a.disabled, tone: tones[i] ?? null });
@@ -172,9 +280,19 @@ export function createTalkBeat(game) {
     win.place(() => ({ x: Math.round(r.width / 2 - win.w / 2), y: Math.max(r.view.y, y) - lift }));
     const body = () => {
       win.sheet();
-      win.head([[kind, INK.purple]], { meta: [{ runs: [...(role ? [[`${role}  `, INK.label]] : []), [who, INK.text]] }] });
+      win.head([[kind, INK.text]], { meta: [{ runs: [[placeOf(world, t), INK.text]] }] });
       if (paint) paint(r, { x: Math.round(p.cxr) - side, y: Math.round(p.y(0)), w: side, h: side }, now);
-      lines.forEach((l, i) => win.text(l, p.cx, p.y(i), INK.text));
+      // The script: each line once its time has come, coming in; its speaker on its first row (the pilot's in gray, anyone else's in the quest's
+      // ink), its words beside, the pilot's in gray too.
+      lines.forEach((l, i) => {
+        if (l.e.at > now) return;
+        const put = () => {
+          if (l.first && l.e.who) win.text(l.e.who, p.cx, p.y(i), l.e.you || l.e.who === YOU ? INK.label : nick);
+          win.text(l.text, p.x(nameCols), p.y(i), l.e.you || l.e.who === YOU ? INK.label : l.e.ink ?? INK.text);
+        };
+        const fresh = clamp((now - l.e.at) / BEAT.fresh, 0, 1);
+        if (fresh < 1) withAlpha(r.ctx, easeOut(fresh), put); else put();
+      });
       // The answers: each its keycap and its words (money in gold, one that cannot be taken faint), a cargo's note under it; each row a button.
       rows.forEach((row, i) => {
         const Y = p.y(kRows + i), words = row.disabled ? [[row.label, INK.faint]] : moneyRuns(row.label, row.key ? INK.text : INK.label);
@@ -184,7 +302,7 @@ export function createTalkBeat(game) {
         if (win.live) noteKey(row.key, box, r);
         win.item(`row:${row.key}`, box, (on) => {
           if (on) win.bar(p.cx, end, Y);
-          win.key(p.cx, Y, row.key, { words: { runs: words }, tier: row.tone ? 'quest' : 'key', plate: on });
+          win.key(p.cx, Y, row.key, { words: { runs: words }, tier: row.tone ? QUEST_INKS[row.tone] ?? 'quest' : 'key', plate: on });
         });
       });
       // The foot: LATER, the menu's close.
@@ -198,5 +316,5 @@ export function createTalkBeat(game) {
   // berth's among them, is left as it is).
   function later() { if (S.key) S.dismissed = S.key; }
 
-  return { state: S, step, shown, standing, pace, steps, draw, later };
+  return { state: S, step, shown, standing, pace, steps, run, draw, later };
 }

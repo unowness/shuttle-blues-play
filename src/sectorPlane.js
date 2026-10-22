@@ -18,6 +18,7 @@ import { availableIn } from './rewards.js';
 import { fogHash } from './worldDraw.js';
 import { wakePuff, stepWake, enginePower, jetPuff } from './fogCells.js';
 import { shiftVanishing } from './vanish.js';
+import { terraPlanet } from './terra.js';
 
 // The four sides of the boss's smoke square as dead edges (edgeDepths): an axis and the way out.
 const ARENA_EDGES = Object.freeze([['x', -1], ['x', 1], ['y', -1], ['y', 1]].map(([axis, dir]) => Object.freeze({ axis, dir, arena: true })));
@@ -90,7 +91,8 @@ export function sectorBodies(world, sector) {
     // The turn each body starts at is drawn from its sector's own stream, so it does not depend on which sectors were built first.
     const sky = world.rng(`sky:${sector.id}`);
     b = {
-      planets: (sector.planets || []).map((p) => new Planet({ ...p, x: p.x * world.width, y: p.y * world.height }, sky)),
+      // (And TERRA where the pilot's stands in it: src/terra.js, no catalogue's planet.)
+      planets: [...(sector.planets || []).map((p) => new Planet({ ...p, x: p.x * world.width, y: p.y * world.height }, sky)), ...[terraPlanet(world, sector.id)].filter(Boolean)],
       holes: [...(sector.holes || []).map((h) => new BlackHole({ ...h, x: h.x * world.width, y: h.y * world.height }, sky)), ...secretHoleBodies(world, sector)],
       stations: buildStations(sector, { width: world.width, height: world.height }, world.ledger),
     };

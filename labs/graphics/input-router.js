@@ -105,7 +105,8 @@ export function createInputRouter(game) {
     if (menuOpen(world.selected, game.menu.closed, world.docked) && !open.help) {
       for (let i = 0; i < CONFIG.interaction.maxActions; i++) {
         if (!tappedChoice(input, i)) continue;
-        if (world.runAction(i)) sound.play('menu');
+        // (Through the talk's beat, which writes an answer into its script: labs/graphics/talk-beat.js run.)
+        if (game.beat ? game.beat.run(i) : world.runAction(i)) sound.play('menu');
         break;
       }
     }

@@ -188,7 +188,9 @@ export function stepWreck(world, dt) {
   const d = Math.hypot(here.x - world.ship.x, here.y - world.ship.y);
   if (!s.wreck.hailed && d < C.hailReach) {
     s.wreck.hailed = true;
-    world.emit('trafficHail', { craftId: WRECK_ID, label: here.name, line: wreckPlea(world, here.ask), x: here.x, y: here.y, sectorId: world.sector.id });
+    // Its plea, kept: its window asks in it (src/menus.js wreckMenu), the start of its conversation.
+    const plea = s.wreck.plea = wreckPlea(world, here.ask);
+    world.emit('trafficHail', { craftId: WRECK_ID, label: here.name, line: plea, x: here.x, y: here.y, sectorId: world.sector.id });
   }
   // Sparks only where they can be seen: within a screen and a half.
   if (d > 1400) return;

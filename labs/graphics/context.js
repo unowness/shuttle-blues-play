@@ -23,7 +23,8 @@ import { PAD, LOOK_SCALE } from './station-art.js';
 // it does its first, HAND IN («кликом можно закрыть диалог и сдать заданее»).
 const TALK_LINES = 5;
 function talkLines(talk, columns) {
-  const said = talk.lines ?? [];
+  // (A line of its own speaker's, { who, line }, by its words: the script's window, labs/graphics/talk-beat.js, names them.)
+  const said = (talk.lines ?? []).map((l) => (typeof l === 'string' ? l : String(l?.line ?? ''))).filter(Boolean);
   return (said.length === 1 ? wrap(said[0], Math.min(FIND_COLS, columns), TALK_LINES) : said.slice(0, TALK_LINES).map((l) => fitText(l, columns))).filter(Boolean);
 }
 

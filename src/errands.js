@@ -112,9 +112,12 @@ export function planetMenu(world) {
   if (!planet || !world.ship.alive) return null;
   const at = limbPoint(world, planet), st = stationDefById(e.station);
   const ask = e.stage === 'ask';
+  // One conversation from the ask to the thanks (labs/graphics/talk-beat.js, the game's dialogs as a script; SX, 2026-10-22): its ask is its
+  // window's words while it asks, and said before whatever it says later, so a pilot who comes back with the suitcase finds it there.
+  const asked = PLANET_ASKS[wording(e, world).ask](st?.label ?? 'A STATION'), thread = world.sideQuest.id;
   // Thanked: its words in its window and the quest's hand-in (labs/graphics/context.js draws a `talk` so).
   if (e.stage === 'thanked') {
-    return { id: PLANET_ID, title: planet.label, talk: { name: planet.label, lines: e.thanks ?? [] },
+    return { id: PLANET_ID, title: planet.label, talk: { name: planet.label, lines: e.thanks ?? [], before: asked, thread },
       x: at.x, y: at.y, interactRadius: E().reach, art: { model: { width: 6, height: 3 }, scale: 1 },
       actions: [{ label: 'HAND IN', run: () => handInSuitcase(world) }] };
   }
@@ -122,6 +125,7 @@ export function planetMenu(world) {
     id: PLANET_ID, title: `${planet.label} / ${ask ? 'REQUEST' : 'DELIVERY'}`,
     subtitle: ask ? `COLLECT SUITCASE / ${st?.label ?? ''}` : 'SUITCASE ABOARD',
     x: at.x, y: at.y, interactRadius: E().reach, art: { model: { width: 6, height: 3 }, scale: 1 },
+    talk: ask ? { name: planet.label, lines: asked, thread } : { name: planet.label, lines: [], before: asked, thread },
     actions: [ask ? { label: 'ACCEPT JOB', run: () => takeJob(world) } : { label: 'DELIVER SUITCASE', run: () => deliverSuitcase(world) }],
   };
 }

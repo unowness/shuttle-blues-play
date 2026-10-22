@@ -16,13 +16,17 @@ import { planetCraftAt, PLANET_ID } from './errands.js';
 import { isRandomQuest, cursorEarned, cursorName } from './cursors.js';
 import { SPECIAL_ID, specialDiscovery, specialCraftAt } from './specials.js';
 import { openingStage } from './opening.js';
+import { terraTarget } from './terra.js';
+import { isCrewHail, crewCraftAt } from './clipper.js';
 
 // The open quests' places as points of the grid (src/spots.js): what a quest that puts something in the open keeps apart from. A
 // reference ship standing, not yet boarded, is on no list but stands in the open all the same (src/specials.js).
 export function questPlaces(world) {
   const s = world.special, standing = s && !s.boarded && s.site
     ? [{ target: { sectorId: s.site.sectorId, x: s.site.x / world.width, y: s.site.y / world.height } }] : [];
-  return placesOf([...currentQuests(world), ...standing]);
+  // TERRA, where the pilot's stands (src/terra.js): no catalogue's planet, so kept apart from as an open quest's place is.
+  const terra = terraTarget(world);
+  return placesOf([...currentQuests(world), ...standing, ...(terra ? [{ target: terra }] : [])]);
 }
 
 // The pointers given for ordinary quests and restorations (src/cursors.js): each ordinary quest done is counted once, as the quests
@@ -73,8 +77,8 @@ export function stepRadioCall(world) {
   const q = offerSideQuest(world, 'rescue');
   if (!q) { later(); return; }
   p.npcCallAt = null;
-  const code = q.drifter.code;
-  world.emit('openingCall', { who: NPC_ART[code]?.name ?? 'PILOT', line: sayFor(world, 'rescue', 'hail', code) });
+  const code = q.drifter.code, plea = q.plea = sayFor(world, 'rescue', 'hail', code);
+  world.emit('openingCall', { who: NPC_ART[code]?.name ?? 'PILOT', line: plea });
 }
 
 // A pilot out of fuel: one of the thirteen friendly ships (src/npcShips.js), in its own colours, turning slowly with its
@@ -114,6 +118,7 @@ export function questCraftAt(world, craftId) {
   if (craftId === WRECK_ID) return wreckCraftAt(world);
   if (craftId === PLANET_ID) return planetCraftAt(world);
   if (craftId === SPECIAL_ID) return specialCraftAt(world);
+  if (isCrewHail(craftId)) return crewCraftAt(world);
   return undefined;
 }
 

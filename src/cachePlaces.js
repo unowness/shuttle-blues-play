@@ -10,6 +10,7 @@ import { secretHoleAt } from './secretHole.js';
 import { openSectorIds, sectorOpen } from './frontier.js';
 import { KEEP_OUT } from './keepOut.js';
 import { contentAreas, insideContentArea } from './mapContent.js';
+import { TERRA } from './terra.js';
 
 // Where a find is laid when it becomes the pilot's to find (SX, 2026-10-02: «у нас тайники же тоже не сразу открыты они
 // открываются по мере починки секторов но новые тайники не обязательно должны в новом секторе быть, понимаешь я расставил их
@@ -35,10 +36,10 @@ function waiting(ledger) {
   return out;
 }
 
-// Why a cache cannot lie at (x, y) of `sectorId` (world units), or null. `made`: a drawn place, asked of everything a pilot
+// Why a cache cannot lie at (x, y) of `sectorId` (world units), or null (and a check's: checks/clipper.mjs, TERRA's place). `made`: a drawn place, asked of everything a pilot
 // must reach a cache across; one of SX's places is clear of the catalogue's things by its check, so only the waiting caches,
 // the secret hole, the places already taken and the stations' menu reach are asked of it.
-function issue(sectorId, x, y, ledger, made) {
+export function issue(sectorId, x, y, ledger, made) {
   const c = P();
   for (const w of waiting(ledger)) if (w.sector === sectorId && Math.hypot(w.x - x, w.y - y) < c.apart) return 'by a waiting cache';
   for (const p of ledger.placed.values()) if (p.sector === sectorId && Math.hypot(p.x * W - x, p.y * H - y) < c.taken) return 'taken';
@@ -53,7 +54,9 @@ function issue(sectorId, x, y, ledger, made) {
     return null;
   }
   if (x < c.edge * W || y < c.edge * H || x > (1 - c.edge) * W || y > (1 - c.edge) * H) return 'at the edge';
-  for (const p of s.planets ?? []) if (Math.hypot(x - p.x * W, y - p.y * H) < p.radius + 2 * orbit + reach + 100) return 'by a planet';
+  for (const p of [...(s.planets ?? []), ...(ledger.terra?.sector === sectorId ? [{ ...ledger.terra, radius: TERRA.radius }] : [])]) {
+    if (Math.hypot(x - p.x * W, y - p.y * H) < p.radius + 2 * orbit + reach + 100) return 'by a planet';
+  }
   const thrust = CHASSIS[DEFAULT_CHASSIS].thrust;
   for (const h of s.holes ?? []) {
     const pull = Math.sqrt(h.mass / (thrust * CONFIG.stranded.gravityShare));

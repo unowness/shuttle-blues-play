@@ -88,9 +88,15 @@ export const PAINTS = Object.freeze([
   // The MYSTERY MACHINE's (2026-10-21): its turquoise, its lime wave, its orange flowers.
   paint('sp-scooby', 'MYSTERY', { material: '#4FB3C2', structure: '#8BB33F', highlight: '#F0913A',
     engine: '#3E8C98', engineActive: '#F0B05A', smoke: '#C9E07A', jets: '#E8F4F2', glassDark: '#5C6B78' }),
+  // CLIPPER's (2026-10-22): SX's G8 TWIN NOS, ORANGE SIDES on labs/graphics/sketches/clipper-beta.html, after Paul Walker's Supra of the
+  // first Fast & Furious: the candy orange hull, the whiskers ◝ ◜ a light gray, the outer struts / \ lime (`struts`), the glass @@ and the
+  // inner struts white (`glass`), white on the drive too («когда он летит белый хвост не надо делать голубым»). CLIPPER wears it in its
+  // quest (src/clipper.js); a pilot who led its crew wears it on any ship.
+  paint('sp-clipper', 'SUPRA', { material: '#F07B1F', structure: '#8E959E', highlight: '#D9DEE3', struts: '#86DC32', glass: '#EEF1F4',
+    engine: '#EEF1F4', engineActive: '#EEF1F4', smoke: '#FFC488', jets: '#F4F6F8', glassDark: '#59626B' }),
 ]);
 
-// The seven paints the reference ships leave (found in no cache): the pilot card's PAINTS count and the caches' twelve are the others.
+// The eight paints the reference ships leave (found in no cache): the pilot card's PAINTS count and the caches' twelve are the others.
 export const SPECIAL_PAINTS = Object.freeze(PAINTS.filter((p) => p.id.startsWith('sp-')).map((p) => p.id));
 
 // Paints of an older save, by what they became (2026-09-30): SUNSET's place went to
@@ -113,13 +119,16 @@ export const LAMP = '#ffa66b';
 // работает также как и у стандартного»). The loaner itself is never painted, so it keeps them.
 const AUTHORED = Object.freeze({ '#6f74c0': 'material', '#b9a5f0': 'highlight', '#5ce422': 'engine', '#f0a5c0': 'structure', [LAMP]: 'jets',
   '#bd9c5e': 'material', '#ffd27f': 'jets' });
-const ARCS = new Set(['◝', '◜']);
+// A paint may give the glass's cells (@) and the struts' (/ \) of the highlight inks of their own (`glass`, `struts`: SUPRA's lime legs and
+// white glass); one that does not paints both its highlight.
+const ARCS = new Set(['◝', '◜']), GLASS = new Set(['@']), STRUTS = new Set(['/', '\\']);
 export function paintedHull(paintId, cell, engineOn = false) {
   const inks = paintById(paintId)?.inks;
   const part = inks && AUTHORED[String(cell?.color).toLowerCase()];
   if (!part) return null;
   if (part === 'material') return ARCS.has(cell.ch) ? inks.structure : inks.material;
   if (part === 'engine') return engineOn ? inks.engineActive : inks.engine;
+  if (part === 'highlight') return (GLASS.has(cell.ch) && inks.glass) || (STRUTS.has(cell.ch) && inks.struts) || inks.highlight;
   return inks[part];
 }
 
