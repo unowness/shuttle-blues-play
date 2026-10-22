@@ -59,11 +59,15 @@ export const LINES = Object.freeze({
   bye: [[CREW.pasha, "THANKS, DUDE. WE'LL TAKE IT FROM HERE."]],
   last: [[CREW.sx, 'I SWEAR. THAT WAS OUR LAST RIDE.']],
 });
-// What the window says, as the script's lines (src/specials.js specialCandidates): each its speaker.
+// What the window says, as the script's lines (src/specials.js specialCandidates): each its speaker; the two strips of the meeting said
+// before it, so the script begins with them (SX, 2026-10-22: «И начинаться все должно быть дюд»).
 export const talkOf = () => LINES.talk.map(([who, line]) => ({ who, line }));
+export const meetOf = () => LINES.meet.map(([who, line]) => ({ who, line }));
 
-// How long a line stands: long enough to read while flying (SX: «чтобы фразочки ... довольно долго на экране висели»).
+// How long a line stands: long enough to read while flying (SX: «чтобы фразочки ... довольно долго на экране висели»). And how long before
+// the next of a pair is said: the time to read the first (SX's P1, «фразочки слишком быстро»; 1.3 s till then).
 export const readLife = (line) => Math.max(C().read.least, C().read.base + line.length / C().read.chars);
+const readTime = (line) => C().pace.base + line.length / C().pace.cps;
 
 // ---- places ------------------------------------------------------------------------------------------------------------------
 
@@ -119,7 +123,7 @@ function keepOff(world, at) {
 
 // ---- what they say -----------------------------------------------------------------------------------------------------------
 
-// Lines to be said from `due` (world time), a pair's second `pair` s after its first is said.
+// Lines to be said from `due` (world time), a pair's second once its first has been read (`readTime`).
 function queue(list, lines, due) { lines.forEach(([who, line], i) => list.push({ due, who, line, pair: i > 0 })); }
 // The lines due, said while `at` (the pilot's sector's units) is in sight; returns the lines said.
 function sayDue(world, list, at) {
@@ -128,7 +132,7 @@ function sayDue(world, list, at) {
     const e = list.shift();
     world.emit('trafficHail', { craftId: CREW_HAILS[e.who], label: e.who, line: e.line, life: readLife(e.line), x: at.x, y: at.y, sectorId: world.sector.id });
     said.push(e);
-    if (list[0]?.pair) list[0].due = Math.max(list[0].due, world.time + C().pair);
+    if (list[0]?.pair) list[0].due = Math.max(list[0].due, world.time + readTime(e.line));
   }
   return said;
 }
@@ -198,53 +202,74 @@ function fight(world, q) {
     queue(q.say, LINES.fight, world.time + 0.6);
   }
 }
-// The crew shoots at the nearest pirate within reach (any: «если нападает на них пираты, то они тоже стреляют»), its nose to it a moment.
-function shoot(world, q, dt) {
-  const c = C().shot, at = localOf(world, q);
-  q.shotIn -= dt;
-  if (q.shotIn > 0 || !world.pirates.length || !nearSector(at)) return;
-  let best = null, bd = c.reach;
+// The nearest pirate within `reach` u of `at` (the pilot's sector's units), not running, or null.
+function nearestPirate(world, at, reach) {
+  let best = null, bd = reach;
   for (const p of world.pirates) {
     if (p.mode === 'leave') continue;
     const d = Math.hypot(p.x - at.x, p.y - at.y);
     if (d < bd) { bd = d; best = p; }
   }
+  return best;
+}
+// In a fight the crew takes part (SX, 2026-10-22: «не стреляет не двигается по экрану, когда прилетают пираты»; they stood at the pilot's
+// back until then): round the nearest pirate at `range` u, `circle` rad/s, at its top, its nose on it.
+function engage(world, q, foe, dt) {
+  const c = C().fight, at = localOf(world, q);
+  q.circle = (q.circle ?? Math.atan2(at.y - foe.y, at.x - foe.x)) + c.circle * dt;
+  const gx = foe.x + Math.cos(q.circle) * c.range - at.x, gy = foe.y + Math.sin(q.circle) * c.range - at.y, d = Math.hypot(gx, gy) || 1;
+  const want = Math.min(C().speed, d * 2), push = keepOff(world, at);
+  steer(q, (gx / d) * want + push.x, (gy / d) * want + push.y, dt);
+  q.nose = Math.atan2(foe.y - at.y, foe.x - at.x) + 0.05 * Math.sin(world.time * 9.1);
+  q.engine = Math.hypot(q.vx, q.vy) > 60;
+}
+// The crew shoots at the nearest pirate within reach (any: «если нападает на них пираты, то они тоже стреляют»), twin shots side by side
+// from its two outer struts, its nose to it a moment.
+function shoot(world, q, dt) {
+  const c = C().shot, at = localOf(world, q);
+  q.shotIn -= dt;
+  if (q.shotIn > 0 || !world.pirates.length || !nearSector(at)) return;
+  const best = nearestPirate(world, at, c.reach);
   if (!best) return;
   q.shotIn = c.every;
-  const lead = bd / c.speed, a = Math.atan2(best.y + (best.vy ?? 0) * lead - at.y, best.x + (best.vx ?? 0) * lead - at.x);
+  const lead = Math.hypot(best.x - at.x, best.y - at.y) / c.speed, a = Math.atan2(best.y + (best.vy ?? 0) * lead - at.y, best.x + (best.vx ?? 0) * lead - at.x);
   q.aim = a; q.aimAt = world.time;
-  const x = at.x + Math.cos(a) * 30, y = at.y + Math.sin(a) * 30;
-  world.bullets.push({ x, y, vx: q.vx + Math.cos(a) * c.speed, vy: q.vy + Math.sin(a) * c.speed, life: c.life, owner: 'clipper' });
-  world.emit('shotFired', { owner: 'clipper', x, y, sectorId: world.sector.id });
+  for (const side of [-1, 1]) {
+    const x = at.x + Math.cos(a) * 30 - Math.sin(a) * side * c.twin, y = at.y + Math.sin(a) * 30 + Math.cos(a) * side * c.twin;
+    world.bullets.push({ x, y, vx: q.vx + Math.cos(a) * c.speed, vy: q.vy + Math.sin(a) * c.speed, life: c.life, owner: 'clipper' });
+  }
+  world.emit('shotFired', { owner: 'clipper', x: at.x, y: at.y, sectorId: world.sector.id });
 }
 
-// At TERRA: KWLSK's thanks, a turn round it at `orbit` u off its rim, slowing to a stop; then ROUXEE's last word.
+// At TERRA: KWLSK's thanks, one turn round it close over its rim (`orbit` u; SX, 2026-10-22: «кружит вокруг планеты, но очень далеко от
+// планеты, и ты не видишь фразы»: 520 u off it and a stop wherever the time ran out until then), easing to a stop over the last `stop` s
+// where it began, on the side it came from, where the pilot led it; then ROUXEE's last word.
 function beginRound(world, q) {
   const to = terraAt(world), dx = q.x - to.x, dy = q.y - to.y;
   q.stage = 'round';
   q.say = [];
   queue(q.say, LINES.bye, world.time);
-  q.round = { a: Math.atan2(dy, dx), r: Math.hypot(dx, dy), t: 0, dir: dx * q.vy - dy * q.vx < 0 ? -1 : 1 };
+  q.round = { a: Math.atan2(dy, dx), r: Math.hypot(dx, dy), done: 0, dir: dx * q.vy - dy * q.vx < 0 ? -1 : 1 };
 }
 function round(world, q, dt) {
   const c = C(), to = terraAt(world), R = q.round;
-  R.t += dt;
-  const k = R.t < c.round ? 1 : Math.exp(-(R.t - c.round) / c.stop);
-  R.a += R.dir * c.spin * k * dt;
+  const k = clamp((TAU - R.done) / (c.spin * c.stop), 0.06, 1), turn = Math.min(TAU - R.done, c.spin * k * dt);
+  R.done += turn; R.a += R.dir * turn;
   R.r += (rim() + c.orbit - R.r) * Math.min(1, dt * 1.5);
   const x = to.x + Math.cos(R.a) * R.r, y = to.y + Math.sin(R.a) * R.r;
   q.vx = (x - q.x) / dt; q.vy = (y - q.y) / dt; q.x = x; q.y = y;
   if (k > 0.2) q.course = Math.atan2(q.vy, q.vx);
   q.nose = q.course + 0.04 * Math.sin(world.time * 4.7);
   q.engine = k > 0.35;
-  if (R.t >= c.round + 4 * c.stop) { q.stage = 'still'; q.vx = 0; q.vy = 0; queue(q.say, LINES.last, world.time); }
+  if (R.done >= TAU - 1e-6) { q.stage = 'still'; q.vx = 0; q.vy = 0; queue(q.say, LINES.last, world.time); }
 }
 
 function step(world, s, dt, end) {
   const q = s.q;
   if (q.stage === 'gone') return;
   if (q.stage === 'follow') {
-    follow(world, q, dt);
+    const foe = nearestPirate(world, localOf(world, q), C().fight.engage);
+    if (foe) engage(world, q, foe, dt); else { q.circle = null; follow(world, q, dt); }
     fight(world, q);
     const to = terraAt(world);
     if (to && Math.hypot(to.x - q.x, to.y - q.y) <= rim() + C().arrive) beginRound(world, q);

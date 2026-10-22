@@ -7,7 +7,7 @@ import { SPECIALS, specialById, specialModel, specialSize, drawModel, drawFlown,
 import { HANDLERS } from './specialQuests.js';
 import { QUEST_LINES as QL } from './questLines.js';
 import { radioFitted } from './opening.js';
-import { CREW, talkOf, clipperPose } from './clipper.js';
+import { CREW, talkOf, meetOf, clipperPose } from './clipper.js';
 import { contentAreas } from './mapContent.js';
 
 // The reference ships' rare quests (QUESTS_V2_HANDOFF.md, round three; SX, 2026-10-02: «квесты ... какой-то в каком-то из
@@ -310,7 +310,7 @@ export function specialCandidates(world) {
     return [{
       id: SPECIAL_ID, title: sp.label, subtitle: ASK[s.id](s.plan),
       x: s.site.x, y: s.site.y, interactRadius: S().reach, art: { model: specialSize(s.id), scale: sp.scale, turns: true },
-      talk: { name: sp.label, place: sp.label, lines: talkOf(), thread: s.questId },
+      talk: { name: sp.label, place: sp.label, before: meetOf(), lines: talkOf(), thread: s.questId },
       actions: [{ label: 'LEAD THEM', run: () => lead(world) }],
     }];
   }

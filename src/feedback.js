@@ -335,8 +335,8 @@ function drawChorus(r, world, pieces) {
 // flies: from the craft's shoulder a slash rises `rise` rows at the interface's 2:1 slant, and on it stands the line,
 // in one row or two of at most `wrap` cells, on its text's shadow (src/textShadow.js; it stood over a black at 0.62 until
 // 2026-10-02, then on the shadow of every shape until 2026-10-06). The craft's name is not repeated: the world writes it under the craft while the pilot is near. It lasts
-// `life` s and fades in and out over `fade` s. Up and to the right first; another corner where that would leave the view or cover the interface,
-// a planet or a station (hailBodies).
+// `life` s and fades in and out over `fade` s. Up and to the right first; up and to the left where that would leave the view or cover the
+// interface, a planet or a station (hailBodies); never under the craft (drawHail).
 export const HAIL = Object.freeze({ life: 4.5, rise: 1.6, wrap: 22, fade: 0.35, pad: 4 });
 
 // The line in one row, or in two where it is longer than `wrap` cells: broken between words, as evenly as it goes,
@@ -427,16 +427,24 @@ export function drawHail(r, world, item, occupied = [], name = item.hail.name ??
     const ex = sx + dir * run, ey = sy - up * rise;
     const tx = dir > 0 ? ex + HAIL.pad : ex - HAIL.pad - width, ty = up > 0 ? ey - height : ey + HAIL.pad;
     const box = { x: tx - HAIL.pad, y: ty - HAIL.pad, w: width + 2 * HAIL.pad, h: height + 2 * HAIL.pad };
-    const inside = box.x >= v.x && box.y >= v.y && box.x + box.w <= v.x + v.w && box.y + box.h <= v.y + v.h;
+    const across = box.x >= v.x && box.x + box.w <= v.x + v.w;
+    const inside = across && box.y >= v.y && box.y + box.h <= v.y + v.h;
     let clear = true;
     for (let k = 0; k < bodies && clear; k++) clear = !meets(box, BODIES[k]);
-    return { sx, sy, ex, ey, tx, ty, box, ok: inside && !occupied.some((o) => overlaps(box, o)), clear };
+    return { dir, sx, sy, ex, ey, tx, ty, box, across, ok: inside && !occupied.some((o) => overlaps(box, o)), clear };
   };
-  // The first corner off the interface and off the planets and stations; where none is, off the interface alone (as before 2026-10-21);
-  // where none is either, the first.
-  const tries = [place(1, 1), place(-1, 1), place(1, -1), place(-1, -1)];
-  const at0 = tries.find((t) => t.ok && t.clear) ?? tries.find((t) => t.ok) ?? tries[0];
-  const { sx, sy, ex, ey, tx, ty, box } = at0;
+  // Always over the craft (SX, 2026-10-22: «баблы, появляются то снизу корабля, то сверху ... тяжело текст прочитать, потому что он мигает на
+  // экране ... чтобы игрок, пользователь был готов всегда тексты читать сверху, а не снизу»; the two lower corners were tried too until then):
+  // up and to the right or up and to the left, the first off the interface and off the planets and stations, else off the interface alone,
+  // else the first whose box keeps inside the view across; and once a line has taken a side it keeps it (`item.side`) while it stays off the
+  // interface, or while the other side is no better, so it does not jump from frame to frame as bodies pass. Near the view's top it is held
+  // inside it, over the craft as far as it goes.
+  const sides = item.side ? [item.side, -item.side] : [1, -1], tries = sides.map((d) => place(d, 1));
+  const kept = item.side && (tries[0].ok || (!tries[1].ok && tries[0].across)) ? tries[0] : null;
+  const at0 = kept ?? tries.find((t) => t.ok && t.clear) ?? tries.find((t) => t.ok) ?? tries.find((t) => t.across) ?? tries[0];
+  item.side = at0.dir;
+  const down = Math.max(0, v.y - at0.box.y);
+  const { sx, sy, ex, tx } = at0, ey = Math.min(at0.ey + down, sy), ty = at0.ty + down, box = { ...at0.box, y: at0.box.y + down };
   if (box.x + box.w < v.x || box.x > v.x + v.w || box.y + box.h < v.y || box.y > v.y + v.h) return null;
   // No darkened box since 2026-10-02: the line stands on its text's shadow (src/textShadow.js, the labels' group; SX: «на тексте ...
   // в тех местах, где не надо прям заливку делать»). `box` is still the place it takes.

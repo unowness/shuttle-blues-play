@@ -190,8 +190,9 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     // Its window (context.js) comes once the ship has stood by its object half a second, on an arc round it, and the one before it
     // goes; a menu closed or the pause takes them at once. Beside it, the window of what the pointer is over (SX, 2026-10-04: a hover
     // shows the context window; world-pointer.js pointedMenu), shown, not used. Over the marks.
-    const hover = pause.pauseShown() ? null : pointedMenu(world);
-    occupied.push(...drawContextPlates(r, world, open && !game.beat.shown() ? target : null, avoid, { dismissed: !!target && !open, reducedMotion: feedback.reducedMotion, hover, area,
+    // (A menu that talks shows TALK before its rows until the pilot begins it: labs/graphics/talk-beat.js plate.)
+    const pointed = pause.pauseShown() ? null : pointedMenu(world), hover = pointed && game.beat.plate(pointed);
+    occupied.push(...drawContextPlates(r, world, open && !game.beat.shown() ? game.beat.plate(target) : null, avoid, { dismissed: !!target && !open, reducedMotion: feedback.reducedMotion, hover, area,
       greeting: game.greeting.style }));
     return occupied;
   }

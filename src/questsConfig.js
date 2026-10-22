@@ -203,19 +203,21 @@ export const QUESTS = {
       // in sight («если мы разошлись на два разных экрана, то надо к ним вернуться»): `view` u across and down from the pilot, the screen at the
       // camera's 83 %, about. `fidget`: SX's R4 FIDGET, a round of `period` s (backwards, unsure, forwards in bursts, backwards again), `back`
       // the share of `speed` flown backwards and `coast` between the bursts. `terra`: TERRA laid in a ring of `sectors` round the meeting,
-      // `clear` u past its cushion off everything, `edge` of its sector in. The crew is there `arrive` u off its rim; then round it `orbit` u
-      // off its rim at `spin` rad/s for `round` s, easing to a stop over `stop` s («проходят вокруг планеты»). `fight`: once the crew has come
-      // `at` of the way, `count` of `type` come at them from `distance` u ahead («если нападает на них пираты, то они тоже стреляют»); the crew
-      // shoots at any pirate within `reach` u every `every` s, a shot of `speed` u/s for `life` s. A line stands max(`read.least`, `read.base` +
+      // `clear` u past its cushion off everything, `edge` of its sector in. The crew is there `arrive` u off its rim; then once round it
+      // `orbit` u off its rim at `spin` rad/s, easing to a stop over its last `stop` s where it began («проходят вокруг планеты»; «очень далеко
+      // от планеты» at 520 u off it). `fight`: once the crew has come `at` of the way, `count` of `type` come at them from `distance` u ahead
+      // («если нападает на них пираты, то они тоже стреляют»); with a pirate within `engage` u the crew goes round the nearest at `range` u,
+      // `circle` rad/s, and shoots at any within `reach` u every `every` s, twin shots `twin` u either side of its nose, `speed` u/s for `life` s. A line stands max(`read.least`, `read.base` +
       // a second a `read.chars` characters) s, said only in sight («чтобы они активировались только когда пилот на экране»), the second of a
-      // pair `pair` s after the first; the way's three exchanges at `road` s of the escort.
+      // pair once the first is read, `pace.base` s and a second a `pace.cps` characters after it (SX's P1); the way's three exchanges at `road`
+      // s of the escort.
       clipper: { speed: 520, follow: 320, ramp: 250, lag: 2600, accel: 2.2, avoid: 420, view: { x: 760, y: 560 },
         fidget: { period: 11, back: 0.75, coast: 0.85 },
         terra: { sectors: [1, 2], clear: 1200, edge: 0.22 },
-        arrive: 900, orbit: 520, spin: 0.53, round: 7.5, stop: 0.8,
-        fight: { at: 0.4, count: 2, type: 'dart', distance: 1600 },
-        shot: { every: 0.55, reach: 1300, speed: 900, life: 1.6 },
-        read: { least: 4.5, base: 2, chars: 9 }, pair: 1.3, road: [1, 22, 45] },
+        arrive: 900, orbit: 140, spin: 0.45, stop: 1.6,
+        fight: { at: 0.4, count: 2, type: 'dart', distance: 1600, engage: 1700, range: 420, circle: 0.9 },
+        shot: { every: 0.45, reach: 1600, speed: 900, life: 1.8, twin: 12 },
+        read: { least: 4.5, base: 2, chars: 9 }, pace: { base: 1, cps: 12 }, road: [1, 22, 45] },
     },
     errand: {
       pay: 450, reach: 460, minLeg: spread(2500), maxLeg: spread(9000),
