@@ -230,8 +230,10 @@ export function createTalkBeat(game) {
   const asks = (t) => !!t?.talk && S.opened !== threadOf(t);
   // The rows of a menu that asks its window keeps beside TALK, each with its place among the menu's own.
   const kept = (t) => t.actions.map((a, i) => ({ a, i })).filter(({ a }) => KEEP.has(a.label));
-  // The object's window of a menu that asks (labs/graphics/context.js): TALK first, then the rows it keeps, no words.
-  const plate = (t) => (asks(t) ? { ...t, talk: null, actions: [{ label: BEAT.talk, run: () => {} }, ...kept(t).map(({ a }) => a)] } : t);
+  // The object's window of a menu that asks (labs/graphics/context.js): TALK first, then the rows it keeps, no words. TALK in the ink of the
+  // first quest's answer its talk holds (src/menus.js rowTones: the way to a quest's step in its ink through every window).
+  const talkTone = (t) => { const tones = rowTones(world, t); return t.actions.map((a, i) => (KEEP.has(a.label) ? null : tones[i])).find(Boolean) ?? null; };
+  const plate = (t) => (asks(t) ? { ...t, talk: null, actions: [{ label: BEAT.talk, tone: talkTone(t), run: () => {} }, ...kept(t).map(({ a }) => a)] } : t);
   // TALK: the conversation begun, its window standing at once (wherever the ship is in the menu's reach).
   function open(t) { S.opened = threadOf(t); S.dismissed = null; }
   // Whatever of a conversation is still to come, said now.

@@ -534,7 +534,7 @@ export function createFlightFrame(game, page, { saves, diagnostics, respawnFx, f
     // интерфейс в шлеме»), the charm on its mount's reel, what tore off at the hull's last tenth falling (hud-modern.js).
     let modernOut = null;
     // The first flight's keys (labs/graphics/starter-keys.js), drawn after the interface; their rows are what the stations being built hang under.
-    const starter = (modern || scooter) && starterKeysShown(world)
+    const starter = (modern || scooter) && starterKeysShown(world, tracker)
       ? { scheme: schemes.scheme(), can: world.ship.params().can, steering: game.steering?.mode } : null;
     if (modern) {
       const hungId = given.shelf ? hungCharm(world) : null;

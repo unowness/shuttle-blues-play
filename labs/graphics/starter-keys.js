@@ -1,8 +1,9 @@
 // The first flight's keys in the top left corner (SX, 2026-10-21: «давай до того как пользователь открыл первую станцию и начал в нее
 // вкладывать деньги, то вот эти пункты управления компактно написаны в левом верхнем углу», with his marks on the controls list: thrust,
 // reverse, turn, brake, fire, jump, trick, the map, the pilot card and the way home). Shown while the opening has not had the pilot's first
-// money in its ruin (src/opening.js beforeFirstMoney), under MODERN where the stations being built hang later (hud-modern.js: the
-// tracker's corner, empty until then) and over SCOOTY JR.'s handlebar alike; the rows the bindings table has for the mode and the hull
+// money in its ruin (src/opening.js beforeFirstMoney) and the ruins' tracker shows nothing (SX, 2026-10-22, on a screenshot with RELAY 12 at
+// 0 % under the keys: «уже появилась шкала восстановления станции, но управление не пропало. Должно уже пропасть»), under MODERN where the
+// stations being built hang later (hud-modern.js: the tracker's corner) and over SCOOTY JR.'s handlebar alike; the rows the bindings table has for the mode and the hull
 // (src/controls.js starterRows: SCOOTY JR. neither fires nor drifts). Each row's keys as the interface's column buttons draw theirs (the
 // keycap, its letter in the secondary ink) flush right on one axis, the words after it in the buttons' hint ink, a row (UI.row) apart, the
 // first row on the top line of the interface (hud-modern.js modernLines keyRowT), the widest row's first cap on MODERN's side margin.
@@ -16,7 +17,7 @@ import { unnoted } from './clicks.js';
 import { keyTokens } from './swiss.js';
 import { modernLines, MODERN } from './hud-modern.js';
 
-export const starterKeysShown = (world) => beforeFirstMoney(world);
+export const starterKeysShown = (world, tracker = null) => beforeFirstMoney(world) && !tracker?.rows.length;
 // How many rows the list has for the mode, the hull and the steering (hud-modern.js hangs the stations being built under them).
 export const starterKeysRows = (scheme, can = null, steering = 'tank') => starterRows(scheme, can, steering).length;
 

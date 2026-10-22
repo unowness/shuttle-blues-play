@@ -88,6 +88,12 @@ function streamSeed(seed, name) {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
+// A station's rows as World.stationActions gives them but for DOCK's ink: the menu's (src/menus.js), the opening's over them in the story's.
+function stationRows(world, station, inside) {
+  const base = menuStationActions(world, station, inside), own = new Set(base);
+  return openingActions(world, station, base, inside).map((a) => (own.has(a) || a.tone ? a : { ...a, tone: 'story' }));
+}
+
 export class World {
   // `seed`: the world's one source of chance (PLAN D1, 2026-10-03). Every draw the simulation or its look makes comes from a
   // stream called by name (`rng`), each derived from this seed, so one seed is one world: the same seed stepped by the same
@@ -1053,9 +1059,14 @@ export class World {
   }
 
   // The opening's own rows among them (src/opening.js) are the story's (`tone`: the context window frames their keycaps in its purple).
-  stationActions(station) {
-    const base = menuStationActions(this, station), own = new Set(base);
-    return openingActions(this, station, base).map((a) => (own.has(a) || a.tone ? a : { ...a, tone: 'story' }));
+  // Outside, DOCK takes the tone of the first quest's row the docked ship would have and the ship outside has not, so the way to it is
+  // in its ink from the first window (src/menus.js rowTones). `inside`: the docked ship's rows, asked whether docked or not.
+  stationActions(station, inside = this.docked === station.id) {
+    const rows = stationRows(this, station, inside), dock = inside ? -1 : rows.findIndex((a) => a.label === 'DOCK' && !a.tone);
+    if (dock < 0) return rows;
+    const outside = new Set(rows.map((a) => a.label)), step = stationRows(this, station, true).find((a) => a.tone && !outside.has(a.label));
+    if (step) rows[dock] = { ...rows[dock], tone: step.tone };
+    return rows;
   }
 
   // The station service (src/stationService.js): a broken station's menu, a station broken by a wreck, and its repair.

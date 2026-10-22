@@ -631,12 +631,14 @@ export const openingHoldsOffers = (world) => { const r = running(world); return 
 // freights; at A, close by in SCOOTY JR., its row, INFO and a docked ship's way out; after the call, its row first; then the
 // first freight; at B while the fuel stage runs, REFUEL close by (a docked ship has it among the station's services), then FIT THE SHELF
 // once the souvenir is brought, and the return load.
-export function openingActions(world, station, actions) {
+export function openingActions(world, station, actions, inside = world.docked === station.id) {
   const r = running(world);
   if (!r) return actions;
   let rows = guidedOffers(r.stage) ? actions.filter((a) => !a.offer) : actions;
   if (station.id === r.b) {
-    if (r.stage === 'fuel' && world.docked !== station.id) return [world.refuelAction(), ...rows];
+    if (r.stage === 'fuel' && !inside) return [world.refuelAction(), ...rows];
+    // Docked, the station's own REFUEL is the chapter's step (the story's ink, World.stationActions).
+    if (r.stage === 'fuel') rows = rows.map((a) => (a.label === 'REFUEL' ? { ...a, tone: 'story' } : a));
     if (r.stage === 'shelf' && closeBy(world, station.id)) rows = [{ label: 'FIT THE SHELF', run: () => fitShelf(world) }, ...rows];
     if ((r.stage === 'look' || r.stage === 'load') && !world.ledger.active) {
       const c = returnJob(world), quote = jobQuote(quoteJob(c, world.ledger.restored.size));

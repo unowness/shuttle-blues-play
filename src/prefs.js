@@ -72,8 +72,9 @@ export const PREFS = Object.freeze({
   // интерфейса Modern ... по умолчанию. Legacy — это старый интерфейс»): MODERN unless LEGACY is kept.
   interface:  Object.freeze({ key: 'spaser.interface.v1', area: 'local',  fallback: 'modern', shape: '{"style":"modern"|"legacy"}' }),
   // The modern interface's locator, square or round (GRAPHICS > MAP; SX, the same day: «переключать карту с круглой на квадратную. По
-  // умолчанию квадратную»).
-  mapShape:   Object.freeze({ key: 'spaser.mapshape.v1',  area: 'local',   fallback: 'square', shape: '{"shape":"square"|"round"}' }),
+  // умолчанию квадратную»). v2 since 2026-10-22: every browser starts square again, a ROUND kept from a try forgotten (SX, playing on a
+  // browser that kept it: «по умолчанию карта круглая. Давай квадратную»).
+  mapShape:   Object.freeze({ key: 'spaser.mapshape.v2',  area: 'local',   fallback: 'square', shape: '{"shape":"square"|"round"}' }),
   // The camera's height over the world (src/zoom.js, − and = and the pause's GRAPHICS > CAMERA; SX, 2026-10-17): a step of
   // CONFIG.camera.zoom, its start unless another is kept (null here: the steps are the owner's).
   zoom:       Object.freeze({ key: 'spaser.zoom.v1',      area: 'local',   fallback: null,     shape: '{"zoom":1|0.9|0.833} (a step, to a thousandth)' }),

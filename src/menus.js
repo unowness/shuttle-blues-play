@@ -290,8 +290,9 @@ export function candidates(world) {
 }
 
 // A station's rows: a borrowed ship's, a broken station's, the home garage's; else the cargo to deliver or to take, the berth's way
-// out and its services, the hangar of a garage, DOCK, and INFO.
-export function stationActions(world, station) {
+// out and its services, the hangar of a garage, DOCK, and INFO. `inside` whether they are the docked ship's (World.stationActions asks
+// both, to know what DOCK leads to).
+export function stationActions(world, station, inside = world.docked === station.id) {
   // While a borrowed ship is flown: the quest's row if world is its stop, and INFO (src/specials.js).
   const quest = specialStationActions(world, station);
   if (quest) return [...quest.map((a) => ({ ...a, tone: QUEST_TONE.special })), { label: 'INFO', run: () => world.logStation(station) }];
@@ -308,7 +309,8 @@ export function stationActions(world, station) {
   if (playBack) actions.push(playBack);
 
   if (active && active.to === station.id) {
-    actions.push({ label: `DELIVER ${active.label}`, run: () => world.deliver(station) });
+    // In the cargo's own green, as its plate in the quests (labs/graphics/quest-list.js KINDS.cargo).
+    actions.push({ label: `DELIVER ${active.label}`, tone: CARGO_TONE, run: () => world.deliver(station) });
   } else if (active) {
     // Refused here rather than on arrival, and the cargo is never touched.
     actions.push({
@@ -322,14 +324,14 @@ export function stationActions(world, station) {
     // done (offersAt), one at a time. Undocked only, as MARK below: docked, the berth's rows fill the seven keys
     // (CONFIG.interaction.maxActions) and the jobs come one at a time, as before.
     const offers = offersAt(station.id, world.ledger);
-    for (const c of world.docked === station.id ? offers.slice(0, 1) : offers) {
+    for (const c of inside ? offers.slice(0, 1) : offers) {
       // Quoted at the tariff of now: the one the job will keep once accepted.
       const quote = jobQuote(quoteJob(c, world.ledger.restored.size));
       actions.push({ label: `ACCEPT ${c.label}`, cargo: true, offer: true, note: `${cargoOf(c).name} / ${formatCR(quote)} CR / ${clockText(parTime(c))}`, run: () => world.acceptContract(c) });
     }
   }
 
-  if (world.docked === station.id) {
+  if (inside) {
     actions.push({ label: 'UNDOCK', run: () => world.undock(station) });
     actions.push(...serviceActions(world, station));
     // The pilot's ships wait at every garage (src/hangar.js): the page opens
@@ -357,19 +359,26 @@ export function stationActions(world, station) {
 // The quest each of a menu's rows belongs to, by its tone (src/quests.js questTone, a key of src/roles.js QUEST_INKS), or null: the
 // context window frames a row's keycap in its quest's ink (SX, 2026-10-06: «обрамление у кнопки действия типо [1] в контекстном окне,
 // рамочку кнопки подписывать в цвет типа квеста»). A row made for a quest says its own `tone` (a planet's suitcase waiting at a station,
-// a reference ship's rows, the opening's at its stations: World.stationActions); every row of a thing a quest is about (the quest's
-// target `mark`: a find, a ruin to fund, a lost cargo, a ship in trouble, a planet's errand) is that quest's but the rows that only tell
-// about it (INFO, REPLAY FLIGHT: SX, 2026-10-06, a ruin's INFO framed purple was wrong); a working station's own rows (DOCK, REFUEL,
-// INFO ...) are no quest's, whatever quest leads there. Read as the window is drawn, not kept.
+// a reference ship's rows, the opening's at its stations: World.stationActions; the cargo delivered, and the pilot's own cargo lying in
+// space, in the cargo's green); every row of a thing a quest is about (the quest's target `mark`: a find, a ruin to fund, a lost cargo, a
+// ship in trouble, a planet's errand) is that quest's but the rows that only tell about it (INFO, REPLAY FLIGHT: SX, 2026-10-06, a ruin's
+// INFO framed purple was wrong); a working station's own rows (REFUEL, INFO ...) are no quest's, but DOCK where the docked rows hold a
+// quest's step not offered outside (World.stationActions) and TALK where its talk does (labs/graphics/talk-beat.js plate): the way to a
+// quest's step in its ink through every window (SX, 2026-10-22: «путь кнопок, который ведет к результатам миссии, он должен быть цвета
+// миссии ... путь должен быть сквозным»). Read as the window is drawn, not kept.
 const TELLS = new Set(['INFO', 'REPLAY FLIGHT']);
+// The cargo's tone: its plate's green in the quests (labs/graphics/quest-list.js KINDS.cargo).
+export const CARGO_TONE = 'green';
 export function rowTones(world, target) {
   const rows = target?.actions ?? [];
   if (!rows.length) return [];
   const station = world.stations.find((s) => s.id === target.id);
   const own = !!station && workingKind(world.ledger, station) !== 'ruin';
   const quest = own ? null : currentQuests(world).find((q) => q.target?.mark === target.id) ?? null;
-  // A reference ship asking for a pilot, and what its quest puts in space (src/specials.js), are the special quest's.
-  const tone = quest ? questTone(quest) : !own && specialCandidates(world).some((c) => c.id === target.id) ? QUEST_TONE.special : null;
+  // A reference ship asking for a pilot, and what its quest puts in space (src/specials.js), are the special quest's; the pilot's own cargo
+  // lying in space, the cargo's.
+  const tone = quest ? questTone(quest) : !own && specialCandidates(world).some((c) => c.id === target.id) ? QUEST_TONE.special
+    : world.lostCargo.some((c) => c.id === target.id && !c.stranger) ? CARGO_TONE : null;
   // A repair the story asks for (`story`, litRepair above) is the story's whatever quest the ruin is the mark of.
   return rows.map((a) => a.tone ?? (a.story ? 'story' : TELLS.has(a.label) ? null : tone));
 }
