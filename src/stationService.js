@@ -13,7 +13,7 @@ import { clockText } from './contracts.js';
 //   repairHull       a garage's hull points (CONFIG.hull.repairPrice), as many as the wallet pays for, up to a whole hull
 //   patchHull        a freight hub's, at the same price, up to CONFIG.hull.patchShare of the chassis' whole hull (2026-10-04,
 //                    the economy SX chose: freight docks had no repair, and a pilot far from a garage flew on damaged)
-//   drinkCoffee      a cup (CONFIG.coffee): the hull's push and top a fifth more for five minutes of the world's clock; BUY CHALK's row
+//   drinkCoffee      a cup (CONFIG.coffee): the hull's top 1280 u/s for five minutes of the world's clock; BUY CHALK's row
 //                    until 2026-10-23
 //   stepCoffee       the cup wearing off, each step, and the boost it gives the ship (src/ship.js params)
 //   breakStation     a working station a ship was wrecked against, or one worn out by hard blows (wearStation), is closed until
@@ -66,8 +66,8 @@ export function refuel(world) {
 }
 
 // Any docked station pours a cup of coffee (CONFIG.coffee; SX, 2026-10-23: «купить мел почему-то у нас такой есть пункт ... назови это выпить
-// кофе. И после того, как ты выпил кофе, корабль становится быстрее на 20%. На 5 минут»): BUY CHALK's row until then. Not while a cup still
-// works (the minutes it has left in its note).
+// кофе. И после того, как ты выпил кофе, корабль становится быстрее на 20%. На 5 минут»; then «давай при кофе просто увеличивать до 1280»):
+// BUY CHALK's row until then. Not while a cup still works (the minutes it has left in its note).
 export function coffeeAction(world) {
   const C = CONFIG.coffee;
   const left = world.coffee > 0;
@@ -76,7 +76,7 @@ export function coffeeAction(world) {
     disabled: left || world.ledger.credits < C.price,
     note: left ? `${clockText(world.coffee)} LEFT`
       : world.ledger.credits < C.price ? `NEED ${C.price} CR, HAVE ${world.ledger.credits}`
-      : `+${Math.round(C.boost * 100)}% / ${C.price} CR`,
+      : `${C.top} / ${C.price} CR`,
     run: () => world.drinkCoffee(),
   };
 }
@@ -87,20 +87,20 @@ export function drinkCoffee(world) {
   if (world.ledger.credits < C.price) { world.emit('actionRefused', { reason: `NEED ${C.price} CR, HAVE ${world.ledger.credits}` }); return; }
   world.ledger.credits -= C.price;
   world.coffee = C.life;
-  world.ship.boost = 1 + C.boost;
+  world.ship.boostTop = C.top;
   world.emit('coffeeDrunk', {
     sectorId: world.sector.id, x: world.ship.x, y: world.ship.y,
-    cost: C.price, boost: C.boost, life: C.life, credits: world.ledger.credits,
+    cost: C.price, top: C.top, life: C.life, credits: world.ledger.credits,
   });
 }
 
-// Each step of the world's clock, docked or flying: the cup wears off, and the ship's push and top are the boost's while it works.
+// Each step of the world's clock, docked or flying: the cup wears off, and the ship's top is the cup's while it works.
 export function stepCoffee(world, dt) {
   if (world.coffee > 0) {
     world.coffee = Math.max(0, world.coffee - dt);
     if (world.coffee === 0) world.emit('coffeeWoreOff', { sectorId: world.sector.id, x: world.ship.x, y: world.ship.y });
   }
-  world.ship.boost = world.coffee > 0 ? 1 + CONFIG.coffee.boost : 1;
+  world.ship.boostTop = world.coffee > 0 ? CONFIG.coffee.top : 0;
 }
 
 // One action, in the cacheActions style: the price is in the note, which

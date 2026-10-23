@@ -328,7 +328,7 @@ const MENUS = {
   '{#} LEFT': 'ОСТАЛОСЬ {}',
   'STILL BUZZING': 'ЕЩЁ БОДРИТ',
   'COFFEE': 'КОФЕ',
-  '{#} SPEED FOR {#} MIN': '{} К СКОРОСТИ НА {} МИН',
+  'TOP SPEED {#} FOR {#} MIN': 'МАКС. СКОРОСТЬ {} НА {} МИН',
   'COFFEE WORE OFF': 'КОФЕ ОТПУСТИЛ',
   '{#} FUEL / {#} CR': 'ТОПЛИВО: {} / {} CR',
   '{#} HULL / {#} CR': 'КОРПУС: {} / {} CR',

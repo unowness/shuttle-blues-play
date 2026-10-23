@@ -29,9 +29,9 @@ export class Ship {
     // nothing in tow; the world sets it (World.step). Its mass pulls on the hull
     // through the tether (src/tow.js), not through this.
     this.loadTop = 1;
-    // The share more of the chassis' push and top while a cup of coffee works (CONFIG.coffee: 1.2 for five minutes), 1 otherwise; the
-    // world sets it (src/stationService.js stepCoffee). `boosted` the chassis so boosted, made again only when either changes.
-    this.boost = 1;
+    // The top a cup of coffee gives while it works (CONFIG.coffee.top, u/s), 0 without one; the world sets it (src/stationService.js
+    // stepCoffee). `boosted` the chassis so boosted, made again only when either changes.
+    this.boostTop = 0;
     this.boosted = null;
     // The gravity on the hull this step, u/s^2 (src/shipStep.js sets it): the push's curve keeps enough to climb out (thrustShare).
     this.pull = 0;
@@ -123,14 +123,16 @@ export class Ship {
   get facing() { return this.angle + Math.PI / 2 + this.model.baseRotation; }
 
   // The chassis itself: no allocation per step, and no path by which a model
-  // file reaches these numbers. A cup of coffee (`boost`) puts a share more on its push and its top (SX, 2026-10-23: «корабль становится
-  // быстрее на 20%»), so every reader of the top (the danger speed, the gauges, the reverse) follows; the turn and the brakes are the chassis's.
+  // file reaches these numbers. A cup of coffee (`boostTop`) raises its top to that, its push grown in the same share (SX, 2026-10-23:
+  // «давай при кофе просто увеличивать до 1280»), so every reader of the top (the danger speed, the gauges, the reverse) follows; the turn
+  // and the brakes are the chassis's; a hull already as fast keeps its own.
   params() {
-    if (this.boost === 1) return this.chassis;
+    const c = this.chassis, top = this.boostTop;
+    if (!(top > c.maxSpeed)) return c;
     const b = this.boosted;
-    if (b?.of === this.chassis && b.k === this.boost) return b.profile;
-    const c = this.chassis, k = this.boost;
-    this.boosted = { of: c, k, profile: Object.freeze({ ...c, thrust: c.thrust * k, maxSpeed: c.maxSpeed * k }) };
+    if (b?.of === c && b.top === top) return b.profile;
+    const k = top / c.maxSpeed;
+    this.boosted = { of: c, top, profile: Object.freeze({ ...c, thrust: c.thrust * k, maxSpeed: top }) };
     return this.boosted.profile;
   }
 

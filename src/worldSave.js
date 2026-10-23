@@ -178,7 +178,7 @@ export function restoreWorld(world, data) {
   world.chalk = Number.isInteger(data.chalk) ? clamp(data.chalk, 0, CONFIG.chalk.max) : CONFIG.chalk.start;
   // A cup of coffee still working goes on where it was (none in a save without one, or from before the coffee).
   world.coffee = Number.isFinite(data.coffee) ? clamp(data.coffee, 0, CONFIG.coffee.life) : 0;
-  world.ship.boost = world.coffee > 0 ? 1 + CONFIG.coffee.boost : 1;
+  world.ship.boostTop = world.coffee > 0 ? CONFIG.coffee.top : 0;
   // The opening chapter (src/opening.js, v17): a new pilot's still in SCOOTY JR. flies it again, its hull and tank its own.
   restoreOpening(world, data.opening, { hull: data.hull, fuel: data.fuel });
   world.openingState = null;

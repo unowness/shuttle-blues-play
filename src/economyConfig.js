@@ -149,11 +149,12 @@ export const ECONOMY = {
   },
 
   // Coffee (SX, 2026-10-23: «купить мел ... назови это выпить кофе. И после того, как ты выпил кофе, корабль становится быстрее на 20%.
-  // На 5 минут»): any docked station pours a cup for `price` CR; for `life` s of the world's clock the flown hull's push and top
-  // are `boost` more (src/ship.js params), then it wears off. Another cup while one works is not poured.
+  // На 5 минут»; then «давай при кофе просто увеличивать до 1280»): any docked station pours a cup for `price` CR; for `life` s of the
+  // world's clock the flown hull's top is `top` u/s, its push grown in the same share so it gets there as it gets to its own (src/ship.js
+  // params; a hull already as fast keeps its own), then it wears off. Another cup while one works is not poured.
   coffee: {
     price: 25,            // CR a cup
-    boost: 0.2,           // the push's and the top's share more
+    top: 1280,            // u/s, the hull's top while it works (the STANDARD's own is 999)
     life: 300,            // s of the world's clock
   },
 

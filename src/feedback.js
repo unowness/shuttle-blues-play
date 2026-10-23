@@ -1,14 +1,8 @@
 import { CONFIG } from './config.js';
 import { drawLocalLabel, drawTargetBrackets, overlaps } from './interface.js';
-import { formatCR } from './ruins.js';
-import { moneyRuns, hasMoney, drawRuns } from './money.js';
-import { UI, uiMetrics } from './uiGrid.js';
 import { ROLES } from './roles.js';
 import { tr } from './lang.js';
 
-// What is said when a pirate goes down and when a fight ends (World.killPirate,
-// World.endEncounter). A fight that ends in a wreck says nothing here: the wreck
-// speaks for itself.
 // What the clock did to a delivery's pay (CONFIG.delivery), after the amount.
 const DELIVERY_TIMING = {
   fast: (t) => ` / FAST +${Math.round(t.change * 100)}%`,
@@ -17,57 +11,17 @@ const DELIVERY_TIMING = {
 };
 export const deliveryTiming = (timing) => DELIVERY_TIMING[timing?.status]?.(timing) || '';
 
-const PIRATE_DOWN = {
-  shot: '', friendly: ' / FRIENDLY FIRE', rock: ' / ROCK', planet: ' / PLANET',
-  hole: ' / BLACK HOLE', ram: ' / RAMMED', cargo: ' / CARGO', collision: ' / COLLISION',
-};
-const ENCOUNTER_ENDED = {
-  hole: 'ESCAPED / BLACK HOLE', docked: 'ESCAPED / DOCKED', station: 'PIRATES WITHDREW / STATION',
-  lost: 'PIRATES LOST YOU', cleared: 'ALL PIRATES DOWN', routed: 'PIRATES RETREATED',
-};
-
-// A label with an amount of money in it: as a plain label is (src/interface.js drawLocalLabel, a cell of air at either side, one
-// row), its money in the coin's rim gold.
-const MONEY_LABEL = Object.freeze({
-  size: (r, label) => ({ w: (label.length + 2) * r.cellW, h: UI.row }),
-  draw: (r, label, x, y, ink) => { drawRuns(r, moneyRuns(label, ink), x + r.cellW, y + uiMetrics(r).textY); },
-});
-
-// The ink of a label by what happened (design review, 2026-09-30: every label was
-// the gains' green, a loss or a hit among them). A gain keeps the active green, a
-// hit or a loss by an enemy and an empty tank are in danger, a lesser loss and a
-// warning in caution, and news that is neither a gain nor a loss in the primary text.
-const TONE = {
-  fuelEmpty: 'danger', fuelLow: 'caution', piratesEngaged: 'caution',
-  contractAccepted: 'news', docked: 'news', signPlaced: 'news', signRemoved: 'news', flagRemoved: 'news', tankFull: 'news',
-  refueled: 'news', hullRepaired: 'news', droidServed: 'news', shipBought: 'news', shipChanged: 'news', findMarked: 'news', stationInvested: 'news',
-  pirateDown: 'news', npcDown: 'danger', encounterEnded: 'news', trafficHail: 'news', pirateShout: 'caution', drifterHelped: 'gain',
-  suitcaseTaken: 'news', suitcaseLost: 'danger',
-};
-export function labelInk(type) {
-  const hud = CONFIG.hud;
-  switch (TONE[type]) {
-    case 'danger': return hud.danger ?? hud.hot;
-    case 'caution': return hud.caution ?? hud.hot;
-    case 'news': return hud.hot;
-    default: return hud.accent;
-  }
-}
-
-// Signals, caches, paints, pirates and restorations are said by the page's notices under the navigation
-// (labs/graphics/notice.js) since 2026-10-01; a label at the thing would repeat them (SX: «ты не убрал
-// повторные нотификации старые»). What the hull takes by touching it (a coin, a Scooby snack, fuel, a hull part) and what a blow
-// costs (the hull's points, the coins it spills, the pirates' take at a wreck) say nothing at the thing since 2026-10-23 (SX: «когда ты
-// взял монетку или ударился, или в тебя попали, или пираты забрали твои деньги ... Все остальные вот эти мелкие надписи, надо
-// скрыть. Они не нужны»): the wallet, the gauges and the sparks say them, and the pirates' take is a line of the notch
-// (labs/graphics/notices.js). The rest keep their labels.
+// The labels at things are gone (SX, 2026-10-23: «Все остальные вот эти мелкие надписи, надо скрыть. Они не нужны»; then of the rest,
+// DOCKED, REFUELED, a pirate DOWN ...: «да, если ты про те что рядом с игроком появляются то да»). What happened is said by what shows it:
+// the wallet, the gauges, the sparks, the quest list's plates, the radio's lamps, and, for a status, the notch's line
+// (labs/graphics/notices.js: the pirates' take, the fuel low and empty). What stays at a thing is what is said there: a craft's hail, a
+// pirate's shout, COMMONS's collage, and the container's marks lit a moment as a cargo is taken (cargoAcknowledged).
 // Transient presentation consumes committed world events. It never grants
 // rewards, runs actions, writes saves or advances simulation time.
-// The labels that say a quest ended (what a rescued ship, a freed one, a wreck helped, a suitcase delivered, a raid won or a radio
-// step paid) stand longer than the rest (SX, 2026-10-02: «в конце квестов нужно чуть помедленнее говорить о том что он
-// выполнен»; they stood 1.8 s, as a coin's label does).
-export const QUEST_END_LABELS = new Set(['drifterHelped', 'pesterFreed', 'guidePaid', 'raidWon', 'wreckHelped', 'suitcaseDelivered']);
-export const QUEST_END_LIFE = 3.2;
+
+// A hail's words in the primary text, a pirate's shout in the caution ink a pirate's guns are (as the labels' inks had them, design
+// review, 2026-09-30).
+const hailInk = (type) => (type === 'pirateShout' ? CONFIG.hud.caution ?? CONFIG.hud.hot : CONFIG.hud.hot);
 
 export class Feedback {
   constructor() {
@@ -105,39 +59,6 @@ export class Feedback {
           x: event.x ?? origin.x, y: event.y ?? origin.y, age: 0, life: 0.6 });
         if (this.items.length > 4) this.items.shift();
         return false;
-      case 'signPlaced': label = 'SIGN LEFT'; break;
-      case 'signRemoved': label = 'SIGN REMOVED'; break;
-      case 'flagRemoved': label = `${event.colour} FLAG REMOVED`; break;
-      case 'tankFull': label = 'TANK FULL'; break;
-      // Another pilot's cargo (src/strangers.js) ends with their thanks, said at the station; the pay is the plate's.
-      case 'delivered':
-        if (!event.thanks) return false;
-        label = event.thanks; break;
-      case 'docked': label = 'DOCKED'; break;
-      case 'pirateDown':
-        label = `${CONFIG.pirates.types[event.kind]?.label || 'PIRATE'} DOWN${PIRATE_DOWN[event.cause] || ''}`;
-        break;
-      // A friendly ship run into hard enough to break (src/npcFleet.js Fleet.hurt).
-      case 'npcDown': label = `${event.label || 'SHIP'} DESTROYED`; break;
-      case 'refueled': label = event.cost > 0 ? `REFUELED / -${event.cost} CR` : 'REFUELED / FREE'; break;
-      case 'fuelLow': label = 'FUEL LOW'; break;
-      case 'fuelEmpty': label = 'FUEL EMPTY / LOW THRUST'; break;
-      case 'encounterEnded':
-        if (!ENCOUNTER_ENDED[event.cause]) return false;
-        label = ENCOUNTER_ENDED[event.cause];
-        break;
-      // The home garage mends the hull for nothing (src/home.js).
-      case 'hullRepaired': label = event.cost > 0 ? `HULL REPAIRED / -${event.cost} CR` : 'HULL REPAIRED / FREE'; break;
-      // A droid's service (src/droids.js), said at the droid.
-      case 'droidServed': label = `${event.kind === 'fuel' ? `+${event.units} FUEL` : `+${event.units} HULL`} / -${event.cost} CR`; break;
-      case 'shipBought': label = `${event.label} BOUGHT / -${formatCR(event.price)} CR`; break;
-      case 'shipChanged': label = `SHIP SELECTED / ${event.label}`; break;
-      // A ruin restored in one payment (src/ruins.js), and a find marked (src/rewards.js).
-      // A part put into a ruin, and how far along it is; its restoration is a notice (labs/graphics/main.js).
-      // (The support's building is not the wallet's: +n CR built into it, src/starterSupport.js.)
-      case 'stationInvested': label = event.by === 'support' ? `+${formatCR(event.amount)} CR FUNDED / ${Math.floor(event.share * 100)}%`
-        : `-${formatCR(event.amount)} CR / FUNDED ${Math.floor(event.share * 100)}%`; break;
-      case 'findMarked': label = `MARKED / ${event.label}`; break;
       // A hail is said by the craft itself (drawHail): its line up a slash from it, `life` s (its own where it says: CLIPPER's crew's, read by
       // their length, src/clipper.js readLife); a friendly ship's and the pilot's greeting (`greet`)
       // in GAMEPLAY's GREETING style (this.drawGreet). Its rows broken once here; `rows` (a planet's three lines, src/errands.js) are
@@ -165,24 +86,10 @@ export class Feedback {
         if (this.items.length > 4) this.items.shift();
         return true;
       }
-      // A pilot out of fuel helped (src/quests.js): what it cost the tank and paid, at the craft.
-      // Its plea is answered: it is no longer said.
+      // A pilot out of fuel helped (src/quests.js): its plea is answered, it is no longer said.
       case 'drifterHelped':
         this.items = this.items.filter((it) => !(it.hail && it.hail.craftId === 'drifter'));
-        label = `-${event.fuel} FUEL / +${event.pay} CR`; break;
-      // The second round of quests (QUESTS_V2_HANDOFF.md): what a rescue paid, what was given to a wreck, a suitcase taken,
-      // delivered or lost, said at the thing. A ship freed is thanked by its hail; the plate says the rest.
-      case 'pesterFreed': label = `+${formatCR(event.pay)} CR`; break;
-      // The radio's thanks for a step done, and a raid won's pay (the quest economy), said where the pilot or the station is.
-      case 'guidePaid': label = `+${formatCR(event.pay)} CR / RADIO`; break;
-      case 'raidWon': label = `+${formatCR(event.pay)} CR`; break;
-      case 'wreckHelped': label = `-${formatCR(event.ask)} CR`; break;
-      case 'suitcaseTaken': label = 'SUITCASE ABOARD'; break;
-      case 'suitcaseDelivered': label = `+${formatCR(event.pay)} CR`; break;
-      case 'suitcaseLost': label = 'SUITCASE LOST'; break;
-      // COMMONS's chain (src/chorus.js): a recorder taken, at it; a voice played back, what it paid, at the station.
-      case 'chorusTaken': label = 'RECORDER ABOARD'; break;
-      case 'chorusVoiceBack': label = `+${formatCR(event.pay)} CR`; break;
+        return false;
       // A ship boarded has said its three lines (src/specials.js): they go.
       case 'specialBoarded':
         this.items = this.items.filter((it) => !(it.hail && it.hail.craftId === 'special-ship'));
@@ -191,7 +98,7 @@ export class Feedback {
       default: return false;
     }
     const item = { type: event.type, label, sectorId: event.sectorId || world.sector.id,
-      x: event.x ?? origin.x, y: event.y ?? origin.y, age: 0, life: QUEST_END_LABELS.has(event.type) ? QUEST_END_LIFE : 1.8 };
+      x: event.x ?? origin.x, y: event.y ?? origin.y, age: 0, life: 1.8 };
     this.items.push(item);
     if (this.items.length > 4) this.items.shift();
     return true;
@@ -226,11 +133,7 @@ export class Feedback {
       const t = Math.min(1, item.age / 0.45);
       const objectBox = { x: p.x - 36, y: p.y - 36, w: 72, h: 72 };
       if (!this.reducedMotion && t < 1) drawTargetBrackets(r, objectBox, CONFIG.hud.hot, 14 * (1 - t) ** 2, occupied);
-      // An amount of money in the coin's rim gold (S4, src/money.js) where the label is a gain or news; a warning or a loss keeps its
-      // ink whole.
-      const tone = TONE[item.type] ?? 'gain';
-      const gold = (tone === 'gain' || tone === 'news') && hasMoney(item.label);
-      const box = drawLocalLabel(r, item.label, p, [...occupied, objectBox], labelInk(item.type), 50, gold ? MONEY_LABEL : null);
+      const box = drawLocalLabel(r, item.label, p, [...occupied, objectBox], CONFIG.hud.accent, 50);
       if (box) occupied.push(box);
     }
     // (Not while COMMONS's window writes them as a script: `quietChorus`, the page's, labs/graphics/talk-beat.js.)
@@ -421,6 +324,6 @@ export function drawHail(r, world, item, occupied = [], name = item.hail.name ??
   ctx.beginPath(); ctx.moveTo(Math.round(sx) + .5, Math.round(sy) + .5); ctx.lineTo(Math.round(ex) + .5, Math.round(ey) + .5); ctx.stroke();
   ctx.restore();
   if (name) r.text(name, tx, ty, nameInk, alpha);
-  rows.forEach((t, k) => r.text(t, tx, ty + (k + head) * row, labelInk(item.type), alpha));
+  rows.forEach((t, k) => r.text(t, tx, ty + (k + head) * row, hailInk(item.type), alpha));
   return box;
 }

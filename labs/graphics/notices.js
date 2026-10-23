@@ -302,6 +302,9 @@ export function createNotices(game) {
             notify(`DELIVERED ${clockText(e.timing.elapsed)} / ${clockText(e.timing.par)}`, `${inside ? 'WITHIN TARGET' : 'LATE'} / +${formatCR(e.reward)} CR`,
               { kind: 'gain', cargo: true, mark: CARGO_MARKS.delivered, life: 4, fate: 'gone' });
           } else notify('CARGO DELIVERED', `+${formatCR(e.reward + (e.fee ?? 0))} CR`, { kind: 'gain', cargo: true, mark: CARGO_MARKS.delivered, fate: 'gone' });
+          // Another pilot's cargo (src/strangers.js) ends with their thanks, a line of the notch since its label at the station went
+          // (src/feedback.js, SX 2026-10-23).
+          if (e.thanks && !e.alreadySettled) notify(e.thanks, null, { kind: 'gain', life: 3.2, fate: 'flip' });
           break;
         case 'shipWrecked':
           ghost.stop();
@@ -443,9 +446,13 @@ export function createNotices(game) {
         case 'creditsSeized':
           notify(`PIRATES TOOK ${e.amount} CR`, null, { kind: 'danger', life: 3.2, fate: 'flip' });
           break;
+        // The tank low and empty (src/world.js burnFuel, once each): a status of the notch since its label at the ship went (src/feedback.js,
+        // SX, 2026-10-23: «если ты про те что рядом с игроком появляются то да»).
+        case 'fuelLow': notify('FUEL LOW', null, { kind: 'refusal', life: 3.2, fate: 'flip' }); break;
+        case 'fuelEmpty': notify('FUEL EMPTY', 'LOW THRUST', { kind: 'danger', life: 3.2, fate: 'flip' }); break;
         // A cup of coffee at a docked station (src/stationService.js drinkCoffee): what it gives and for how long, and when it wears off.
         case 'coffeeDrunk':
-          notify('COFFEE', `+${Math.round(e.boost * 100)}% SPEED FOR ${Math.round(e.life / 60)} MIN`, { kind: 'gain', life: 3.2, fate: 'flip' });
+          notify('COFFEE', `TOP SPEED ${e.top} FOR ${Math.round(e.life / 60)} MIN`, { kind: 'gain', life: 3.2, fate: 'flip' });
           break;
         case 'coffeeWoreOff': notify('COFFEE WORE OFF', null, { life: 2.6, fate: 'flip' }); break;
         // What is found is said as a notice, not a label at the thing (SX, 2026-10-01: «добавь еще когда мы

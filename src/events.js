@@ -61,7 +61,7 @@ export const EVENTS = Object.freeze({
   refueled: E('...at units cost fuel credits', 'refuel'),
   hullRepaired: E('...at points cost hull credits', 'repair'),
   // A cup of coffee at a docked station (src/stationService.js drinkCoffee), and its boost worn off.
-  coffeeDrunk: E('sectorId x y cost boost life credits', 'coffee'),
+  coffeeDrunk: E('sectorId x y cost top life credits', 'coffee'),
   coffeeWoreOff: E('sectorId x y'),
   stationInvested: E('stationId label amount invested cost share credits by ...at', 'invest'),
   stationRestored: E('stationId label becomes price credits restored finds gift ...at', 'restore'),
