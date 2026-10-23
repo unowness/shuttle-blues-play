@@ -33,8 +33,8 @@ export function giftWords(kind, e) {
     case 'mark': return { title: e.label, sub: e.sector ? `CACHE MARKED · ${e.sector}` : 'CACHE MARKED' };
     case 'look': return { title: e.label, sub: 'INTERFACE LOOK' };
     case 'pointer': return { title: e.label, sub: 'CURSOR' };
-    // The radio a quest gives (src/questHooks.js giveRadio): the set, and why it came.
-    case 'radio': return { title: 'RADIO', sub: 'QUEST REWARD' };
+    // The radio a quest gives, or a station restored (src/questHooks.js giveRadio): the set, and why it came.
+    case 'radio': return { title: 'RADIO', sub: e.questId ? 'QUEST REWARD' : 'STATION RESTORED' };
     default: return { title: e.label ?? '', sub: 'FOUND' };
   }
 }

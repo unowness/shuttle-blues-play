@@ -83,7 +83,7 @@ export class Pilot {
     this.randomDone = 0;
     // The radio under the quests (labs/graphics/radio.js), the pilot's own once given (SX, 2026-10-05: «Виджет радио появляется только
     // когда тебе радио выдают с квестами»): a new pilot's comes with the shuttle (src/opening.js boardShuttle), any other pilot's with the
-    // next quest handed in (src/questHooks.js giveRadio). A save from before it was given one by its chapter's stage (src/storage.js v21).
+    // next quest handed in or a station restored (src/questHooks.js giveRadio). A save from before it was given one by its chapter's stage (src/storage.js v21).
     this.radio = false;
     // The charm (labs/graphics/charm.js): null until the first souvenir is found, which hangs at once; CHARM_NONE once the pilot took it
     // off (the card's CHARM line); a later find never changes the choice. A save from before it reads as null and is settled on load.

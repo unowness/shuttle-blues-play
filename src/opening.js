@@ -70,7 +70,7 @@ import { CLAIM, earnWaiver, payCash } from './rewardLedger.js';
 //   { version, status, stage, a, b, c, braked, receipt, fuel, fired, repair }
 //   status   'active' (a new pilot), 'veteran' (a save from before the chapter: everything it has stands, the chapter shows nothing
 //            and the old radio line goes on as the quiet hint, SX's 10A), 'skipped' (the page asked to skip it: the start as it was,
-//            but for the radio, which such a pilot earns with the next quest handed in: src/questHooks.js giveRadio)
+//            but for the radio, which such a pilot earns with the next quest handed in or a station restored: src/questHooks.js giveRadio)
 //   a, b     the two stations bound at the start; c the cache bound when the cache stage begins; braked the practice done;
 //            receipt the first freight's { elapsed, par, onTime }; fuel how the fuel stage ended ('bought' or 'full')
 //   fired    the shooting practice done (v24); repair how the lesson at the droid ended ('sound', 'checked' or 'served'; v24)
@@ -180,7 +180,7 @@ function readOpening(raw, ledger) {
 export const loanerOut = (world) => { const s = openingStage(world); return s === 'loaner' || s === 'service'; };
 // The radio is the pilot's own once given (SX, 2026-10-05: «Виджет радио появляется только когда тебе радио выдают с квестами»): a new
 // pilot's with the shuttle, at the first call (boardShuttle); a pilot with no running chapter (a veteran, a skipped start, a check's
-// world) has none until the next quest handed in (src/questHooks.js giveRadio). The locator and the map from the delivery details; a
+// world) has none until the next quest handed in or a station restored (src/questHooks.js giveRadio). The locator and the map from the delivery details; a
 // pilot with no running chapter has those, as before the chapter.
 export const radioFitted = (world) => world?.pilot?.radio === true;
 export const navFitted = (world) => { const s = openingStage(world); return s === null || at(s) >= at('freight'); };

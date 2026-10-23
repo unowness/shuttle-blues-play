@@ -52,16 +52,21 @@ export function giveCursors(world) {
 // The radio as a quest's gift (SX, 2026-10-05: «Виджет радио появляется только когда тебе радио выдают с квестами»; asked, he picked
 // the next quest handed in, of any kind, a find's card as a pointer's): a pilot with no running chapter (a veteran, a skipped start, an
 // old save) has no radio until a quest of the list ends done (World.questOutcomes 'done', one place for every kind: a side quest of
-// any tone, a ship pestered and freed, a raid won, the radio line's step, a reference ship's run; one ended late gives nothing). Said
-// once, as `radioGiven`. A new pilot's comes with the shuttle (src/opening.js boardShuttle), so while the chapter runs no quest gives it.
+// any tone, a ship pestered and freed, a raid won, the radio line's step, a reference ship's run; one ended late gives nothing), or until
+// a station of theirs is restored (SX, 2026-10-23: «старому пилоту радио, как только починена хоть одна станция»; `questId` null then).
+// The side quests, the raids and the reference ships are the radio's, so an old pilot past every step of the radio line was offered no
+// quest at all and could never earn it: SX's own save, three stations restored and twenty minutes of nothing. Said once, as
+// `radioGiven`. A new pilot's comes with the shuttle (src/opening.js boardShuttle), so while the chapter runs no quest gives it.
 export function giveRadio(world) {
   const p = world.pilot;
   if (p.radio || openingStage(world) !== null) return;
+  const callAt = world.ledger.clock + CONFIG.quests.npcCall.after;
   for (const [id, how] of world.questOutcomes) {
     if (how !== 'done') continue;
-    if (p.grantRadio(world.ledger.clock + CONFIG.quests.npcCall.after)) world.emit('radioGiven', { questId: id, sectorId: world.sector.id });
+    if (p.grantRadio(callAt)) world.emit('radioGiven', { questId: id, sectorId: world.sector.id });
     return;
   }
+  if (world.ledger.restored.size && p.grantRadio(callAt)) world.emit('radioGiven', { questId: null, sectorId: world.sector.id });
 }
 
 // The radio's first NPC quest (SX, 2026-10-06: «радио открывает квесты нпс и прочие дополнительные активности как рейды. первый квест
