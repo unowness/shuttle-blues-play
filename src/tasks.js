@@ -52,7 +52,8 @@ export function currentTasks(world) {
 // The hierarchy a task is focused by when none is selected (SX, 2026-10-06: «иерархия сюжетка, рейды, нпс итд»), each task's place as
 // [tier, place in its tier]; the earlier first, a tie by the clock that runs out first, then the list's order:
 //   0 the story    the opening chapter's objective and its first freight (the cargo is that objective while carried), a reference
-//                  ship's run, the radio line's step (src/opening.js, src/specials.js, src/guide.js; the story's purple, ◆)
+//                  ship's run, the radio line's step, the ruin to restore next (src/opening.js, src/specials.js, src/guide.js,
+//                  src/nextRuin.js; the story's purple, ◆)
 //   1 the raids    a raid on a station, a ship pestered by pirates (red, on a clock: the soonest first)
 //   2 the NPCs     a pilot out of fuel, a wreck asking, a planet's errand, another pilot's lost cargo (yellow and blue)
 //   3 the rest     the cargo carried, a cargo lost, a cache, a ruin to restore, a signal (green)
@@ -67,6 +68,7 @@ export function focusRank(task) {
   if (q.kind === 'raid' || q.kind === 'pester') return [1, 0];
   // The boss's quest (src/bossQuest.js): the story's until the pilot meets it, a raid's red from then.
   if (q.kind === 'boss') return q.tone === 'red' ? [1, 0] : [0, 3];
+  if (q.kind === 'ruin') return [0, 4];
   if (NPC_KINDS.has(q.sideKind)) return [2, 0];
   return [3, 2];
 }

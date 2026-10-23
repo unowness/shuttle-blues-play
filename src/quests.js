@@ -25,6 +25,7 @@ import { openingQuest, openingCalm, openingHoldsGuide, radioFitted } from './ope
 import { stepSupport, supportQuest } from './starterSupport.js';
 import { freightCandidates, freightWaited, noteFreight, restFreight, freightTaken, freightReach, freightWords } from './freight.js';
 import { QUEST_LINES as QL } from './questLines.js';
+import { nextRuinId, nextRuinQuest } from './nextRuin.js';
 import { legTo } from './navigation.js';
 
 // The quests (SX, 2026-10-01, GARAGE_QUESTS_HANDOFF.md step 3: «Если пираты напали, это квест. Типа, если ты накопил денег
@@ -87,9 +88,11 @@ export function sideCandidates(world) {
     if (!isAvailable(f, L) || L.marked === f.id || L.credits < f.price) continue;
     out.push({ id: `side:${f.id}`, kind: 'find', findId: f.id });
   }
+  // (Not the ruin the story leads to: src/nextRuin.js, its own purple plate.)
+  const next = nextRuinId(world);
   for (const id of networkStationIds()) {
     const def = ruinDef(id, L);
-    if (!def || isRestored(L, def) || sectorById(def.sectorId)?.hidden || !sectorOpen(L, def.sectorId)) continue;
+    if (!def || id === next || isRestored(L, def) || sectorById(def.sectorId)?.hidden || !sectorOpen(L, def.sectorId)) continue;
     const left = stillToInvest(L, def);
     if (left > 0 && L.credits >= left) out.push({ id: `side:${id}`, kind: 'rebuild', stationId: id });
   }
@@ -459,7 +462,7 @@ function sideQuestWords(world) {
 // The list as it stands: the red ones first (the raid, a ship pestered), then the side quest, then the radio's step, then the opening
 // chapter's objective (src/opening.js: while it runs the radio's step waits, so the two are never on together).
 export function currentQuests(world) {
-  return [raidQuest(world), pesterQuest(world), bossQuestRecord(world), specialQuest(world), chorusRecord(world), sideQuest(world), guideQuest(world), supportQuest(world), openingQuest(world)].filter(Boolean);
+  return [raidQuest(world), pesterQuest(world), bossQuestRecord(world), specialQuest(world), chorusRecord(world), sideQuest(world), guideQuest(world), supportQuest(world), openingQuest(world), nextRuinQuest(world)].filter(Boolean);
 }
 
 // Whether a world event is the very thing the side quest on asked for (its cache opened, its signal tuned in, its ruin restored,

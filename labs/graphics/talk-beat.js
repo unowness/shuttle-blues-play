@@ -52,7 +52,7 @@ import { clipperPose } from '../../src/clipper.js';
 import { floatPose, floatPhases } from '../../src/float.js';
 import { CONFIG } from '../../src/config.js';
 import { PESTER_ID, pesterHere } from '../../src/pester.js';
-import { clamp, easeOut, dimToContrast, contrastOnBlack } from '../../src/util.js';
+import { clamp, easeOut, dimToContrast, contrastOnBlack, mixHex } from '../../src/util.js';
 import { withAlpha } from '../../src/hover.js';
 import { drawStationShot } from './windows.js';
 import { glyphsNow } from './world-art.js';
@@ -68,9 +68,11 @@ import { tr } from '../../src/lang.js';
 // The script: a line stands `read` s and a second each `cps` characters before the next comes, the pilot's action `act` s; a line comes in
 // over `fresh` s; a line wraps to `wrap` rows at most; a conversation is kept `keep` s of page time after its last word, `threads` of them at
 // most. `talk` the row the object's window offers to begin it. `names` the grays of who speaks, names and words alike: the lightest the
-// window's text, YOU's `you` as contrast on black, the others between, a step a speaker.
+// window's text, YOU's `you` as contrast on black, the others between, a step a speaker; `lone` the share of its white a lone speaker's
+// name is drawn at, its words white (SX, 2026-10-23: «если там только один персонаж говорит, то у нас белым его ник написан. Пусть он
+// сразу будет написан как минимум белый с 70%. А то очень сложно различить»).
 export const BEAT = Object.freeze({ pace: 0.2, in: 0.3, out: 0.3, veil: 0.72, width: SIZES.S[0], shot: 200, shotLeast: 120, show: 0.35, drop: 12, under: 48, floor: 8,
-  read: 0.6, cps: 27, act: 0.5, fresh: 0.25, wrap: 8, keep: 900, threads: 24, talk: 'TALK', names: Object.freeze({ you: 4.5 }) });
+  read: 0.6, cps: 27, act: 0.5, fresh: 0.25, wrap: 8, keep: 900, threads: 24, talk: 'TALK', names: Object.freeze({ you: 4.5, lone: 0.7 }) });
 // The gray of the `i`-th of `n` voices in a talk, YOU the last: from the window's white down to YOU's, the steps even in lightness (CIE L*), so
 // each reads as far from the next (SX, 2026-10-22: «их строчки тоже подписаны этим оттенком»; «достаточно различными друг с другом»; a step even in
 // contrast's ratio, the round before, bunched the lighter ones).
@@ -313,6 +315,8 @@ export function createTalkBeat(game) {
     // when the pilot first answers. A line by no one (COMMONS's own words, its static) keeps the ink its talk gives it.
     const mine = (e) => e.you || e.who === YOU, speakers = [...new Set(entries.filter((e) => e.who && !mine(e)).map((e) => e.who))];
     const voices = speakers.length + 1, grayOf = (e) => (mine(e) ? voiceGray(voices - 1, voices) : voiceGray(speakers.indexOf(e.who), voices));
+    // A lone speaker's name under its white words (BEAT.names.lone); with several, their grays tell the names apart.
+    const nameOf = (e) => (speakers.length === 1 && !mine(e) ? mixHex(grayOf(e), INK.black, 1 - BEAT.names.lone) : grayOf(e));
     const nameCols = entries.some((e) => e.who) ? Math.max(...entries.map((e) => len(e.who))) + ORG.gutter : 0;
     const lines = entries.flatMap((e) => wrap(e.text, cols - nameCols, BEAT.wrap).filter(Boolean).map((text, j) => ({ e, text, first: j === 0 })));
     const rows = [];
@@ -341,7 +345,7 @@ export function createTalkBeat(game) {
       lines.forEach((l, i) => {
         if (l.e.at > now) return;
         const put = () => {
-          if (l.first && l.e.who) win.text(l.e.who, p.cx, p.y(i), grayOf(l.e));
+          if (l.first && l.e.who) win.text(l.e.who, p.cx, p.y(i), nameOf(l.e));
           win.text(l.text, p.x(nameCols), p.y(i), l.e.who || mine(l.e) ? grayOf(l.e) : l.e.ink ?? INK.text);
         };
         const fresh = clamp((now - l.e.at) / BEAT.fresh, 0, 1);
