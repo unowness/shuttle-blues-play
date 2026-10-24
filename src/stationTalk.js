@@ -20,7 +20,8 @@ import { openingStage, REST } from './opening.js';
 //   world.stationNews = Map(stationId -> [{ who, line, key, at }])
 
 const THREAD = (id) => `station:${id}`;
-const RECORDING = 'OLD RECORDING';
+// A ruin's speaker: short, so the script's name column leaves its words the width (SX, 2026-10-24: R2 of the long-words pass; OLD RECORDING before).
+export const RECORDING = 'LOG';
 // CONCOURSE's voices: its archive's (the residents' words, before its own came back) and its AI's own, in the station's own ink.
 const ARCHIVE = 'STATION ARCHIVE', AI = 'AI';
 

@@ -116,7 +116,7 @@ export const STATION_INFO = Object.freeze({
       role: 'AGRONOMIST',
       welcome: 'HELLO. HOW CAN I HELP?',
       ruin: "CLIMATE CONTROL OFFLINE. SEVEN CELLS. LAST CYCLE'S DATA SAVED.",
-      recording: 'DRONE · OLD RECORDING',
+      recording: 'DRONE',
       restored: "CONDITIONS HAVE BEEN RESTORED IN ALL SEVEN CELLS. WE'LL REPLANT ONE CELL AT A TIME." },
   },
   'station-wharf-k06': {

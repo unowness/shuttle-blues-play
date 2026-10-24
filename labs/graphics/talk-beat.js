@@ -141,7 +141,9 @@ export function talkLines(world, t) {
     let run = [];
     const flush = () => { if (run.length) out.push({ who, text: run.join(' '), ink: null }); run = []; };
     for (const l of list ?? []) {
-      if (typeof l === 'string') { if (l.trim()) run.push(l.trim()); continue; }
+      // (Each line in the pilot's language before the run joins them: the tables hold the lines, never their joins. 2026-10-24: the opening's
+      // mechanic spoke English in the Russian game.)
+      if (typeof l === 'string') { if (l.trim()) run.push(tr(l.trim())); continue; }
       if (l?.line == null || !String(l.line).trim()) continue;
       flush();
       out.push({ who: l.who ?? who, text: String(l.line).trim(), ink: l.ink ?? null, key: l.key ?? null });
