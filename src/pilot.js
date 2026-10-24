@@ -26,6 +26,9 @@ export const CHARM_NONE = 'none';
 // p карточка пилота», «L оставить письмо»): the screen filter, the controls list, the map, the pilot card and the sign, each its key said once.
 export const SKILL_IDS = Object.freeze(['thrust', 'steer', 'brake', 'fire', 'drift', 'jump', 'trick', 'display', 'help', 'map', 'card', 'sign']);
 
+// Every station there is, for the hellos heard (`greeted`).
+const STATION_IDS = new Set(SECTORS.flatMap((s) => (s.stations ?? []).map((st) => st.id)));
+
 export const NICKNAME_MAX = 12;
 export const DEFAULT_NICKNAME = 'PILOT';
 
@@ -93,6 +96,16 @@ export class Pilot {
     this.npcCallAt = null;
     // The skills the one-time hints (src/skillHints.js) have said, by SKILL_IDS: said once in the whole game, never again.
     this.taught = new Set();
+    // The stations whose person's hello the pilot has heard (src/stationTalk.js; SX, 2026-10-24: «Пусть приветствие станции звучит один раз за
+    // игру: услышал — больше TALK ради него не появляется»): said once in the whole game, never again.
+    this.greeted = new Set();
+  }
+
+  // A station's hello heard (its talk ended, labs/graphics/talk-beat.js): true when it was not heard before.
+  greet(stationId) {
+    if (!STATION_IDS.has(stationId) || this.greeted.has(stationId)) return false;
+    this.greeted.add(stationId);
+    return true;
   }
 
   // A skill's hint said (it went by the key, the deed or its seconds): true when it was not said before.
@@ -196,8 +209,9 @@ export class Pilot {
       paints: [...this.paints], paint: this.paint, cockpits: [...this.cockpits], cockpit: this.cockpit, notes: [...this.notes],
       fought: this.fought, homed: this.homed, looks: [...this.looks], look: this.look,
       cursors: [...this.cursors], cursor: this.cursor, randomDone: this.randomDone, radio: this.radio, npcCallAt: this.npcCallAt, charm: this.charm,
-      // Written only once a hint has been said, and once a reference ship has stood: a pilot with neither writes the save it always wrote.
+      // Written only once a hint has been said, a station's hello heard, a reference ship has stood: a pilot with none writes the save it always wrote.
       ...(this.taught.size ? { taught: SKILL_IDS.filter((id) => this.taught.has(id)) } : null),
+      ...(this.greeted.size ? { greeted: [...this.greeted].sort() } : null),
       ...(this.lastSpecial ? { lastSpecial: this.lastSpecial } : null),
       ...(this.specialOrder ? { specialOrder: [...this.specialOrder] } : null),
       ...(this.bossDefeated ? { bossDefeated: true } : null) };
@@ -256,6 +270,8 @@ export class Pilot {
     p.charm = raw.charm === CHARM_NONE ? CHARM_NONE : typeof raw.charm === 'string' && collectibleDef(raw.charm) ? raw.charm : null;
     // The skills said: only those the game still has; a save from before the hints (SX's own among them) has been told none.
     for (const id of Array.isArray(raw.taught) ? raw.taught : []) p.teach(id);
+    // The hellos heard: only stations the catalogue still has.
+    for (const id of Array.isArray(raw.greeted) ? raw.greeted : []) p.greet(id);
     return p;
   }
 }

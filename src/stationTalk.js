@@ -9,7 +9,8 @@ import { openingStage, REST } from './opening.js';
 // has something to say (src/menus.js stationMenu; labs/graphics/talk-beat.js), and only then: once the pilot has heard all of it, the window
 // is the station's rows again, with no TALK before them (the talk's `quiet`). What it says, in order:
 //   a ruin       its old recording (STATION_INFO people.ruin): what its people said as it stopped, never a live voice
-//   working      its person's hello (people.welcome); what happened here a moment ago (`news`: its restoration's word, people.restored, once;
+//   working      its person's hello (people.welcome), once in the whole game: heard, never again (Pilot.greeted, in the save; SX,
+//                2026-10-24: «Пусть приветствие станции звучит один раз за игру»); what happened here a moment ago (`news`: its restoration's word, people.restored, once;
 //                a cargo delivered here, the receiver's word, CONTRACTS handoff); and of each authored cargo it offers now, why it goes
 //                (CONTRACTS offer). CONCOURSE has no person: its archive speaks, and once its AI has its own words back (src/chorus.js)
 //                the AI, lowercase (offerOwn, handoffOwn)
@@ -45,6 +46,13 @@ export function noteDelivered(world, contract) {
   noteStation(world, c.to, own ? AI : whoAt(world, c.to), own || c.handoff, `handoff:${c.id}`);
 }
 
+// A station's conversation ended (LATER, or the ship gone from it: labs/graphics/talk-beat.js), its talk `thread`, `said` the keys of what its
+// script holds: its hello, if it was said there, is heard for good (a ruin's recording heard is no hello).
+export function talkEnded(world, thread, said = null) {
+  const id = typeof thread === 'string' && thread.startsWith('station:') ? thread.slice('station:'.length) : null;
+  if (id && said?.has(`welcome:${id}`)) world.pilot?.greet(id);
+}
+
 // Who speaks for station `id`: its person's role; CONCOURSE its archive, or its AI.
 function whoAt(world, id) {
   if (id === COMMONS_ID) return chorusDone(world) ? AI : ARCHIVE;
@@ -62,7 +70,7 @@ export function stationTalk(world, s, actions = []) {
     if (people?.ruin) lines.push({ who: people.recording ?? RECORDING, line: people.ruin, key: `ruin:${s.id}` });
   } else {
     const own = commons && chorusDone(world), who = whoAt(world, s.id), ink = own ? CONFIG.quests.chorus.art.own : null;
-    if (people?.welcome) lines.push({ who, line: people.welcome, key: `welcome:${s.id}` });
+    if (people?.welcome && !world.pilot?.greeted?.has(s.id)) lines.push({ who, line: people.welcome, key: `welcome:${s.id}` });
     for (const n of world.stationNews?.get(s.id) ?? []) if (world.time - n.at < CONFIG.station.news) lines.push({ who: n.who, line: n.line, key: n.key, ...(n.who === AI ? { ink } : null) });
     for (const a of actions) {
       const c = a.offer && contractById(a.contractId);

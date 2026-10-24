@@ -60,6 +60,7 @@ import { noteKey, unnoted } from './clicks.js';
 import { KEYCAP_PAD } from './ui-parts.js';
 import { Win, ORG, INK, SIZES, partLen, len } from './organism.js';
 import { tr } from '../../src/lang.js';
+import { talkEnded } from '../../src/stationTalk.js';
 
 // `pace` the world's speed while the line stands, reached in `in` s and left in `out` s (page time); `veil` the black over the frame at its
 // darkest; `under` px from the ship's middle (the camera's, r.cy) to the window's top; `floor` px kept clear over the cockpit.
@@ -202,7 +203,7 @@ export function createTalkBeat(game) {
     const dt = S.last === null ? 0 : clamp(now - S.last, 0, 0.1);
     S.last = now;
     const sel = world.selected;
-    if ((sel?.id ?? null) !== S.forId) { S.forId = sel?.id ?? null; S.dismissed = null; S.opened = null; }
+    if ((sel?.id ?? null) !== S.forId) { if (S.opened) talkEnded(world, S.opened, S.scripts.get(S.opened)?.seen); S.forId = sel?.id ?? null; S.dismissed = null; S.opened = null; }
     // A call stands over whatever the ship is next to; else the menu the ship is next to, once its talk is begun.
     const call = world.talkCall && world.talkCall.n !== S.callDone ? world.talkCall : null, t = call ? call.menu : sel;
     S.call = call?.n ?? null;
@@ -376,7 +377,7 @@ export function createTalkBeat(game) {
 
   // LATER: the beat standing goes until TALK is pressed again (Escape and 0, labs/graphics/input-router.js; its menu, a berth's among them,
   // is left as it is).
-  function later() { if (S.key) S.dismissed = S.key; S.opened = null; if (S.call != null) S.callDone = S.call; }
+  function later() { if (S.key) S.dismissed = S.key; if (S.opened) talkEnded(world, S.opened, S.scripts.get(S.opened)?.seen); S.opened = null; if (S.call != null) S.callDone = S.call; }
 
   return { state: S, step, shown, standing, pace, steps, asks, plate, open, press, run, draw, later };
 }
