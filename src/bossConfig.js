@@ -57,11 +57,12 @@ export const BOSS = {
     // `every` s; one of them calls a line every `say` s; their lines by what is going on.
     crowd: { count: 5, out: [60, 200], fuss: 90, speed: 260, every: [0.5, 1.3], say: [2.5, 5],
       lines: {
-        any: ['BEHIND YOU!', 'LOOK OUT!', 'WATCH THE SLEDS!', 'KEEP MOVING!', 'HIT THE CORE!', 'IT\'S TURNING!', 'GET OUT OF THERE!', "HOLD ON, PILOT!"],
+        any: ['BEHIND YOU!', 'LOOK OUT!', 'WATCH THE SLEDS!', 'KEEP MOVING!', 'HIT THE CORE!', 'IT\'S TURNING!', 'GET OUT OF THERE!', "HOLD ON, PILOT!",
+          "DON'T SIT IN ITS LINE OF FIRE! MOVE!"],
         launch: ["MORE INCOMING!", 'THE BAY\'S OPEN!', 'FIGHTERS!'],
         sled: ['ONE ARM DOWN!', "THAT'S ONE LESS!"],
         rage: ['IT\'S MAD NOW!', 'CAREFUL!'],
-        won: ['YOU DID IT!', 'IT\'S DOWN!', 'THE ROUTES ARE OURS!'],
+        won: ['YOU DID IT!', 'IT\'S DOWN!'],
       } },
     // The camera in its fight (src/worldDraw.js updateCamera): it leans toward the boss by `lean` of the way, at most `max` u, while the
     // boss is within `far` (at its range it would stand at the edge of a 1280 x 960 view; the sheet's camera, measured there).

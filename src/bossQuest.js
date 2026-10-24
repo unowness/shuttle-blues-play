@@ -204,14 +204,25 @@ function stepCrowd(world, dt) {
   say(world, near, pool[Math.floor(rng() * pool.length)]);
 }
 
+// What the radio says of it (the text pass SX approved on 2026-10-24, codex/text-review/2026-10-24), as the notch says it (labs/graphics/
+// notices.js): offered (where, the quest's sector), awake (the short form: the fight is on), moved after a wreck, beaten. And the line a
+// watcher calls first when it is beaten.
+export const RADIO = Object.freeze({
+  offered: (sector) => `LARGE VESSEL REPORTED IN ${sector}. SENDING A MARKER. PLEASE INVESTIGATE.`,
+  woke: 'TARGET THE CORE. MODULES ARE OPTIONAL.',
+  moved: 'TOLLKEEPER HAS BEEN LOCATED AGAIN. COORDINATES UPDATED. BE ADVISED: ITS HULL IS RESTORED.',
+  done: 'CORE DESTROYED. TOLLKEEPER IS NO LONGER A THREAT.',
+  clear: "SMOKE'S CLEARING. YOU CAN GET OUT NOW.",
+});
+
 function say(world, w, line) {
   world.emit('trafficHail', { craftId: w.id, label: w.label, line, x: w.x, y: w.y, sectorId: world.sector.id, greet: true });
 }
 
-// Beaten: two of them call it, and the crowd goes with the boss's pieces.
+// Beaten: two of them call it (the first that the smoke is clearing), and the crowd goes with the boss's pieces.
 function cheer(world) {
   const crowd = world.bossCrowd ?? [], rng = world.rng('boss-crowd'), won = CONFIG.boss.crowd.lines.won;
-  for (const w of crowd.slice(0, 2)) say(world, w, won[Math.floor(rng() * won.length)]);
+  crowd.slice(0, 2).forEach((w, i) => say(world, w, i === 0 ? RADIO.clear : won[Math.floor(rng() * won.length)]));
   world.bossCrowdGoAt = world.time + Q().gone;
 }
 

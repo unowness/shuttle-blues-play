@@ -4,6 +4,7 @@
 import { strangerByContract } from './strangers.js';
 import { payFor } from './pacing.js';
 import { openingDelivered } from './opening.js';
+import { noteDelivered } from './stationTalk.js';
 
 export function acceptContract(world, contract) {
   const res = world.ledger.accept(contract);
@@ -39,6 +40,8 @@ export function deliver(world, station) {
     timing: res.timing || null,
     rescued: !!stranger, author: stranger?.author ?? null, thanks: stranger?.thanks ?? null, fee,
   });
+  // The receiver's word on it, in the station's talk (src/stationTalk.js; an authored cargo's, delivered here and paid).
+  if (!res.alreadySettled) noteDelivered(world, active);
   // The opening's first freight (src/opening.js): its receipt, B's words, its stage passed.
   openingDelivered(world, active, res);
 }

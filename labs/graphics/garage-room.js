@@ -61,6 +61,10 @@ export const ROOM = Object.freeze({
   fade: 0.16,         // s a cell stands at the sweep's front, the room under a black glyph (coming up out of the black, or going down into it)
   live: 0.1,          // s between redraws of what lives
   wrap: 32,           // a window's widest line, in columns (the object's menu's, labs/graphics/context.js)
+  rows: 5,            // its words' rows, at most
+  // The cabinet's note about a reference ship's film or show (src/specialShips.js; the text pass of 2026-10-24): longer than a thing's
+  // words, so wider and taller (the longest, MYSTERY MACHINE's in Russian, 11 rows of 40).
+  note: Object.freeze({ wrap: 40, rows: 12 }),
 });
 // The room's windows (SX's PICK): every window is space's black with no line round it, the inset's air on whole px (18) from its
 // edge to its first and last ink on all four sides, measured on the ink; the room's edge to a window's edge the same; the things
@@ -686,7 +690,8 @@ function anchorBox(L, id, o) {
 function drawThingWindow(r, room, world, L, on, boxes, keep) {
   const words = thingWords(world, on, room) ?? { title: on, text: '' };
   const text = ACTIONS[on] && on !== 'CABINET' ? '' : words.text;
-  const head = [words.title, ...wrapText(text, ROOM.wrap).slice(0, 5)];
+  const fit = on === 'CABINET' ? ROOM.note : ROOM;
+  const head = [words.title, ...wrapText(text, fit.wrap).slice(0, fit.rows)];
   // Its action's row: the key the keyboard uses it by (labs/graphics/key-focus.js: Enter); a word, not a button (the window stands
   // beside the thing, not under the pointer).
   const rows = ACTIONS[on] ? [{ key: keyName('confirm'), label: ACTIONS[on] }] : [];

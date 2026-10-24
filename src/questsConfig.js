@@ -128,21 +128,24 @@ export const QUESTS = {
     npcCall: { after: 60, retry: 5 },
     // The words a ship says are pools, never the last line again, with each ship's own besides (src/voices.js; SX, 2026-10-02:
     // «нпс разными фразами должны благодарить и говорить фразочки»): `hail` the plea a pilot out of fuel makes to one who comes
-    // near, `thanks` what it says when fuelled.
+    // near, `thanks` what it says as it goes, paid; `short` a hail's short form of a plea [whole, short]. The words since the text pass SX
+    // approved on 2026-10-24 (codex/text-review/2026-10-24): one of the quest's own in each pool, the ship's two thanks and its calls beside.
     rescue: { fuel: 20, pay: 150, clear: 900,
-      hail: ['ANYONE HAVE FUEL TO SPARE?', "TANK'S EMPTY. CAN YOU TRANSFER FUEL?", 'DRIFTING HERE. NEED FUEL.', "CAN'T RESTART. NO FUEL LEFT.", 'FUEL CALL. ANYONE IN RANGE?'],
-      thanks: ["FUEL RECEIVED. THAT'S A RELIEF.", 'ENOUGH FOR THE NEXT LEG. THANKS.', 'THAT SHOULD DO IT. THANKS, PILOT.', 'TRANSFER RECEIVED. MUCH OBLIGED.', 'THANKS. I WAS GETTING WORRIED.', 'I CAN GET MOVING NOW. THANK YOU.'],
+      hail: ['RAN OUT BEFORE THE FUEL STOP. CAN YOU SELL ME TWENTY UNITS?'],
+      thanks: ['YOU SAVED ME A LOT OF TROUBLE. THANKS.'],
+      short: [['RAN OUT BEFORE THE FUEL STOP. CAN YOU SELL ME TWENTY UNITS?', 'OUT OF FUEL. CAN YOU SELL ME 20?']],
       hailReach: 460, leave: 3 },
     pester: {
       first: 360, afterFight: true, gap: [[0, 480, 720], [4, 900, 1500], [8, 1500, 2400]], time: 180, squad: [[3, 0.5], [4, 0.5]], ships: ['N15', 'N16', 'N28'],
       ring: 300, wake: 900, clear: 700, edge: 0.22, apart: 2000, pay: 300, fire: [1.6, 3.4], leave: 3.5, limp: 7,
       hailReach: 460,
-      help: ['PIRATES HAVE ME PINNED. HELP!', 'ANYONE FREE TO DEAL WITH PIRATES?', 'TOO MANY OF THEM. NEED COVER.', 'MAYDAY. PIRATES FIRING ON ME.', "PIRATES WON'T LET ME THROUGH."],
-      thanks: ["THEY'RE GONE. THANK YOU.", 'STILL HERE, SOMEHOW. THANKS.', 'THAT GIVES ME A WAY OUT. THANK YOU.', 'THANKS FOR DRIVING THEM OFF.', 'GOOD COVER, PILOT. APPRECIATED.', 'GLAD YOU WERE NEARBY. THANK YOU.'],
+      help: ["THEY'VE GOT ME PINNED! CAN'T SHAKE THEM. HELP!"],
+      thanks: ["THANK YOU! I'M GETTING OUT OF HERE."],
+      short: [["THEY'VE GOT ME PINNED! CAN'T SHAKE THEM. HELP!", 'PINNED DOWN! HELP ME GET CLEAR!']],
     },
     wreck: {
       asks: [40, 60, 90], clear: 900, hailReach: 460, leave: 3, spark: [0.5, 1.4], broken: 0.22,
-      thanks: ["THANKS. I'VE A LEAD FOR YOU.", 'LET ME SHARE A TIP IN RETURN.', 'I CAN OFFER A TIP. THANK YOU.', 'THANKS, PILOT. THIS MAY BE USEFUL.', 'THAT COVERS IT. I HAVE A LEAD.'],
+      thanks: ["THANKS. THAT'LL COVER IT."],
     },
     // The reference ships' rare quests (src/specials.js; QUESTS_V2_HANDOFF.md round three; paced by the quest economy,
     // SX, 2026-10-02: «Раз в ~30 мин»): a ship out of O-08 stands still in the pilot's sector, rarely, for `stay` s, `apart` u
@@ -179,12 +182,15 @@ export const QUESTS = {
       // The timed runs' paces (`speed`) and the X-WING's `time` follow the ships' tops: 380 and 260 until the world and the ships slowed (W2),
       // 285 and 195 and 160 s until the tops went to 0.85 of that, and 242, 166 and 188 s until 0.8 of it (2026-10-05), and 228, 156 and
       // 200 s until 0.9 of it, and 257, 176 and 178 s until 0.999 of it (2026-10-06): a run's clock as fair as it was.
-      delorean: { speed: 285, slack: 15, minLeg: spread(7000), maxLeg: spread(13000) },
+      // `road`: when the crew's exchange of the way comes (src/specialShips.js words.road; the text pass of 2026-10-24): the DELOREAN's once that
+      // share of its clock has gone, SERENITY's once its hull is down to that share (its plating seen going: src/specialShips.js brokenShare
+      // from 0.7), the X-WING's first that many s into the run, the MYSTERY MACHINE's once that many snacks are in.
+      delorean: { speed: 285, slack: 15, minLeg: spread(7000), maxLeg: spread(13000), road: 0.35 },
       swordfish: { waves: [3, 4, 4, 4], arrive: 1100, pause: 3 },
       express: { cars: 3, minLeg: spread(2500), maxLeg: spread(11000), loadTop: 0.85 },
       falcon: { waves: [4, 4, 4, 4], arrive: 1400, ring: 1500, overlap: 2 },
-      serenity: { speed: 195, slack: 20, hullEnd: 0.05 },
-      xwing: { time: 160, minLeg: spread(9000), maxLeg: spread(20000), spawnEvery: [6, 10], squad: 2, cap: 6 },
+      serenity: { speed: 195, slack: 20, hullEnd: 0.05, road: 0.55 },
+      xwing: { time: 160, minLeg: spread(9000), maxLeg: spread(20000), spawnEvery: [6, 10], squad: 2, cap: 6, road: 3 },
       // The MYSTERY MACHINE's run (src/specialQuests.js scooby, src/scoobySnacks.js; SX, 2026-10-21: «давай надо собрать 75 минимум из 100,
       // надо еще таймер подобрать удобный», «Таймер на весь квест»): `trails` trails of `per` snacks, `gap` u apart along each, laid in the
       // sector where the van stands (each a walk of `legs` legs `leg` u long, bending up to `turn` rad, its snacks `clear` u off every
@@ -195,7 +201,7 @@ export const QUESTS = {
       // 1.9 to 2.4 times that, for a pilot's hands («надо еще таймер подобрать удобный»). A snack is taken within the coin's reach (CONFIG.pickup.collectRadius) and the hull's, `nose` u
       // more for the drawing's nose. `smoke`: the pipes' puffs (src/scoobySnacks.js stepSmoke). `art`: the snack drawn (SX's K1 LINE).
       scooby: { trails: 4, per: 25, need: 75, gap: 70, legs: 6, leg: 380, turn: 0.75, clear: 520, edge: 0.08, apart: 650, tries: 60,
-        speed: 270, slack: 45, nose: 18,
+        speed: 270, slack: 45, nose: 18, road: 25,
         smoke: { every: 0.045, life: 1.1, speed: 80, carry: 0.15, drag: 2.4, scatter: 0.55, moving: 140, max: 120, grow: 1.1,
           ink: '#B7BEC6', alpha: 0.85, glyphs: ['·', '∘', 'o', 'O', 'O'] },
         art: { scale: 0.5, spin: 1.1, body: '#C47A45', knob: '#EDD3A2' } },
@@ -237,6 +243,9 @@ export const QUESTS = {
     chorus: { hear: 750, again: 2, clear: 700, reach: 460, finale: 1000,
       beat: { base: 0.9, perChar: 0.05, noise: 1.2, hole: 1.6 },
       line: { life: 6, shown: 3 },
+      // The recorder on the way home (src/chorus.js playOnTheWay; the text pass of 2026-10-24): its first line `first` s after it is taken, the
+      // next each `gap` s after the one before has stood its time (CLIPPER's pace, src/clipper.js readLife).
+      road: { first: 1.5, gap: 6 },
       art: { lying: 1.35, carried: 1.05, body: '#A99BE0', inner: '#7e73a6', own: '#A99BE0' } },
   },
 };

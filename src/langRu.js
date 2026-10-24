@@ -163,7 +163,7 @@ const COCKPIT = {
   'LOOK CACHE': 'ТАЙНИК СО СТИЛЕМ',
   '{} / RUIN': '{} / РУИНА',
   'FUEL DROID': 'ДРОИД-ЗАПРАВЩИК',
-  'REPAIR DROID': 'ДРОИД-РЕМОНТНИК',
+  'REPAIR DROID': 'РЕМОНТНЫЙ ДРОИД',
   'RETURN TO': 'ВЕРНУТЬ НА',
   // the first flight's keys and the skills' hints (src/controls.js starterRows, src/skillHints.js)
   'FLY': 'ЛЕТЕТЬ',
@@ -236,8 +236,8 @@ const FEEDBACK = {
   'MARKED': 'ОТМЕЧЕНО',
   'SUITCASE ABOARD': 'ЧЕМОДАН НА БОРТУ',
   'SUITCASE LOST': 'ЧЕМОДАН ПОТЕРЯН',
-  'RECORDER ABOARD': 'ДИКТОФОН НА БОРТУ',
-  'RECORDER': 'ДИКТОФОН',
+  'RECORDER ABOARD': 'РЕГИСТРАТОР НА БОРТУ',
+  'RECORDER': 'РЕГИСТРАТОР',
   // the pirates' shouts (src/piratesConfig.js personas.shouts)
   'MINE.': 'МОЁ.',
   'PAY UP.': 'ПЛАТИ.',
@@ -413,8 +413,6 @@ const NOTICES = {
   'STOPPED': 'ОСТАНОВЛЕН',
   'DOCK BELOW {#}': 'ПРИЧАЛ НИЖЕ {}',
   'SHELF FITTED': 'ПОЛКА УСТАНОВЛЕНА',
-  'FIRST SOUVENIR ON DISPLAY': 'ПЕРВЫЙ СУВЕНИР НА ПОЛКЕ',
-  'FILL IT WITH SOUVENIRS': 'ЗАПОЛНИ ЕЁ СУВЕНИРАМИ',
   'LOCATOR AND MAP FITTED': 'ЛОКАТОР И КАРТА УСТАНОВЛЕНЫ',
   '{} IS MARKED': '{} ОТМЕЧЕНА',
   'YOUR SHUTTLE': 'ТВОЙ ШАТТЛ',

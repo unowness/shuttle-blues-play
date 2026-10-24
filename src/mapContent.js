@@ -1,5 +1,5 @@
 import { MAP_CONTENT } from './mapContentConfig.js';
-import { sectorById, stationDefById, SECTOR_SIZE } from './sectors.js';
+import { sectorById, stationDefById, SECTOR_SIZE, planetKey } from './sectors.js';
 import { sectorOpen } from './frontier.js';
 
 // Phase restricts a preference, never the existing system's eligibility. A sector's own
@@ -17,7 +17,7 @@ function endpoint(ref) {
   if (!ref) return null;
   const sector = sectorById(ref.sectorId);
   const current = ref.kind === 'station' ? stationDefById(ref.id) :
-    ref.kind === 'planet' ? sector?.planets.find(p => p.label === ref.label) : ref;
+    ref.kind === 'planet' ? sector?.planets.find(p => planetKey(p) === ref.label) : ref;
   return current ? { ...ref, x: current.x, y: current.y } : null;
 }
 

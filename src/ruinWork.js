@@ -11,6 +11,7 @@ import { postHeld } from './raids.js';
 import { CLAIM, recordBuild } from './rewardLedger.js';
 import { earnStationGift } from './stationGifts.js';
 import { nextRuinQuestId } from './nextRuin.js';
+import { noteRestored } from './stationTalk.js';
 
 // A ruin's actions (src/ruins.js): put in a part (50, 250, 500 CR, those under what is left), or
 // restore it with all that is left, or read about it. An action the wallet cannot pay is shown
@@ -57,6 +58,7 @@ export function investStation(world, station, amount = null, { support = null } 
     cost: station.cost, share: rebuiltShare(world.ledger, station), credits: res.credits, by: support ? 'support' : 'pilot', ...at });
   if (!res.done) return;
   world.ledger.restoredAt.set(station.id, world.ledger.clock);   // it stands in peace a while (CONFIG.raids.quiet)
+  noteRestored(world, station);                                  // its person's word on it, in its talk (src/stationTalk.js)
   // The story's quest that led here, done (src/nextRuin.js): its plate turns green and the next ruin's comes.
   world.questOutcomes.set(nextRuinQuestId(station.id), 'done');
   world.selectedId = null;

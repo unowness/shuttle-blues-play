@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { SECTORS, sectorById, stationDefById, networkStationIds, SECTOR_SIZE } from './sectors.js';
+import { SECTORS, sectorById, stationDefById, networkStationIds, SECTOR_SIZE, planetKey } from './sectors.js';
 import { reachableStationIds, isRestored, ruinIdsOf } from './ruins.js';
 import { sectorOpen } from './frontier.js';
 import { clearSpot, questSectors, pickOf } from './spots.js';
@@ -21,9 +21,9 @@ import { clipper, readClipperPlan } from './clipper.js';
 //
 //   plan(world, site)        what the quest would be, from where the ship stands (site, in the pilot's sector's units),
 //                            or null when nothing fits (then that ship is not met there)
-//   rows(plan)               the three lines the ship says over its head
 //   start(world, s)          the quest begins (the pilot has boarded): its runtime state `s.q`
-//   step(world, s, dt, end)  every step while it lasts; `end.win(world)` and `end.lose(world, why)` finish it
+//   step(world, s, dt, end)  every step while it lasts; `end.win(world)` and `end.lose(world, why)` finish it, `end.road(world, i)`
+//                            has its crew say the `i`-th exchange of its way (src/specialShips.js `words.road`), once, at its moment
 //   words(world, s)          its plate and pointer: title, sub, pointer word, `ends` (a clock), target; `win` the
 //                            plate's line when it is done, `lose` its two lines when it is late
 //   candidates / stationActions / draw / loadTop   a menu of its own, a station's row, a drawing, a weight (the train)
@@ -46,7 +46,7 @@ const openTo = (world, sectorId) => { const s = sectorById(sectorId); return !!s
 // ---- places ------------------------------------------------------------------------------------------------------------
 
 const stationDest = (def, reach = CONFIG.station.interactRadius * 0.9) => ({ kind: 'station', id: def.id, sectorId: def.sectorId, fx: def.x, fy: def.y, name: def.label, reach });
-const planetDest = (sector, pl) => ({ kind: 'planet', id: `planet:${pl.label}`, sectorId: sector.id, fx: pl.x, fy: pl.y, name: pl.label, radius: pl.radius, reach: pl.radius * 1.045 + 420 });
+const planetDest = (sector, pl) => ({ kind: 'planet', id: `planet:${planetKey(pl)}`, sectorId: sector.id, fx: pl.x, fy: pl.y, name: pl.label, radius: pl.radius, reach: pl.radius * 1.045 + 420 });
 const pointDest = (sectorId, spot, reach, name) => ({ kind: 'point', id: SPECIAL_MARK, sectorId, fx: spot.x, fy: spot.y, name, reach });
 
 // Where a place is in its sector now, in the sector's units: a station as it drifts, else the catalogue's.
@@ -79,7 +79,7 @@ function readDest(world, d, kinds) {
     return def && def.sectorId === sector.id ? stationDest(def, reach) : null;
   }
   if (d.kind === 'planet') {
-    const pl = (sector.planets ?? []).find((p) => p.label && `planet:${p.label}` === d.id);
+    const pl = (sector.planets ?? []).find((p) => p.label && `planet:${planetKey(p)}` === d.id);
     return pl ? planetDest(sector, pl) : null;
   }
   if (!Number.isFinite(d.fx) || !Number.isFinite(d.fy)) return null;
@@ -142,7 +142,12 @@ function waves(world, s, { total, overlap, pause, options = () => ({}) }, end) {
   const pool = Math.max(0, total - q.down - alive);
   if (!pool || alive > overlap || world.time < q.nextAt || !world.autoEncounters || !world.ship.alive) return;
   const count = Math.min(pool, q.batches[0] ?? pool);
-  if (send(world, count, options(world))) { q.batches.shift(); q.nextAt = world.time + pause; }
+  if (send(world, count, options(world))) {
+    q.batches.shift(); q.nextAt = world.time + pause;
+    // The crew's word at the first batch and at the next (its `road`, each once).
+    q.sent = (q.sent ?? 0) + 1;
+    if (q.sent <= 2) end.road(world, q.sent - 1);
+  }
 }
 
 const batchesOf = (plan) => plan.waves.slice();
@@ -158,11 +163,12 @@ const delorean = {
     const pick = pickOf(pool, world.rng('quest'));
     return { dest: stationDest(pick.d), distance: Math.round(pick.len), time: Math.round(pick.len / c.speed + c.slack) };
   },
-  rows: (p) => ['DOC BROWN IS WAITING', `AT ${p.dest.name}.`, 'GET US THERE IN TIME.'],
   start(world, s) { s.q = { ends: world.ledger.clock + s.plan.time }; },
   step(world, s, dt, end) {
     if (atDest(world, s.plan.dest)) end.win(world);
     else if (world.ledger.clock >= s.q.ends) end.lose(world, 'TIME');
+    // Doc on the radio once `road` of the clock has gone.
+    else if (world.ledger.clock >= s.q.ends - s.plan.time * (1 - C().delorean.road)) end.road(world, 0);
   },
   words(world, s) {
     const d = s.plan.dest;
@@ -186,7 +192,6 @@ const swordfish = {
     }
     return null;
   },
-  rows: (p) => ["GOT A BOUNTY IN", `${p.ground.name}. ${p.total} TARGETS.`, "ARMED. WANT IN?"],
   start(world, s) { s.q = { stage: 'go', down: 0, batches: batchesOf(s.plan), nextAt: 0, hadAlive: false }; },
   step(world, s, dt, end) {
     const q = s.q, g = s.plan.ground;
@@ -222,7 +227,6 @@ const falcon = {
     const pick = pickOf(own.length ? own : ruins, world.rng('quest'));
     return { dest: stationDest(pick, c.arrive), waves: c.waves.slice(), total: sum(c.waves) };
   },
-  rows: (p) => ['PIRATES HOLD THE DOCK', `AT ${p.dest.name}.`, 'TAKE THE FALCON IN.'],
   start(world, s) { s.q = { stage: 'go', down: 0, batches: batchesOf(s.plan), nextAt: 0, hadAlive: false }; },
   step(world, s, dt, end) {
     const q = s.q, d = s.plan.dest;
@@ -281,18 +285,20 @@ const express = {
     }
     return { planet: planetDest(o.sector, o.p), stops: way, cars: c.cars };
   },
-  rows: (p) => ["GOT A LOAD FOR YOU.", `${p.cars} CRATES AT ${p.planet.name}.`, "COVER MY SHIFT?"],
   start(world, s) { s.q = { stage: 'load', cars: [], delivered: 0 }; s.loadTop = 1; },
-  step(world, s, dt) {
+  step(world, s, dt, end) {
     const q = s.q;
     if (q.stage === 'deliver') stepTrain(world, q.cars, dt);
     s.loadTop = q.cars.length ? C().express.loadTop : 1;
+    // The crew's word once loaded, and at the first stop (where there is a next).
+    if (q.stage === 'deliver') end.road(world, 0);
+    if (q.delivered === 1 && s.plan.cars > 1) end.road(world, 1);
   },
   // The planet's menu, on its limb, while the train waits to be loaded.
   candidates(world, s) {
     const q = s.q, pl = s.plan.planet;
     if (q.stage !== 'load' || world.sector.id !== pl.sectorId || !world.ship.alive) return [];
-    const planet = world.planets.find((p) => p.label === pl.name);
+    const planet = world.planets.find((p) => `planet:${planetKey(p)}` === pl.id);
     if (!planet) return [];
     const d = world.delta(world.ship.x, world.ship.y, planet.x, planet.y), m = Math.hypot(d.x, d.y) || 1;
     return [{
@@ -340,7 +346,6 @@ const serenity = {
     const pick = pickOf(pool, world.rng('quest'));
     return { dest: stationDest(pick.d), distance: Math.round(pick.len), time: Math.round(pick.len / c.speed + c.slack) };
   },
-  rows: (p) => ['HULL IS BREAKING UP.', "NEED A PILOT. FLY US", `TO ${p.dest.name}.`],
   start(world, s) { s.q = { ends: world.ledger.clock + s.plan.time, rate: (world.hullMax * (1 - C().serenity.hullEnd)) / s.plan.time, sparkIn: 0 }; },
   step(world, s, dt, end) {
     const q = s.q, ship = world.ship;
@@ -363,6 +368,8 @@ const serenity = {
     }
     if (atDest(world, s.plan.dest)) end.win(world);
     else if (world.ledger.clock >= q.ends) end.lose(world, 'TIME');
+    // Kaylee and Mal once the hull is down to `road` of it, the plating seen going.
+    else if (world.hull <= world.hullMax * C().serenity.road) end.road(world, 0);
   },
   words(world, s) {
     const d = s.plan.dest;
@@ -387,16 +394,17 @@ const xwing = {
     const pick = pickOf(pool, rng);
     return { dest: pick.dest, distance: Math.round(pick.len), time: c.time };
   },
-  rows: () => ['TAKE THE X-WING.', 'REACH THE WAYPOINT.', 'PIRATES IN PURSUIT.'],
-  start(world, s) { s.q = { ends: world.ledger.clock + s.plan.time, nextAt: world.time + 4 }; },
+  start(world, s) { s.q = { ends: world.ledger.clock + s.plan.time, nextAt: world.time + 4, from: world.time }; },
   step(world, s, dt, end) {
     const q = s.q, c = C().xwing;
     if (atDest(world, s.plan.dest)) return end.win(world);
     if (world.ledger.clock >= q.ends) return end.lose(world, 'TIME');
+    // Red Five on the radio `road` s into the run, and again at the first squad that comes.
+    if (world.time >= q.from + c.road) end.road(world, 0);
     // Pirates keep coming, a squad at a time, while fewer than `cap` are on.
     if (world.autoEncounters && world.ship.alive && world.time >= q.nextAt) {
       q.nextAt = world.time + lerp(c.spawnEvery[0], c.spawnEvery[1], world.rng('pirate')());
-      if (flying(world).length + c.squad <= c.cap) send(world, c.squad, {});
+      if (flying(world).length + c.squad <= c.cap && send(world, c.squad, {})) end.road(world, 1);
     }
   },
   words(world, s) {
@@ -416,7 +424,6 @@ const scooby = {
     const way = Math.round(trailWay(site, snacksOf(trails, W, H), c.need));
     return { sectorId: site.sectorId, trails, total: c.trails * c.per, need: c.need, distance: way, time: Math.round(way / c.speed + c.slack) };
   },
-  rows: (p) => ['LIKE, ZOINKS, PILOT!', `GRAB ${p.need} SCOOBY SNACKS`, 'BEFORE SCOOB STARVES.'],
   start(world, s) {
     s.q = { ends: world.ledger.clock + s.plan.time, snacks: snacksOf(s.plan.trails, W, H), taken: 0, smoke: { puffs: [], due: 0, n: 0, sectorId: null } };
   },
@@ -441,6 +448,8 @@ const scooby = {
     }
     if (q.taken >= s.plan.need) end.win(world);
     else if (world.ledger.clock >= q.ends) end.lose(world, 'TIME');
+    // Scooby and Shaggy once `road` snacks are in.
+    else if (q.taken >= c.road) end.road(world, 0);
   },
   // The pointer leads to the nearest snack left (in the trails' sector, from the ship; elsewhere the first left).
   words(world, s) {

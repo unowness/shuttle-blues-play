@@ -90,9 +90,9 @@ export class Feedback {
       case 'drifterHelped':
         this.items = this.items.filter((it) => !(it.hail && it.hail.craftId === 'drifter'));
         return false;
-      // A ship boarded has said its three lines (src/specials.js): they go.
-      case 'specialBoarded':
-        this.items = this.items.filter((it) => !(it.hail && it.hail.craftId === 'special-ship'));
+      // A ship boarded has said what it says coming up, and its quest over has said what it says on the way (src/specials.js): they go.
+      case 'specialBoarded': case 'specialDone': case 'specialFailed':
+        this.items = this.items.filter((it) => !(it.hail && (it.hail.craftId === 'special-ship' || it.hail.craftId === 'special-crew')));
         return false;
       case 'outatime': label = 'OUTATIME'; break;
       default: return false;
@@ -206,20 +206,32 @@ function drawChorus(r, world, pieces) {
 // 2026-10-02, then on the shadow of every shape until 2026-10-06). The craft's name is not repeated: the world writes it under the craft while the pilot is near. It lasts
 // `life` s and fades in and out over `fade` s. Up and to the right first; up and to the left where that would leave the view or cover the
 // interface, a planet or a station (hailBodies); never under the craft (drawHail).
-export const HAIL = Object.freeze({ life: 4.5, rise: 1.6, wrap: 22, fade: 0.35, pad: 4 });
+export const HAIL = Object.freeze({ life: 4.5, rise: 1.6, wrap: 22, wide: 28, fade: 0.35, pad: 4 });
 
 // The line in one row, or in two where it is longer than `wrap` cells: broken between words, as evenly as it goes,
-// and after a full stop or a comma where one is near the middle ("STILL FLYING. / STILL BROKE.").
+// and after a full stop or a comma where one is near the middle ("STILL FLYING. / STILL BROKE."); in three where two would
+// be wider than `wide` cells (a friendly ship's whole greeting or thanks since the text pass of 2026-10-24: they have no short form).
 export function hailRows(line, wrap = HAIL.wrap) {
   const text = String(line);
   if (text.length <= wrap) return [text];
+  const spaces = [];
+  for (let i = text.indexOf(' '); i > 0; i = text.indexOf(' ', i + 1)) spaces.push(i);
+  const stop = (row) => (/[.,!?]$/.test(row) ? 4 : 0);
   let best = null;
-  for (let i = text.indexOf(' '); i > 0; i = text.indexOf(' ', i + 1)) {
+  for (const i of spaces) {
     const a = text.slice(0, i), b = text.slice(i + 1);
-    const score = Math.max(a.length, b.length) - (/[.,!?]$/.test(a) ? 4 : 0);
+    const score = Math.max(a.length, b.length) - stop(a);
     if (!best || score < best.score) best = { score, rows: [a, b] };
   }
-  return best ? best.rows : [text];
+  if (!best || Math.max(...best.rows.map((r) => r.length)) <= HAIL.wide) return best ? best.rows : [text];
+  let three = null;
+  for (const i of spaces) for (const j of spaces) {
+    if (j <= i) continue;
+    const rows = [text.slice(0, i), text.slice(i + 1, j), text.slice(j + 1)];
+    const score = Math.max(...rows.map((r) => r.length)) - (stop(rows[0]) + stop(rows[1])) / 2;
+    if (!three || score < three.score) three = { score, rows };
+  }
+  return three ? three.rows : best.rows;
 }
 
 // What a hail stands clear of besides the interface (SX, 2026-10-21: «нам бы сделать так чтобы тексты на станции и планеты не налезались»):

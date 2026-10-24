@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { stationDefById, sectorById, networkStationIds } from './sectors.js';
+import { stationDefById, sectorById, networkStationIds, planetKey } from './sectors.js';
 import { bossQuestRecord } from './bossQuest.js';
 import { chorusRecord } from './chorus.js';
 import { SIGNALS, WORDS } from './progression.js';
@@ -19,7 +19,7 @@ import { factsOfWorld, unlocked, pickKind, pickShip, offerShare, newRecent, note
 import { restSide } from './sideSlot.js';
 import { NPC_ART, QUEST_SHIPS, npcCraft } from './npcShips.js';
 import { npcPalette } from './npcPaint.js';
-import { sayFor } from './voices.js';
+import { sayFor, shortOf, RESCUE_GIVEN } from './voices.js';
 import { guideQuest, lookGuide, offerGuide } from './guide.js';
 import { openingQuest, openingCalm, openingHoldsGuide, radioFitted } from './opening.js';
 import { stepSupport, supportQuest } from './starterSupport.js';
@@ -171,7 +171,7 @@ function candidatePlace(world, c) {
     case 'stranger': { const st = STRANGERS.find((x) => x.id === c.strangerId); return st && { sectorId: st.sector, x: st.x, y: st.y }; }
     case 'rebuild': { const def = stationDefById(c.stationId); return def && { sectorId: def.sectorId, x: def.x, y: def.y }; }
     case 'planet': {
-      const p = c.errand.planet, def = sectorById(p.sectorId)?.planets?.find((x) => x.label === p.label);
+      const p = c.errand.planet, def = sectorById(p.sectorId)?.planets?.find((x) => planetKey(x) === p.label);
       return def && { sectorId: p.sectorId, x: def.x, y: def.y };
     }
     default: return null;
@@ -195,8 +195,9 @@ export function stepQuests(world, dt) {
       Math.hypot(drifter.x - world.ship.x, drifter.y - world.ship.y) < C.rescue.hailReach) {
     world.sideQuest.hailed = true;
     // Its plea, kept: its window asks in it (src/menus.js drifterMenu), the start of its conversation.
+    // (Its hail says it short where it has a short form, src/voices.js SHORTS; its window whole.)
     const plea = world.sideQuest.plea = sayFor(world, 'rescue', 'hail', drifter.code);
-    world.emit('trafficHail', { craftId: DRIFTER_ID, label: NPC_ART[drifter.code].name, line: plea, x: drifter.x, y: drifter.y, sectorId: world.sector.id });
+    world.emit('trafficHail', { craftId: DRIFTER_ID, label: NPC_ART[drifter.code].name, line: shortOf(plea), x: drifter.x, y: drifter.y, sectorId: world.sector.id });
   }
   noteHome(world);
   world.questCheckIn -= dt;
@@ -338,8 +339,9 @@ export function drifterArt(d) {
   return { model: { width: c.rows[0].length, height: c.rows.length }, scale: c.scale, turns: true };
 }
 
-// Giving it fuel: refused when the tank does not hold it; else the tank gives it, and the pilot's thanks wait beside it in its
-// window until the quest is handed in (`handInDrifter`). Its thanks were a hail that faded as it flew off, gone before they
+// Giving it fuel: refused when the tank does not hold it; else the tank gives it, and what it says to that waits beside it in its
+// window until the quest is handed in (`handInDrifter`), where it pays and says its thanks as it goes (the text pass of 2026-10-24).
+// (Until then its thanks stood in the window:) Its thanks were a hail that faded as it flew off, gone before they
 // were read (SX, 2026-10-02: «дизалоги с нпс они иногда после квеста уездают и ты не успеваешь прочитать что они сказали,
 // давай чтобы завершить надо вернуться к нпс и поговорить типо 1 сдать задание ... кликом можно закрыть диалог и сдать
 // заданее»; NPC_DIALOG_HANDOFF.md).
@@ -349,7 +351,7 @@ export function helpDrifter(world) {
   if (world.fuel < C.fuel) { world.emit('actionRefused', { reason: `NEED ${C.fuel} FUEL` }); return false; }
   world.fuel -= C.fuel;
   s.fueled = true;
-  s.thanks = sayFor(world, 'rescue', 'thanks', here.code);
+  s.thanks = RESCUE_GIVEN;
   return true;
 }
 // Handing it in (its window's HAND IN): the wallet is paid, the quest is done, the pilot flies off.
@@ -365,6 +367,8 @@ export function handInDrifter(world) {
   world.selectedId = null;
   world.drifterLeaving = { x: here.x, y: here.y, angle: here.angle, t: 0, code: here.code, paint: here.paint };
   world.emit('drifterHelped', { fuel: C.fuel, pay, credits: world.ledger.credits, x: here.x, y: here.y, sectorId: world.sector.id });
+  // Paid, its thanks as it goes: the quest's own, or one of the ship's two.
+  world.emit('trafficHail', { craftId: DRIFTER_ID, label: NPC_ART[here.code]?.name ?? 'PILOT', line: sayFor(world, 'rescue', 'thanks', here.code), x: here.x, y: here.y, sectorId: world.sector.id });
   world.fleet?.helped?.(here.code);     // it remembers, and owes the pilot a favor (src/npcTalk.js)
   return true;
 }

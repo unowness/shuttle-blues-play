@@ -36,7 +36,7 @@ function waiting(ledger) {
   return out;
 }
 
-// Why a cache cannot lie at (x, y) of `sectorId` (world units), or null (and a check's: checks/clipper.mjs, TERRA's place). `made`: a drawn place, asked of everything a pilot
+// Why a cache cannot lie at (x, y) of `sectorId` (world units), or null (and a check's: checks/special-quests.mjs's section clipper, TERRA's place). `made`: a drawn place, asked of everything a pilot
 // must reach a cache across; one of SX's places is clear of the catalogue's things by its check, so only the waiting caches,
 // the secret hole, the places already taken and the stations' menu reach are asked of it.
 export function issue(sectorId, x, y, ledger, made) {

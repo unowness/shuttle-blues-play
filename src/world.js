@@ -430,6 +430,8 @@ export class World {
     // A talk the world calls the pilot to, whatever the ship is next to (src/clipper.js: the crew left a screen behind): { n, menu }, its
     // window standing by itself (labs/graphics/talk-beat.js), or null. Never saved.
     this.talkCall = null;
+    // What a station's people said a moment ago (src/stationTalk.js noteStation): Map(stationId -> [{ who, line, key, at }]). Never saved.
+    this.stationNews = new Map();
     this.egg = { held: 0, done: false }; // src/eggs.js's own
 
     if (quiet) this.quieten();

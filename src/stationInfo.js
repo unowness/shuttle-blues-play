@@ -20,72 +20,124 @@ export const STATION_INFO = Object.freeze({
   // title's lore says a shuttle and a small garage were inherited. It sends and receives no freight; its goods are what
   // the garage keeps to mend and refuel a ship with.
   'station-home-j04': {
-    lore: 'Your inherited garage, cut into an asteroid. One berth, a solar wing and a door that catches on its lower track.',
+    lore: 'The garage came with the shuttle: one berth cut into an asteroid, a workbench, a sticking door. The lamp takes two clicks to come on.',
     goods: ['SPARE PARTS', 'FUEL DRUMS', 'PATCHES', 'WIRE', 'LAMPS', 'HOSES'],
   },
   'station-drydock-j04': {
-    lore: "Cabins turn around a fixed repair hub. Crews follow painted floor marks from the airlocks to their ships.",
+    lore: 'Cabins rotate around a fixed repair hub. Marked paths run from the airlocks to separate berths. Older colours show through the new paint in places.',
     goods: ['HULL PLATES', 'COOLANT CELLS', 'ENGINE CORE', 'HULL SEALS', 'BOLTS', 'WIRE'],
+    people: {
+      role: 'MECHANIC',
+      welcome: 'HEY. NEED REPAIRS, OR LOOKING FOR A JOB?' },
   },
   'station-relay-j05': {
-    lore: 'Mail and signals pass through this relay. The dish turns above a sorting room run by two operators. Bearings are checked between transmissions.',
-    ruined: 'A seized bearing has locked the dish in place. Unsorted mail fills the racks. The last transmission remains on the operators\' screen.',
+    lore: 'Mail and signals pass through the same hub. Beneath the rotating dish, two operators check addresses and route deliveries. Unconfirmed transmissions remain in the queue.',
+    ruined: 'A seized bearing has stopped the dish. Mail has accumulated on the racks. The last transmission is still on screen, unacknowledged.',
     goods: ['ARCHIVE TAPES', 'RADIO VALVES', 'MAIL SACKS', 'DIALS', 'FUSES', 'LENSES'],
+    people: {
+      role: 'POSTMASTER',
+      welcome: 'HELLO. I HANDLE INCOMING DELIVERIES FOR POSTMARK.',
+      ruin: "THE DISH WON'T TURN. DON'T DELETE ANYTHING UNSENT. WE'LL RESUME AFTER THE LAST ACKNOWLEDGED MESSAGE.",
+      restored: 'AN ACKNOWLEDGEMENT. THE MESSAGE GOT THROUGH. NOW WE CAN WORK THROUGH THE QUEUE.' },
   },
   'station-halcyon-j05': {
-    lore: "Power is out across the greenhouse. Water drips through two roof panes. Only the seed trays underneath are wet.",
-    rebuilt: 'The greenhouse has power again. Water reaches every seed tray, and new sprouts stand in the rows beneath the repaired roof.',
+    lore: 'The greenhouse has lost power. Its pumps are stopped and the seed trays are dry. Two rows still hold moisture from a damaged water feed line.',
+    rebuilt: 'Water reaches every tray again. Shoots have appeared beneath the repaired dome. New batches are kept apart from those that survived the shutdown.',
     goods: ['SPROUTS', 'SEED VAULTS', 'HERBS', 'BULBS', 'SOIL', 'FERNS'],
+    people: {
+      role: 'GROWER',
+      welcome: 'HELLO. GOOD TO SEE YOU.',
+      ruin: "THE PUMPS AREN'T WORKING. MARK THE TWO ROWS THAT ARE STILL WET; WE'LL LEAVE THOSE FOR NOW. THE OTHER TRAYS HAVE DRIED OUT.",
+      restored: "WATER'S REACHED THE FAR ROW. SOME OF THE SEEDS SURVIVED. I'LL START WITH THOSE." },
   },
   'station-depot-k04': {
-    lore: 'Nine tiers of crates under one gantry crane. Bulky freight goes in the outer pods. Handwritten corrections crowd the cargo index.',
+    lore: 'One gantry crane serves nine tiers of crates. Bulky loads go in the outer pods. Addresses in the register have been corrected by hand, sometimes over an earlier correction.',
     // SPROUTS in PODS' place since the v1 economy: HALCYON and APIARY, who grow them, start
     // as ruins, and SX's own example of a run («отвези ростки растений») should be met from the start.
     goods: ['FOOD CRATES', 'MEDICAL KITS', 'ICE', 'SIGNAL LAMPS', 'COAL SACKS', 'SPROUTS'],
+    people: {
+      role: 'CLERK',
+      welcome: 'COLLECTING OR DROPPING OFF? LET ME GET THE LIST.' },
   },
   'station-foundry-k04': {
-    lore: "The furnace went cold mid-shift. Unfinished hull plates sit on the cooling racks, their batch numbers chalked on.",
-    rebuilt: 'The furnace is running. Finished hull plates leave the cooling racks in numbered batches. Chalk dust settles on the warm floor.',
+    lore: 'The furnace died mid-shift. Unfinished hull plates lie on the racks, their batch numbers written in chalk. A pair of gloves remains on the bench.',
+    rebuilt: 'The furnace is running. Finished plates leave the racks in numbered batches. Footprints cross the chalk dust on the warm floor.',
     goods: ['COAL SACKS', 'IRON BARS', 'TOOL STEEL', 'ORE', 'SLAG', 'PISTONS'],
+    people: {
+      role: 'SMELTER',
+      welcome: 'I CAN HEAR YOU. SPEAK UP A BIT; THE FURNACE IS RIGHT BESIDE ME.',
+      ruin: "THE FURNACE IS DOWN. LEAVE THOSE PLATES ALONE FOR NOW. ONCE THEY'VE COOLED, WE'LL SEE IF WE CAN FINISH THEM.",
+      restored: "IT'S UP TO TEMPERATURE. WE'LL FINISH THAT BATCH BEFORE WE START ANOTHER." },
   },
   'station-yard-k05': {
-    lore: 'Open trusses surround a repair hub. Hull sections move along the arms to the launch points. Welders stamp their initials beside each joint.',
-    ruined: 'The repair hub is dark. Incomplete hulls hang from the trusses, their finished joints stamped with the welders\' initials.',
+    lore: "Open trusses surround an assembly hub. Hull sections travel along its arms to the building slips. Every completed weld carries its welder's mark.",
+    ruined: 'The assembly hub is offline. Unfinished hulls remain on the trusses, their last seams still open. Marks on the sections show where work stopped.',
     goods: ['WATER TANKS', 'PAINT DRUMS', 'TOOL KITS', 'HULL RIBS', 'RIVETS', 'STRUTS'],
+    people: {
+      role: 'WELDER',
+      welcome: 'GO AHEAD. JUST FINISHED A WELD.',
+      ruin: "STOP ASSEMBLY. I'VE MARKED THE UNFINISHED WELDS. LEAVE THE HULLS ON THEIR MOUNTS UNTIL WE'VE FINISHED THEM.",
+      restored: "POWER'S BACK. GLAD I MARKED THOSE WELDS. I CAN SEE WHERE WE LEFT OFF." },
   },
   // The two sectors east (2026-09-30): names, lore and goods by the copywriter the same evening.
   // COMMONS, SPOOL 8, APIARY and WHARF 9 start as ruins since the v1 economy (2026-10-01):
   // their lore as working stations became `rebuilt`, and the ruin's lore is new (Claude,
   // in the same voice; for SX and the copywriter to read).
   'station-commons-j06': {
-    lore: 'A residential ring built for nine thousand. Most doors are sealed. The bakery clock has stopped, with the next shift still posted beneath it.',
-    rebuilt: 'The residential ring is filling again. The bakery clock keeps time, and fresh shift notices cover the old schedule. Couriers use the lit outer dock.',
+    lore: 'The residential ring was built for nine thousand people. Most sections are sealed. Its internal network retains announcements and conversations recorded before the station shut down.',
+    rebuilt: "The outer dock is working again. The AI's speech memory is damaged; it replies with stored phrases from former residents. Missing recordings remain on external recorders.",
     goods: ['BREAD LOAVES', 'WOOL BLANKETS', 'SCHOOL BOOKS', 'TOYS', 'LAUNDRY', 'JAM'],
   },
   'station-spool-j06': {
-    lore: 'The reactor is cold and the habitat drum is still. Below the empty hose bracket, the old coil has left a pale arc on the blue fuel tank.',
-    rebuilt: 'The habitat drum turns again. A new fuel hose sits in the old bracket, its coil tracing the pale arc worn into the blue tank.',
+    lore: 'The reactor is cold and the habitat drum is still. The hose bracket is empty. A pale arc on the fuel tank marks where the coil used to rest.',
+    rebuilt: 'The habitat drum is turning. A new hose sits in the old bracket and the fuel supply is restored. Loading has resumed outside the reactor section.',
     goods: ['FUEL RODS', 'AIR FILTERS', 'GAS BOTTLES', 'PIPES', 'PUMPS', 'BEARINGS'],
+    people: {
+      role: 'ENGINEER',
+      welcome: 'HELLO. DO YOU NEED FUEL?',
+      ruin: "REACTOR STOPPED. FUEL SUPPLY ISOLATED. KEEP THE BRACKETS WHEN DISMANTLING; THEY'RE UNDAMAGED.",
+      restored: "I'VE TESTED IT UNDER LOAD. THE SUPPLY IS STABLE AND THE DRUM IS RUNNING AGAIN." },
   },
   'station-pharos-j06': {
-    lore: "The navigation lamp is out, its lens intact. The log never names the fault. A test chart covers the control desk.",
-    rebuilt: 'The navigation lamp sweeps the lanes. A new entry closes the fault report. The test chart is pinned above the controls, with each reading checked.',
+    lore: 'The navigation beacon is dark. Its lens is intact, but no cause is recorded for the outage. An unfinished test chart remains open on the console.',
+    rebuilt: 'The beacon sweeps the lanes. Testing is complete and the fault report is closed. Transmitter readings are reaching the console again.',
     goods: ['SIGNAL FLARES', 'LAMP OIL', 'LENS GLASS', 'CHARTS', 'TEA TINS', 'WICKS'],
+    people: {
+      role: 'KEEPER',
+      welcome: 'PHAROS HERE. WELCOME.',
+      ruin: "THE BEACON IS OUT. I'VE CHECKED THE LENS; IT'S INTACT. I'LL TRY THE TRANSMITTER NEXT.",
+      restored: 'TEST COMPLETE. A FULL SWEEP WITHOUT A SINGLE GAP.' },
   },
   'station-apiary-k06': {
-    lore: 'Climate control has failed in all seven growing cells. A seed drone follows its route over empty trays, stopping at each numbered row.',
-    rebuilt: 'Seven growing cells, each with its own weather. The seed drone follows its numbered route through new leaves, pausing where branches cross the aisle.',
+    lore: 'Climate control has failed in seven isolated cells. The trays are empty. A drone continues its rounds, checking each row against the stored planting layout.',
+    rebuilt: 'Each of the seven cells maintains its own conditions. New leaves extend beyond the trays. The drone pauses before overgrown branches, then continues its round.',
     goods: ['HONEY JARS', 'SPROUTS', 'TEA LEAVES', 'WAX', 'FRUIT', 'SEEDS'],
+    people: {
+      role: 'AGRONOMIST',
+      welcome: 'HELLO. HOW CAN I HELP?',
+      ruin: "CLIMATE CONTROL OFFLINE. SEVEN CELLS. LAST CYCLE'S DATA SAVED.",
+      recording: 'DRONE · OLD RECORDING',
+      restored: "CONDITIONS HAVE BEEN RESTORED IN ALL SEVEN CELLS. WE'LL REPLANT ONE CELL AT A TIME." },
   },
   'station-wharf-k06': {
-    lore: 'The curved repair dock is empty. A seized winch holds a half-wound cable. Its repair ticket lists the work still to be done.',
-    rebuilt: "Ships fill the curved repair dock. Cable runs through the winch guides again. The completed repair ticket sits beside the new jobs.",
+    lore: 'The curved repair dock is empty. The winch has seized with its cable still in the guides. The last ship has been released from its clamps; the next has not been admitted.',
+    rebuilt: 'The winch is working and cable runs through its guides. Damaged ships are secured along the inside of the dock. Repair crews move between them.',
     goods: ['CABLE REELS', 'WINCH PARTS', 'LIFE RINGS', 'TOWLINES', 'CHAIN', 'FENDERS'],
+    people: {
+      role: 'RIGGER',
+      welcome: 'I CAN SEE YOU. DO YOU NEED REPAIRS?',
+      ruin: "THE WINCH HAS JAMMED. DON'T TAKE THE NEXT SHIP IN; WE WON'T BE ABLE TO MOVE IT.",
+      restored: "THE CABLE'S RUNNING SMOOTHLY. WE CAN TAKE SHIPS IN AGAIN." },
   },
   'station-hoist-k06': {
-    lore: 'The ship lift is locked between two repair tiers. A strip of inspection tape hangs from the rail, its loose end brushing the platform.',
-    rebuilt: 'The lift moves ships between the repair tiers. The inspection tape has been cut back to a short tab beside the release lever.',
+    lore: 'The ship lift is stuck between repair decks. The platform remains under load. Inspection tape on the rail marks its last position.',
+    rebuilt: 'The lift carries ships between decks again. At each berth, the platform settles onto its locks. The old inspection mark remains between floors.',
     goods: ['LIFT CABLES', 'GEAR OIL', 'PULLEY BLOCKS', 'GREASE', 'GEARS', 'NETS'],
+    people: {
+      role: 'LIFT OPERATOR',
+      welcome: "LIFT'S WORKING. COME OVER IF YOU NEED REPAIRS.",
+      ruin: "STUCK BETWEEN DECKS. THE PLATFORM'S SECURED. DON'T TAKE ANYTHING OFF IT YET.",
+      restored: 'ALL THE WAY UP, ALL THE WAY DOWN. NOTHING CATCHING. WE CAN LIFT SHIPS AGAIN.' },
   },
 });
 

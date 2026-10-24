@@ -145,6 +145,7 @@ export const EVENTS = Object.freeze({
   openingStage: E('stage from', 'opening'),
   openingCall: E('who line'),
   openingPractice: E('what'),
+  openingNote: E('title line'),
   openingFitted: E('what stationId label owned cost', 'opening'),
   loanerReturned: E('stationId label shipId', 'ship'),
   // Quests (src/quests.js and its kinds) and the radio.
@@ -162,6 +163,7 @@ export const EVENTS = Object.freeze({
   suitcaseTaken: E('planet x y sectorId'),
   suitcaseDelivered: E('planet pay credits x y sectorId', 'quest'),
   suitcaseLost: E('planet x y sectorId'),
+  suitcaseAmbush: E('planet sectorId'),
   specialSeen: E('id label sectorId'),
   specialBoarded: E('id label x y sectorId'),
   specialStage: E('id stage x y sectorId left'),

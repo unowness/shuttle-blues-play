@@ -38,9 +38,12 @@
 // The turtle and houseboat stay slowest (88, 96 u/s), the taxi and newsreel quickest (320, 336).
 
 import { CONFIG } from './config.js';
-import { SECTORS, SECTOR_SIZE, stationDefById } from './sectors.js';
+import { SECTORS, SECTOR_SIZE, stationDefById, planetKey } from './sectors.js';
 import { QUIET_SHIP } from './eggs.js';
 
+// Each ship's words (the text pass SX approved on 2026-10-24, codex/text-review/2026-10-24): `replies` its answer to the pilot's greeting
+// when nothing else is to be said (src/npcTalk.js replyFor); `words` its call out of fuel and under fire, each [whole, short] (the short
+// form in its hail, the whole in its window: src/voices.js), and its two thanks, either one after any help (fuel, cover, money for repairs).
 export const NPC_SHIPS = Object.freeze([
   {
     code: 'N01', name: 'LATCH', scheme: 485,
@@ -68,10 +71,11 @@ export const NPC_SHIPS = Object.freeze([
     // A hauler out of a freight station, slow. It left RELAY 12 for HALCYON before; HOME and the hole now lie on that line, so it
     // hauls north up the sector's middle instead, to a free end. Its pace: four rows of containers, the heaviest hauler.
     route: { sector: 'sector-j05', path: { kind: 'lane', from: 'station-relay-j05', to: [0.58, 0.28], phase: 0.2 } }, speed: 128, job: 'HAULER', favor: 'fuel',
+    replies: ["GIVE MY BOW SOME ROOM. I CAN'T STOP QUICKLY WITH THIS LOAD."],
     words: {
-      // Codex's text pass gave LATCH «MUCH OBLIGED, PILOT.», TINKER's own line since 2026-10-06: no line is said by two pools.
-      thanks: ['MUCH OBLIGED.', 'GOOD OF YOU TO STOP FOR A HAULER.'],
-      fuel: ['HEAVY LOAD. EMPTY TANK. GOT FUEL?'], hunted: ['HEAVY LOAD. PIRATES. NEED COVER.'] },
+      thanks: ['MUCH OBLIGED. THAT HELPED.', 'THANKS. I WAS WELL AND TRULY STUCK.'],
+      fuel: [['BURNED THROUGH ALL MY FUEL HAULING THIS LOT. CAN YOU SPARE A LITTLE?', 'BURNED THROUGH MY FUEL. SPARE A LITTLE?']],
+      hunted: [['PIRATES ON MY TAIL. TOO HEAVY TO OUTRUN THEM. COVER ME.', 'PIRATES ON MY TAIL. TOO HEAVY TO RUN.']] },
   },
   {
     code: 'N06', name: 'BOKS', scheme: 172,
@@ -94,9 +98,11 @@ export const NPC_SHIPS = Object.freeze([
     palette: { h: '#AFADB6', t: '#8E87A8', g: '#CBBA98', e: '#AFADB6', l: '#AFADB6' },
     // A hauler out of a freight station, slow. Its pace: a small box hauler, lighter than LATCH.
     route: { sector: 'sector-k04', path: { kind: 'lane', from: 'station-depot-k04', to: [0.5, 0.66], phase: 0.6 } }, speed: 144, job: 'HAULER', favor: 'hull',
+    replies: ['HI! AM I BLOCKING YOU?'],
     words: {
-      thanks: ["THANKS. I'LL TELL THE DEPOT.", "KIND OF YOU. I'M LATE ENOUGH."],
-      fuel: ['PARCELS ABOARD. NO FUEL LEFT.'], hunted: ['PIRATES WANT THE PARCELS. HELP.'] },
+      thanks: ['THANKS! ONE LESS THING TO SORT OUT.', "THANKS. I WASN'T SURE WHO ELSE TO CALL."],
+      fuel: [["THAT'S ME STUCK. PARCELS ABOARD, NO FUEL LEFT. GOT ANY TO SPARE?", 'STRANDED WITH PARCELS. GOT FUEL?']],
+      hunted: [["PIRATES AFTER ME! THEY WON'T LEAVE ME ALONE. HELP!", 'PIRATES ON MY TAIL. COVER ME!']] },
   },
   {
     code: 'N11', name: 'SIFT', scheme: 403,
@@ -119,9 +125,11 @@ export const NPC_SHIPS = Object.freeze([
     palette: { h: '#8F9AAC', t: '#C3B9AE', g: '#D3C6AB', e: '#C3B9AE', l: '#8F9AAC' },
     // A workboat: the sweeper across K-04's open south. Its pace: a sweeper, at a sweeping pace.
     route: { sector: 'sector-k04', path: { kind: 'lane', from: [0.46, 0.86], to: [0.84, 0.86], phase: 0.1 } }, speed: 120, job: 'SWEEPER', favor: 'cache',
+    replies: ["DON'T WAIT FOR ME. I'LL BE BUSY HERE FOR A WHILE."],
     words: {
-      thanks: ['THANKS. MESSY SHIFT, THIS ONE.', 'YOU STOPPED. MOST JUST PASS.'],
-      fuel: ['STILL A LOT TO SWEEP. NEED FUEL.'], hunted: ["I'M A SWEEPER. PIRATES HERE. HELP."] },
+      thanks: ['THANKS. HAD ENOUGH ON MY HANDS ALREADY.', 'APPRECIATE THE HELP.'],
+      fuel: [['WORKED THE TANK DRY. GOT A LITTLE FUEL TO SPARE?', 'WORKED THE TANK DRY. GOT SPARE FUEL?']],
+      hunted: [["I'M TAKING FIRE. I CAN'T HOLD THEM OFF ON MY OWN.", 'TAKING FIRE. NEED HELP.']] },
   },
   {
     code: 'N12', name: 'WICK', scheme: 689,
@@ -144,9 +152,11 @@ export const NPC_SHIPS = Object.freeze([
     palette: { h: '#A8B5BA', t: '#71939F', g: '#71939F', e: '#A8B5BA', l: '#C3C0DD' },
     // A workboat: the buoy tender out in J-04's middle, past the buoy by DRY DOCK. Its pace: a light tender from buoy to buoy.
     route: { sector: 'sector-j04', path: { kind: 'lane', from: [0.44, 0.52], to: [0.56, 0.58], phase: 0.4 } }, speed: 176, job: 'BUOY TENDER', favor: 'signal',
+    replies: ['OH, HELLO. HARDLY HEARD ANYTHING BUT BUOYS TODAY.'],
     words: {
-      thanks: ['GOOD OF YOU. BUOY WORK CAN WAIT.', "APPRECIATED. IT'S QUIET OUT HERE."],
-      fuel: ['BETWEEN BUOYS. FUEL GAUGE READS ZERO.'], hunted: ['PIRATES HERE. JUST A SERVICE CRAFT.'] },
+      thanks: ['THANKS FOR ANSWERING. I WAS GETTING WORRIED.', "THANKS. GLAD YOU DIDN'T JUST FLY PAST."],
+      fuel: [["I'M STUCK WITH AN EMPTY TANK. GOT ANY FUEL TO SPARE?", 'EMPTY TANK. GOT ANY FUEL TO SPARE?']],
+      hunted: [["PIRATES ARE FIRING ON ME! I'M ON MY OWN OUT HERE. HELP!", 'PIRATES! BUOY TENDER NEEDS COVER.']] },
   },
   {
     code: 'N15', name: 'TAXI', scheme: 745,
@@ -169,9 +179,11 @@ export const NPC_SHIPS = Object.freeze([
     palette: { h: '#85ACC9', t: '#757E84', g: '#757E84', e: '#757E84', l: '#85ACC9' },
     // A courier: a taxi out of DRY DOCK into the open. Its pace: a fare aboard and the meter running.
     route: { sector: 'sector-j04', path: { kind: 'lane', from: 'station-drydock-j04', to: [0.62, 0.48], phase: 0.7 } }, speed: 320, job: 'TAXI', favor: 'word',
+    replies: ["A BIT OF ROOM, PLEASE. I'VE GOT A PASSENGER."],
     words: {
-      thanks: ['THANKS. MY FARE WAS GETTING NERVOUS.', 'MUCH OBLIGED. LONG DAY, THIS.'],
-      fuel: ["METER'S OFF. NEED FUEL."], hunted: ["PIRATES! I'VE GOT A PASSENGER!"] },
+      thanks: ['THANKS. MY PASSENGER WAS GETTING NERVOUS.', "OH, THANKS. THAT'S QUITE ENOUGH FOR ONE DAY."],
+      fuel: [["COULD USE A HAND. OUT OF FUEL, AND MY PASSENGER'S STILL WAITING.", 'OUT OF FUEL. COULD USE A HAND.']],
+      hunted: [["PIRATES! I'VE GOT A PASSENGER. HELP ME GET THEM OFF OUR TAIL!", 'PIRATES! PASSENGER ABOARD.']] },
   },
   {
     code: 'N16', name: 'HOPPER', scheme: 652,
@@ -194,9 +206,11 @@ export const NPC_SHIPS = Object.freeze([
     // for an orbit; Map X, 2026-10-10, moved it to 2,376 u and the lane was kept).
     // Its pace: a hop between stops, quick off the mark.
     route: { sector: 'sector-k05', path: { kind: 'lane', from: 'station-yard-k05', to: [0.46, 0.64], phase: 1.3 } }, speed: 272, job: 'COURIER', favor: 'fuel',
+    replies: ['HEY! HAVE A GOOD RUN!'],
     words: {
-      thanks: ['THANKS. I ONLY MEANT TO GO ONE STOP.', 'GOOD TO SEE A FRIENDLY HULL.'],
-      fuel: ['ONE STOP SHORT. TANK EMPTY.'], hunted: ["PIRATES. THIS HULL WON'T TAKE MUCH."] },
+      thanks: ['THANKS! JUST IN TIME.', 'THANKS FOR THAT. HOPE YOUR RUN GOES BETTER!'],
+      fuel: [["DIDN'T MAKE THE NEXT STOP. GOT ANY FUEL TO SPARE?", 'OUT OF FUEL BEFORE THE NEXT STOP. HELP?']],
+      hunted: [["HELP! I'M TAKING FIRE. THIS HULL WON'T HOLD OUT LONG!", 'COURIER UNDER FIRE. NEED HELP.']] },
   },
   {
     code: 'N19', name: 'LINER', scheme: 62,
@@ -225,9 +239,11 @@ export const NPC_SHIPS = Object.freeze([
     palette: { h: '#7E7B77', t: '#B2A0B1', g: '#B2A0B1', e: '#7E7B77', l: '#7E7B77' },
     // A liner on a long way: down J-06 past PARQUET. Its pace: a liner keeping its timetable.
     route: { sector: 'sector-j06', path: { kind: 'lane', from: 'station-commons-j06', to: [0.42, 0.86], phase: 0.5 } }, speed: 208, job: 'LINER', favor: 'signal',
+    replies: ['GOOD DAY, SHUTTLE. HAVE A SAFE FLIGHT.'],
     words: {
-      thanks: ['ON BEHALF OF THE CREW, THANK YOU.', 'THANK YOU FOR THE ASSIST, PILOT.'],
-      fuel: ['LINER TANKS EMPTY. NEED FUEL.'], hunted: ['MAYDAY. PASSENGER LINER UNDER FIRE.'] },
+      thanks: ['THANK YOU ON BEHALF OF OUR CREW AND PASSENGERS.', "THANK YOU, PILOT. WE'RE IN YOUR DEBT."],
+      fuel: [['PASSENGER LINER REQUESTING REFUELLING ASSISTANCE.', 'LINER OUT OF FUEL. NEED REFUELLING.']],
+      hunted: [['LINER BRIDGE CALLING ALL NEARBY SHIPS. WE ARE UNDER FIRE AND REQUIRE ASSISTANCE.', 'MAYDAY. PASSENGER LINER UNDER FIRE.']] },
   },
   {
     code: 'N21', name: 'HALO', scheme: 0,
@@ -255,9 +271,11 @@ export const NPC_SHIPS = Object.freeze([
     // A liner leaving APIARY along the northern cross-connection, above ISOBAR and the central hole.
     // Its pace: a habitat ring on its crossing, big and steady.
     route: { sector: 'sector-k06', path: { kind: 'lane', from: 'station-apiary-k06', to: [0.72, 0.18], phase: 0.3 } }, speed: 160, job: 'HABITAT', favor: 'hull',
+    replies: ['GOOD DAY. GOOD TO SEE YOU.'],
     words: {
-      thanks: ['THANK YOU FROM EVERYONE ABOARD.', "WE'RE GRATEFUL. ALL OF US."],
-      fuel: ['HABITAT ON RESERVES. CAN YOU REFUEL?'], hunted: ['PIRATES OUTSIDE. FAMILIES ABOARD.'] },
+      thanks: ['THANK YOU FROM ALL OF US.', "YOU'VE BEEN A REAL HELP. THANK YOU."],
+      fuel: [["COULD YOU SPARE SOME FUEL? WE'RE A HABITAT SHIP WITH EMPTY TANKS.", 'HALO OUT OF FUEL. FAMILIES ABOARD.']],
+      hunted: [["WE'RE UNDER ATTACK! THIS IS A HABITAT SHIP. PLEASE GIVE US COVER.", 'PIRATES ATTACKING A HABITAT SHIP.']] },
   },
   {
     code: 'N23', name: 'DOZER', scheme: 0,
@@ -282,9 +300,11 @@ export const NPC_SHIPS = Object.freeze([
     palette: { h: '#A4A8AD', t: '#928DAF', g: '#928DAF', e: '#A4A8AD' },
     // A liner on a long way, along the top of J-05. Its pace: the night service, sleepers aboard: smooth, never hurried.
     route: { sector: 'sector-j05', path: { kind: 'lane', from: [0.3, 0.13], to: [0.8, 0.16], phase: 0.85 } }, speed: 152, job: 'NIGHT LINER', favor: 'word',
+    replies: ["GOOD EVENING. THE WHOLE CABIN'S ASLEEP ALREADY."],
     words: {
-      thanks: ["THANKS. I'M AWAKE NOW.", 'NIGHT WATCH SENDS ITS THANKS.'],
-      fuel: ['NIGHT RUN. NO FUEL LEFT.'], hunted: ['NIGHT WATCH CALLING. PIRATES HERE.'] },
+      thanks: ["THANKS. IT'S BEEN QUITE A NIGHT.", 'THANKS FOR HELPING. HOPE YOU HAVE A QUIET SHIFT.'],
+      fuel: [["NIGHT SERVICE HERE. WE'VE RUN OUT OF FUEL. CAN YOU SPARE A LITTLE?", 'NIGHT RUN. NEED FUEL.']],
+      hunted: [["THEY'RE FIRING ON THE LINER! PASSENGERS ABOARD. HELP US!", 'NIGHT LINER UNDER FIRE! COVER US.']] },
   },
   {
     code: 'N27', name: 'HELION', scheme: 837,
@@ -305,9 +325,11 @@ export const NPC_SHIPS = Object.freeze([
     palette: { h: '#9191B1', t: '#C2C2C9', g: '#C2C2C9', e: '#C2C2C9', l: '#9191B1' },
     // Science round a planet, high over its cushion. Its pace: a survey lab under wide panels, taking readings.
     route: { sector: 'sector-j06', path: { kind: 'orbit', at: 'planet:FATHOM', radius: 320, phase: 0.4, dir: 1 } }, speed: 144, job: 'SURVEY LAB', favor: 'cache',
+    replies: ["SO THAT'S WHOSE SIGNAL I'VE BEEN RECORDING. HELLO."],
     words: {
-      thanks: ["THANK YOU. I'VE NOTED THE ASSIST.", 'THANKS. THE READINGS CAN WAIT.'],
-      fuel: ['LAB STILL HAS POWER. NEED FUEL.'], hunted: ['LAB UNDER FIRE. CAN YOU COVER US?'] },
+      thanks: ["THANKS. I'D BETTER CALL THE BASE. THEY'RE PROBABLY WONDERING WHERE I AM.", "THANK YOU. I'M GLAD YOU WERE NEARBY."],
+      fuel: [['GOT CAUGHT UP IN THE READINGS AND MISSED MY FUEL STOP. DO YOU HAVE ANY TO SPARE?', 'MISSED MY FUEL STOP. GOT ANY TO SPARE?']],
+      hunted: [["THE LAB'S UNDER FIRE! I'VE STOPPED THE SURVEY. WE NEED COVER.", 'LAB UNDER FIRE! NEED COVER.']] },
   },
   {
     code: 'N28', name: 'GERTY', scheme: 797,
@@ -331,9 +353,11 @@ export const NPC_SHIPS = Object.freeze([
     // Science round a planet, high over its cushion: TORTUGA, 200 u over it (it was 300; DAMASK stood 1,440 u from the west edge on
     // SX's map of 2026-10-02, too close for an orbit, and Map X, 2026-10-10, kept the orbit where it was). Its pace: a survey robot, brisk between samples.
     route: { sector: 'sector-k05', path: { kind: 'orbit', at: 'planet:TORTUGA', radius: 200, phase: 2.2, dir: -1 } }, speed: 176, job: 'SURVEYOR', favor: 'signal',
+    replies: ['SHUTTLE DETECTED. GREETINGS.'],
     words: {
-      thanks: ['THANKS. CAREFUL WORK, THAT.', 'I APPRECIATE THE HELP, PILOT.'],
-      fuel: ['SAMPLES PACKED. TANK EMPTY.'], hunted: ['SURVEY CRAFT. PIRATES CLOSING IN.'] },
+      thanks: ['ASSISTANCE RECEIVED. THANK YOU.', 'THANK YOU FOR YOUR ASSISTANCE.'],
+      fuel: [['FUEL DEPLETED. REQUESTING REFUELLING.', 'FUEL DEPLETED. REFUELLING REQUIRED.']],
+      hunted: [['GERTY UNDER FIRE. COVER REQUIRED.', 'GERTY UNDER FIRE. COVER REQUIRED.']] },
   },
   {
     code: 'N32', name: 'GLASS', scheme: 652,
@@ -359,9 +383,11 @@ export const NPC_SHIPS = Object.freeze([
     // An odd one, slow: the greenhouse round CAIRN, 200 u over the cushion (it was 340; ISOBAR stood in the sector's corner on SX's
     // map of 2026-10-02, and Map X, 2026-10-10, kept the orbit round CAIRN). Its pace: a greenhouse: seedlings do not like a jolt.
     route: { sector: 'sector-k06', path: { kind: 'orbit', at: 'planet:CAIRN', radius: 200, phase: 3.1, dir: 1 } }, speed: 104, job: 'GREENHOUSE', favor: 'fuel',
+    replies: ["HI. IT'S STILL DAYTIME IN HERE. THAT'S WHY THE LIGHTS ARE ON."],
     words: {
-      thanks: ['THANKS FROM THE GREENHOUSE.', "THANK YOU. YOU'VE BEEN KIND."],
-      fuel: ['GROW LIGHTS ON. NO FUEL LEFT.'], hunted: ['PIRATES FIRING. THESE WALLS ARE GLASS.'] },
+      thanks: ['THANK YOU.', 'PHEW. THANKS FOR HELPING.'],
+      fuel: [["ANY FUEL TO SPARE? THE LIGHTS ARE WORKING, BUT I CAN'T GO ANYWHERE.", 'LIGHTS HAVE POWER. OUT OF FUEL.']],
+      hunted: [["WE'RE UNDER FIRE! THIS WHOLE THING'S MADE OF GLASS. HELP!", 'UNDER FIRE! THESE WALLS ARE GLASS!']] },
   },
   {
     code: 'N34', name: 'TURTLE', scheme: 285,
@@ -386,9 +412,11 @@ export const NPC_SHIPS = Object.freeze([
     palette: { h: '#908B85', t: '#B1A9C9', g: '#AAC1D4', e: '#908B85', l: '#908B85' },
     // An odd one, slow: the turtle round BERYL. Its pace: a turtle, the slowest of them all.
     route: { sector: 'sector-k04', path: { kind: 'orbit', at: 'planet:BERYL', radius: 250, phase: 0.9, dir: -1 } }, speed: 88, job: 'SLOW BOAT', favor: 'word',
+    replies: ["GO ON, PASS ME. I WON'T BE GETTING ANY FASTER."],
     words: {
-      thanks: ['THANKS FOR TAKING THE TIME.', 'GOOD OF YOU TO WAIT WITH ME.'],
-      fuel: ["NO FUEL. I'M NOT GOING FAR."], hunted: ["CAN'T OUTRUN THEM. PIRATES ASTERN."] },
+      thanks: ['THANK YOU. SORRY TO HOLD YOU UP.', 'MUCH OBLIGED. YOU TAKE CARE.'],
+      fuel: [['WOULD YOU LOOK AT THAT. OUT OF FUEL. COULD YOU SPARE A LITTLE?', 'OUT OF FUEL. CAN YOU SPARE SOME?']],
+      hunted: [["PIRATES. I CERTAINLY WON'T OUTRUN THEM. CAN YOU HELP?", "CAN'T OUTRUN THE PIRATES. NEED HELP."]] },
   },
   // ---- SX's second round (labs/graphics/sketches/npc-ships-2.html; SX, 2026-10-06: «NPC NEW: N37, N38, N40, N41, N42, N43,
   // N44, N46»), each in its drawn paint (scheme 0).
@@ -414,9 +442,11 @@ export const NPC_SHIPS = Object.freeze([
     // A beekeeper's boat, honey for APIARY: it circles CAIRN, a short run from the hive, as a bee keeps to its flowers. Its pace:
     // circling one place, unhurried.
     route: { sector: 'sector-k06', path: { kind: 'orbit', at: 'planet:CAIRN', radius: 500, phase: 1.2, dir: -1 } }, speed: 144, job: 'BEEKEEPER', favor: 'fuel',
+    replies: ['BEEN TO HONEYCOMB? HOW ARE THINGS THERE?'],
     words: {
-      thanks: ['THE HIVE IS SAFE. THANK YOU.', 'HONEY STILL WARM. THANKS, PILOT.'],
-      fuel: ['OUT OF FUEL. THE BEES ARE RESTLESS.'], hunted: ['PIRATES AFTER THE HONEY. HELP!'] },
+      thanks: ['THANK YOU. GLAD YOU ANSWERED.', 'THANK YOU VERY MUCH.'],
+      fuel: [["I'M COMPLETELY OUT OF FUEL. COULD YOU SPARE A LITTLE?", 'OUT OF FUEL. COULD YOU SPARE A LITTLE?']],
+      hunted: [['PIRATES COMING FOR ME! HIVES ABOARD. COVER ME!', 'PIRATES! HIVE ABOARD. COVER ME!']] },
   },
   {
     code: 'N38', name: 'NEWSREEL', scheme: 0,
@@ -438,9 +468,11 @@ export const NPC_SHIPS = Object.freeze([
     // A newsreel camera filming the ruins coming back: between HALCYON and RELAY 12, two of the three a pilot may start by. Its
     // pace: chasing the news, the quickest of them.
     route: { sector: 'sector-j05', path: { kind: 'lane', from: 'station-halcyon-j05', to: 'station-relay-j05', phase: 0.35 } }, speed: 336, job: 'NEWSREEL', favor: 'signal',
+    replies: ["SHUTTLE, YOU'RE IN SHOT. DON'T DO ANYTHING FOR THE CAMERA."],
     words: {
-      thanks: ['THAT GOES IN THE REEL. THANKS.', 'GOOD FOOTAGE. THANK YOU, PILOT.'],
-      fuel: ['OUT OF FUEL. MISSING THE STORY.'], hunted: ['PIRATES ON CAMERA. SEND HELP.'] },
+      thanks: ["THANKS. THAT'S DEFINITELY ENOUGH FILMING FOR NOW.", "THANKS. I'LL SEND THE FOOTAGE TO THE STATION."],
+      fuel: [['GOT CARRIED AWAY FILMING. NOT A DROP OF FUEL LEFT. CAN YOU SPARE SOME?', 'OUT OF FUEL WHILE FILMING. CAN YOU HELP?']],
+      hunted: [["PIRATES HAVE OPENED FIRE! I'M RECORDING, BUT I NEED HELP!", 'CAMERA SHIP UNDER PIRATE ATTACK.']] },
   },
   {
     code: 'N40', name: 'TINKER', scheme: 0,
@@ -466,9 +498,11 @@ export const NPC_SHIPS = Object.freeze([
     // A tinker, pots and pans on its sides: a pedlar from station to station, SPOOL 8 and PHAROS. Its pace: a pedlar station to
     // station.
     route: { sector: 'sector-j06', path: { kind: 'lane', from: 'station-spool-j06', to: 'station-pharos-j06', phase: 0.15 } }, speed: 176, job: 'TINKER', favor: 'hull',
+    replies: ["HI! BIT OF A RACKET, ISN'T IT? THAT'S THE POTS AND PANS, NOT THE SHIP FALLING APART."],
     words: {
-      thanks: ['MUCH OBLIGED, PILOT.', 'BACK TO MY TRADE. THANKS.'],
-      fuel: ['TANK DRY. CAN I TRADE YOU A PAN?'], hunted: ['PIRATES AFTER MY WARES. HELP!'] },
+      thanks: ['THANK YOU. REALLY APPRECIATE IT.', "WELL, THANK YOU. YOU'VE REALLY HELPED ME OUT."],
+      fuel: [["COULD YOU HELP ME OUT WITH FUEL? TANK'S COMPLETELY DRY.", 'OUT OF FUEL. CAN YOU SPARE SOME?']],
+      hunted: [["HELP, THEY'RE FIRING ON ME! I CAN'T FIGHT THEM OFF!", 'TRADING CRAFT UNDER FIRE. HELP.']] },
   },
   {
     code: 'N41', name: 'GLAZIER', scheme: 0,
@@ -494,9 +528,11 @@ export const NPC_SHIPS = Object.freeze([
     // A glazier, panes on an A-frame either side, leaving FOUNDRY 2 along the northern connection.
     // The initial lane avoids the hole on the direct line to DEPOT 7; the fleet then roams the open grid. Its pace: glass, careful.
     route: { sector: 'sector-k04', path: { kind: 'lane', from: 'station-foundry-k04', to: [0.7, 0.18], phase: 0.55 } }, speed: 112, job: 'GLAZIER', favor: 'hull',
+    replies: ["BEAR WITH ME. I CAN'T TURN QUICKLY WITH THIS GLASS ABOARD."],
     words: {
-      thanks: ['NOT ONE PANE CRACKED. THANKS.', 'GLASS INTACT. THANK YOU.'],
-      fuel: ['OUT OF FUEL WITH A LOAD OF GLASS.'], hunted: ['FRAGILE CARGO UNDER FIRE.'] },
+      thanks: ["THANKS. I'D BETTER CHECK THE RESTRAINTS.", 'THANK YOU. THAT MAKES THINGS EASIER.'],
+      fuel: [["I NEED FUEL. WON'T MAKE IT TO A FUEL STOP NOW. CAN YOU HELP?", "CAN'T REACH A FUEL STOP. GOT ANY FUEL?"]],
+      hunted: [["PIRATES! IF I TURN TOO SHARPLY, I'LL BREAK THE GLASS. COVER ME!", 'PIRATES! GLASS ABOARD. COVER ME!']] },
   },
   {
     code: 'N42', name: 'HOUSEBOAT', scheme: 0,
@@ -521,9 +557,11 @@ export const NPC_SHIPS = Object.freeze([
     palette: { h: '#AC96AF', t: '#B9B3AC', g: '#D2C2A4', e: '#B9B3AC', l: '#D2C2A4' },
     // A family's houseboat: it keeps round AMBERGRIS as a houseboat keeps to its mooring. Its pace: a home, never in a hurry.
     route: { sector: 'sector-j04', path: { kind: 'orbit', at: 'planet:AMBERGRIS', radius: 300, phase: 2.6, dir: 1 } }, speed: 96, job: 'HOUSEBOAT', favor: 'word',
+    replies: ["HI. EVERYONE'S CROWDED ROUND THE WINDOW HAVING A LOOK AT YOU."],
     words: {
-      thanks: ['THE KIDS SAY THANK YOU.', 'HOME IN ONE PIECE. THANKS.'],
-      fuel: ['OUT OF FUEL. FAMILY ABOARD.'], hunted: ['PIRATES AT OUR DOOR. HELP!'] },
+      thanks: ['WHAT A DAY. THANKS FOR HELPING US.', 'THANK YOU FROM THE WHOLE FAMILY.'],
+      fuel: [["COULD YOU SPARE SOME FUEL? WE'RE COMPLETELY OUT.", 'FAMILY ABOARD. OUT OF FUEL.']],
+      hunted: [["HELP US, WE'RE UNDER FIRE! THERE ARE CHILDREN HERE!", 'PIRATES CLOSE BY. CHILDREN ABOARD.']] },
   },
   {
     code: 'N43', name: 'SCARAB', scheme: 0,
@@ -550,9 +588,11 @@ export const NPC_SHIPS = Object.freeze([
     palette: { h: '#6795A0', t: '#B9B3AC', g: '#D2C2A4', e: '#B9B3AC', l: '#D2C2A4' },
     // A scarab rolling the loose dust into a ball: round DAMASK, the biggest planet of K-05. Its pace: pushing its ball.
     route: { sector: 'sector-k05', path: { kind: 'orbit', at: 'planet:DAMASK', radius: 250, phase: 0.6, dir: 1 } }, speed: 128, job: 'DUST ROLLER', favor: 'cache',
+    replies: ["SEE THE SIZE OF THAT BALL? MORE DUST OUT HERE THAN YOU'D THINK."],
     words: {
-      thanks: ['THE BALL IS SAFE. THANK YOU.', 'BACK TO ROLLING. THANKS.'],
-      fuel: ['OUT OF FUEL. STILL PUSHING.'], hunted: ['THEY WANT THE BALL. HELP!'] },
+      thanks: ["THANKS FOR THAT. I'D HAVE BEEN HERE A WHILE.", 'THANKS FOR NOT LEAVING ME TO IT.'],
+      fuel: [['USED UP ALL MY FUEL COLLECTING THIS LOT. GOT ANY TO SPARE?', 'USED ALL MY FUEL COLLECTING. SPARE SOME?']],
+      hunted: [["PIRATES AFTER ME. CAN'T TURN WITH THIS BALL IN THE WAY. HELP!", "PIRATES NEARBY. CAN'T ESCAPE WITH THE BALL."]] },
   },
   {
     code: 'N44', name: 'LEARNER', scheme: 0,
@@ -578,9 +618,11 @@ export const NPC_SHIPS = Object.freeze([
     route: { sector: 'sector-j04', path: { kind: 'lane', from: 'station-drydock-j04', to: [0.40, 0.36], phase: 0.25 } }, speed: 192, job: 'STUDENT', favor: 'word',
     // Its pace swings about `speed` (src/npcFleet.js Walker): each [share, period s] a slow wave of that share of it.
     uneven: [[0.3, 13], [0.15, 4.7]],
+    replies: ["HI. YOU'D BETTER GO ROUND ME. I'M STILL HAVING TROUBLE HOLDING A STEADY SPEED."],
     words: {
-      thanks: ['INSTRUCTOR SAYS THANKS.', 'LESSON LEARNED. THANK YOU.'],
-      fuel: ['STUDENT PILOT. FORGOT TO REFUEL.'], hunted: ['STUDENT PILOT UNDER FIRE!'] },
+      thanks: ["THANKS. I JUST DIDN'T KNOW WHAT TO DO.", 'THANKS. I WAS AFRAID NO ONE WOULD ANSWER.'],
+      fuel: [["DIDN'T REFUEL AT THE LAST STATION. DON'T KNOW WHAT I WAS THINKING. CAN YOU SPARE SOME FUEL?", 'MISSED MY FUEL STOP. GOT ANY FUEL?']],
+      hunted: [["THEY'RE SHOOTING AT ME! PLEASE HELP!", "THEY'RE SHOOTING AT ME! PLEASE HELP!"]] },
   },
   {
     code: 'N46', name: 'LAMPLIGHTER', scheme: 0,
@@ -608,9 +650,11 @@ export const NPC_SHIPS = Object.freeze([
     // A lamplighter, a lantern on a pole ahead: its round from PHAROS, the lighthouse, to COMMONS. Its pace: a round on a
     // timetable.
     route: { sector: 'sector-j06', path: { kind: 'lane', from: 'station-pharos-j06', to: 'station-commons-j06', phase: 0.7 } }, speed: 240, job: 'LAMPLIGHTER', favor: 'cache',
+    replies: ["HELLO. HOW'S THE RUN? KEEPING OUT OF TROUBLE?"],
     words: {
-      thanks: ['THE LAMPS STAY LIT. THANKS.', 'BACK ON MY ROUND. THANK YOU.'],
-      fuel: ['OUT OF FUEL. LAMPS GOING DARK.'], hunted: ['PIRATES PUTTING OUT MY LAMPS.'] },
+      thanks: ["THANK YOU. I'M GLAD WE CROSSED PATHS.", 'THANKS FOR HELPING. LOOK AFTER YOURSELF.'],
+      fuel: [['RAN OUT OF FUEL BEFORE FINISHING MY ROUND. GOT ANY TO SPARE?', 'OUT OF FUEL BEFORE FINISHING MY ROUND.']],
+      hunted: [["PIRATES ON MY ROUTE. I CAN'T HANDLE THEM. HELP ME.", "PIRATES ON MY ROUTE. CAN'T HANDLE THEM."]] },
   },
 ].map(Object.freeze));
 // One more ship (src/eggs.js): found by its code as these are, never listed with them.
@@ -660,7 +704,7 @@ function place(ref, sectorId) {
   if (Array.isArray(ref)) return { x: ref[0] * W, y: ref[1] * H, r: 0 };
   if (ref.startsWith('planet:')) {
     const name = ref.slice(7), sector = SECTORS.find((s) => s.id === sectorId);
-    const p = sector?.planets.find((q) => q.label === name);
+    const p = sector?.planets.find((q) => planetKey(q) === name);
     return p ? { x: p.x * W, y: p.y * H, r: p.radius + CONFIG.planet.orbit.height } : null;
   }
   const st = stationDefById(ref);

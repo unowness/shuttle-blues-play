@@ -102,6 +102,60 @@ export const PRACTICE = Object.freeze({ arm: 300, stop: 40, fire: Object.freeze(
 export const READY = Object.freeze({ hull: 0.7, fuel: 0.4 });
 export const CONTACT = Object.freeze({ look: 0.8, after: 5, retry: 2 });
 
+// The chapter's words (the text pass SX approved on 2026-10-24, codex/text-review/2026-10-24): `TALK` what A's mechanic and B's receiver
+// say in their windows, by stage; `CALLS` what is said on the radio (`openingCall`), each [whole, short]: the notch says the short form where
+// there is one, and the talk of the station it came from says it whole, before its own lines, the next time its window is opened there
+// (`heard`, the step's memory: a reload starts the talk at what it says now). R's control and the repair droid have no window: theirs are
+// said whole. `NOTES` say where the pilot is, with no voice: the loaner's leg, the shelf fitted, the work on R after the droid.
+export const TALK = Object.freeze({
+  service: ["YOUR SHUTTLE'S READY. HOP OVER. LEAVE THE LOANER WITH US.", 'FIXED THE RADIO TOO. NO CHARGE FOR THAT.'],
+  call: (b) => [`THERE'S A LOAD GOING TO ${b}, BY THE WAY. DROP BACK IN IF YOU WANT THE JOB.`],
+  freight: (b) => [`THE MAP AND LOCATOR ARE FITTED. YOU'RE GOING TO ${b}; IT'S MARKED ALREADY. THERE'S A BONUS FOR GETTING THERE ON TIME.`,
+    "YOU'LL GET LESS IF YOU'RE LATE. STILL DELIVER IT. THEY NEED THAT CARGO."],
+  shelf: ["LET'S PUT IT HERE. KEEPS IT OUT OF YOUR LINE OF SIGHT."],
+  shelfFilled: ['THERE. STILL PLENTY OF ROOM, SO BRING BACK ANYTHING ELSE YOU FIND.'],
+  shelfEmpty: ["SHELF'S READY. SOMEWHERE TO PUT THINGS WHEN YOU FIND THEM."],
+  load: (a) => [`HEADING BACK? THERE'S A LOAD FOR ${a}. THE MECHANIC WANTED A WORD TOO. SOMETHING ABOUT THE OLD STATION.`],
+  ruin: (R) => [`STATION ${R} CAN STILL BE RESTORED. USED TO BE PLENTY OF FREIGHT GOING THROUGH THERE. GET IT OPEN AND YOU'LL HAVE MORE WORK.`,
+    "YOU'LL HAVE TO CLEAR OUT THE PIRATES FIRST. THEN THE REPAIRS CAN START. THEY TAKE INSTALMENTS; YOU DON'T NEED THE WHOLE SUM UP FRONT."],
+  notReady: (R) => [`STATION ${R} CAN STILL BE RESTORED. GET THE SHUTTLE FIXED AND FUELLED FIRST, THOUGH. THERE ARE PIRATES THERE.`],
+});
+export const CALLS = Object.freeze({
+  delivered: ['THANKS. NEED FUEL?'],
+  deliveredLate: ["WE'VE GOT THE CARGO. YOU MISSED THE DEADLINE, SO THE PAY IS LOWER. NEED FUEL?", 'CARGO RECEIVED. LATE DELIVERY: LOWER PAY.'],
+  fuelled: ["YOU'RE FUELLED UP. SENT YOU A CACHE MARKER TOO. WHATEVER'S IN THERE IS YOURS.", 'FUELLED UP. SENT YOU A CACHE MARKER.'],
+  tankFull: ["YOUR TANK'S FULL ALREADY. TAKE A LOOK AT THE MAP INSTEAD. I MARKED A CACHE. KEEP WHAT YOU FIND.", "TANK'S FULL. TAKE A LOOK AT THE CACHE MARK."],
+  found: ["SOMETHING FOR THE COCKPIT, THEN. COME BACK AND I'LL FIT YOU A SHELF.", "COME BACK. I'LL FIT A SHELF."],
+  returned: ['THANKS. RIGHT ON TIME.'],
+  returnedLate: ['GOT IT. YOU MISSED THE DEADLINE, SO THEY PAID LESS.', 'GOT IT. LOWER PAY FOR BEING LATE.'],
+  // What A says when the ask about R finds a step already made (the pirates beaten, money in, the station open): in A's window.
+  fund: (R) => [`NO PIRATES LEFT AT STATION ${R}. YOU CAN START ON THE REPAIRS.`],
+  work: (R) => [`THEY'RE ALREADY REPAIRING STATION ${R}. BRING OVER ANOTHER PAYMENT WHEN YOU'VE EARNED IT.`],
+  [REST]: (R) => [`STATION ${R} IS OPEN AGAIN. YOU CAN TAKE FREIGHT JOBS THERE NOW.`],
+  approach: ["THERE'S THE STATION. CLEAR OUT THE PIRATES FIRST.", "THERE'S THE STATION. CLEAR THE PIRATES."],
+  funded: ['WE HAVE YOUR FIRST PAYMENT. WORK STARTS NOW. BRING THE NEXT INSTALMENT WHEN YOU CAN.'],
+  restored: ["THE STATION IS OPEN TO SHIPS AGAIN. CHECK THE BOARD IF YOU'RE TAKING FREIGHT. WE ALREADY HAVE ORDERS."],
+  droid: ['HULL INSPECTION AVAILABLE HERE. PLEASE APPROACH.'],
+  sound: ['INSPECTION COMPLETE. NO DAMAGE DETECTED.'],
+  checked: ['INSPECTION COMPLETE. HULL DAMAGE DETECTED. REPAIR COST DISPLAYED.'],
+  served: ['HULL RESTORED. CLEAR TO DEPART.'],
+});
+export const NOTES = Object.freeze({
+  loaner: ['SCOOTY JR.', "TAKE SCOOTY JR. TO THE WORKSHOP. YOUR SHUTTLE'S READY AND WAITING THERE. TRY THE BRAKES ON THE WAY."],
+  shelf: ['SHELF FITTED', 'OPEN YOUR PILOT CARD, OR TAKE THE RETURN LOAD.'],
+  work: (R) => [R, 'THE STATION STILL NEEDS REPAIR FUNDS. TAKE CARGO JOBS, HELP OTHER SHIPS, AND COME BACK WITH THE NEXT INSTALMENT.'],
+});
+// Who says it: A's mechanic (on the radio too: SX, 2026-10-22, his A1), B's receiver, R's dispatch, the repair droid.
+const MECHANIC = 'MECHANIC', RECEIVING = 'RECEIVING';
+// A call (CALLS) said: its short form in the notch, and whole in the talk of the station `from` (A or B), the next time it is opened there.
+function call(world, from, role, [whole, short = null]) {
+  world.emit('openingCall', { who: `${label(from)} ${role}`, line: short ?? whole });
+  heardAt(world, from).push({ who: role, line: whole });
+}
+const heardAt = (world, from) => (stateOf(world, running(world)).heard[from] ??= []);
+// A call of R's dispatch or of the droid: said whole (they have no window).
+const callWhole = (world, who, [whole]) => world.emit('openingCall', { who, line: whole });
+
 // ------------------------------------------------------------------------------------------------ the record
 
 // The chapter's record when it is a new pilot's and running, else null.
@@ -271,6 +325,11 @@ function ownsSouvenir(L) {
   return false;
 }
 
+// The step's memory (`world.openingState`), made the first time it is asked for.
+const stateOf = (world, r) => (world.openingState ??= { armed: false, dockFuel: null, foundSize: -1, owned: false, firstId: openingJobId(r.a, r.b),
+  returnId: openingJobId(r.b, r.a), shots: 0, cooldown: 0, approached: false, lookAt: null, contactAt: 0, contactSaid: false, heard: {}, asked: false,
+  toldLoaner: false, aimed: false });
+
 // Every step of the world (World.step): the braking practice, and the stages the world itself moves on (docked at A, the freight
 // accepted or lost, the tank full at B, the cache opened). The moves made by a menu's row are its own (boardShuttle, takeDetails).
 // `state` is the step's memory that no save needs: whether the practice is armed, the tank when the ship came close by B, whether the
@@ -278,10 +337,12 @@ function ownsSouvenir(L) {
 export function stepOpening(world) {
   const r = running(world);
   if (!r) return;
-  const ship = world.ship, L = world.ledger, state = (world.openingState ??= { armed: false, dockFuel: null, foundSize: -1, owned: false, firstId: openingJobId(r.a, r.b),
-    returnId: openingJobId(r.b, r.a), shots: 0, cooldown: 0, approached: false, lookAt: null, contactAt: 0, contactSaid: false });
+  const ship = world.ship, L = world.ledger, state = stateOf(world, r);
+  // (A's answer to the ask stands in its window while the ship is by A: openingTalk.)
+  if (state.asked && !closeBy(world, r.a)) state.asked = false;
   switch (r.stage) {
     case 'loaner': {
+      if (!state.toldLoaner) { state.toldLoaner = true; world.emit('openingNote', { title: NOTES.loaner[0], line: NOTES.loaner[1] }); }
       const speed = Math.hypot(ship.vx, ship.vy);
       if (!r.braked && ship.alive && !world.docked) {
         if (speed >= PRACTICE.arm) state.armed = true;
@@ -318,7 +379,7 @@ export function stepOpening(world) {
       if (state.owned) {
         // The souvenir is theirs; B asks for it back to fit the shelf (the radio's thanks for it come with the shelf).
         setStage(world, 'shelf');
-        world.emit('openingCall', { who: `${label(r.b)} RECEIVING`, line: "IT'S YOURS. BRING IT IN FOR A SHELF." });
+        call(world, r.b, RECEIVING, CALLS.found);
         break;
       }
       // The cache bound is gone some other way (not opened by this pilot): another, the nearest that can be opened, or none.
@@ -377,9 +438,7 @@ export function settleDelivery(world, res) {
   if (res && !res.alreadySettled && res.timing) r.receipt = { elapsed: res.timing.elapsed, par: res.timing.par, onTime: res.timing.elapsed <= res.timing.par };
   setStage(world, 'fuel');
   payRadio(world, 'first-run');
-  const b = label(r.b);
-  world.emit('openingCall', { who: `${b} RECEIVING`, line: r.receipt && !r.receipt.onTime ? 'CARGO RECEIVED. LATE PAYS LESS. TOP UP HERE.'
-    : 'FIRST RUN DONE. ON TIME, TOO. TOP UP HERE.' });
+  call(world, r.b, RECEIVING, r.receipt && !r.receipt.onTime ? CALLS.deliveredLate : CALLS.delivered);
 }
 // The return load delivered at A (World.deliver calls it, stepOpening with none for a save that already has it): A says so, truthfully,
 // and the chapter goes on at the ruin (slice 4): A's window tells of the old station, and its row is the pilot's ask. The receipt is the
@@ -389,7 +448,7 @@ export function settleReturn(world, res) {
   if (!r || at(r.stage) < at('look') || at(r.stage) > at('haul')) return;
   const onTime = res?.timing ? res.timing.elapsed <= res.timing.par : true;
   setStage(world, 'ruin');
-  world.emit('openingCall', { who: `${label(r.a)} DISPATCH`, line: onTime ? 'RETURN LOAD IN. ON TIME AGAIN.' : "LOAD IN. LATE PAYS LESS. NEXT RUN." });
+  call(world, r.a, MECHANIC, onTime ? CALLS.returned : CALLS.returnedLate);
 }
 // World.deliver's hook: only the chapter's own freight, the first or the return.
 export function openingDelivered(world, job, res) {
@@ -404,9 +463,7 @@ export function openingDelivered(world, job, res) {
 function beginCache(world, r) {
   setStage(world, 'cache');
   bindCache(world, r);
-  const b = label(r.b);
-  world.emit('openingCall', { who: `${b} RECEIVING`, line: r.fuel === 'full' ? 'TANK FULL. SEALED CACHE MARKED ON YOUR MAP.'
-    : 'TOPPED UP. SEALED CACHE MARKED ON YOUR MAP.' });
+  call(world, r.b, RECEIVING, r.fuel === 'full' ? CALLS.tankFull : CALLS.fuelled);
 }
 // The souvenir cache nearest B that can be opened now, where it was laid (src/cachePlaces.js), marked; none: the stage is passed.
 // It opens free: the waiver `intro-souvenir` is earned for it (src/rewardLedger.js; a pilot who owns a souvenir already earns none, the
@@ -463,13 +520,6 @@ function stageAfterReveal(world) {
   if (!guardsDown(L, id)) return 'guards';
   return putIn(L, id) > 0 ? 'work' : 'fund';
 }
-// What A says when the ask finds a step already made (the pirates beaten, money in, the station open): the pilot was there first.
-const ACK = Object.freeze({
-  fund: (R) => `${R} IS CLEAR. YOU BEAT US TO IT.`,
-  work: (R) => `${R} IS CLEAR. REPAIRS UNDER WAY.`,
-  [REST]: (R) => `${R} IS OPEN. GOOD WORK.`,
-});
-
 // ABOUT <R> (close by A, once the return load is in): A's words are in the window; this is the pilot's own ask. R is marked on the locator
 // and the map (it is the objective now), a card says what it costs to rebuild, and the chapter goes on at the step the world is at.
 export function askAboutRuin(world) {
@@ -479,7 +529,12 @@ export function askAboutRuin(world) {
   const id = ruinOf(world), def = stationDefById(id, world.ledger), next = stageAfterReveal(world);
   setStage(world, next);
   world.emit('openingFitted', { what: 'ruin', stationId: id, label: def.label, cost: formatCR(def.cost), owned: 0 });
-  if (ACK[next]) world.emit('openingCall', { who: `${label(r.a)} DISPATCH`, line: ACK[next](def.label) });
+  // (What A says when the ask finds a step already made, the pilot there first: in A's window, the talk going on, CALLS, while the ship stays
+  // by A: `asked`.)
+  if (CALLS[next]) {
+    heardAt(world, r.a).push(...CALLS[next](def.label).map((line) => ({ who: MECHANIC, line })));
+    stateOf(world, r).asked = true;
+  }
   return true;
 }
 
@@ -487,12 +542,14 @@ export function askAboutRuin(world) {
 // the ship's gun clock). Never blocks: the guards are beaten or they are not.
 function stepApproach(world, r, state) {
   const ship = world.ship;
+  // The firing hint, once, as the practice begins (in the pilot's own controls: the page words it, labs/graphics/notices.js), for a hull that fires.
+  if (!state.aimed && !r.fired && fireLine(world, r) && ship.params?.().can?.fire !== false) { state.aimed = true; world.emit('openingPractice', { what: 'aim' }); }
   if (ship.cooldown > state.cooldown) state.shots++;
   state.cooldown = ship.cooldown;
   if (!r.fired && state.shots >= PRACTICE.fire.shots) { r.fired = true; world.emit('openingPractice', { what: 'fire' }); }
   if (!state.approached && nearRuin(world, PRACTICE.fire.reach)) {
     state.approached = true;
-    world.emit('openingCall', { who: `${label(r.a)} DISPATCH`, line: "STATION AHEAD. CLEAR OUT THE PIRATES." });
+    call(world, r.a, MECHANIC, CALLS.approach);
   }
 }
 
@@ -501,7 +558,7 @@ function afterFirstMoney(world, r, state) {
   payRadio(world, 'first-coins-in');
   setStage(world, 'repair');
   state.contactAt = world.time + CONTACT.after;
-  world.emit('openingCall', { who: `${label(ruinOf(world))} CONTACT`, line: "FIRST SECTION STARTED. KEEP HAULING." });
+  callWhole(world, `${label(ruinOf(world))} DISPATCH`, CALLS.funded);
 }
 
 // R is restored (by the pilot's money, the support's, however): what the stage owed is paid once (the 50 for the first money if the
@@ -518,7 +575,7 @@ function finishRestored(world, r) {
   // do not all interrupt the restoration celebration»; found by tools/opening-rhythm.mjs, a call 2 s after it).
   world.guideReadyAt = Math.max(world.guideReadyAt ?? 0, world.time + CONFIG.quests.guide.rest);
   setStage(world, REST);
-  if (said) world.emit('openingCall', { who: `${label(ruinOf(world))} CONTACT`, line: "DOCK OPEN. CARGO ON THE BOARD. NEXT?" });
+  if (said) callWhole(world, `${label(ruinOf(world))} DISPATCH`, CALLS.restored);
 }
 
 // The repair droid (src/droids.js asks each step): the ruin's id while the stage wants the contact, the contact being due (the pilot in
@@ -534,17 +591,11 @@ export function contactMade(world) {
   const state = world.openingState;
   if (!state || state.contactSaid) return;
   state.contactSaid = true;
-  world.emit('openingCall', { who: 'REPAIR DROID', line: "I'M BY THE STATION. COME WHEN READY." });
+  callWhole(world, 'REPAIR DROID', CALLS.droid);
 }
 export function contactFailed(world) {
   if (world.openingState) world.openingState.contactAt = world.time + CONTACT.retry;
 }
-// What the droid says when the lesson is over, by how it ended.
-const CONTACT_LINES = Object.freeze({
-  sound: "HULL'S SOUND. NO WORK TO CHARGE FOR.",
-  checked: "HULL TOOK A BEATING. I CAN PATCH IT.",
-  served: "DONE. THAT'LL HOLD. COME BACK ANY TIME.",
-});
 
 // The hull check (stage `repair`): the pilot has come up to the droid and its window has stood a moment (`CONTACT.look` s on the world's
 // clock): the lesson is made whether or not anything was bought. A hull that needs nothing is a finished lesson; a mend is the pilot's to
@@ -559,7 +610,10 @@ function lookAtContact(world, r, state) {
   r.repair = dr.stock < CONFIG.droids.repair.stock ? 'served' : world.hull >= world.hullMax ? 'sound' : 'checked';
   dr.story = false;
   setStage(world, 'work');
-  world.emit('openingCall', { who: 'REPAIR DROID', line: CONTACT_LINES[r.repair] });
+  // What the droid says when the lesson is over, by how it ended; then where the work stands.
+  callWhole(world, 'REPAIR DROID', CALLS[r.repair]);
+  const [title, line] = NOTES.work(label(ruinOf(world)));
+  world.emit('openingNote', { title, line });
 }
 
 // R's repair row lit in the story's purple at once (SX, 2026-10-06: «квест с починкой не считается, там пусть сразу подсвечивается
@@ -590,7 +644,7 @@ export function boardShuttle(world) {
   world.pilot.grantRadio(world.ledger.clock + CONFIG.quests.npcCall.after);
   setStage(world, 'call');
   world.emit('loanerReturned', { stationId: r.a, label: label(r.a), shipId: own });
-  world.emit('openingCall', { who: `${label(r.a)} DISPATCH`, line: QL.banner.smallDelivery(label(r.b)) });
+  world.emit('openingCall', { who: `${label(r.a)} MECHANIC`, line: QL.banner.smallDelivery(label(r.b)) });
   return true;
 }
 // DELIVERY DETAILS (at A, after the call): the locator and the map are fitted, and B is marked on both.
@@ -661,40 +715,35 @@ export function openingActions(world, station, actions, inside = world.docked ==
   return rows;
 }
 
-// What A's people say in its menu (a dialog window, labs/graphics/context.js `talk`; the script's, labs/graphics/talk-beat.js), or null. Each
-// line is short enough for the window's five rows (checks/opening.mjs holds it). Everything said at A is its mechanic's (SX, 2026-10-22: «Надо
-// просто механик писать. Механик и диспатч тоже механик», his A1; SCOOTY / MECHANIC and A's DISPATCH until then), B's its receiving desk's.
-// Each talk names its conversation (`thread`): A's from the shuttle handed over to the first job, A's about the old station, B's.
+// What A's people say in its menu (a dialog window, labs/graphics/context.js `talk`; the script's, labs/graphics/talk-beat.js), or null: TALK by
+// stage, after what was said on the radio from that station since (`heard`: CALLS whole). Everything said at A is its mechanic's (SX,
+// 2026-10-22: «Надо просто механик писать. Механик и диспатч тоже механик», his A1; SCOOTY / MECHANIC and A's DISPATCH until then), B's its
+// receiver's. Each talk names its conversation (`thread`): A's from the shuttle handed over to the first job, A's about the old station, B's.
 export function openingTalk(world, station) {
   const r = running(world);
   if (!r) return null;
-  const a = label(r.a), b = label(r.b);
-  const atA = (lines, part = 'start') => ({ name: `${a} MECHANIC`, lines, thread: `opening:${r.a}:${part}` });
-  const atB = (lines) => ({ name: `${b} RECEIVING`, lines, thread: `opening:${r.b}` });
+  const a = label(r.a), b = label(r.b), heard = world.openingState?.heard ?? {};
+  const atA = (lines, part = 'start') => ({ name: `${a} ${MECHANIC}`, before: heard[r.a] ?? [], lines, thread: `opening:${r.a}:${part}` });
+  const atB = (lines) => ({ name: `${b} ${RECEIVING}`, before: heard[r.b] ?? [], lines, thread: `opening:${r.b}` });
   // B's, after the cache: the shelf to fit, then the rack to fill, then the return load (A is waiting; the old station is slice 4's).
   if (station.id === r.b) {
-    if (r.stage === 'shelf' && closeBy(world, station.id)) return atB(["NICE FIND. LET'S FIT A SHELF FOR IT IN YOUR COCKPIT."]);
-    if (r.stage === 'look') {
-      const has = world.collection.instances.length > 0;
-      return atB([has ? "THERE. YOUR FIRST SOUVENIR IN PLAIN SIGHT. THE REST OF THE RACK IS YOURS TO FILL." : 'THERE. THE RACK IS YOURS TO FILL.']);
-    }
-    if (r.stage === 'load' && !world.ledger.active) return atB([`${a} IS WAITING FOR THIS LOAD. THEY ASKED ABOUT THE OLD STATION, TOO.`]);
+    if (r.stage === 'shelf' && closeBy(world, station.id)) return atB(TALK.shelf);
+    if (r.stage === 'look') return atB(world.collection.instances.length > 0 ? TALK.shelfFilled : TALK.shelfEmpty);
+    if (r.stage === 'load' && !world.ledger.active) return atB(TALK.load(a));
     return null;
   }
   if (station.id !== r.a) return null;
-  // A's, once the return load is in: the old station and its pirates (the ready ship is told to go; one that needs mending, to mend first).
+  // A's, once the return load is in: the old station and its pirates (the ready ship is told to go; one that needs mending, to mend first);
+  // asked, with a step already made, what A says to that, while the ship is still by it.
+  const R = label(ruinOf(world));
   if (r.stage === 'ruin' && closeBy(world, station.id)) {
-    const R = label(ruinOf(world)), ready = world.hull >= world.hullMax * READY.hull && world.fuel >= world.fuelTank * READY.fuel;
-    return atA([ready ? `${R} KEPT THIS STRETCH MOVING. PIRATES HOLD IT NOW. CLEAR THEM AND WE CAN REBUILD.`
-      : `${R} KEPT THIS STRETCH MOVING. PIRATES HOLD IT NOW. REPAIR AND REFUEL, THEN CLEAR THEM.`], 'ruin');
+    const ready = world.hull >= world.hullMax * READY.hull && world.fuel >= world.fuelTank * READY.fuel;
+    return atA(ready ? TALK.ruin(R) : TALK.notReady(R), 'ruin');
   }
-  if (r.stage === 'service' && closeBy(world, station.id)) {
-    return atA(["SHUTTLE'S READY. FIXED THE RADIO TOO. NO CHARGE. LEAVE JUNIOR WITH ME."]);
-  }
-  if (r.stage === 'call') return atA([`THERE YOU ARE. ${b} NEEDS A SMALL DELIVERY. READY TO WORK AGAIN?`]);
-  if (r.stage === 'freight' && !world.ledger.active) {
-    return atA([`LOCATOR'S FITTED. ${b} IS ON IT AND YOUR MAP. BEAT THE TARGET TIME FOR BETTER PAY.`]);
-  }
+  if (CALLS[r.stage] && world.openingState?.asked && closeBy(world, station.id)) return atA([], 'ruin');
+  if (r.stage === 'service' && closeBy(world, station.id)) return atA(TALK.service);
+  if (r.stage === 'call') return atA(TALK.call(b));
+  if (r.stage === 'freight' && !world.ledger.active) return atA(TALK.freight(b));
   return null;
 }
 

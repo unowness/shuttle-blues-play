@@ -559,6 +559,8 @@ export const EVENT_SOUNDS = {
 };
 
 export const SILENT = {
+  openingNote: 'a word of where the pilot is, with no voice (src/opening.js NOTES): the notch says it, nothing calls',
+  suitcaseAmbush: 'its squad comes with the pirates\' own sounds (piratesEngaged); the notch says the case is to be brought',
   coffeeWoreOff: 'a quiet end: the notch says it, and the ship flies as it always did (the cup had its sound, coffeeDrunk)',
   bossPattern: 'its warnings are its glyph cues, as a pirate\'s are; its shots and its escort keep their own sounds',
   bossPhase: 'its phase is read from what it does and how far it has come apart (SX, 2026-10-14: «номер фазы тоже не нужно»)',

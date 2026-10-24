@@ -28,11 +28,12 @@
 // never saved: a pilot who comes back to it finds it as it was (the planet's ask over the suitcase brought), a reload starts it at what the
 // talk says now.
 //
-// A talk's data (`target.talk`): { name, lines, before?, thread?, place?, live? }. `lines` strings are said by the one `name` names, together
+// A talk's data (`target.talk`): { name, lines, before?, thread?, place?, live?, quiet? }. `lines` strings are said by the one `name` names, together
 // as one line (old saves and quest data read as before: "RELAY 12 MECHANIC" is the station's desk, "SCOOTY / MECHANIC" a person and a role,
 // anything else one name), or { who, line, ink, key } a line of its own speaker's; `before` what was said earlier in the same conversation (a plea a
 // hail said), written first where the script does not hold it yet; `place` the head's right where the target is no station; `live` the world not
-// slowed (COMMONS's recordings play on the world's clock).
+// slowed (COMMONS's recordings play on the world's clock); `quiet` its TALK asked only while something in it is unheard (a station's people,
+// src/stationTalk.js).
 //
 // A call (`world.talkCall` { n, menu }: CLIPPER's crew left a screen behind, src/clipper.js) stands by itself, whatever the ship is next to,
 // until LATER or the world takes it back (SX's W1, 2026-10-22: «давай появляется диалоговое окно, и они говорят, чувак, давай без спидранов»):
@@ -47,8 +48,7 @@ import { wrap } from '../../src/pilotPanel.js';
 import { drawCraft } from '../../src/traffic.js';
 import { DRIFTER_ID, drifterHere, drifterCraft } from '../../src/quests.js';
 import { WRECK_ID, wreckHere, wreckCraftAt } from '../../src/wrecked.js';
-import { SPECIAL_ID } from '../../src/specials.js';
-import { clipperPose } from '../../src/clipper.js';
+import { SPECIAL_ID, specialPose } from '../../src/specials.js';
 import { floatPose, floatPhases } from '../../src/float.js';
 import { CONFIG } from '../../src/config.js';
 import { PESTER_ID, pesterHere } from '../../src/pester.js';
@@ -229,14 +229,17 @@ export function createTalkBeat(game) {
     return m;
   }
 
-  // Whether the menu `t` talks and its conversation waits for the pilot's TALK.
-  const asks = (t) => !!t?.talk && S.opened !== threadOf(t);
+  // Whether the menu `t` talks and its conversation waits for the pilot's TALK. A `quiet` talk (a station's people, src/stationTalk.js) asks only
+  // while it has something the pilot has not heard: once all of it is in its conversation's script, its window is its rows again.
+  const heard = (t) => { const s = S.scripts.get(threadOf(t)); return !!s && talkLines(world, t).every((l) => s.seen.has(l.key ?? `${l.who}|${l.text}`)); };
+  const asks = (t) => !!t?.talk && S.opened !== threadOf(t) && !(t.talk.quiet && heard(t));
   // The rows of a menu that asks its window keeps beside TALK, each with its place among the menu's own.
   const kept = (t) => t.actions.map((a, i) => ({ a, i })).filter(({ a }) => KEEP.has(a.label));
   // The object's window of a menu that asks (labs/graphics/context.js): TALK first, then the rows it keeps, no words. TALK in the ink of the
   // first quest's answer its talk holds (src/menus.js rowTones: the way to a quest's step in its ink through every window).
   const talkTone = (t) => { const tones = rowTones(world, t); return t.actions.map((a, i) => (KEEP.has(a.label) ? null : tones[i])).find(Boolean) ?? null; };
-  const plate = (t) => (asks(t) ? { ...t, talk: null, actions: [{ label: BEAT.talk, tone: talkTone(t), run: () => {} }, ...kept(t).map(({ a }) => a)] } : t);
+  const plate = (t) => (asks(t) ? { ...t, talk: null, actions: [{ label: BEAT.talk, tone: talkTone(t), run: () => {} }, ...kept(t).map(({ a }) => a)] }
+    : t?.talk?.quiet && S.opened !== threadOf(t) ? { ...t, talk: null } : t);
   // TALK: the conversation begun, its window standing at once (wherever the ship is in the menu's reach).
   function open(t) { S.opened = threadOf(t); S.dismissed = null; }
   // Whatever of a conversation is still to come, said now.
@@ -275,7 +278,8 @@ export function createTalkBeat(game) {
   }
   // A quest's ship as the world draws it now: its drawing and its heading (a pilot out of fuel and a wreck turn slowly by the world's clock,
   // src/questHooks.js drawDrifter and src/wrecked.js drawWreck, `TURN`; a ship the pirates hold sways, src/pester.js pesterHere; CLIPPER as its
-  // crew points it, src/clipper.js, in its paint as the page lends it), or null.
+  // crew points it, src/clipper.js, in its paint as the page lends it; a reference ship standing, or drifting off once won, src/specials.js
+  // specialPose), or null.
   function craftPose(id) {
     if (id === DRIFTER_ID) { const d = drifterHere(world); return d && { craft: drifterCraft(d), angle: d.angle + world.time * TURN }; }
     if (id === WRECK_ID) {
@@ -283,7 +287,7 @@ export function createTalkBeat(game) {
       return at && { craft: at.craft, angle: here ? here.angle + world.time * TURN : at.angle ?? -Math.PI / 2 };
     }
     if (id === PESTER_ID) { const p = pesterHere(world); return p && { craft: p.craft, angle: p.angle }; }
-    if (id === SPECIAL_ID) { const c = clipperPose(world), craft = c && world.clipperArt?.craft(); return craft && { craft, angle: c.angle }; }
+    if (id === SPECIAL_ID) return specialPose(world);
     return null;
   }
 

@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { sectorById, SECTOR_SIZE, stationDefById } from './sectors.js';
+import { sectorById, SECTOR_SIZE, stationDefById, planetKey } from './sectors.js';
 import { bossQuestToJSON, readBossQuest } from './bossQuest.js';
 import { chorusToJSON, readChorus } from './chorus.js';
 import { findDef, isAvailable } from './rewards.js';
@@ -207,10 +207,10 @@ function readHint(h, ledger) {
 function readErrand(world, r, since) {
   const e = r.errand, A = Q().errand.ambush;
   const sector = openSector(world, e?.planet?.sectorId);
-  const planet = sector && typeof e.planet.label === 'string' ? (sector.planets ?? []).find((p) => p.label === e.planet.label) : null;
+  const planet = sector && typeof e.planet.label === 'string' ? (sector.planets ?? []).find((p) => planetKey(p) === e.planet.label) : null;
   const station = typeof e?.station === 'string' ? stationDefById(e.station) : null;
   if (!planet || !station || !openSector(world, station.sectorId) || !STAGES.includes(e.stage) || !fin(e.length) || e.length <= 0) return null;
-  const errand = { planet: { sectorId: sector.id, label: planet.label }, station: station.id, stage: e.stage, spoke: flag(e.spoke),
+  const errand = { planet: { sectorId: sector.id, label: planetKey(planet) }, station: station.id, stage: e.stage, spoke: flag(e.spoke),
     travelled: num(e.travelled, 0, 1e7, 0), ambushed: flag(e.ambushed), ambushAt: num(e.ambushAt, 0, 1e7, clamp(e.length * A.after, A.min, A.max)),
     length: e.length };
   // The wording it was drawn with (indices into the pools of src/voices.js), else drawn when the planet first speaks.
@@ -218,7 +218,7 @@ function readErrand(world, r, since) {
   if (Number.isInteger(w?.ask) && w.ask >= 0 && w.ask < PLANET_ASKS.length && Number.isInteger(w?.thanks) && w.thanks >= 0 && w.thanks < PLANET_THANKS.length) errand.words = { ask: w.ask, thanks: w.thanks };
   // Thanked, the planet's words wait in its window until the quest is handed in (src/errands.js deliverSuitcase).
   if (errand.stage === 'thanked') errand.thanks = PLANET_THANKS[(errand.words ??= planetWords(world)).thanks];
-  return { id: `side:planet:${planet.label}:${Math.round(world.time)}`, kind: 'planet', since, errand };
+  return { id: `side:planet:${planetKey(planet)}:${Math.round(world.time)}`, kind: 'planet', since, errand };
 }
 
 function readGuide(world, r) {

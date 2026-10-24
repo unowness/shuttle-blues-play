@@ -36,26 +36,46 @@ const DD = 'station-drydock-j04', R12 = 'station-relay-j05';
 const DEPOT = 'station-depot-k04', YARD = 'station-yard-k05';
 const COMMONS = 'station-commons-j06', SPOOL = 'station-spool-j06';
 const APIARY = 'station-apiary-k06', WHARF = 'station-wharf-k06';
+// Each authored contract's words (the text pass SX approved on 2026-10-24, codex/text-review/2026-10-24): `offer` what its sender's people say
+// of it while it is offered, `handoff` what the receiver's say once it is delivered (src/stationTalk.js); CONCOURSE's, once its AI speaks in its
+// own words again (src/chorus.js chorusDone), `offerOwn` and `handoffOwn`, lowercase as its own words are.
 export const CONTRACTS = [
-  { id: 'contract-coolant-01', label: 'COOLANT CELLS', from: DD, to: R12, size: 'medium', share: 1.49 },
-  { id: 'contract-plates-01', label: 'HULL PLATES', from: DD, to: DEPOT, size: 'large', share: 0.94 },
-  { id: 'contract-core-01', label: 'ENGINE CORE', from: DD, to: YARD, size: 'large', share: 1.36 },
+  { id: 'contract-coolant-01', label: 'COOLANT CELLS', from: DD, to: R12, size: 'medium', share: 1.49,
+    offer: 'CAN YOU RUN THIS COOLANT OVER TO POSTMARK? THEIR DISH DRIVE KEEPS OVERHEATING.', handoff: 'THANK YOU. WITH THE NEW COOLANT, WE SHOULD BE ABLE TO TRANSMIT WITHOUT STOPPING.' },
+  { id: 'contract-plates-01', label: 'HULL PLATES', from: DD, to: DEPOT, size: 'large', share: 0.94,
+    offer: "STACK'S PATCHING ITS CARGO PODS. WANT TO TAKE THEM THESE PLATES?", handoff: "WE'LL PUT THESE HERE, NEAR THE PODS. WE'VE ALREADY STRIPPED THE OLD PANELS OFF." },
+  { id: 'contract-core-01', label: 'ENGINE CORE', from: DD, to: YARD, size: 'large', share: 1.36,
+    offer: "RIVET'S GOT THE HULL BUILT. WE'VE STILL GOT THEIR ENGINE CORE HERE. CAN YOU TAKE IT OVER?", handoff: 'THANKS. WE CAN FIT IT NOW.' },
   // SPARE PARTS until 2026-09-30: the relay's goods are radio (src/stationInfo.js).
-  { id: 'contract-parts-01', label: 'RADIO VALVES', from: R12, to: DD, size: 'small', share: 1.48 },
-  { id: 'contract-tapes-01', label: 'ARCHIVE TAPES', from: R12, to: DEPOT, size: 'small', share: 1.34 },
-  { id: 'contract-lamps-01', label: 'SIGNAL LAMPS', from: DEPOT, to: DD, size: 'small', share: 0.95 },
-  { id: 'contract-kits-01', label: 'MEDICAL KITS', from: DEPOT, to: YARD, size: 'medium', share: 1.26 },
-  { id: 'contract-water-01', label: 'WATER TANKS', from: YARD, to: R12, size: 'large', share: 1.38 },
-  { id: 'contract-paint-01', label: 'PAINT DRUMS', from: YARD, to: DD, size: 'medium', share: 1.34 },
+  { id: 'contract-parts-01', label: 'RADIO VALVES', from: R12, to: DD, size: 'small', share: 1.48,
+    offer: 'REPLACEMENT RADIO VALVES FOR AXLE. THEIR LINK KEEPS CUTTING OUT.', handoff: "I'LL TAKE THOSE. THE OLD ONES HAVE BEEN NOTHING BUT TROUBLE." },
+  { id: 'contract-tapes-01', label: 'ARCHIVE TAPES', from: R12, to: DEPOT, size: 'small', share: 1.34,
+    offer: "THESE ARCHIVE TAPES ARE FOR STACK. I'VE CHECKED THE DATA; IT ALL READS CORRECTLY.", handoff: 'THANKS. NOW I CAN CHECK THE OLD SHIPMENTS. EVERYONE HERE REMEMBERS THEM DIFFERENTLY.' },
+  { id: 'contract-lamps-01', label: 'SIGNAL LAMPS', from: DEPOT, to: DD, size: 'small', share: 0.95,
+    offer: "AXLE'S WAITING FOR THESE SIGNAL LAMPS. YOU CAN BARELY SEE THE ONES THEY HAVE.", handoff: "THANKS. I'LL FIT THEM WHEN I GET A MOMENT." },
+  { id: 'contract-kits-01', label: 'MEDICAL KITS', from: DEPOT, to: YARD, size: 'medium', share: 1.26,
+    offer: "MEDICAL KITS FOR RIVET. THEY'VE RUN THROUGH THEIR SUPPLIES AND NEED TO RESTOCK.", handoff: "GOOD, THE MEDICAL KITS. MINE'S DOWN TO A PAIR OF SCISSORS." },
+  { id: 'contract-water-01', label: 'WATER TANKS', from: YARD, to: R12, size: 'large', share: 1.38,
+    offer: "CAN YOU TAKE THIS WATER TO POSTMARK? THEY'VE CLEANED OUT THE TANKS AND HAVE NOTHING TO FILL THEM WITH.", handoff: 'THANK YOU. WE CAN TRANSFER IT NOW.' },
+  { id: 'contract-paint-01', label: 'PAINT DRUMS', from: YARD, to: DD, size: 'medium', share: 1.34,
+    offer: 'COULD YOU TAKE THIS PAINT TO AXLE? THEIR BERTH MARKINGS ARE WEARING OFF. WE MATCHED THE OLD COLOUR.', handoff: "THANKS. I CAN STILL SEE THE OLD LINES, SO WE WON'T HAVE TO MEASURE THEM OUT AGAIN." },
   // The four working stations east (2026-09-30), two each, their own goods, priced by the rule above.
-  { id: 'contract-bread-01', label: 'BREAD LOAVES', from: COMMONS, to: DD, size: 'small', share: 1.16 },
-  { id: 'contract-blankets-01', label: 'WOOL BLANKETS', from: COMMONS, to: R12, size: 'medium', share: 0.96 },
-  { id: 'contract-rods-01', label: 'FUEL RODS', from: SPOOL, to: YARD, size: 'large', share: 1.01 },
-  { id: 'contract-filters-01', label: 'AIR FILTERS', from: SPOOL, to: APIARY, size: 'small', share: 0.99 },
-  { id: 'contract-sprouts-01', label: 'SPROUTS', from: APIARY, to: COMMONS, size: 'small', share: 1.06 },
-  { id: 'contract-honey-01', label: 'HONEY JARS', from: APIARY, to: DEPOT, size: 'medium', share: 1.07 },
-  { id: 'contract-cable-01', label: 'CABLE REELS', from: WHARF, to: SPOOL, size: 'large', share: 0.93 },
-  { id: 'contract-winch-01', label: 'WINCH PARTS', from: WHARF, to: DEPOT, size: 'medium', share: 1.02 },
+  { id: 'contract-bread-01', label: 'BREAD LOAVES', from: COMMONS, to: DD, size: 'small', share: 1.16,
+    offer: "AND TAKE THE BREAD TO AXLE. THE REPAIR CREW'S SHIFT STARTS SOON.", handoff: "THANKS. I'LL PUT IT ASIDE FOR THE CREW'S NEXT SHIFT.", offerOwn: 'the repair crew at AXLE is waiting for bread. could you take it to them, please?' },
+  { id: 'contract-blankets-01', label: 'WOOL BLANKETS', from: COMMONS, to: R12, size: 'medium', share: 0.96,
+    offer: "IT'S COLD IN THE SORTING ROOM AGAIN. HAVE THE BLANKETS BEEN SENT TO POSTMARK?", handoff: "THANK YOU. WE'LL HAND THESE OUT NOW.", offerOwn: 'please take these blankets to POSTMARK. their sorting room is still cold.' },
+  { id: 'contract-rods-01', label: 'FUEL RODS', from: SPOOL, to: YARD, size: 'large', share: 1.01,
+    offer: 'FUEL RODS FOR RIVET. THE GRADE MATCHES THEIR ORDER.', handoff: "THANKS. I'LL GET THESE OVER TO THE REACTOR." },
+  { id: 'contract-filters-01', label: 'AIR FILTERS', from: SPOOL, to: APIARY, size: 'small', share: 0.99,
+    offer: "AIR FILTERS FOR HONEYCOMB. I'VE CHECKED: THEY FIT ALL SEVEN CELLS.", handoff: 'THANK YOU. THESE WILL GO IN THE FAR CELL. ITS FILTERS ARE OVERDUE FOR REPLACEMENT.' },
+  { id: 'contract-sprouts-01', label: 'SPROUTS', from: APIARY, to: COMMONS, size: 'small', share: 1.06,
+    offer: "THESE SEEDLINGS ARE FOR CONCOURSE. WE'VE HELD THEM HERE UNTIL THE DOCK REOPENED.", handoff: 'THE COMMUNAL SECTIONS ARE READY FOR THE SEEDLINGS. YOU CAN BRING THEM THROUGH.', handoffOwn: 'thank you. the communal sections are ready for planting.' },
+  { id: 'contract-honey-01', label: 'HONEY JARS', from: APIARY, to: DEPOT, size: 'medium', share: 1.07,
+    offer: 'THIS HONEY IS GOING TO STACK. THE JARS ARE ALL FROM THE SAME BATCH, PACKED AND READY.', handoff: 'AH, THE HONEY. I LEFT SPACE FOR IT OVER THERE.' },
+  { id: 'contract-cable-01', label: 'CABLE REELS', from: WHARF, to: SPOOL, size: 'large', share: 0.93,
+    offer: "COULD YOU TAKE THIS CABLE TO BOBBIN? THEY NEED TO REPLACE THE OLD WIRING NOW THEY'RE RUNNING AGAIN.", handoff: "THANK YOU. THE OLD WIRING IS STILL CARRYING THE LOAD. WE'LL REPLACE IT SECTION BY SECTION." },
+  { id: 'contract-winch-01', label: 'WINCH PARTS', from: WHARF, to: DEPOT, size: 'medium', share: 1.02,
+    offer: "WINCH PARTS FOR STACK'S CRANE. CAN YOU TAKE THEM? ONE CRANE SERVES EVERY TIER; THEY CAN'T LEAVE IT DOWN FOR LONG.", handoff: "GOOD. NOW WE CAN STOP THE CRANE. I WOULDN'T LET THEM TAKE IT APART WITHOUT THE SPARES HERE." },
 ];
 
 // The freight rule: what a contract between its two stations pays, before CONFIG.delivery.base and the tariff (quoteJob), to 5 CR.

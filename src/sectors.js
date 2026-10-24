@@ -40,7 +40,12 @@ const hue = planetHue;
 // word, never the plain colour word. Classic planets (the ASCII density ramp)
 // take a matter, weather or measure word; block planets (labs/graphics/
 // world-art.js) something assembled from pieces; the hidden sector may be
-// playful. Names come from the copywriter, 2026-09-30.
+// playful. Names come from the copywriter, 2026-09-30; eleven renamed by the
+// text pass SX approved on 2026-10-24 (codex/text-review/2026-10-24), the
+// stations' with them. A planet has no id: its `key` is its address in saves,
+// quests and routes (`planet:KEY`), the name it was first given and keeps
+// whatever it is called; a planet never renamed is its label (planetKey).
+export const planetKey = (p) => p?.key ?? p?.label;
 
 // Planet sizes (SX, 2026-09-30: "планеты можно и покрупнее делать, сейчас они
 // чаще всего мелкие слишком"). Every planet is 1.5 to 1.8 times what it was, the
@@ -61,8 +66,8 @@ export const SECTORS = [
   {
     id: 'sector-j04', label: 'J-04', name: 'SHALLOWS', col: 0, row: 0,
     planets: [
-      { x: 0.32, y: 0.3, radius: 340, pull: 227, ...hue('#9AADDC'), seed: 46381, bands: 0.15, spin: 0.045, style: 'blocks', label: 'KELVIN' },
-      { x: 0.63, y: 0.66, radius: 335, pull: 205, ...hue('#D0898C'), seed: 42256, bands: 0.62, spin: 0.085, label: 'AMBERGRIS' },
+      { x: 0.32, y: 0.3, radius: 340, pull: 227, ...hue('#9AADDC'), seed: 46381, bands: 0.15, spin: 0.045, style: 'blocks', key: 'KELVIN', label: 'TALUS' },
+      { x: 0.63, y: 0.66, radius: 335, pull: 205, ...hue('#D0898C'), seed: 42256, bands: 0.62, spin: 0.085, key: 'AMBERGRIS', label: 'VESPER' },
       // Nudged from the teal SX's table gave (#5FB7AE, 14 to the route green by
       // colour distance) to a slightly bluer one, 22 clear of it. Now in the
       // south-east, beside the hole and off the first route (DRY DOCK to RELAY 12
@@ -71,7 +76,7 @@ export const SECTORS = [
       // "The planets after SX's sheet"): six replaced by the new types in their place and size (SORREL GLACIER, DAMASK STORM, TORTUGA
       // FACETS, FATHOM NIGHTSIDE, ISOBAR FORGE, CAIRN SHELL), TESSERA a calmer turquoise, MAGRATHEA grey, GLOAMING's and GREEN ROOM's
       // craters darker in their own tone, PARQUET in CAIRN's colour, CAMEO a lighter blue, PLANET EXPRESS smaller.
-      { x: 0.84, y: 0.86, radius: 275, pull: 158, ...hue('#78B9C6'), seed: 43, bands: 0, spin: -0.062, label: 'TESSERA' },
+      { x: 0.84, y: 0.86, radius: 275, pull: 158, ...hue('#78B9C6'), seed: 43, bands: 0, spin: -0.062, key: 'TESSERA', label: 'LAGOON' },
     ],
     holes: [
       { id: 'hole-j04', x: 0.4, y: 0.84, horizon: 52, disc: 300, mass: 3.1e7, spinDir: 1 },
@@ -79,9 +84,9 @@ export const SECTORS = [
     // A station's `look` is its drawing, one of the twelve SX took from the stations sheet on
     // 2026-09-30 (labs/graphics/station-art.js; «Станции очень крутые берем»). What it does is `kind`.
     stations: [
-      { id: 'station-drydock-j04', look: 'wheel', kind: 'garage', label: 'DRY DOCK', x: 0.72, y: 0.3 },
+      { id: 'station-drydock-j04', look: 'wheel', kind: 'garage', label: 'AXLE', x: 0.72, y: 0.3 },
       // SX moved HOIST here from K-06 in his map layout of 2026-10-02 (labs/map-editor/layouts/2026-10-02-sx-second.json).
-      { id: 'station-hoist-k06', look: 'spire', kind: 'ruin', becomes: 'garage', label: 'HOIST', x: 0.2, y: 0.7, cost: 2600 },
+      { id: 'station-hoist-k06', look: 'spire', kind: 'ruin', becomes: 'garage', label: 'GANTRY', x: 0.2, y: 0.7, cost: 2600 },
     ],
     rocks: 9,
   },
@@ -90,7 +95,7 @@ export const SECTORS = [
     planets: [
       { x: 0.54, y: 0.51, radius: 405, pull: 249, ...hue('#B3B5BA'), seed: 86002, bands: 0.17, spin: -0.116, style: 'blocks', tint2: '#8D9097', label: 'MAGRATHEA' },
       // New with the colour pass (2026-09-30), in the open south-west.
-      { x: 0.72, y: 0.88, radius: 400, pull: 233, ...hue('#DCEAF2'), seed: 80454, bands: 0.12, spin: 0.063, style: 'glacier', tint2: '#7FA6D9', label: 'SORREL' },
+      { x: 0.72, y: 0.88, radius: 400, pull: 233, ...hue('#DCEAF2'), seed: 80454, bands: 0.12, spin: 0.063, style: 'glacier', tint2: '#7FA6D9', key: 'SORREL', label: 'RIME' },
     ],
     holes: [
       // The smallest hole, 15 % larger since SX's word (2026-10-01: «Возьми самую маленькую черную дыру по размеру и
@@ -98,7 +103,7 @@ export const SECTORS = [
       { id: 'hole-j05', x: 0.78, y: 0.21, horizon: 39, disc: 219, mass: 1.5e7, spinDir: 1 },
     ],
     stations: [
-      { id: 'station-relay-j05', look: 'array', kind: 'freight', label: 'RELAY 12', x: 0.28, y: 0.78 },
+      { id: 'station-relay-j05', look: 'array', kind: 'freight', label: 'POSTMARK', x: 0.28, y: 0.78 },
       // A ruin (src/ruins.js): a freight hub once, restored with the pilot's coins; the start's broken station of an older save
       // (START_STATIONS below: a new pilot's is any of the three). Moved out of the north-west corner on SX's word (2026-10-02:
       // «halycon слишком в углу находится и ты редко на него натыкаешься, поэтому двинь его куда нибудь, но чтобы между
@@ -107,7 +112,7 @@ export const SECTORS = [
       // Ring with the Braided Run's crossings) put it at 0.8, 0.66 on the ring's east side; the measures of the place SX picked on
       // 2026-10-02 no longer hold. Its rules still do (checks/start-ruin.mjs: clear of the orbits, the seams, the caches, signals
       // and signs, and of a pull on a parked ship).
-      { id: 'station-halcyon-j05', look: 'greenhouse', kind: 'ruin', becomes: 'freight', label: 'HALCYON', x: 0.8, y: 0.66, cost: 1900 },
+      { id: 'station-halcyon-j05', look: 'greenhouse', kind: 'ruin', becomes: 'freight', label: 'GLASSHOUSE', x: 0.8, y: 0.66, cost: 1900 },
       // The pilot's home (src/home.js, CONFIG.home; labs/graphics/garage-art.js; the S0 tile SX picked on
       // labs/graphics/sketches/garage-setting.html): the garage the shuttle was inherited with, where a new game starts.
       // Its berth opens to the south. SX put it in J-05, at (0.42, 0.44), in his map layout of 2026-10-02
@@ -126,25 +131,25 @@ export const SECTORS = [
     // the ground checks/pirates.mjs uses as open: a run west along y = 4200 and
     // a ship parked at (5000, 2000).
     planets: [
-      { x: 0.32, y: 0.63, radius: 320, pull: 190, ...hue('#C79BC8'), seed: 1274, bands: 0.42, spin: -0.11, style: 'cratered', tint2: '#8C5E8D', label: 'GLOAMING' },
-      { x: 0.68, y: 0.35, radius: 260, pull: 145, ...hue('#A6DED6'), seed: 163, bands: 0, spin: 0.09, label: 'BERYL' },
+      { x: 0.32, y: 0.63, radius: 320, pull: 190, ...hue('#C79BC8'), seed: 1274, bands: 0.42, spin: -0.11, style: 'cratered', tint2: '#8C5E8D', key: 'GLOAMING', label: 'UMBRA' },
+      { x: 0.68, y: 0.35, radius: 260, pull: 145, ...hue('#A6DED6'), seed: 163, bands: 0, spin: 0.09, key: 'BERYL', label: 'MICA' },
     ],
     holes: [
       { id: 'hole-k04', x: 0.5, y: 0.48, horizon: 58, disc: 330, mass: 3.4e7, spinDir: 1 },
     ],
     // The lower row had no station at all (SX, 2026-09-24: more deliveries).
     stations: [
-      { id: 'station-depot-k04', look: 'depot', kind: 'freight', label: 'DEPOT 7', x: 0.76, y: 0.72 },
+      { id: 'station-depot-k04', look: 'depot', kind: 'freight', label: 'STACK', x: 0.76, y: 0.72 },
       // A ruined garage (src/ruins.js), rebuilt with the pilot's coins, in the
       // quiet west between DEPOT 7 and GLOAMING (0.7 % of a ship's thrust in pull).
-      { id: 'station-foundry-k04', look: 'foundry', kind: 'ruin', becomes: 'garage', label: 'FOUNDRY 2', x: 0.28, y: 0.24, cost: 2000 },
+      { id: 'station-foundry-k04', look: 'foundry', kind: 'ruin', becomes: 'garage', label: 'CRUCIBLE', x: 0.28, y: 0.24, cost: 2000 },
     ],
     rocks: 18,
   },
   {
     id: 'sector-k05', label: 'K-05', name: 'LEEWARD', col: 1, row: 1,
     planets: [
-      { x: 0.49, y: 0.48, radius: 520, pull: 330, ...hue('#D8B48E'), seed: 71, bands: 0, spin: 0.083, style: 'storm', tint2: '#B7A0C9', label: 'DAMASK' },
+      { x: 0.49, y: 0.48, radius: 520, pull: 330, ...hue('#D8B48E'), seed: 71, bands: 0, spin: 0.083, style: 'storm', tint2: '#B7A0C9', key: 'DAMASK', label: 'TEMPEST' },
       { x: 0.76, y: 0.75, radius: 295, pull: 163, ...hue('#B9C2CC'), seed: 88, bands: 0, spin: 0.1, style: 'facets', label: 'TORTUGA' },
     ],
     // In the pink secret hole's place (SX, 2026-10-19: «Просто вырежи ее и вместо нее помести черную дыру. Которая между секторами
@@ -157,7 +162,7 @@ export const SECTORS = [
       { id: 'hole-k05', x: 0.2, y: 0.86, horizon: 46, disc: 256, mass: 2.5e7, spinDir: 1 },
     ],
     stations: [
-      { id: 'station-yard-k05', look: 'lattice', kind: 'garage', label: 'YARD 3', x: 0.3, y: 0.22 },
+      { id: 'station-yard-k05', look: 'lattice', kind: 'garage', label: 'RIVET', x: 0.3, y: 0.22 },
     ],
     rocks: 7,
   },
@@ -173,13 +178,13 @@ export const SECTORS = [
   {
     id: 'sector-j06', label: 'J-06', name: 'DOLDRUMS', col: 2, row: 0,
     planets: [
-      { x: 0.53, y: 0.43, radius: 520, pull: 316, ...hue('#9FB3C8'), seed: 85534, bands: 0.2, spin: 0.055, style: 'nightside', tint2: '#6FA9E8', label: 'FATHOM' },
-      { x: 0.67, y: 0.8, radius: 250, pull: 150, ...hue('#D080D0'), seed: 181, bands: 0, spin: -0.08, label: 'PARQUET' },
+      { x: 0.53, y: 0.43, radius: 520, pull: 316, ...hue('#9FB3C8'), seed: 85534, bands: 0.2, spin: 0.055, style: 'nightside', tint2: '#6FA9E8', key: 'FATHOM', label: 'NOCTIS' },
+      { x: 0.67, y: 0.8, radius: 250, pull: 150, ...hue('#D080D0'), seed: 181, bands: 0, spin: -0.08, key: 'PARQUET', label: 'MALLOW' },
     ],
     holes: [],
     stations: [
-      { id: 'station-commons-j06', look: 'ring', kind: 'ruin', becomes: 'freight', label: 'COMMONS', x: 0.24, y: 0.28, cost: 3000 },
-      { id: 'station-spool-j06', look: 'spindle', kind: 'ruin', becomes: 'freight', label: 'SPOOL 8', x: 0.8, y: 0.66, cost: 3400 },
+      { id: 'station-commons-j06', look: 'ring', kind: 'ruin', becomes: 'freight', label: 'CONCOURSE', x: 0.24, y: 0.28, cost: 3000 },
+      { id: 'station-spool-j06', look: 'spindle', kind: 'ruin', becomes: 'freight', label: 'BOBBIN', x: 0.8, y: 0.66, cost: 3400 },
       { id: 'station-pharos-j06', look: 'beacon', kind: 'ruin', becomes: 'freight', label: 'PHAROS', x: 0.32, y: 0.8, cost: 3800 },
     ],
     rocks: 10,
@@ -187,15 +192,15 @@ export const SECTORS = [
   {
     id: 'sector-k06', label: 'K-06', name: 'BACKWATER', col: 2, row: 1,
     planets: [
-      { x: 0.43, y: 0.33, radius: 300, pull: 180, ...hue('#A8A3B4'), seed: 191, bands: 0.35, spin: 0.07, style: 'forge', tint2: '#B98CF2', label: 'ISOBAR' },
-      { x: 0.64, y: 0.75, radius: 270, pull: 160, ...hue('#EBC3DE'), seed: 197, bands: 0, spin: -0.06, style: 'shell', tint2: '#E8A3D2', label: 'CAIRN' },
+      { x: 0.43, y: 0.33, radius: 300, pull: 180, ...hue('#A8A3B4'), seed: 191, bands: 0.35, spin: 0.07, style: 'forge', tint2: '#B98CF2', key: 'ISOBAR', label: 'CALDERA' },
+      { x: 0.64, y: 0.75, radius: 270, pull: 160, ...hue('#EBC3DE'), seed: 197, bands: 0, spin: -0.06, style: 'shell', tint2: '#E8A3D2', key: 'CAIRN', label: 'CONCH' },
     ],
     holes: [
       { id: 'hole-k06', x: 0.56, y: 0.48, horizon: 44, disc: 250, mass: 2.4e7, spinDir: 1 },
     ],
     stations: [
-      { id: 'station-apiary-k06', look: 'hive', kind: 'ruin', becomes: 'freight', label: 'APIARY', x: 0.24, y: 0.24, cost: 4300 },
-      { id: 'station-wharf-k06', look: 'anchor', kind: 'ruin', becomes: 'garage', label: 'WHARF 9', x: 0.824, y: 0.72, cost: 4700 },
+      { id: 'station-apiary-k06', look: 'hive', kind: 'ruin', becomes: 'freight', label: 'HONEYCOMB', x: 0.24, y: 0.24, cost: 4300 },
+      { id: 'station-wharf-k06', look: 'anchor', kind: 'ruin', becomes: 'garage', label: 'MOORING', x: 0.824, y: 0.72, cost: 4700 },
     ],
     rocks: 14,
   },

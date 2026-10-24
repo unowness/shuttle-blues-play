@@ -4,10 +4,11 @@ import { wreckDebris } from './debris.js';
 import { clamp, TAU } from './util.js';
 import { factsOfWorld, nextSpecial, specialDue, specialPay } from './pacing.js';
 import { SPECIALS, specialById, specialModel, specialSize, drawModel, drawFlown, drawParked, brokenShare } from './specialShips.js';
+import { CRAFT_ART } from './trafficArt.js';
 import { HANDLERS } from './specialQuests.js';
 import { QUEST_LINES as QL } from './questLines.js';
 import { radioFitted, openingStage, REST } from './opening.js';
-import { CREW, talkOf, meetOf, clipperPose } from './clipper.js';
+import { CREW, talkOf, meetOf, clipperPose, readLife } from './clipper.js';
 import { contentAreas } from './mapContent.js';
 import { tr } from './lang.js';
 
@@ -21,8 +22,9 @@ import { tr } from './lang.js';
 //            `first` s once the opening chapter is over, then a rest and a chance a minute, all eight in a game of two hours), the next in their `order` (the
 //            gentlest first, each waiting for some stations restored) that has not left its note yet stands still in the
 //            sector the pilot flies in, in a clear place out of sight. A pilot who comes within `reach` u is
-//            spoken to, three lines over its head in the hail's way (what happened to one of its people, the quest);
-//            its menu offers BOARD. It waits `stay` s and then goes, unmet, and comes again after the rest of the round
+//            spoken to, its crew's `meet` (src/specialShips.js `words`) over it one line at a time in the hail's way (what
+//            happened to one of its people, the quest); its window's TALK says them whole and its `brief`, and offers TAKE
+//            CONTROLS. It waits `stay` s and then goes, unmet, and comes again after the rest of the round
 //            (src/pacing.js nextSpecial: the next not done comes first, SX's «Следующий по кругу»). A marker on the
 //            screen's edge says where. Nothing else new is offered meanwhile (src/quests.js mayOffer).
 //   boarded  The pilot flies THAT ship: its drawing as the ship, its chassis (src/chassis.js `special-<id>`), its own hull
@@ -30,25 +32,31 @@ import { tr } from './lang.js';
 //            with the hull and tank it had, and comes back when the quest ends, however it ends. While it lasts: no docking,
 //            no stations' trade, no caches (a station says only what the quest wants of it, and INFO); a pilot saved
 //            meanwhile is saved at the parked ship. A wreck of the borrowed ship is the quest lost, never a wreck of the
-//            pilot's: no cargo stranded, no coins taken, no wreck on the card.
+//            pilot's: no cargo stranded, no coins taken, no wreck on the card. On the way the crew speaks at the quest's
+//            moments (its `road`, each once), over the ship flown.
 //   led      CLIPPER (src/clipper.js, 2026-10-22) is not boarded but led: LEAD THEM in its window, the pilot in their own ship all the way,
 //            the crew following to TERRA; nothing of the pilot's is parked or given back.
 //   ended    Won: the ship's rewards, all three (src/pilot.js notes, cockpits, paints): a cockpit scheme in its style, a paint,
-//            a note in the garage, and its CR (CONFIG.quests.special.order; SX picked «Вещи и CR»). Lost: nothing is lost but the chance, which comes again after the rest of the round. Either way the pilot is back
-//            in its own ship where the quest ended, the borrowed one flying on and fading.
+//            a note in the garage, and its CR (CONFIG.quests.special.order; SX picked «Вещи и CR»), and the crew's `end` in a window
+//            of its own (a call, labs/graphics/talk-beat.js). Lost: nothing is lost but the chance, which comes again after the rest
+//            of the round; the notice says its `failed`. Either way the pilot is back in its own ship where the quest ended, the
+//            borrowed one flying on and fading.
 //
 // A ship standing is in the save (src/questSave.js); so is one whose quest is being flown: it comes back standing where it was
 // met, the pilot in his own ship parked, to board again. What the quest gives is the pilot's, saved with him.
 
 const S = () => CONFIG.quests.special;
 export const SPECIAL_ID = 'special-ship';
+// Who speaks over the ship the pilot flies, its crew aboard: a hail's place of its own (never a body: src/sceneSolids.js makes the ship
+// standing one, SPECIAL_ID's).
+export const SPECIAL_CREW_ID = 'special-crew';
 
 // What each ship asks of a pilot who stops, in the menu's second line.
 const ASK = {
   delorean: (p) => `RACE TO ${p.dest.name}`,
   swordfish: (p) => `BOUNTY / ${p.total} OUTLAWS`,
   express: (p) => `${p.cars} CRATES, ${p.stops.length} STOPS`,
-  falcon: (p) => `BATTLE AT ${p.dest.name}`,
+  falcon: (p) => `BATTLE: ${p.dest.name}`,
   serenity: (p) => `REACH ${p.dest.name} BEFORE BREAKUP`,
   xwing: (p) => `RUN TO ${p.dest.name}`,
   scooby: (p) => `GRAB ${p.need} OF ${p.total} SNACKS`,
@@ -118,7 +126,40 @@ export function offerSpecial(world, { id = null, near = false } = {}) {
 const END = {
   win: (world) => finish(world, 'done'),
   lose: (world, why) => finish(world, 'late', why),
+  road: (world, i) => road(world, i),
 };
+
+// ---- what the crew says ---------------------------------------------------------------------------------------------------
+
+// The crew's lines one at a time over the ship (the one standing, or the one flown: specialCraftAt, specialCrewAt), each once the one before it has stood
+// its time and CLIPPER's `gap` more, at CLIPPER's pace (src/clipper.js readLife): `s.say`, [{ who, line }], its strip's words (a line's
+// short form where it has one). Never saved: a quest reloaded is met again.
+const strip = ([who, line, short]) => ({ who, line: short ?? line });
+const whole = ([who, line]) => ({ who, line });
+const wordsOf = (s, part) => { const w = specialById(s.id).words?.[part]; return (typeof w === 'function' ? w(s.plan) : w) ?? []; };
+function queue(s, lines) { (s.say ??= []).push(...lines.map(strip)); }
+function sayNext(world, s, at) {
+  const e = s.say?.[0];
+  if (!e || !at || world.time < (s.freeAt ?? -Infinity) || !world.ship.alive) return;
+  s.say.shift();
+  world.emit('trafficHail', { craftId: s.boarded ? SPECIAL_CREW_ID : SPECIAL_ID, label: e.who, line: e.line, life: readLife(e.line), x: at.x, y: at.y, sectorId: world.sector.id });
+  s.freeAt = world.time + readLife(e.line) + S().clipper.gap;
+}
+// The `i`-th exchange of the way, at its moment (src/specialQuests.js calls it): said once a quest, never again.
+function road(world, i) {
+  const s = world.special, lines = specialById(s?.id)?.words?.road?.[i];
+  if (!lines || !s.q || (s.q.roads ??= new Set()).has(i)) return;
+  s.q.roads.add(i);
+  queue(s, lines);
+}
+// The crew's last words, won: a window standing by itself (`world.talkCall`), a conversation of its own.
+function endCall(world, s, at) {
+  const sp = specialById(s.id), lines = wordsOf(s, 'end').map(whole);
+  if (!lines.length) return;
+  const thread = `${s.questId}:end`;
+  world.talkCall = { n: thread, menu: { id: SPECIAL_ID, title: sp.label, subtitle: '', x: at.x, y: at.y, interactRadius: S().reach,
+    art: { model: specialSize(s.id), scale: sp.scale, turns: true }, talk: { name: sp.label, place: sp.label, lines, thread }, actions: [] } };
+}
 
 // Every step: the ship that has gone drifting off; a ship to meet now and then; the one stood, waiting (it speaks, it
 // goes); the quest, once boarded.
@@ -147,6 +188,7 @@ export function stepSpecial(world, dt) {
     const h = HANDLERS[s.id];
     h.step(world, s, dt, END);
     if (world.special === s && h.done?.(world, s)) END.win(world);
+    if (world.special === s && s.boarded) sayNext(world, s, world.ship);
     return;
   }
   // Standing, unmet: it speaks to a pilot who comes near, again if the pilot went off and came back, and goes when its time is up.
@@ -156,18 +198,16 @@ export function stepSpecial(world, dt) {
     world.emit('specialGone', { id: s.id, sectorId: s.site.sectorId });
     return;
   }
-  if (!world.ship.alive || world.sector.id !== s.site.sectorId) { s.spoke = false; return; }
+  if (!world.ship.alive || world.sector.id !== s.site.sectorId) { s.spoke = false; s.say = []; return; }
   const d = Math.hypot(s.site.x - world.ship.x, s.site.y - world.ship.y), h = HANDLERS[s.id];
-  if (s.spoke && d > C.reach * 2.5) s.spoke = false;
+  if (s.spoke && d > C.reach * 2.5) { s.spoke = false; s.say = []; }
   if (!s.spoke && d <= C.reach) {
     s.spoke = true;
-    // Its own way of speaking where it has one (CLIPPER's two strips), else three lines over its head.
+    // Its own way of speaking where it has one (CLIPPER's two strips), else its crew's `meet`, a line at a time over it.
     if (h.meet) h.meet(world, s);
-    else {
-      const sp = specialById(s.id), rows = h.rows(s.plan);
-      world.emit('trafficHail', { craftId: SPECIAL_ID, label: sp.label, line: rows.join(' '), rows, x: s.site.x, y: s.site.y, sectorId: s.site.sectorId });
-    }
+    else queue(s, wordsOf(s, 'meet'));
   }
+  if (!h.meet) sayNext(world, s, s.site);
   h.standing?.(world, s);
 }
 
@@ -214,6 +254,7 @@ function board(world) {
   world.hullGrace = 0;
   s.boarded = true;
   s.stage = 'flying';
+  s.say = [];
   HANDLERS[s.id].start(world, s);
   world.selectedId = null;
   const sp = specialById(s.id);
@@ -248,6 +289,7 @@ function finish(world, outcome, why = null) {
   if (outcome === 'done') {
     const given = grantRewards(world, sp);
     world.emit('specialDone', { ...base, ...given });
+    endCall(world, s, at);
   } else world.emit('specialFailed', { ...base, why });
 }
 
@@ -317,9 +359,11 @@ export function specialCandidates(world) {
       actions: [{ label: 'LEAD THEM', run: () => lead(world) }],
     }];
   }
+  // The others': their crew's talk as a script, what they said coming up whole and the brief, and TAKE CONTROLS.
   return [{
     id: SPECIAL_ID, title: `${sp.label} / NEEDS A PILOT`, subtitle: ASK[s.id](s.plan),
     x: s.site.x, y: s.site.y, interactRadius: S().reach, art: { model: specialSize(s.id), scale: sp.scale, turns: true },
+    talk: { name: sp.label, place: sp.label, before: wordsOf(s, 'meet').map(whole), lines: wordsOf(s, 'brief').map(whole), thread: s.questId },
     actions: [{ label: 'TAKE CONTROLS', disabled: !!bar, reason: bar, note: bar, run: () => board(world) }],
   }];
 }
@@ -351,6 +395,26 @@ export function specialCraftAt(world) {
     return { x: s.site.x, y: s.site.y, craft: { rows: Array(m.height).fill(' '.repeat(m.width)), scale: m.scale } };
   }
   return null;
+}
+// Where its crew's words stand while the pilot flies it: over the ship flown (World.craftAt, SPECIAL_CREW_ID).
+export function specialCrewAt(world) {
+  const s = world.special;
+  if (!s?.boarded || !world.ship.alive) return null;
+  const m = specialModel(s.id);
+  return { x: world.ship.x, y: world.ship.y, craft: { rows: Array(m.height).fill(' '.repeat(m.width)), scale: m.scale } };
+}
+
+// The ship as a talk's window pictures it (labs/graphics/talk-beat.js): CLIPPER as its crew points it (the page's art), else the ship
+// standing, or the one drifting off once its quest is won: its traffic drawing and its heading. Null when there is none.
+export function specialPose(world) {
+  const s = world.special, g = world.specialLeaving;
+  if (s && specialById(s.id).escort) {
+    const c = clipperPose(world), craft = c && world.clipperArt?.craft();
+    return craft ? { craft, angle: c.angle } : null;
+  }
+  const at = s?.stage === 'seen' ? { id: s.id, angle: s.site.angle } : g ? { id: g.id, angle: g.angle } : null;
+  const sp = at && specialById(at.id), art = sp?.craft && CRAFT_ART[sp.craft];
+  return art ? { craft: { rows: art.glyphs, colors: art.colors, palette: art.palette, scale: sp.scale }, angle: at.angle } : null;
 }
 
 // A weight the flown ship drags (the train): its share of the top speed (World.step).

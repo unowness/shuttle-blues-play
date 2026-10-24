@@ -227,15 +227,19 @@ export function drawStationShot(r, box, st, world, at = null, t = 0) {
   try { drawStationTrue(r, box, st, dx, dy, rebuilt, t); } finally { ctx.restore(); }
 }
 
+// How many characters a line of the INFO window's words holds beside its shot (checks/stations.mjs holds every lore to it).
+export const infoCols = (win) => Math.floor((win.p.cxr - INFO.shot - ORG.C - win.p.cx + 2 * win.m.capLeft) / win.cw);
+export const infoWindow = (r) => new Win(r, { size: [INFO.width, null], id: 'station' });
+
 // `ui`: { stationId, shot ({ u, v }: where the fragment is taken), time (the page's clock, s) }. Returns the window's `box`, its `boxes` and the
 // `layout` it was drawn with (its shot's box included).
 export function drawStationInfo(r, world, ui) {
   const st = world.stations.find((s) => s.id === ui.stationId) ?? stationDefById(ui.stationId, world.ledger);
   if (!st) return null;
-  const win = new Win(r, { size: [INFO.width, null], id: 'station' }), p = win.p, { cw, m } = win;
+  const win = infoWindow(r), p = win.p, { cw, m } = win;
   // Measured first: the words beside the shot, then GOODS and OFFERS under them.
   const shotAt = (y0) => ({ x: Math.round(p.cxr) - INFO.shot, y: Math.round(y0), w: INFO.shot, h: INFO.shot });
-  const cols = Math.floor((p.cxr - INFO.shot - ORG.C - p.cx + 2 * m.capLeft) / cw);
+  const cols = infoCols(win);
   const info = stationInfo(st.id), lore = wrap(stationLoreNow(st.id, workingKind(world.ledger, st) === 'ruin'), cols, INFO.loreRows);
   const goods = info?.goods ?? [], offers = String(stationOffers(world, st)).split(', ').filter(Boolean), half = Math.floor(cols / 2) + 1;
   const kGoods = p.next(p.yb(lore.length - 1)), kGoodsList = p.next(p.yb(kGoods)), lastGoods = kGoodsList + Math.ceil(goods.length / 2) - 1;

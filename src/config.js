@@ -211,6 +211,8 @@ export const CONFIG = {
   },
 
   station: {
+    // What a station's people said a moment ago (a restoration's word, a cargo delivered's: src/stationTalk.js) is in its talk `news` s.
+    news: 180,
     // Stations half again as large since 2026-10-01 (SX: «Мне кажется, станции у нас слишком маленькие. Станции реально
     // слишком маленькие»): the looks drawn at LOOK_SCALE 1.95 (labs/graphics/station-art.js, it was 1.3), their
     // bodies below and this soft hull with them (it was 230).

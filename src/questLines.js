@@ -51,7 +51,7 @@ export const QUEST_LINES = Object.freeze({
   }),
   // A signal to fly through (`signal`).
   signal: Object.freeze({
-    titleNear: line(0, ['station'], (station) => `SIGNAL BY ${station}`),
+    titleNear: line(0, ['station'], (station) => `SIGNAL: ${station}`),
     titleIn: line(0, ['sector'], (sector) => `SIGNAL IN ${sector}`),
     newWord: line(1, ['sector'], (sector) => `${sector} / NEW WORD`),
     tuneIn: line(1, ['sector'], (sector) => `${sector} / TUNE IN`, { act: true }),
@@ -106,7 +106,7 @@ export const QUEST_LINES = Object.freeze({
   errand: Object.freeze({
     askTitle: line(0, ['planet'], (planet) => `${planet} ASKS`),
     askSub: line(1, ['sector'], (sector) => `${sector} / APPROACH`, { act: true }),
-    fetchTitle: line(0, ['station'], (station) => `SUITCASE: ${station}`),
+    fetchTitle: line(0, ['station'], (station) => `SUITCASE ${station}`),
     fetchSub: line(1, ['planet'], (planet) => `FOR ${planet}`),
     returnTitle: line(0, [], () => 'DELIVER SUITCASE'),
     returnSub: line(1, ['planet'], (planet) => `TO ${planet}`),
@@ -154,14 +154,14 @@ export const QUEST_LINES = Object.freeze({
     shuttle: line(0, [], () => 'YOUR SHUTTLE'),
     radioFixed: line(1, [], () => 'RADIO REPAIRED'),
     call: line(0, [], () => 'GET DELIVERY INFO'),
-    dispatch: line(1, ['station'], (station) => `${station} DISPATCH`),
+    dispatch: line(1, ['station'], (station) => `${station} MECHANIC`),
     fitted: line(0, [], () => 'LOCATOR, MAP FITTED'),
     marked: line(1, ['station'], (station) => `${station} MARKED`),
     freight: line(0, [], () => "TAKE FREIGHT"),
-    seeMap: line(1, ['station'], (station) => `${station} / SEE MAP`, { act: true }),
+    seeMap: line(1, ['station'], (station) => `${station} / MAP`, { act: true }),
     accepted: line(0, [], () => 'FREIGHT ACCEPTED'),
     to: line(1, ['station'], (station) => `TO ${station}`),
-    refuel: line(0, ['station'], (station) => `REFUEL AT ${station}`),
+    refuel: line(0, ['station'], (station) => `REFUEL: ${station}`),
     unitPrice: line(1, ['price'], (price) => `${price} CR A UNIT`),
     full: line(0, [], () => 'TANK FULL'),
     station: line(1, ['station'], (station) => station),
@@ -182,12 +182,12 @@ export const QUEST_LINES = Object.freeze({
     // Slice 4 (chat N2 part 2): the ruin R (A tells of it, a row of A's menu marks it), its guards with the short shooting practice, the
     // first money in, the repair droid, then the work to reopen it. The first money's and the guards' bonuses are the radio's old ones
     // (QL.guide.bonus), once each as claims of the reward ledger.
-    askRuin: line(0, ['ruin'], (ruin) => `ASK ABOUT ${ruin}`),
+    askRuin: line(0, ['ruin'], (ruin) => `ASK: ${ruin}`),
     ruinAt: line(1, ['station'], (station) => `AT ${station}`),
     ruinMarked: line(0, ['ruin'], (ruin) => `${ruin} MARKED`),
     ruinCost: line(1, ['cr'], (cr) => `${cr} CR TO RESTORE`),
     guards: line(0, [], () => 'CLEAR THE PIRATES'),
-    guardsAt: line(1, ['ruin', 'ships'], (ruin, n) => `${ruin} / ${n} SHIPS`),
+    guardsAt: line(1, ['ruin', 'ships'], (ruin, n) => `${ruin}: ${n} SHIPS`),
     fire: line(1, [], () => 'AIM AND FIRE', { act: true }),
     guardsBack: line(1, [], () => 'PIRATES ARE BACK'),
     fund: line(0, ['ruin'], (ruin) => `FUND ${ruin}`),
@@ -205,32 +205,30 @@ export const QUEST_LINES = Object.freeze({
   // start ruin's construction, never the wallet.
   support: Object.freeze({
     title: line(0, [], () => 'RECOVERY RUN'),
-    run: line(1, ['ruin'], (ruin) => `RUN FUNDS ${ruin}`),
+    run: line(1, ['ruin'], (ruin) => `RUN FOR ${ruin}`),
     ready: line(0, [], () => "SUPPORT READY"),
     go: line(1, ['ruin'], (ruin) => `GO TO ${ruin}`, { act: true }),
     clear: line(1, ['ruin'], (ruin) => `CLEAR ${ruin}`),
-    done: line(0, ['ruin'], (ruin) => `${ruin} SUPPORTED`),
+    done: line(0, ['ruin'], (ruin) => `${ruin} BACKED`),
     doneSub: line(1, ['cr'], (cr) => `+${cr} CR FUNDED`),
     none: line(1, [], () => "NO SUPPORT NEEDED"),
   }),
   // The reference ships' quests (src/specialQuests.js; src/specials.js gives the done row its pay).
   // The boss TOLLKEEPER's quest (src/bossQuest.js): story purple, its mark EXPLORE; in its fight its own name; the banners at its waking,
   // after a wreck and when it is beaten.
-  // COMMONS's chain THE CHORUS (src/chorus.js): the story's purple; a voice's recorder found, then played back at COMMONS; its banners.
+  // CONCOURSE's chain THE CHORUS (src/chorus.js): the story's purple; a voice's recorder found, then played back at the station; its banners
+  // (what they say of where the chain stands is src/chorus.js STATUS). A voice is its work there (src/chorus.js LABELS), the plate's title.
   chorus: Object.freeze({
-    title: line(0, ['voice'], (voice) => `VOICE: ${voice}`),
+    title: line(0, ['voice'], (voice) => voice),
     seekSub: line(1, ['sector'], (sector) => `${sector} / GET RECORDER`, { act: true }),
-    carrySub: line(1, [], () => 'COMMONS / PLAY BACK', { act: true }),
+    carrySub: line(1, [], () => 'PLAY THE RECORDING', { act: true }),
     done: line(0, [], () => 'THE CHORUS IS BACK'),
     paid: line(1, ['cr'], (cr) => `+${cr} CR / CHORUS`),
-    begun: line(0, [], () => 'COMMONS IS CALLING', { banner: true }),
-    begunSub: line(1, ['voice'], (voice) => `FIND THE ${voice}`, { banner: true }),
+    begun: line(0, ['station'], (station) => `${station} IS CALLING`, { banner: true }),
     back: line(0, ['voice'], (voice) => `${voice} IS BACK`, { banner: true }),
-    backSub: line(1, ['count'], (n) => `${n} OF 4 VOICES`, { banner: true }),
     dropped: line(0, [], () => 'RECORDER DROPPED', { banner: true }),
     droppedSub: line(1, [], () => "BACK WHERE YOU FOUND IT", { banner: true }),
     roll: line(0, [], () => 'ROLL CALL', { banner: true }),
-    rollSub: line(1, ['cr'], (cr) => `+${cr} CR / THE CHORUS`, { banner: true }),
   }),
   boss: Object.freeze({
     pointer: line(0, [], () => 'EXPLORE'),
@@ -240,12 +238,7 @@ export const QUEST_LINES = Object.freeze({
     fight: line(0, [], () => 'TOLLKEEPER'),
     fightSub: line(1, [], () => 'BRING IT DOWN', { act: true }),
     waitSub: line(1, ['sector'], (sector) => `${sector} / TAKE IT DOWN`, { act: true }),
-    offered: line(0, [], () => 'STRANGE ACTIVITY', { banner: true }),
-    offeredSub: line(1, ['sector'], (sector) => `IN ${sector} / EXPLORE`, { banner: true }),
     woke: line(0, [], () => 'TOLLKEEPER', { banner: true }),
-    wokeSub: line(1, [], () => 'PIRATE TUG / BRING IT DOWN', { banner: true }),
-    moved: line(0, [], () => 'TOLLKEEPER WITHDREW', { banner: true }),
-    movedSub: line(1, ['sector'], (sector) => `NOW IN ${sector}`, { banner: true }),
   }),
   special: Object.freeze({
     race: line(0, ['station'], (station) => `RACE TO ${station}`),
@@ -259,7 +252,7 @@ export const QUEST_LINES = Object.freeze({
     bountyDone: line(0, [], () => 'BOUNTY COMPLETE'),
     failed: line(0, [], () => 'MISSION FAILED'),
     escaped: line(1, [], () => 'TARGETS ESCAPED'),
-    battle: line(0, ['station'], (station) => `BATTLE AT ${station}`),
+    battle: line(0, ['station'], (station) => `BATTLE: ${station}`),
     battleSub: line(1, [], () => 'CLEAR THE PIRATES', { act: true }),
     clear: line(0, ['station'], (station) => `${station} IS CLEAR`),
     stillThere: line(1, [], () => 'PIRATES STILL THERE'),
@@ -294,7 +287,8 @@ export const QUEST_LINES = Object.freeze({
   // against its target); gone back, the station it went to.
   cargo: Object.freeze({
     title: line(0, ['cargo'], (cargo) => cargo),
-    to: line(1, ['station'], (station) => `TO ${station}`, { timed: true }),
+    // (An arrow, not TO: after the clock the row holds 12, and the longest station's name is 10 since the names of 2026-10-24.)
+    to: line(1, ['station'], (station) => `→ ${station}`, { timed: true }),
     lost: line(1, [], () => 'PICK IT UP', { timed: true }),
     done: line(0, [], () => 'CARGO DELIVERED'),
     paid: line(1, ['cr'], (cr) => `+${cr} CR`),

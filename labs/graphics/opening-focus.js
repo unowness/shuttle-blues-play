@@ -65,7 +65,7 @@ export function createOpeningFocus(game, variant = FOCUS_DEFAULT) {
   function beatOf(e, world) {
     if (!running(world)) return null;
     switch (e.type) {
-      case 'openingPractice': case 'openingCall': return { reveal: null };
+      case 'openingPractice': case 'openingCall': case 'openingNote': return { reveal: null };
       case 'loanerReturned': return { reveal: 'cockpit' };
       // The locator's column comes with the details, the shelf with its fitting at B (src/opening.js interfaceGiven).
       case 'openingFitted': return { reveal: e.what === 'shelf' ? 'shelf' : e.what === 'ruin' ? null : 'column' };

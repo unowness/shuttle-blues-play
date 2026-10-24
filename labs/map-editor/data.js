@@ -254,7 +254,7 @@ export function planetObject(p, sectorId) {
   const props = { radius: p.radius, pull: p.pull, tint: p.tint, seed: p.seed, aliens: !!p.aliens, bands: p.bands ?? 0, spin: p.spin ?? 0 };
   if (p.style) props.style = p.style;
   if (p.tint2) props.tint2 = p.tint2;
-  const o = make('planet', `planet-${slug(p.label)}`, p.label, sectorId, p.x, p.y, props, '');
+  const o = make('planet', `planet-${slug(p.key ?? p.label)}`, p.label, sectorId, p.x, p.y, props, '');     // (by its key: src/sectors.js planetKey)
   o.game.look = lookOf(props);
   return o;
 }

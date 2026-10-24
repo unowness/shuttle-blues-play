@@ -14,10 +14,11 @@ import { pesterCraftAt, PESTER_ID } from './pester.js';
 import { wreckHere, wreckCraftAt, WRECK_ID } from './wrecked.js';
 import { planetCraftAt, PLANET_ID } from './errands.js';
 import { isRandomQuest, cursorEarned, cursorName } from './cursors.js';
-import { SPECIAL_ID, specialDiscovery, specialCraftAt } from './specials.js';
+import { SPECIAL_ID, SPECIAL_CREW_ID, specialDiscovery, specialCraftAt, specialCrewAt } from './specials.js';
 import { openingStage } from './opening.js';
 import { terraTarget } from './terra.js';
 import { isCrewHail, crewCraftAt } from './clipper.js';
+import { RECORDER_ID, recorderCraftAt } from './chorus.js';
 import { tr } from './lang.js';
 
 // The open quests' places as points of the grid (src/spots.js): what a quest that puts something in the open keeps apart from. A
@@ -124,7 +125,9 @@ export function questCraftAt(world, craftId) {
   if (craftId === WRECK_ID) return wreckCraftAt(world);
   if (craftId === PLANET_ID) return planetCraftAt(world);
   if (craftId === SPECIAL_ID) return specialCraftAt(world);
+  if (craftId === SPECIAL_CREW_ID) return specialCrewAt(world);
   if (isCrewHail(craftId)) return crewCraftAt(world);
+  if (craftId === RECORDER_ID) return recorderCraftAt(world);
   return undefined;
 }
 

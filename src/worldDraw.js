@@ -8,7 +8,7 @@ import { CONFIG } from './config.js';
 import { TAU, clamp, wrapTo, dimToContrast, hashId, glyphCount, hypot2 } from './util.js';
 import { leanLook } from './starfield.js';
 import { PLANE, WRAP } from './topology.js';
-import { neighbourOf } from './sectors.js';
+import { neighbourOf, planetKey } from './sectors.js';
 import { contractById, cargoOf, cargoSize } from './contracts.js';
 import { signalsIn } from './progression.js';
 import { signText, drawSign, signCoverBox } from './signs.js';
@@ -491,7 +491,7 @@ class WorldDrawing {
   // whatever the camera's height: `textScale`, src/zoom.js.)
   planetLabelAt(r, p, s, t = this.time) {
     const L = CONFIG.planet.label;
-    const seed = seedOf(p.label);
+    const seed = seedOf(planetKey(p));         // (by its key: a planet renamed keeps where its name stands)
     const dir = seed % 2 ? 1 : -1;
     const a = Math.PI / 2 + ((seed % 628) / 100) + dir * (t / L.period) * TAU;
     const k = r.textScale ?? 1, w = p.label.length * r.cellW * k, h = r.cellH * k;

@@ -71,6 +71,12 @@ import { offsetOf, shifted } from './hud-place.js';
 import { QUEST_LINES as QL, stationOnly } from '../../src/questLines.js';
 import { specialById } from '../../src/specialShips.js';
 import { tr } from '../../src/lang.js';
+import { NOTES } from '../../src/opening.js';
+import { STATUS as CHORUS_STATUS } from '../../src/chorus.js';
+import { RADIO as BOSS_RADIO } from '../../src/bossQuest.js';
+import { SUITCASE } from '../../src/errands.js';
+import { PESTER } from '../../src/voices.js';
+import { keyText, hintFor, fitScheme } from '../../src/controls.js';
 
 // The task slot's own words: an empty board after the last task done, and the ship gone (Codex's specimens).
 export const SLOT_WORDS = Object.freeze({ clear: 'ALL CLEAR', wrecked: 'WRECKED', tow: 'TOW INBOUND' });
@@ -122,6 +128,12 @@ export function flipPages(title, sub, { kind = 'news', mark = null, room = HELME
     return { mark: mark ?? k.mark, markInk: k.ink, runs, need, life: clamp(FLIP_LIFE.base + FLIP_LIFE.perChar * (need - 2), FLIP_LIFE.least, FLIP_LIFE.most) };
   });
 }
+
+// The firing hint on the way in to R's pirates (src/opening.js stepApproach), in the pilot's controls (src/controls.js): the key that fires, held;
+// the mouse's way of firing, and the jump's trick on the right button (the text pass of 2026-10-24: never a key written into the words).
+const aimWords = (scheme) => (scheme === 'M'
+  ? `POINT AT THE TARGET. FIRE: ${hintFor('fire', 'M')}. DURING A JUMP, THE RIGHT BUTTON PERFORMS A TRICK.`
+  : `POINT THE SHIP'S NOSE AT THE TARGET. HOLD ${keyText(['fire'])} TO FIRE.`);
 
 export function createNotices(game) {
   const state = { notice: null, queue: [], serial: 0 };
@@ -339,17 +351,25 @@ export function createNotices(game) {
         // (src/events.js). A ruin's guards beaten is news of its own: the ruin takes money now.
         // The radio's line (src/guide.js): a step is heard as another pilot's call, said once when its plate comes.
         case 'guideHeard': notify('RADIO', e.line, { kind: 'news', life: 3.2, fate: 'flip' }); break;
+        // The suitcase's and the pestered ship's turns the plates cannot say in their rows (the text pass of 2026-10-24): in the notch.
+        case 'suitcaseTaken': notify('SUITCASE', SUITCASE.taken, { kind: 'news', life: 3.6, fate: 'flip' }); break;
+        case 'suitcaseAmbush': notify('SUITCASE', SUITCASE.ambush, { kind: 'news', life: 3.2, fate: 'flip' }); break;
+        case 'suitcaseLost': notify(QL.errand.late(), SUITCASE.lost, { kind: 'danger', life: 3.6, fate: 'flip' }); break;
+        case 'pesterLost': notify(QL.pester.late(), PESTER.lostNote, { kind: 'danger', life: 3.6, fate: 'flip' }); break;
         // The opening chapter (src/opening.js): a line of A's or B's people on the radio; the braking practice done; the locator and the
         // map fitted, B marked on both, or the shelf fitted at B; SCOOTY JR. handed back and the pilot's own shuttle drawn (its model, as a ship changed).
         case 'openingCall': notify(e.who, e.line, { kind: 'news', life: 4.2, fate: 'flip' }); break;
+        // Where the pilot is, with no voice (src/opening.js NOTES): the loaner's leg, the work on R.
+        case 'openingNote': notify(e.title, e.line, { kind: 'news', life: 4.2, fate: 'flip' }); break;
         case 'openingPractice':
-          if (e.what === 'fire') notify('SHOTS AWAY', 'KEEP MOVING WHILE YOU FIRE', { kind: 'gain', life: 2.8, fate: 'flip' });
+          if (e.what === 'aim') notify('CONTROLS', aimWords(fitScheme(game.schemes?.scheme())), { kind: 'news', life: 4.2, fate: 'flip' });
+          else if (e.what === 'fire') notify('SHOTS AWAY', 'KEEP MOVING WHILE YOU FIRE', { kind: 'gain', life: 2.8, fate: 'flip' });
           else notify('STOPPED', `DOCK BELOW ${CONFIG.station.dockSpeed}`, { kind: 'gain', life: 2.8, fate: 'flip' });
           break;
         // The panel a stage gives appears by itself (the shelf, the locator and the map: nothing said). The old station asked about is a
         // card: the one new fact on the board, what it costs to rebuild.
         case 'openingFitted':
-          if (e.what === 'shelf') notify('SHELF FITTED', e.owned ? 'FIRST SOUVENIR ON DISPLAY' : "FILL IT WITH SOUVENIRS", { kind: 'gain', life: 3.6, fate: 'gone' });
+          if (e.what === 'shelf') notify(NOTES.shelf[0], NOTES.shelf[1], { kind: 'gain', life: 3.6, fate: 'flip' });
           else if (e.what === 'ruin') notify(`${e.label} MARKED`, `${e.cost} CR TO RESTORE`, { kind: 'gain', life: 3.8, fate: 'flip' });
           else notify('LOCATOR AND MAP FITTED', `${e.label} IS MARKED`, { kind: 'gain', life: 3.6, fate: 'gone' });
           break;
@@ -369,7 +389,8 @@ export function createNotices(game) {
           notifyBundle({ title: e.label, sub: specialById(e.id)?.escort ? 'PAINT, COCKPIT, NOTE' : 'SHIP, PAINT, COCKPIT, NOTE', picture: e.paint ? { kind: 'paint', id: e.paint } : null,
             open: () => screens.openCardOn(), life: 4.6 });
           break;
-        case 'specialFailed': notify(`${e.label} / FAILED`, 'YOUR SHIP RETURNED', { kind: 'danger', life: 3.2, fate: 'flip' }); break;
+        // (What did not happen in its crew's words where it has them: src/specialShips.js `words.failed`.)
+        case 'specialFailed': notify(`${e.label} / FAILED`, specialById(e.id)?.words?.failed ?? 'YOUR SHIP RETURNED', { kind: 'danger', life: 3.2, fate: 'flip' }); break;
         // The guards beaten: what the ruin takes now, short (the fight was the pilot's own).
         case 'ruinCleared':
           notify(`${e.label} IS CLEAR`, 'FUND TO RESTORE', { kind: 'gain', life: 3.2, fate: 'flip' });
@@ -387,7 +408,7 @@ export function createNotices(game) {
         // The first-dock support (src/starterSupport.js): the offer and the run done are the radio's words (`guideHeard`, said above: a line of
         // the notch); what was built into the ruin, a card (the one achievement of its own), its amount apart from the wallet.
         case 'starterSupport':
-          if (e.stage === 'built') notify(e.amount > 0 ? `${e.label} SUPPORTED` : 'NO SUPPORT NEEDED', e.amount > 0 ? `+${formatCR(e.amount)} CR FUNDED` : "FUND THE REST", { kind: 'gain', life: 3.8, fate: 'flip' });
+          if (e.stage === 'built') notify(e.amount > 0 ? `${e.label} BACKED` : 'NO SUPPORT NEEDED', e.amount > 0 ? `+${formatCR(e.amount)} CR FUNDED` : "FUND THE REST", { kind: 'gain', life: 3.8, fate: 'flip' });
           break;
         // A restoration opened the next sector (src/frontier.js; SX, 2026-10-02: «Руина открывает сектор»): said after the
         // restoration's own notice; the border beside the pilot is already a seam.
@@ -403,31 +424,33 @@ export function createNotices(game) {
           break;
         // The boss's quest (src/bossQuest.js): it comes after the restoration's cards; its waking stands at once, in the danger's red; a
         // wreck that sent it next door says where, after the wreck's own; beaten, the window that the main game is done.
+        // (What it is and what to do in the radio's words: src/bossQuest.js RADIO.)
         case 'bossQuestOffered':
-          notify(QL.boss.offered(), QL.boss.offeredSub(e.label), { kind: 'news', life: 4.4, fate: 'flip' });
+          notify('RADIO', BOSS_RADIO.offered(e.label), { kind: 'news', life: 4.4, fate: 'flip' });
           break;
         case 'bossWoke':
-          notify(QL.boss.woke(), QL.boss.wokeSub(), { kind: 'danger', life: 3.6, fate: 'flip' });
+          notify(QL.boss.woke(), BOSS_RADIO.woke, { kind: 'danger', life: 3.6, fate: 'flip' });
           break;
         case 'bossMoved':
-          notify(QL.boss.moved(), QL.boss.movedSub(e.label), { kind: 'news', life: 4.4, fate: 'flip' });
+          notify('RADIO', BOSS_RADIO.moved, { kind: 'news', life: 4.4, fate: 'flip' });
           break;
         case 'bossQuestDone':
+          notify('RADIO', BOSS_RADIO.done, { kind: 'gain', life: 4.4, fate: 'flip' });
           screens.openFinale?.();
           break;
         // COMMONS's chain (src/chorus.js): begun, the first voice to find; a recorder dropped by a wreck, after the wreck's own; a voice
         // back, how many of the four; the four back, the roll call and its pay. The collage itself is said over the station (src/feedback.js).
         case 'chorusBegun':
-          notify(QL.chorus.begun(), QL.chorus.begunSub(e.voice), { kind: 'news', life: 4.4, fate: 'flip' });
+          notify(QL.chorus.begun(e.label), CHORUS_STATUS.begun, { kind: 'news', life: 4.4, fate: 'flip' });
           break;
         case 'chorusDropped':
           notify(QL.chorus.dropped(), QL.chorus.droppedSub(), { kind: 'news', life: 3.6, fate: 'flip' });
           break;
         case 'chorusVoiceBack':
-          notify(QL.chorus.back(e.voice), QL.chorus.backSub(e.n), { kind: 'gain', life: 3.6, fate: 'flip' });
+          notify(QL.chorus.back(e.voice), CHORUS_STATUS.back[e.n - 1] ?? null, { kind: 'gain', life: 3.6, fate: 'flip' });
           break;
         case 'chorusDone':
-          if (!e.alreadySettled) notify(QL.chorus.roll(), QL.chorus.rollSub(formatCR(e.pay)), { kind: 'gain', life: 4.4, fate: 'flip' });
+          if (!e.alreadySettled) notify(QL.chorus.roll(), CHORUS_STATUS.done, { kind: 'gain', life: 4.4, fate: 'flip' });
           break;
         case 'collectionComplete':
           notify(`${e.kind === 'paint' ? 'PAINTS' : 'SOUVENIRS'} ${e.of} OF ${e.of}`, 'COLLECTION COMPLETE', { kind: 'gain', life: 4, fate: 'flip' });

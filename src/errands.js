@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { sectorById, stationDefById, SECTOR_SIZE } from './sectors.js';
+import { sectorById, stationDefById, SECTOR_SIZE, planetKey } from './sectors.js';
 import { reachableStationIds, formatCR } from './ruins.js';
 import { questSectors } from './spots.js';
 import { ROLES } from './roles.js';
@@ -7,7 +7,7 @@ import { PALETTE } from './palette.js';
 import { clamp } from './util.js';
 import { payFor } from './pacing.js';
 import { restSide } from './sideSlot.js';
-import { planetWords, PLANET_ASKS, PLANET_THANKS } from './voices.js';
+import { planetWords, PLANET_ASKS, PLANET_THANKS, PLANET_PAID } from './voices.js';
 import { QUEST_LINES as QL } from './questLines.js';
 import { contentLinks } from './mapContent.js';
 
@@ -35,12 +35,20 @@ import { contentLinks } from './mapContent.js';
 // frame, moving as the pilot moves), not at its middle, where they would be off the screen.
 //
 //   sideQuest.errand = { planet: { sectorId, label }, station, stage, spoke, travelled, ambushed, ambushAt, length }
+//   (the planet's `label` there is its key, src/sectors.js planetKey: its address, never shown; `nameOf` is what is shown)
 
 const E = () => CONFIG.quests.errand;
+// What the notch says of the errand as it goes (the text pass of 2026-10-24; labs/graphics/notices.js): the case taken, the squad come on
+// the way back (the case is to be brought, not the squad beaten), the case lost.
+export const SUITCASE = Object.freeze({
+  taken: "SUITCASE COLLECTED. DESTINATION: THE CONTACT'S PLANET.",
+  ambush: 'DELIVER THE SUITCASE TO THE PLANET.',
+  lost: 'THE SUITCASE WAS LOST IN THE WRECK. DELIVERY INCOMPLETE.',
+});
 export const PLANET_ID = 'planet-ask';
 const W = SECTOR_SIZE.width, H = SECTOR_SIZE.height;
 
-// What a planet says, three short lines at a time: its wording of the errand (src/voices.js), drawn when it first speaks and kept
+// What a planet says: its wording of the errand (src/voices.js), its hail's short form and the rest in its window, drawn when it first speaks and kept
 // for the quest, never the last errand's.
 const wording = (e, world) => (e.words ??= planetWords(world));
 
@@ -49,7 +57,8 @@ const globalOf = (sectorId, fx, fy) => {
   const s = sectorById(sectorId);
   return { x: s.col * W + fx * W, y: s.row * H + fy * H };
 };
-const planetDef = (e) => sectorById(e.planet.sectorId)?.planets.find((p) => p.label === e.planet.label) ?? null;
+const planetDef = (e) => sectorById(e.planet.sectorId)?.planets.find((p) => planetKey(p) === e.planet.label) ?? null;
+const nameOf = (e) => planetDef(e)?.label ?? e.planet.label;
 
 // ---------------------------------------------------------------------------------------------------- the offer
 
@@ -66,8 +75,8 @@ export function errandCandidates(world) {
       for (const st of stations) {
         const b = globalOf(st.sectorId, st.x, st.y), length = Math.hypot(a.x - b.x, a.y - b.y);
         if (length < C.minLeg || length > C.maxLeg) continue;
-        out.push({ id: `side:planet:${pl.label}:${Math.round(world.time)}`, kind: 'planet',
-          errand: { planet: { sectorId: sector.id, label: pl.label }, station: st.id, stage: 'ask', spoke: false, travelled: 0, ambushed: false, length } });
+        out.push({ id: `side:planet:${planetKey(pl)}:${Math.round(world.time)}`, kind: 'planet',
+          errand: { planet: { sectorId: sector.id, label: planetKey(pl) }, station: st.id, stage: 'ask', spoke: false, travelled: 0, ambushed: false, length } });
       }
     }
   }
@@ -96,7 +105,7 @@ export function errandReach(world, s) {
 // The planet of the errand, as the world holds it (in its sector), or null elsewhere.
 export function planetHere(world, e = errandOf(world)) {
   if (!e || world.sector.id !== e.planet.sectorId) return null;
-  return world.planets.find((p) => p.label === e.planet.label) ?? null;
+  return world.planets.find((p) => planetKey(p) === e.planet.label) ?? null;
 }
 
 // The point of the planet's limb that faces the ship, where its voice and its menu stand.
@@ -114,7 +123,7 @@ export function planetMenu(world) {
   const ask = e.stage === 'ask';
   // One conversation from the ask to the thanks (labs/graphics/talk-beat.js, the game's dialogs as a script; SX, 2026-10-22): its ask is its
   // window's words while it asks, and said before whatever it says later, so a pilot who comes back with the suitcase finds it there.
-  const asked = PLANET_ASKS[wording(e, world).ask](st?.label ?? 'A STATION'), thread = world.sideQuest.id;
+  const [whole, , rest] = PLANET_ASKS[wording(e, world).ask](st?.label ?? 'A STATION'), asked = [whole, rest], thread = world.sideQuest.id;
   // Thanked: its words in its window and the quest's hand-in (labs/graphics/context.js draws a `talk` so).
   if (e.stage === 'thanked') {
     return { id: PLANET_ID, title: planet.label, talk: { name: planet.label, lines: e.thanks ?? [], before: asked, thread },
@@ -139,9 +148,9 @@ export function planetCraftAt(world) {
   return { x: at.x, y: at.y, craft: TALK };
 }
 
-function say(world, planet, rows) {
+function say(world, planet, line) {
   const at = limbPoint(world, planet);
-  world.emit('trafficHail', { craftId: PLANET_ID, label: planet.label, line: rows.join(' '), rows, x: at.x, y: at.y, sectorId: world.sector.id });
+  world.emit('trafficHail', { craftId: PLANET_ID, label: planet.label, line, x: at.x, y: at.y, sectorId: world.sector.id });
 }
 
 // ---------------------------------------------------------------------------------------------------- the quest
@@ -149,7 +158,7 @@ function say(world, planet, rows) {
 // The quest's words by its stage (src/quests.js sideQuestWords). `spare` holds the lines of the other stages, so the
 // plate keeps its width as it changes its words.
 export function errandWords(world, s) {
-  const e = s.errand, label = e.planet.label, def = planetDef(e), st = stationDefById(e.station);
+  const e = s.errand, label = nameOf(e), def = planetDef(e), st = stationDefById(e.station);
   if (!def || !st) return null;
   const pSector = sectorById(e.planet.sectorId)?.label ?? '';
   const toPlanet = { sectorId: e.planet.sectorId, x: def.x, y: def.y, mark: PLANET_ID, reach: def.radius * 1.045 + E().reach };
@@ -174,7 +183,7 @@ function takeJob(world) {
   if (!e || e.stage !== 'ask') return false;
   e.stage = 'fetch';
   world.selectedId = null;
-  world.emit('errandTaken', { planet: e.planet.label, station: e.station, sectorId: world.sector.id });
+  world.emit('errandTaken', { planet: nameOf(e), station: e.station, sectorId: world.sector.id });
   return true;
 }
 
@@ -193,7 +202,7 @@ function takeSuitcase(world) {
   e.ambushed = false;
   e.ambushAt = clamp(e.length * A.after, A.min, A.max);
   world.selectedId = null;
-  world.emit('suitcaseTaken', { planet: e.planet.label, x: world.ship.x, y: world.ship.y, sectorId: world.sector.id });
+  world.emit('suitcaseTaken', { planet: nameOf(e), x: world.ship.x, y: world.ship.y, sectorId: world.sector.id });
   return true;
 }
 
@@ -216,6 +225,9 @@ function handInSuitcase(world) {
   world.sideQuest = null;
   restSide(world);
   world.selectedId = null;
+  // Paid: its last word in its window, the conversation going on (a call, labs/graphics/talk-beat.js).
+  world.talkCall = { n: `${s.id}:paid`, menu: { id: PLANET_ID, title: planet.label, subtitle: '', x: at.x, y: at.y, interactRadius: E().reach,
+    art: { model: { width: 6, height: 3 }, scale: 1 }, talk: { name: planet.label, lines: [PLANET_PAID], thread: s.id }, actions: [] } };
   world.emit('suitcaseDelivered', { planet: planet.label, pay, credits: L.credits, x: at.x, y: at.y, sectorId: world.sector.id });
   return true;
 }
@@ -225,7 +237,7 @@ function loseSuitcase(world, s) {
   world.questOutcomes.set(s.id, 'late');
   world.sideQuest = null;
   restSide(world);
-  world.emit('suitcaseLost', { planet: s.errand.planet.label, x: world.ship.x, y: world.ship.y, sectorId: world.sector.id });
+  world.emit('suitcaseLost', { planet: nameOf(s.errand), x: world.ship.x, y: world.ship.y, sectorId: world.sector.id });
 }
 
 // -------------------------------------------------------------------------------------------------------- the step
@@ -249,7 +261,8 @@ export function stepErrand(world, dt) {
   if (e.spoke && gap > E().reach * 2.5) e.spoke = false;
   if (!e.spoke && gap <= E().reach) {
     e.spoke = true;
-    say(world, planet, PLANET_ASKS[wording(e, world).ask](stationDefById(e.station)?.label ?? 'A STATION'));
+    // (Its hail the ask's short form; its window says it whole, planetMenu.)
+    say(world, planet, PLANET_ASKS[wording(e, world).ask](stationDefById(e.station)?.label ?? 'A STATION')[1]);
   }
 }
 
@@ -268,7 +281,7 @@ function ambush(world, e) {
   const total = A.squad.reduce((n, [, w]) => n + w, 0);
   let u = rng() * total, count = A.squad[A.squad.length - 1][0];
   for (const [n, w] of A.squad) { u -= w; if (u < 0) { count = n; break; } }
-  if (world.spawnPirates(count).length) e.ambushed = true;
+  if (world.spawnPirates(count).length) { e.ambushed = true; world.emit('suitcaseAmbush', { planet: nameOf(e), sectorId: world.sector.id }); }
 }
 
 // ----------------------------------------------------------------------------------------------------- drawing

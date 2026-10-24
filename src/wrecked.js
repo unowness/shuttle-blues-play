@@ -9,7 +9,7 @@ import { clearSpot, questSectors, pickOf } from './spots.js';
 import { lerp, TAU, hashId } from './util.js';
 import { pickShip, newRecent } from './pacing.js';
 import { restSide } from './sideSlot.js';
-import { sayFor, wreckPlea } from './voices.js';
+import { sayFor, wreckOffer, WRECK_NEED, WRECK_TIPS } from './voices.js';
 import { sectorOpen } from './frontier.js';
 import { QUEST_LINES as QL } from './questLines.js';
 import { contentAreas } from './mapContent.js';
@@ -79,6 +79,19 @@ function hintLine(hint, ledger) {
   return QL.wreck.tipWord(WORDS.find((w) => w.id === hint.wordId)?.text ?? '');
 }
 
+// What the ship says handing the tip over (src/voices.js WRECK_TIPS): where it is, by the tip it gives in the end; that the one promised went,
+// where another stands in for it (its kind or its item not the same); that there is none, where none is left. Read before the tip is
+// given (a signal given becomes the side quest).
+function tipWords(world, promised, hint) {
+  if (!hint) return WRECK_TIPS.none();
+  const L = world.ledger, swapped = !promised || promised.kind !== hint.kind || itemOf(promised) !== itemOf(hint);
+  const said = hint.kind === 'cache' ? WRECK_TIPS.cache(sectorById(placedFind(findDef(hint.findId, L), L)?.sector)?.label ?? '')
+    : hint.kind === 'signal' ? WRECK_TIPS.signal(sectorById(SIGNALS.find((g) => g.id === hint.signalId)?.sector)?.label ?? '')
+      : WRECK_TIPS.word(WORDS.find((w) => w.id === hint.wordId)?.text ?? '');
+  return swapped ? [WRECK_TIPS.replaced, ...said] : said;
+}
+const itemOf = (hint) => hint.findId ?? hint.signalId ?? hint.wordId;
+
 // The tip given, in the world: a cache marked (the ledger's `marked`, saved), a signal offered as the next side quest, a
 // word added. The events are the ones these already have, so the notices, labels and sounds are theirs.
 // A friendly ship's favor gives one the same way (src/npcTalk.js).
@@ -145,6 +158,7 @@ export function giveToWreck(world) {
   if (world.ledger.credits < ask) { world.emit('actionRefused', { reason: `NEED ${ask} CR` }); return false; }
   world.ledger.credits -= ask;
   s.wreck.given = true;
+  // Its thanks: the quest's own, or one of the ship's two (src/voices.js).
   s.wreck.thanks = sayFor(world, 'wreck', 'thanks', here.code);
   return true;
 }
@@ -153,8 +167,13 @@ export function handInWreck(world) {
   const s = world.sideQuest, here = wreckHere(world);
   if (!here || !s.wreck.given) return false;
   const ask = s.wreck.ask;
-  // The tip as it was promised, or, if that has been found meanwhile, another.
+  // The tip as it was promised, or, if that has been found meanwhile, another; what the ship says of it, in its window (a call: the quest's
+  // conversation goes on, labs/graphics/talk-beat.js).
   const hint = hintValid(world, s.wreck.hint) ? s.wreck.hint : rollHint(world, world.rng('quest'));
+  const words = tipWords(world, s.wreck.hint, hint);
+  world.talkCall = { n: `${s.id}:tip`, menu: { id: WRECK_ID, title: here.name, subtitle: '', x: here.x, y: here.y, interactRadius: CONFIG.stranded.interactRadius,
+    art: wreckArt(here.code), talk: { name: here.name, lines: words.map((line, i) => (/^NEW WORD FOR SIGNS:/.test(line) ? { who: '', line, key: `${s.id}:word` } : line)),
+      thread: s.id }, actions: [] } };
   s.helped = true;
   world.questOutcomes.set(s.id, 'done');
   world.sideQuest = null;
@@ -189,9 +208,11 @@ export function stepWreck(world, dt) {
   const d = Math.hypot(here.x - world.ship.x, here.y - world.ship.y);
   if (!s.wreck.hailed && d < C.hailReach) {
     s.wreck.hailed = true;
-    // Its plea, kept: its window asks in it (src/menus.js wreckMenu), the start of its conversation.
-    const plea = s.wreck.plea = wreckPlea(world, here.ask);
-    world.emit('trafficHail', { craftId: WRECK_ID, label: here.name, line: plea, x: here.x, y: here.y, sectorId: world.sector.id });
+    // Its offer, kept: its window asks in it (src/menus.js wreckMenu), the start of its conversation; by the kind of tip it holds, short
+    // in its hail (the text pass of 2026-10-24).
+    const [plea, short] = wreckOffer(s.wreck.hint?.kind, here.ask);
+    s.wreck.plea = plea;
+    world.emit('trafficHail', { craftId: WRECK_ID, label: here.name, line: short, x: here.x, y: here.y, sectorId: world.sector.id });
   }
   // Sparks only where they can be seen: within a screen and a half.
   if (d > 1400) return;

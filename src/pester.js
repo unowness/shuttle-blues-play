@@ -8,7 +8,7 @@ import { clearSpot, questSectors, pickOf } from './spots.js';
 import { formatCR } from './ruins.js';
 import { TAU } from './util.js';
 import { pesterOpen, pesterGap, payFor, pickShip, newRecent, noteRecent } from './pacing.js';
-import { sayFor } from './voices.js';
+import { sayFor, shortOf, PESTER } from './voices.js';
 import { QUEST_LINES as QL } from './questLines.js';
 import { radioFitted } from './opening.js';
 import { pickTypes, pickPaint } from './pirates.js';
@@ -157,16 +157,23 @@ export function stepPester(world, dt) {
   if (p.cleared && rescueComplete(p)) return;
   p.cleared = false;
   if (L.clock >= p.ends) return lose(world, p);
-  // Driven off: it waits, its thanks for its window (World.candidates offers HAND IN at it).
-  if (rescueComplete(p)) { p.cleared = true; p.thanks = sayFor(world, 'pester', 'thanks', p.code); return; }
+  // Driven off: it waits, what it says to that in its window (World.candidates offers HAND IN at it): its capsule back too where it had one.
+  if (rescueComplete(p)) { p.cleared = true; p.thanks = p.combat?.capsule ? PESTER.capsuleClear : PESTER.clear; return; }
 
   if (!world.ship.alive || world.sector.id !== p.sectorId) return;
   // It calls to a pilot who comes near, once.
   if (!p.hailed && Math.hypot(p.x - world.ship.x, p.y - world.ship.y) < C.hailReach) {
     p.hailed = true;
-    // Its call for help, kept: its thanks' window says it first (src/menus.js pesteredMenu).
-    p.plea = sayFor(world, 'pester', 'help', p.code);
-    world.emit('trafficHail', { craftId: PESTER_ID, label: p.name, line: p.plea, x: p.x, y: p.y, sectorId: p.sectorId });
+    // Its call for help, kept: its thanks' window says it first (src/menus.js pesteredMenu); with a capsule of its own out there, that it
+    // marked it. Its hail short where the call has a short form (src/voices.js).
+    const [line, short] = p.combat?.capsule ? PESTER.capsuleCall : [sayFor(world, 'pester', 'help', p.code)];
+    p.plea = line;
+    world.emit('trafficHail', { craftId: PESTER_ID, label: p.name, line: short ?? shortOf(line), x: p.x, y: p.y, sectorId: p.sectorId });
+  }
+  // Its pirates gone but its capsule still out there, not taken: it says so, once.
+  if (p.hailed && !p.waited && p.down >= p.size && p.combat?.capsule?.state === 'available') {
+    p.waited = true;
+    world.emit('trafficHail', { craftId: PESTER_ID, label: p.name, line: PESTER.capsuleWait[1], x: p.x, y: p.y, sectorId: p.sectorId });
   }
   // The squad: made when the pilot is in the sector and it has none, as many as are still to beat.
   if (world.autoEncounters && !world.pirates.some((q) => q.post?.stationId === p.id)) {
@@ -215,6 +222,8 @@ function free(world, p) {
   world.pester = null;
   world.pesterNext = L.clock + pesterGap(L.restored.size, world.rng('quest'));
   world.emit('pesterFreed', { questId: p.id, name: p.name, pay, credits: L.credits, x: p.x, y: p.y, sectorId: p.sectorId });
+  // Paid, its thanks as it goes: the quest's own, or one of the ship's two.
+  world.emit('trafficHail', { craftId: PESTER_ID, label: p.name, line: sayFor(world, 'pester', 'thanks', p.code), x: p.x, y: p.y, sectorId: p.sectorId });
   world.fleet?.helped?.(p.code);        // it remembers, and owes the pilot a favor (src/npcTalk.js)
 }
 
@@ -228,6 +237,7 @@ function lose(world, p) {
   world.pester = null;
   world.pesterNext = L.clock + pesterGap(L.restored.size, world.rng('quest'));
   world.emit('pesterLost', { questId: p.id, name: p.name, x: p.x, y: p.y, sectorId: p.sectorId });
+  world.emit('trafficHail', { craftId: PESTER_ID, label: p.name, line: PESTER.lost, x: p.x, y: p.y, sectorId: p.sectorId });
 }
 
 // --------------------------------------------------------------------------------------------- where it is, drawn

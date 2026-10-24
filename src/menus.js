@@ -22,6 +22,7 @@ import { GREET_WORDS } from './greetings.js';
 import { payFor } from './pacing.js';
 import { pesterHere, handInPester, PESTER_ID } from './pester.js';
 import { wreckHere, wreckArt, giveToWreck, handInWreck, WRECK_ID } from './wrecked.js';
+import { WRECK_NEED } from './voices.js';
 import { planetMenu, pickupAction } from './errands.js';
 import { specialCandidates, specialStationActions, boarded } from './specials.js';
 import { droidFootprint } from './droids.js';
@@ -30,6 +31,7 @@ import { flagCandidates } from './flags.js';
 import { serviceActions } from './stationService.js';
 import { openingTalk, openingRepairAsked } from './opening.js';
 import { guideQuest } from './guide.js';
+import { stationTalk } from './stationTalk.js';
 
 // A repair quest's rows lit in the story's purple at once (SX, 2026-10-06: «квест с починкой не считается, там пусть сразу
 // подсвечивается починка фиолетовым»): a ruin's FUND and RESTORE rows carry `story` while the radio line's FUND A RUIN or RESTORE step,
@@ -45,7 +47,7 @@ export const litRepair = (world, id, rows) => (repairAsked(world, id) ? rows.map
 
 // The opening's words at a station (src/opening.js), or what COMMONS's voices have said to the pilot (src/chorus.js), as the candidate's
 // `talk`, or nothing.
-const talkAt = (world, s) => { const talk = openingTalk(world, s) ?? chorusTalk(world, s); return talk ? { talk } : {}; };
+const talkAt = (world, s, actions) => { const talk = openingTalk(world, s) ?? chorusTalk(world, s) ?? stationTalk(world, s, actions); return talk ? { talk } : {}; };
 
 // A friendly ship of the sector (the fleet's NPC ships, O-08's traffic: World.trafficHere) as a candidate: its name, a friendly ship, and
 // one row, the pilot's greeting (src/greetings.js), within the reach a craft hails the pilot at itself (src/traffic.js HAIL_REACH). It
@@ -96,16 +98,17 @@ const costWords = (world, def) => { const price = world.findPrice(def); return p
 // conversation is its quest's (`thread`), its plea said before it (`before`): the talk's script holds the plea, the pilot's answer and the
 // thanks in one window (labs/graphics/talk-beat.js; SX, 2026-10-22, the game's dialogs as a script).
 const talk = (base, name, line, run, { thread = null, plea = null } = {}) => ({ ...base, title: name, subtitle: '',
-  talk: { name, lines: [line ?? ''], ...(thread ? { thread } : null), ...(plea ? { before: [plea] } : null) },
+  talk: { name, lines: [line ?? ''], ...(thread ? { thread } : null), ...(plea ? { before: [].concat(plea) } : null) },
   actions: [{ label: 'HAND IN', run }] });
 // A quest ship's plea as its window's words while it asks (the pilot out of fuel, a wreck): the window it asks in is the start of its
 // conversation. None where its plea was never said (a game loaded after it: the object's window then).
-const pleading = (menu, name, plea, thread) => (plea ? { ...menu, talk: { name, lines: [plea], thread } } : menu);
+const pleading = (menu, name, plea, thread) => (plea ? { ...menu, talk: { name, lines: [].concat(plea), thread } } : menu);
 
 // A station's menu: a ruin (src/ruins.js) with what it would be, its price and its own rows, or a working station with its address
 // and its rows.
 function stationMenu(world, s) {
-  return workingKind(world.ledger, s) === 'ruin' ? {
+  if (workingKind(world.ledger, s) !== 'ruin') return workingMenu(world, s, world.stationActions(s));
+  return {
     // A ruin (src/ruins.js): what it would be, and its price in the action.
     id: s.id,
     title: `${s.label} / RUIN`,
@@ -116,7 +119,13 @@ function stationMenu(world, s) {
     interactRadius: s.interactRadius,
     art: s.footprint ?? { model: s.model, scale: s.model.scale },
     actions: litRepair(world, s.id, world.ruinActions(s)),
-  } : {
+    // Its old recording, until it is heard (src/stationTalk.js).
+    ...talkAt(world, s, []),
+  };
+}
+// A working station's menu, its rows `actions`.
+function workingMenu(world, s, actions) {
+  return {
     id: s.id,
     title: world.ledger.broken.has(s.id) ? `${s.label} / DAMAGED` : s.label,
     subtitle: world.ledger.broken.has(s.id) ? `REOPEN FOR ${formatCR(world.ledger.broken.get(s.id))} CR`
@@ -127,9 +136,10 @@ function stationMenu(world, s) {
     // and at what size, so the menu can stand clear of it (`footprint` when
     // the lab draws the station's look, not its model).
     art: s.footprint ?? { model: s.model, scale: s.model.scale },
-    actions: world.stationActions(s),
-    // What its people say in the opening (src/opening.js): the menu is a dialog window then.
-    ...talkAt(world, s),
+    actions,
+    // What its people say: in the opening (src/opening.js), CONCOURSE's AI (src/chorus.js), else its own (src/stationTalk.js) while they have
+    // something to say: the menu is a dialog window then.
+    ...talkAt(world, s, actions),
   };
 }
 
@@ -186,12 +196,12 @@ const drifterMenu = (world, drifter) => {
 const wreckMenu = (world, wreck) => {
   const s = world.sideQuest;
   if (s.wreck.given) return talk({ id: WRECK_ID, x: wreck.x, y: wreck.y, interactRadius: CONFIG.stranded.interactRadius,
-    art: wreckArt(wreck.code) }, wreck.name, s.wreck.thanks, () => handInWreck(world), { thread: s.id, plea: s.wreck.plea });
+    art: wreckArt(wreck.code) }, wreck.name, s.wreck.thanks, () => handInWreck(world), { thread: s.id, plea: s.wreck.plea && [s.wreck.plea, WRECK_NEED] });
   return pleading({
     id: WRECK_ID, title: `${wreck.name} / WRECKED`, subtitle: `GIVE ${wreck.ask} CR / GET A TIP`,
     x: wreck.x, y: wreck.y, interactRadius: CONFIG.stranded.interactRadius, art: wreckArt(wreck.code),
     actions: [{ label: `GIVE ${wreck.ask} CR`, disabled: world.ledger.credits < wreck.ask, reason: `NEED ${wreck.ask} CR`, run: () => giveToWreck(world) }],
-  }, wreck.name, s.wreck.plea, s.id);
+  }, wreck.name, s.wreck.plea && [s.wreck.plea, WRECK_NEED], s.id);
 };
 
 // A ship the pirates pestered (src/pester.js), once they are driven off: it waits with its thanks.
@@ -327,7 +337,7 @@ export function stationActions(world, station, inside = world.docked === station
     for (const c of inside ? offers.slice(0, 1) : offers) {
       // Quoted at the tariff of now: the one the job will keep once accepted.
       const quote = jobQuote(quoteJob(c, world.ledger.restored.size));
-      actions.push({ label: `ACCEPT ${c.label}`, cargo: true, offer: true, note: `${cargoOf(c).name} / ${formatCR(quote)} CR / ${clockText(parTime(c))}`, run: () => world.acceptContract(c) });
+      actions.push({ label: `ACCEPT ${c.label}`, cargo: true, offer: true, contractId: c.id, note: `${cargoOf(c).name} / ${formatCR(quote)} CR / ${clockText(parTime(c))}`, run: () => world.acceptContract(c) });
     }
   }
 
